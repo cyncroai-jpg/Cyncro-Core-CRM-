@@ -12,7 +12,7 @@
 }
 .advancedTitle h2 {
   font:
-    800 34px Montserrat,
+    500 34px Montserrat,
     sans-serif;
   margin: 9px 0;
 }
@@ -190,7 +190,7 @@
 }
 .suitecard h3 {
   font:
-    700 21px Montserrat,
+    500 21px Montserrat,
     sans-serif;
   margin: 9px 0;
 }
@@ -237,7 +237,7 @@
 }
 .pulse b {
   font:
-    700 26px Montserrat,
+    500 26px Montserrat,
     sans-serif;
 }
 .pulse span {
@@ -279,7 +279,7 @@
 }
 .redbadge {
   font:
-    700 11px Montserrat,
+    500 11px Montserrat,
     sans-serif !important;
   color: #e15a70 !important;
   background: #30151b;
@@ -456,7 +456,7 @@
 }
 .offers b {
   font:
-    700 22px Montserrat,
+    500 22px Montserrat,
     sans-serif;
   margin: 12px 0 4px;
 }
@@ -534,7 +534,7 @@
 .score {
   display: block;
   font:
-    800 40px Montserrat,
+    500 40px Montserrat,
     sans-serif;
   color: #d9475f;
   margin: 15px 0;
@@ -549,7 +549,7 @@
 }
 .integrations h3 {
   font:
-    700 15px Montserrat,
+    500 15px Montserrat,
     sans-serif;
   margin: 0;
 }
@@ -591,7 +591,7 @@
 }
 .analyticsStats b {
   font:
-    700 24px Montserrat,
+    500 24px Montserrat,
     sans-serif;
   margin: 8px 0;
 }
@@ -711,19 +711,19 @@ h3,
 .score,
 .analyticsStats b {
   font-family: Montserrat, sans-serif !important;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.035em;
 }
 .logo {
   font-family: Montserrat, sans-serif !important;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.035em;
 }
 .logo i {
   font-family: Montserrat, sans-serif !important;
   font-size: inherit;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: -0.035em;
 }
@@ -811,7 +811,7 @@ header {
 }
 .logo {
   font:
-    800 22px Montserrat,
+    500 22px Montserrat,
     sans-serif;
 }
 .logo i {
@@ -876,14 +876,14 @@ label {
   place-items: center;
   color: #d94059;
   font:
-    700 24px Montserrat,
+    500 24px Montserrat,
     sans-serif;
 }
 .card h1,
 .admin h1,
 .studio h1 {
   font:
-    800 40px/1.08 Montserrat,
+    500 40px/1.08 Montserrat,
     sans-serif;
   margin: 13px 0;
 }
@@ -921,7 +921,7 @@ label {
 .card h2,
 .panel h2 {
   font:
-    800 30px Montserrat,
+    500 30px Montserrat,
     sans-serif;
 }
 .locations {
@@ -1114,7 +1114,7 @@ label {
 .studiostats b {
   display: block;
   font:
-    800 30px Montserrat,
+    500 30px Montserrat,
     sans-serif;
   margin: 12px 0;
 }
@@ -1158,7 +1158,7 @@ label {
 }
 .eventgrid h2 {
   font:
-    700 22px Montserrat,
+    500 22px Montserrat,
     sans-serif;
   margin: 18px 0 7px;
 }
