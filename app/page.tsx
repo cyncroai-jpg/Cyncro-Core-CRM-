@@ -9,7 +9,14 @@ const times = [
   "2:30 PM",
   "4:00 PM",
 ];
-type Tab = "home" | "book" | "admin" | "studio" | "crm" | "dispatch";
+type Tab =
+  | "home"
+  | "book"
+  | "admin"
+  | "studio"
+  | "crm"
+  | "dispatch"
+  | "dispute";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [step, setStep] = useState(1),
@@ -30,6 +37,7 @@ export default function Home() {
             ["studio", "Core Studio"],
             ["crm", "Cyncro CRM"],
             ["dispatch", "Dispatch"],
+            ["dispute", "Dispute"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -55,6 +63,8 @@ export default function Home() {
         <UniversalCRM onOpenCalendar={() => setTab("admin")} />
       ) : tab === "dispatch" ? (
         <CyncroDispatch />
+      ) : tab === "dispute" ? (
+        <CyncroDispute />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
       ) : (
@@ -2257,6 +2267,961 @@ function Switch({
     </div>
   );
 }
+type DisputeView =
+  | "Command"
+  | "Clients"
+  | "Cases"
+  | "Templates"
+  | "Law Library"
+  | "Mail"
+  | "Analytics"
+  | "Compliance";
+
+const disputeCases = [
+  {
+    client: "Amelia Carter",
+    item: "Capital One · ending 4412",
+    bureau: "Experian",
+    issue: "Balance inaccurate",
+    round: 1,
+    due: "Sep 11",
+    status: "INVESTIGATING",
+    score: 82,
+  },
+  {
+    client: "Marcus Reed",
+    item: "Midland Credit Management",
+    bureau: "TransUnion",
+    issue: "Not my account",
+    round: 2,
+    due: "Aug 29",
+    status: "RESPONSE DUE",
+    score: 94,
+  },
+  {
+    client: "Sofia Bennett",
+    item: "Chase · ending 1098",
+    bureau: "Equifax",
+    issue: "Late payment inaccurate",
+    round: 1,
+    due: "Sep 08",
+    status: "MAILED",
+    score: 76,
+  },
+  {
+    client: "Daniel Foster",
+    item: "Portfolio Recovery",
+    bureau: "All bureaus",
+    issue: "Date/status mismatch",
+    round: 3,
+    due: "Aug 22",
+    status: "ESCALATE",
+    score: 89,
+  },
+];
+
+function CyncroDispute() {
+  const [view, setView] = useState<DisputeView>("Command");
+  const [selectedCase, setSelectedCase] = useState(1);
+  const [notice, setNotice] = useState("");
+  const [template, setTemplate] = useState(
+    "CRA factual dispute — inaccurate account data",
+  );
+  const [generated, setGenerated] = useState(false);
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 1900);
+  };
+  const nav: { name: DisputeView; icon: string }[] = [
+    { name: "Command", icon: "⌂" },
+    { name: "Clients", icon: "◎" },
+    { name: "Cases", icon: "▦" },
+    { name: "Templates", icon: "▤" },
+    { name: "Law Library", icon: "§" },
+    { name: "Mail", icon: "✉" },
+    { name: "Analytics", icon: "⌁" },
+    { name: "Compliance", icon: "◇" },
+  ];
+  return (
+    <section className="disputeShell">
+      {notice && <div className="dispatchToast">✓ {notice}</div>}
+      <aside className="disputeSidebar">
+        <div className="disputeBrand">
+          <span>CD</span>
+          <div>
+            <b>Cyncro Dispute</b>
+            <small>Factual dispute operations</small>
+          </div>
+        </div>
+        <div className="disputeWorkspace">
+          <small>ACTIVE ORGANIZATION</small>
+          <button>
+            <span>VP</span>
+            <div>
+              <b>Vivid Pinnacle</b>
+              <small>Administrator</small>
+            </div>
+            <i>⌄</i>
+          </button>
+        </div>
+        <nav>
+          {nav.map((item) => (
+            <button
+              className={view === item.name ? "active" : ""}
+              onClick={() => setView(item.name)}
+              key={item.name}
+            >
+              <i>{item.icon}</i>
+              <span>{item.name}</span>
+              {item.name === "Cases" && <em>24</em>}
+            </button>
+          ))}
+        </nav>
+        <div className="disputeGuard">
+          <span>COMPLIANCE GUARD</span>
+          <b>● Active</b>
+          <small>CROA disclosures · truth attestation · audit log</small>
+        </div>
+        <button
+          className="exitDispute"
+          onClick={() => flash("Workspace switcher opened")}
+        >
+          Cyncro Core modules ↗
+        </button>
+      </aside>
+      <main className="disputeMain">
+        <header className="disputeTopbar">
+          <div>
+            <small>THURSDAY, AUGUST 13</small>
+            <b>{view === "Command" ? "Dispute Command Center" : view}</b>
+          </div>
+          <div>
+            <button onClick={() => flash("Global search opened")}>⌕</button>
+            <button onClick={() => flash("No compliance alerts")}>◌</button>
+            <button
+              onClick={() => {
+                setView("Cases");
+                flash("New factual dispute case opened");
+              }}
+            >
+              ＋ New case
+            </button>
+          </div>
+        </header>
+        <div className="disputeContent">
+          {view === "Command" && (
+            <DisputeCommand onView={setView} onFlash={flash} />
+          )}
+          {view === "Cases" && (
+            <DisputeCases
+              selected={selectedCase}
+              setSelected={setSelectedCase}
+              onFlash={flash}
+            />
+          )}
+          {view === "Clients" && (
+            <DisputeClients onCase={() => setView("Cases")} onFlash={flash} />
+          )}
+          {view === "Templates" && (
+            <DisputeTemplates
+              template={template}
+              setTemplate={setTemplate}
+              generated={generated}
+              setGenerated={setGenerated}
+              onFlash={flash}
+            />
+          )}
+          {view === "Law Library" && <DisputeLawLibrary />}
+          {view === "Mail" && <DisputeMail onFlash={flash} />}
+          {view === "Analytics" && <DisputeAnalytics />}
+          {view === "Compliance" && <DisputeCompliance onFlash={flash} />}
+        </div>
+      </main>
+    </section>
+  );
+}
+
+function DisputeCommand({
+  onView,
+  onFlash,
+}: {
+  onView: (view: DisputeView) => void;
+  onFlash: (message: string) => void;
+}) {
+  return (
+    <>
+      <div className="disputeHero">
+        <div>
+          <span>CONSUMER REPORT ACCURACY OPERATIONS</span>
+          <h1>
+            Every fact tracked.
+            <br />
+            <i>Every deadline protected.</i>
+          </h1>
+          <p>
+            Evidence-led dispute management with bureau rounds, furnisher
+            investigations, certified mail, response analysis, and compliance
+            controls.
+          </p>
+        </div>
+        <button onClick={() => onView("Templates")}>
+          ✦ Build compliant dispute
+        </button>
+      </div>
+      <div className="disputeMetrics">
+        {[
+          ["ACTIVE CLIENTS", "184", "+12 this month"],
+          ["OPEN DISPUTES", "327", "24 responses due"],
+          ["ITEMS CORRECTED", "68%", "Verified outcomes"],
+          ["DEADLINES PROTECTED", "100%", "0 overdue"],
+        ].map((m) => (
+          <article key={m[0]}>
+            <small>{m[0]}</small>
+            <b>{m[1]}</b>
+            <span>{m[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="disputeCommandGrid">
+        <section className="disputePanel casePulse">
+          <header>
+            <div>
+              <small>PRIORITY CASES</small>
+              <h2>What needs action now</h2>
+            </div>
+            <button onClick={() => onView("Cases")}>All cases →</button>
+          </header>
+          {disputeCases.map((c, i) => (
+            <button onClick={() => onView("Cases")} key={c.client}>
+              <span>
+                <i>
+                  {c.client
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </i>
+                <div>
+                  <b>{c.client}</b>
+                  <small>
+                    {c.item} · {c.bureau}
+                  </small>
+                </div>
+              </span>
+              <em>{c.issue}</em>
+              <strong>{c.status}</strong>
+              <time>{c.due}</time>
+            </button>
+          ))}
+        </section>
+        <section className="disputePanel deadlineRadar">
+          <small>STATUTORY DEADLINE RADAR</small>
+          <h2>Investigation clock</h2>
+          <div className="deadlineRing">
+            <span>
+              <b>24</b>
+              <small>RESPONSES DUE</small>
+            </span>
+          </div>
+          {[
+            ["0–7 days", "5", "urgent"],
+            ["8–15 days", "8", "watch"],
+            ["16–30 days", "11", "safe"],
+          ].map((x) => (
+            <article key={x[0]}>
+              <i className={x[2]} />
+              <span>{x[0]}</span>
+              <b>{x[1]}</b>
+            </article>
+          ))}
+          <button onClick={() => onView("Mail")}>
+            Open deadline command →
+          </button>
+        </section>
+        <section className="disputePanel evidenceHealth">
+          <header>
+            <div>
+              <small>EVIDENCE READINESS</small>
+              <h2>Case strength before submission</h2>
+            </div>
+            <span>86% avg</span>
+          </header>
+          {[
+            ["Identity + address verified", "100%"],
+            ["Report page attached", "92%"],
+            ["Specific factual allegation", "88%"],
+            ["Supporting documents", "76%"],
+            ["Requested correction stated", "94%"],
+          ].map((x) => (
+            <article key={x[0]}>
+              <span>{x[0]}</span>
+              <em>
+                <i style={{ width: x[1] }} />
+              </em>
+              <b>{x[1]}</b>
+            </article>
+          ))}
+        </section>
+        <section className="disputePanel compliancePulse">
+          <small>COMPLIANCE PULSE</small>
+          <h2>Built to protect the consumer and the company.</h2>
+          <div>
+            <span>✓ No advance-fee workflow</span>
+            <span>✓ Three-day cancellation tracked</span>
+            <span>✓ Truth attestation required</span>
+            <span>✓ No blanket disputes</span>
+            <span>✓ No false identity-theft claims</span>
+            <span>✓ Immutable activity record</span>
+          </div>
+          <button onClick={() => onView("Compliance")}>
+            Open compliance center →
+          </button>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function DisputeCases({
+  selected,
+  setSelected,
+  onFlash,
+}: {
+  selected: number;
+  setSelected: (n: number) => void;
+  onFlash: (m: string) => void;
+}) {
+  const c = disputeCases[selected];
+  return (
+    <div className="disputeCases">
+      <section className="disputePanel disputeCaseList">
+        <header>
+          <div>
+            <small>CASE COMMAND</small>
+            <h1>Active disputes</h1>
+          </div>
+          <button onClick={() => onFlash("Case filters opened")}>Filter</button>
+        </header>
+        {disputeCases.map((x, i) => (
+          <button
+            className={selected === i ? "active" : ""}
+            onClick={() => setSelected(i)}
+            key={x.client}
+          >
+            <span>
+              <b>{x.client}</b>
+              <small>
+                {x.item}
+                <br />
+                {x.bureau} · Round {x.round}
+              </small>
+            </span>
+            <em>{x.status}</em>
+            <strong>{x.score}%</strong>
+          </button>
+        ))}
+      </section>
+      <aside className="disputePanel disputeInspector">
+        <header>
+          <div>
+            <small>CASE FILE</small>
+            <h2>{c.client}</h2>
+          </div>
+          <button onClick={() => onFlash("Case audit trail opened")}>
+            •••
+          </button>
+        </header>
+        <span className="caseStatus">● {c.status}</span>
+        <h3>{c.item}</h3>
+        <p>
+          {c.issue} · {c.bureau} · Round {c.round}
+        </p>
+        <div className="caseStrength">
+          <span>
+            <b>{c.score}%</b>
+            <small>EVIDENCE STRENGTH</small>
+          </span>
+          <em>
+            <i style={{ width: `${c.score}%` }} />
+          </em>
+        </div>
+        <div className="caseFacts">
+          {[
+            ["DISPUTED FIELD", c.issue],
+            ["REPORTED VALUE", "$4,281 / 120+ days late"],
+            ["CONSUMER POSITION", "Balance and status are inaccurate"],
+            [
+              "REQUESTED RESULT",
+              "Investigate and correct or delete if unverifiable",
+            ],
+          ].map((x) => (
+            <span key={x[0]}>
+              <small>{x[0]}</small>
+              <b>{x[1]}</b>
+            </span>
+          ))}
+        </div>
+        <div className="caseTimeline">
+          {[
+            ["REPORT REVIEWED", "Aug 10", "✓"],
+            ["EVIDENCE LOCKED", "Aug 11", "✓"],
+            ["DISPUTE MAILED", "Aug 12", "✓"],
+            ["RESPONSE DUE", c.due, ""],
+          ].map((x) => (
+            <article className={x[2] ? "done" : ""} key={x[0]}>
+              <i>{x[2]}</i>
+              <span>
+                <b>{x[0]}</b>
+                <small>{x[1]}</small>
+              </span>
+            </article>
+          ))}
+        </div>
+        <button onClick={() => onFlash("Response analyzer opened")}>
+          Analyze bureau response
+        </button>
+        <button onClick={() => onFlash("Escalation path prepared")}>
+          Prepare next lawful action
+        </button>
+      </aside>
+    </div>
+  );
+}
+
+function DisputeClients({
+  onCase,
+  onFlash,
+}: {
+  onCase: () => void;
+  onFlash: (m: string) => void;
+}) {
+  return (
+    <div className="disputeClients">
+      <div className="disputeHero compact">
+        <div>
+          <span>CLIENT OPERATIONS</span>
+          <h1>One consumer. One defensible record.</h1>
+          <p>
+            Reports, identity documents, consent, contracts, disputes, results,
+            communications, and billing.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Secure client invitation created")}>
+          ＋ Invite client
+        </button>
+      </div>
+      <section className="disputePanel clientPortfolio">
+        <header>
+          <span>CLIENT</span>
+          <span>ACTIVE ITEMS</span>
+          <span>NEXT ACTION</span>
+          <span>OUTCOME</span>
+          <span>RISK</span>
+        </header>
+        {[
+          [
+            "AC",
+            "Amelia Carter",
+            "7",
+            "Experian response · 12d",
+            "4 corrected",
+            "LOW",
+          ],
+          [
+            "MR",
+            "Marcus Reed",
+            "11",
+            "Furnisher response · 3d",
+            "6 corrected",
+            "URGENT",
+          ],
+          [
+            "SB",
+            "Sofia Bennett",
+            "5",
+            "Equifax investigation · 10d",
+            "2 corrected",
+            "LOW",
+          ],
+          [
+            "DF",
+            "Daniel Foster",
+            "9",
+            "CFPB eligibility review",
+            "5 corrected",
+            "REVIEW",
+          ],
+        ].map((x) => (
+          <button onClick={onCase} key={x[1]}>
+            <span>
+              <i>{x[0]}</i>
+              <b>{x[1]}</b>
+            </span>
+            <strong>{x[2]}</strong>
+            <span>{x[3]}</span>
+            <em>{x[4]}</em>
+            <small>{x[5]}</small>
+          </button>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DisputeTemplates({
+  template,
+  setTemplate,
+  generated,
+  setGenerated,
+  onFlash,
+}: {
+  template: string;
+  setTemplate: (v: string) => void;
+  generated: boolean;
+  setGenerated: (v: boolean) => void;
+  onFlash: (m: string) => void;
+}) {
+  const templates = [
+    "CRA factual dispute — inaccurate account data",
+    "Direct furnisher dispute — Regulation V",
+    "Method of verification request",
+    "Identity theft block request — verified victims only",
+    "Debt collector validation request",
+    "Obsolete information dispute",
+    "Mixed-file / identity mismatch",
+    "CFPB complaint narrative — after dispute eligibility",
+  ];
+  return (
+    <div className="templateWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>COMPLIANCE-AWARE DOCUMENT ENGINE</span>
+          <h1>Specific facts. Relevant law. Complete evidence.</h1>
+          <p>
+            Templates assemble from the client’s actual report data and
+            attachments—never generic blanket language.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setGenerated(true);
+            onFlash("Fact-specific draft generated");
+          }}
+        >
+          ✦ Generate draft
+        </button>
+      </div>
+      <div className="templateBuilder">
+        <section className="disputePanel templateCatalog">
+          <small>TEMPLATE LIBRARY</small>
+          {templates.map((t) => (
+            <button
+              className={template === t ? "active" : ""}
+              onClick={() => {
+                setTemplate(t);
+                setGenerated(false);
+              }}
+              key={t}
+            >
+              <span>§</span>
+              <div>
+                <b>{t}</b>
+                <small>Attorney-review ready · version controlled</small>
+              </div>
+            </button>
+          ))}
+        </section>
+        <section className="disputePanel letterComposer">
+          <header>
+            <div>
+              <small>SELECTED WORKFLOW</small>
+              <h2>{template}</h2>
+            </div>
+            <span>Compliance check: PASSED</span>
+          </header>
+          <div className="composerChecks">
+            <span>✓ Specific disputed field</span>
+            <span>✓ Supporting document linked</span>
+            <span>✓ Requested correction</span>
+            <span>✓ Truth attestation</span>
+          </div>
+          {generated ? (
+            <article className="generatedLetter">
+              <small>DRAFT · CONSUMER REVIEW REQUIRED</small>
+              <p>
+                <b>
+                  Re: Request for investigation of specifically identified
+                  inaccurate information
+                </b>
+              </p>
+              <p>
+                I am writing to dispute the accuracy and completeness of the
+                account information identified in the attached report excerpt.
+                The specific field disputed is the reported balance/status. My
+                records supporting this position are attached and indexed.
+              </p>
+              <p>
+                Please conduct a reasonable reinvestigation, forward all
+                relevant information to the furnisher, and correct or delete
+                information that is inaccurate, incomplete, or cannot be
+                verified. Please provide the written results and an updated
+                report.
+              </p>
+              <p>
+                <b>Authority map:</b> FCRA §§ 611 and 623; Regulation V §
+                1022.43 where applicable.
+              </p>
+            </article>
+          ) : (
+            <div className="composerEmpty">
+              <span>§</span>
+              <h3>Build a defensible dispute</h3>
+              <p>
+                Select verified facts and evidence, then generate a
+                consumer-review draft.
+              </p>
+            </div>
+          )}
+          <footer>
+            <button onClick={() => onFlash("Attorney review queue opened")}>
+              Send for legal review
+            </button>
+            <button onClick={() => onFlash("Truth attestation requested")}>
+              Request consumer approval →
+            </button>
+          </footer>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+const lawCards = [
+  [
+    "FCRA § 611",
+    "15 U.S.C. § 1681i",
+    "CRA reinvestigation, relevant information, results, frivolous-dispute notices",
+    "CRA dispute · method of verification",
+  ],
+  [
+    "FCRA § 623",
+    "15 U.S.C. § 1681s-2",
+    "Furnisher accuracy duties and investigations after CRA notice",
+    "Furnisher / CRA workflow",
+  ],
+  [
+    "Identity Theft Block",
+    "15 U.S.C. § 1681c-2",
+    "Block information resulting from documented identity theft",
+    "Verified identity-theft cases only",
+  ],
+  [
+    "Obsolescence",
+    "15 U.S.C. § 1681c",
+    "Time limits for certain adverse information",
+    "Obsolete-item review",
+  ],
+  [
+    "Permissible Purpose",
+    "15 U.S.C. § 1681b",
+    "When a consumer report may be obtained or used",
+    "Inquiry / access review",
+  ],
+  [
+    "Disclosures",
+    "15 U.S.C. § 1681g",
+    "Consumer file disclosure requirements",
+    "File disclosure requests",
+  ],
+  [
+    "Regulation V",
+    "12 C.F.R. § 1022.43",
+    "Direct disputes to furnishers and required contents",
+    "Direct furnisher disputes",
+  ],
+  [
+    "CROA",
+    "15 U.S.C. §§ 1679–1679j",
+    "Advertising, disclosures, contracts, advance fees, cancellation rights",
+    "Company compliance",
+  ],
+  [
+    "FDCPA Disputes",
+    "15 U.S.C. § 1692g",
+    "Debt validation and dispute-related collection duties",
+    "Collector correspondence",
+  ],
+];
+function DisputeLawLibrary() {
+  return (
+    <div className="lawWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>FEDERAL AUTHORITY MAP</span>
+          <h1>Law connected to workflow—not pasted blindly.</h1>
+          <p>
+            Current federal authorities organized by issue, recipient, evidence
+            requirements, and procedural timing.
+          </p>
+        </div>
+        <a
+          href="https://www.consumerfinance.gov/rules-policy/regulations/1022/43/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Official Regulation V ↗
+        </a>
+      </div>
+      <div className="lawGrid">
+        {lawCards.map((x) => (
+          <article className="disputePanel" key={x[0]}>
+            <header>
+              <span>§</span>
+              <div>
+                <small>{x[1]}</small>
+                <h2>{x[0]}</h2>
+              </div>
+            </header>
+            <p>{x[2]}</p>
+            <footer>
+              <span>{x[3]}</span>
+              <button>Open authority →</button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      <div className="legalNotice">
+        Legal reference library—not legal advice. Federal law is only part of
+        compliance; state credit-services laws, licensing, bonding,
+        telemarketing, privacy, and contract rules require counsel review.
+      </div>
+    </div>
+  );
+}
+
+function DisputeMail({ onFlash }: { onFlash: (m: string) => void }) {
+  return (
+    <div className="mailWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>CERTIFIED MAIL + RESPONSE CONTROL</span>
+          <h1>Proof from draft to delivery.</h1>
+          <p>
+            Document versions, consumer approvals, certified tracking, delivery
+            dates, statutory clocks, and returned responses.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Mail batch prepared")}>
+          ＋ Prepare mail batch
+        </button>
+      </div>
+      <div className="mailMetrics">
+        {[
+          ["READY TO MAIL", "18", "$142 postage"],
+          ["IN TRANSIT", "34", "100% tracked"],
+          ["DELIVERED", "27", "Clocks running"],
+          ["RESPONSES DUE", "5", "Next 7 days"],
+        ].map((x) => (
+          <article className="disputePanel" key={x[0]}>
+            <small>{x[0]}</small>
+            <b>{x[1]}</b>
+            <span>{x[2]}</span>
+          </article>
+        ))}
+      </div>
+      <section className="disputePanel mailTable">
+        <header>
+          <span>CLIENT / RECIPIENT</span>
+          <span>DOCUMENT</span>
+          <span>TRACKING</span>
+          <span>DELIVERED</span>
+          <span>DEADLINE</span>
+        </header>
+        {[
+          [
+            "Marcus Reed · TransUnion",
+            "Round 2 factual dispute",
+            "9407 1118 9876 5432",
+            "Aug 01",
+            "Aug 31",
+          ],
+          [
+            "Amelia Carter · Experian",
+            "Round 1 factual dispute",
+            "9407 1118 9876 5458",
+            "Aug 12",
+            "Sep 11",
+          ],
+          [
+            "Sofia Bennett · Equifax",
+            "Round 1 factual dispute",
+            "9407 1118 9876 5501",
+            "In transit",
+            "Pending",
+          ],
+        ].map((x) => (
+          <button
+            onClick={() => onFlash("Certified-mail evidence opened")}
+            key={x[0]}
+          >
+            {x.map((v) => (
+              <span key={v}>{v}</span>
+            ))}
+          </button>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DisputeAnalytics() {
+  return (
+    <div className="disputeAnalytics">
+      <div className="disputeHero compact">
+        <div>
+          <span>VERIFIED OUTCOME INTELLIGENCE</span>
+          <h1>Measure accuracy outcomes—not empty promises.</h1>
+          <p>
+            Correction rates, response quality, cycle time, evidence strength,
+            bureau behavior, and compliance performance.
+          </p>
+        </div>
+      </div>
+      <div className="disputeMetrics">
+        {[
+          ["VERIFIED CORRECTION RATE", "68%", "Across completed items"],
+          ["AVG RESOLUTION TIME", "41d", "−6 days QoQ"],
+          ["RESPONSE ANALYZED", "94%", "Within 24 hours"],
+          ["CLIENT RETENTION", "91%", "No score guarantees"],
+        ].map((x) => (
+          <article key={x[0]}>
+            <small>{x[0]}</small>
+            <b>{x[1]}</b>
+            <span>{x[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="analyticsDisputeGrid">
+        <section className="disputePanel outcomeBars">
+          <small>OUTCOMES BY ISSUE TYPE</small>
+          <h2>Verified report changes</h2>
+          {[
+            ["Identity mismatch", "84%"],
+            ["Balance/status error", "72%"],
+            ["Duplicate account", "69%"],
+            ["Obsolete information", "65%"],
+            ["Late payment accuracy", "41%"],
+          ].map((x) => (
+            <article key={x[0]}>
+              <span>{x[0]}</span>
+              <em>
+                <i style={{ width: x[1] }} />
+              </em>
+              <b>{x[1]}</b>
+            </article>
+          ))}
+        </section>
+        <section className="disputePanel bureauScore">
+          <small>BUREAU RESPONSE QUALITY</small>
+          <h2>Investigation intelligence</h2>
+          {[
+            ["Experian", "4.1 / 5", "29d"],
+            ["Equifax", "3.8 / 5", "31d"],
+            ["TransUnion", "4.0 / 5", "28d"],
+            ["Furnishers", "3.4 / 5", "27d"],
+          ].map((x) => (
+            <article key={x[0]}>
+              <b>{x[0]}</b>
+              <span>{x[1]} completeness</span>
+              <em>{x[2]}</em>
+            </article>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
+  return (
+    <div className="complianceWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>COMPLIANCE OPERATING SYSTEM</span>
+          <h1>Designed to stop bad credit-repair behavior.</h1>
+          <p>
+            Federal controls plus configurable state-law review, disclosures,
+            contracts, consent, billing gates, and audit evidence.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Compliance report generated")}>
+          Export compliance report
+        </button>
+      </div>
+      <div className="complianceGrid">
+        {[
+          [
+            "CROA Contract Controls",
+            "Written agreement, service description, cost, timing, guarantees, cancellation documents",
+            "PASS",
+          ],
+          [
+            "Billing Gate",
+            "No charge before the contracted service is fully performed",
+            "ENFORCED",
+          ],
+          [
+            "Consumer Rights Disclosure",
+            "Required federal disclosure versioned before contract signature",
+            "CURRENT",
+          ],
+          [
+            "Three-Day Cancellation",
+            "Cancellation window and notice tracked automatically",
+            "ENFORCED",
+          ],
+          [
+            "Truth + Accuracy Attestation",
+            "Consumer confirms each factual allegation and attachment",
+            "REQUIRED",
+          ],
+          [
+            "Identity-Theft Safeguard",
+            "No § 605B workflow without identity-theft report and verified evidence",
+            "LOCKED",
+          ],
+          [
+            "State Rules Review",
+            "State licensing, bonding, fee, contract, and telemarketing matrix",
+            "COUNSEL REVIEW",
+          ],
+          [
+            "Template Governance",
+            "Authority version, editor, approvals, and use history preserved",
+            "AUDITED",
+          ],
+        ].map((x) => (
+          <article className="disputePanel" key={x[0]}>
+            <header>
+              <span>◇</span>
+              <em>{x[2]}</em>
+            </header>
+            <h2>{x[0]}</h2>
+            <p>{x[1]}</p>
+            <button onClick={() => onFlash(`${x[0]} control opened`)}>
+              Review control →
+            </button>
+          </article>
+        ))}
+      </div>
+      <div className="complianceWarning">
+        <b>Important:</b> Cyncro Dispute does not remove accurate, current
+        negative information; does not guarantee score increases or deletions;
+        and blocks false identity-theft or blanket dispute workflows.
+      </div>
+    </div>
+  );
+}
+
 type DispatchRole = "Owner" | "Dispatcher" | "Technician";
 type DispatchView =
   | "Dashboard"
