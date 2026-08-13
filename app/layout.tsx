@@ -6,7 +6,7 @@ import "@fontsource/inter/700.css";
 import "@fontsource/cinzel/500.css";
 import "@fontsource/cinzel/600.css";
 import "@fontsource/cinzel/700.css";
-import "@fontsource/great-vibes/400.css";
+import "@fontsource/parisienne/400.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
