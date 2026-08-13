@@ -105,6 +105,74 @@ create table public.dispatch_job_notes (
   created_at timestamptz not null default now()
 );
 
+create table public.dispatch_time_entries (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.dispatch_organizations(id) on delete cascade,
+  job_id uuid not null references public.dispatch_jobs(id) on delete cascade,
+  technician_id uuid not null references auth.users(id),
+  clocked_in_at timestamptz not null,
+  clocked_out_at timestamptz,
+  clock_in_latitude double precision,
+  clock_in_longitude double precision,
+  clock_out_latitude double precision,
+  clock_out_longitude double precision,
+  regular_minutes integer not null default 0 check (regular_minutes >= 0),
+  overtime_minutes integer not null default 0 check (overtime_minutes >= 0),
+  drive_minutes integer not null default 0 check (drive_minutes >= 0),
+  verified boolean not null default false,
+  approved_by uuid references auth.users(id),
+  approved_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table public.dispatch_payments (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.dispatch_organizations(id) on delete cascade,
+  job_id uuid not null references public.dispatch_jobs(id) on delete cascade,
+  provider text not null default 'stripe',
+  external_invoice_id text,
+  external_payment_id text,
+  status text not null check (status in ('draft','open','deposit_paid','paid','past_due','void','refunded','disputed')),
+  subtotal numeric(12,2) not null default 0,
+  tax numeric(12,2) not null default 0,
+  amount_paid numeric(12,2) not null default 0,
+  amount_due numeric(12,2) not null default 0,
+  currency text not null default 'usd',
+  due_at timestamptz,
+  paid_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.dispatch_accounting_connections (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.dispatch_organizations(id) on delete cascade,
+  provider text not null check (provider in ('quickbooks_online')),
+  external_company_id text not null,
+  encrypted_refresh_token bytea not null,
+  status text not null default 'active' check (status in ('active','reauthorization_required','disabled')),
+  connected_by uuid not null references auth.users(id),
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (organization_id, provider)
+);
+
+create table public.dispatch_accounting_sync_log (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.dispatch_organizations(id) on delete cascade,
+  connection_id uuid not null references public.dispatch_accounting_connections(id) on delete cascade,
+  entity_type text not null,
+  entity_id uuid,
+  direction text not null check (direction in ('outbound','inbound')),
+  status text not null check (status in ('pending','succeeded','failed','retrying')),
+  external_id text,
+  error_code text,
+  error_message text,
+  attempted_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
 create table public.dispatch_equipment_installed (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.dispatch_organizations(id) on delete cascade,
@@ -239,6 +307,9 @@ create index dispatch_jobs_org_date_idx on public.dispatch_jobs (organization_id
 create index dispatch_jobs_org_status_idx on public.dispatch_jobs (organization_id, status);
 create index dispatch_assignments_tech_idx on public.dispatch_job_assignments (technician_id, job_id);
 create index dispatch_locations_tech_time_idx on public.dispatch_tech_locations (technician_id, recorded_at desc);
+create index dispatch_time_job_tech_idx on public.dispatch_time_entries (job_id, technician_id, clocked_in_at desc);
+create index dispatch_payments_org_status_idx on public.dispatch_payments (organization_id, status, due_at);
+create index dispatch_accounting_sync_status_idx on public.dispatch_accounting_sync_log (organization_id, status, attempted_at desc);
 create index dispatch_warranty_expiry_idx on public.dispatch_equipment_warranty (organization_id, expires_on);
 create index dispatch_jobs_tech_route_idx on public.dispatch_job_assignments (technician_id, assigned_at desc);
 create index dispatch_sms_inbox_queue_idx on public.dispatch_sms_inbox (processing_status, next_attempt_at);
@@ -264,6 +335,10 @@ alter table public.dispatch_tech_locations enable row level security;
 alter table public.dispatch_work_orders enable row level security;
 alter table public.dispatch_job_photos enable row level security;
 alter table public.dispatch_job_notes enable row level security;
+alter table public.dispatch_time_entries enable row level security;
+alter table public.dispatch_payments enable row level security;
+alter table public.dispatch_accounting_connections enable row level security;
+alter table public.dispatch_accounting_sync_log enable row level security;
 alter table public.dispatch_equipment_installed enable row level security;
 alter table public.dispatch_materials_used enable row level security;
 alter table public.dispatch_job_profitability enable row level security;
@@ -351,6 +426,30 @@ for all using (
     where a.job_id = dispatch_job_notes.job_id and a.technician_id = auth.uid()
   ))
 );
+
+create policy "dispatch technicians manage assigned time" on public.dispatch_time_entries
+for all using (technician_id = auth.uid() and exists (
+  select 1 from public.dispatch_job_assignments a
+  where a.job_id = dispatch_time_entries.job_id and a.technician_id = auth.uid()
+)) with check (technician_id = auth.uid() and exists (
+  select 1 from public.dispatch_job_assignments a
+  where a.job_id = dispatch_time_entries.job_id and a.technician_id = auth.uid()
+));
+
+create policy "dispatch operations manage time" on public.dispatch_time_entries
+for all using (public.dispatch_has_role(organization_id, array['owner','dispatcher']::public.dispatch_role[]))
+with check (public.dispatch_has_role(organization_id, array['owner','dispatcher']::public.dispatch_role[]));
+
+create policy "dispatch owners manage payments" on public.dispatch_payments
+for all using (public.dispatch_has_role(organization_id, array['owner']::public.dispatch_role[]))
+with check (public.dispatch_has_role(organization_id, array['owner']::public.dispatch_role[]));
+
+create policy "dispatch owners manage accounting" on public.dispatch_accounting_connections
+for all using (public.dispatch_has_role(organization_id, array['owner']::public.dispatch_role[]))
+with check (public.dispatch_has_role(organization_id, array['owner']::public.dispatch_role[]));
+
+create policy "dispatch owners read accounting sync" on public.dispatch_accounting_sync_log
+for select using (public.dispatch_has_role(organization_id, array['owner']::public.dispatch_role[]));
 
 create policy "dispatch organization equipment access" on public.dispatch_equipment_installed
 for all using (public.dispatch_has_role(organization_id, array['owner','dispatcher']::public.dispatch_role[]))

@@ -6,6 +6,520 @@
   position: relative;
 }
 
+.jobInspectorTabs {
+  display: flex;
+  gap: 5px;
+  margin: 18px 0;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.jobInspectorTabs button {
+  flex: 1;
+  min-width: max-content;
+  padding: 8px 9px;
+  border: 0;
+  color: #aaa;
+  background: transparent;
+  font-size: 10px;
+}
+.jobInspectorTabs button.active {
+  color: #fff;
+  border-radius: 7px;
+  background: #9e101c;
+}
+.jobRecordPanel {
+  display: grid;
+  gap: 14px;
+}
+.jobRecordPanel > header {
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+.jobRecordPanel > header div {
+  display: grid;
+  gap: 4px;
+}
+.jobRecordPanel > header span {
+  max-width: 155px;
+  color: #aaa;
+  font-size: 10px;
+  text-align: right;
+}
+.jobNotesList {
+  display: grid;
+  gap: 10px;
+  max-height: 250px;
+  overflow: auto;
+}
+.jobNotesList article {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.jobNotesList article > i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #fff;
+  background: #8f101a;
+  font-size: 10px;
+  font-style: normal;
+}
+.jobNotesList p {
+  margin: 0 0 5px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jobNotesList small,
+.emptyRecord {
+  color: #aaa;
+  font-size: 10px;
+}
+.jobRecordPanel textarea {
+  min-height: 96px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #fff;
+  background: #151518;
+  font: inherit;
+}
+.jobPhotoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.jobPhotoGrid article {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #131316;
+}
+.jobPhotoGrid article > div {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 78px;
+  margin-bottom: 8px;
+  border-radius: 7px;
+  color: #777;
+  background: linear-gradient(135deg, #2b2b30, #131316);
+  font-size: 28px;
+}
+.jobPhotoGrid article > div span {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  color: #fff;
+  background: #8f101a;
+  font-size: 7px;
+}
+.jobPhotoGrid b,
+.jobPhotoGrid small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jobPhotoGrid b {
+  color: #fff;
+  font-size: 10px;
+}
+.jobPhotoGrid small {
+  margin-top: 3px;
+  color: #888;
+  font-size: 8px;
+}
+.photoUploadButton {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+}
+.photoUploadButton input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.clockHero {
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: radial-gradient(
+    circle at 50% 10%,
+    rgba(145, 16, 26, 0.15),
+    transparent 65%
+  );
+}
+.clockHero span {
+  color: #aaa;
+  font-size: 9px;
+}
+.clockHero.active span {
+  color: #ff5965;
+}
+.clockHero b {
+  color: #fff;
+  font-size: 32px;
+  font-weight: 400;
+}
+.clockHero small {
+  color: #888;
+}
+.clockAction {
+  min-height: 46px;
+  color: #fff !important;
+  background: #9e101c !important;
+}
+.timeEntries {
+  display: grid;
+  gap: 7px;
+}
+.timeEntries article {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #aaa;
+  font-size: 11px;
+}
+.timeEntries b {
+  color: #fff;
+}
+.workOrderDetail section {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.workOrderDetail section p {
+  margin: 5px 0 0;
+  color: #ddd;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.workOrderDetail > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.workOrderDetail > div span {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.workOrderDetail label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ddd;
+  font-size: 11px;
+}
+.workOrdersWorkspace,
+.dispatchPaymentsWorkspace {
+  display: grid;
+  gap: 20px;
+}
+.workOrderMetrics,
+.paymentMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.workOrderMetrics article,
+.paymentMetrics article {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+}
+.workOrderMetrics b,
+.paymentMetrics b {
+  color: #fff;
+  font-size: 25px;
+  font-weight: 400;
+}
+.workOrderMetrics span,
+.paymentMetrics span {
+  color: #aaa;
+  font-size: 10px;
+}
+.workOrderCommandTable {
+  overflow: hidden;
+}
+.workOrderCommandTable > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+}
+.workOrderCommandTable select {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #fff;
+  background: #161619;
+}
+.workOrderTableHead,
+.workOrderCommandTable > button {
+  display: grid;
+  grid-template-columns: 1.35fr 1.1fr 0.7fr 0.75fr 0.65fr;
+  gap: 12px;
+  align-items: center;
+}
+.workOrderTableHead {
+  padding: 10px 18px;
+  color: #888;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 8px;
+}
+.workOrderCommandTable > button {
+  width: 100%;
+  padding: 15px 18px;
+  border-width: 1px 0 0;
+  text-align: left;
+}
+.workOrderCommandTable > button span {
+  display: grid;
+  gap: 4px;
+}
+.workOrderCommandTable > button small {
+  color: #999;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.workOrderCommandTable > button em {
+  justify-self: end;
+  padding: 5px 7px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+.workOrderCommandTable > button em.ready {
+  color: #7ce3a5;
+  background: rgba(38, 155, 87, 0.13);
+}
+.workOrderCommandTable > button em.attention {
+  color: #ffc079;
+  background: rgba(255, 157, 47, 0.12);
+}
+.paymentsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.65fr);
+  gap: 16px;
+}
+.invoiceCommand {
+  overflow: hidden;
+}
+.invoiceCommand > header {
+  padding: 20px;
+}
+.invoiceCommand > article {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 15px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.invoiceCommand article span {
+  display: grid;
+  gap: 4px;
+}
+.invoiceCommand article small {
+  color: #999;
+}
+.invoiceCommand article em {
+  color: #ff7881;
+  font-size: 9px;
+}
+.invoiceCommand article button {
+  min-height: 34px;
+  padding: 0 11px;
+}
+.quickBooksCard {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 22px;
+}
+.quickBooksCard header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.quickBooksCard header > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: #fff;
+  background: #555;
+  font-weight: 700;
+}
+.quickBooksCard header > span.connected {
+  background: #2ca01c;
+}
+.quickBooksCard p,
+.quickBooksCard li,
+.quickBooksCard > small {
+  color: #aaa;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.quickBooksCard ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quickBooksCard > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.quickBooksCard > div b {
+  color: #fff;
+  font-size: 11px;
+}
+.quickBooksCard > button {
+  min-height: 44px;
+  color: #fff;
+  background: #2ca01c;
+}
+.fieldEfficiencyPanel,
+.cashVelocityPanel {
+  padding: 22px;
+}
+.fieldEfficiencyPanel > header {
+  margin-bottom: 14px;
+}
+.fieldEfficiencyPanel > article {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 42px;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+}
+.fieldEfficiencyPanel article span {
+  display: flex;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 10px;
+}
+.fieldEfficiencyPanel article small {
+  color: #999;
+}
+.fieldEfficiencyPanel article > em {
+  height: 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.fieldEfficiencyPanel article > em i {
+  display: block;
+  height: 100%;
+  background: #a91320;
+}
+.fieldEfficiencyPanel article strong {
+  color: #fff;
+  font-size: 10px;
+  text-align: right;
+}
+.cashVelocityPanel > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 15px 0;
+}
+.cashVelocityPanel > div span {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.cashVelocityPanel > div b {
+  color: #fff;
+  font-size: 20px;
+}
+.cashVelocityPanel > div small {
+  color: #999;
+  font-size: 8px;
+}
+.cashVelocityPanel > article {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: #aaa;
+  font-size: 10px;
+}
+.cashVelocityPanel > article b {
+  color: #fff;
+}
+@media (max-width: 900px) {
+  .workOrderMetrics,
+  .paymentMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .paymentsGrid {
+    grid-template-columns: 1fr;
+  }
+  .workOrderCommandTable {
+    overflow-x: auto;
+  }
+  .workOrderTableHead,
+  .workOrderCommandTable > button {
+    min-width: 760px;
+  }
+}
+@media (max-width: 560px) {
+  .workOrderMetrics,
+  .paymentMetrics {
+    grid-template-columns: 1fr;
+  }
+  .jobPhotoGrid {
+    grid-template-columns: 1fr;
+  }
+  .invoiceCommand > article {
+    grid-template-columns: 1fr auto;
+  }
+  .invoiceCommand article em {
+    grid-column: 1;
+  }
+  .cashVelocityPanel > div {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dispatchModalBackdrop {
   position: fixed;
   inset: 0;

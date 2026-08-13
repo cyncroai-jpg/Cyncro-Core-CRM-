@@ -2261,6 +2261,8 @@ type DispatchRole = "Owner" | "Dispatcher" | "Technician";
 type DispatchView =
   | "Dashboard"
   | "Jobs"
+  | "Work Orders"
+  | "Payments"
   | "GPS Map"
   | "Analytics"
   | "AI Agents"
@@ -2688,6 +2690,8 @@ function CyncroDispatch() {
   const navItems: { name: DispatchView; icon: string }[] = [
     { name: "Dashboard", icon: "⌂" },
     { name: "Jobs", icon: "▦" },
+    { name: "Work Orders", icon: "▤" },
+    { name: "Payments", icon: "$" },
     { name: "GPS Map", icon: "⌖" },
     { name: "Analytics", icon: "⌁" },
     { name: "AI Agents", icon: "✦" },
@@ -2796,7 +2800,7 @@ function CyncroDispatch() {
             .filter(
               (item) =>
                 role === "Owner" ||
-                !["Analytics", "Settings"].includes(item.name),
+                !["Analytics", "Payments", "Settings"].includes(item.name),
             )
             .map((item) => (
               <button
@@ -2870,6 +2874,17 @@ function CyncroDispatch() {
               onCancel={cancelJob}
             />
           )}
+          {view === "Work Orders" && (
+            <DispatchWorkOrders
+              jobs={jobs}
+              onFlash={flash}
+              onViewJob={(index) => {
+                setSelectedJob(index);
+                setView("Jobs");
+              }}
+            />
+          )}
+          {view === "Payments" && <DispatchPayments onFlash={flash} />}
           {view === "GPS Map" && (
             <DispatchMap jobs={jobs} onFlash={flash} onMove={moveJob} />
           )}
@@ -3151,6 +3166,56 @@ function DispatchJobs({
   onCancel: (index: number) => void;
 }) {
   const job = jobs[selected];
+  const [inspectorTab, setInspectorTab] = useState<
+    "Overview" | "Notes" | "Photos" | "Time" | "Work order"
+  >("Overview");
+  const [notes, setNotes] = useState<Record<string, string[]>>({
+    "JOB-2841": [
+      "Customer reports rear-zone audio dropping after 20 minutes.",
+      "Network test passed. Replaced damaged HDMI termination and recalibrated system.",
+    ],
+  });
+  const [noteDraft, setNoteDraft] = useState("");
+  const [photos, setPhotos] = useState<Record<string, string[]>>({
+    "JOB-2841": ["Before · rack wiring.jpg", "After · calibrated theater.jpg"],
+  });
+  const [clockedIn, setClockedIn] = useState<Record<string, boolean>>({});
+  const [elapsed, setElapsed] = useState<Record<string, number>>({
+    "JOB-2841": 94,
+  });
+  const addNote = () => {
+    const clean = noteDraft.trim();
+    if (!clean) return;
+    setNotes((current) => ({
+      ...current,
+      [job.id]: [...(current[job.id] || []), clean],
+    }));
+    setNoteDraft("");
+    onFlash("Technical note saved to work order");
+  };
+  const addPhotos = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setPhotos((current) => ({
+      ...current,
+      [job.id]: [...(current[job.id] || []), ...files.map((file) => file.name)],
+    }));
+    onFlash(`${files.length} job photo${files.length > 1 ? "s" : ""} added`);
+    event.target.value = "";
+  };
+  const toggleClock = () => {
+    const isIn = !!clockedIn[job.id];
+    setClockedIn((current) => ({ ...current, [job.id]: !isIn }));
+    if (isIn) {
+      setElapsed((current) => ({
+        ...current,
+        [job.id]: (current[job.id] || 0) + 47,
+      }));
+    }
+    onFlash(
+      isIn ? "Clocked out · labor entry saved" : "Clocked in · GPS verified",
+    );
+  };
   if (!job) {
     return (
       <div className="dispatchEmptyState dispatchPanel">
@@ -3217,46 +3282,451 @@ function DispatchJobs({
         <h3>{job.customer}</h3>
         <p>{job.service}</p>
         <address>{job.address}</address>
-        <div className="jobTimeline">
-          {[
-            ["BOOKED", "Calendar created job", "8:02 AM"],
-            ["ASSIGNED", `${job.tech} assigned`, "8:05 AM"],
-            ["EN ROUTE", "GPS tracking started", "8:18 AM"],
-            ["ARRIVED", "Geofence verified", "8:29 AM"],
-          ].map((event, index) => (
-            <div className={index < 3 ? "done" : ""} key={event[0]}>
-              <i>{index < 3 ? "✓" : ""}</i>
-              <span>
-                <b>{event[0]}</b>
-                <small>{event[1]}</small>
-              </span>
-              <time>{event[2]}</time>
+        <nav className="jobInspectorTabs" aria-label="Job record sections">
+          {(["Overview", "Notes", "Photos", "Time", "Work order"] as const).map(
+            (tab) => (
+              <button
+                className={inspectorTab === tab ? "active" : ""}
+                onClick={() => setInspectorTab(tab)}
+                key={tab}
+              >
+                {tab}
+              </button>
+            ),
+          )}
+        </nav>
+        {inspectorTab === "Overview" && (
+          <>
+            <div className="jobTimeline">
+              {[
+                ["BOOKED", "Calendar created job", "8:02 AM"],
+                ["ASSIGNED", `${job.tech} assigned`, "8:05 AM"],
+                ["EN ROUTE", "GPS tracking started", "8:18 AM"],
+                ["ARRIVED", "Geofence verified", "8:29 AM"],
+              ].map((event, index) => (
+                <div className={index < 3 ? "done" : ""} key={event[0]}>
+                  <i>{index < 3 ? "✓" : ""}</i>
+                  <span>
+                    <b>{event[0]}</b>
+                    <small>{event[1]}</small>
+                  </span>
+                  <time>{event[2]}</time>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="jobEconomics">
-          {[
-            ["Revenue", job.revenue],
-            ["Labor", "$420"],
-            ["Materials", "$315"],
-            ["Projected profit", "$1,115"],
-          ].map((item) => (
-            <span key={item[0]}>
-              <small>{item[0]}</small>
-              <b>{item[1]}</b>
-            </span>
-          ))}
-        </div>
-        <button
-          onClick={() => onFlash("Customer update queued for SMS delivery")}
-        >
-          Send customer update
-        </button>
-        <button onClick={() => onAdvance(selected)}>Advance job status</button>
-        <button className="dangerAction" onClick={() => onCancel(selected)}>
-          Cancel job
-        </button>
+            <div className="jobEconomics">
+              {[
+                ["Revenue", job.revenue],
+                ["Labor", "$420"],
+                ["Materials", "$315"],
+                ["Projected profit", "$1,115"],
+              ].map((item) => (
+                <span key={item[0]}>
+                  <small>{item[0]}</small>
+                  <b>{item[1]}</b>
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => onFlash("Customer update queued for SMS delivery")}
+            >
+              Send customer update
+            </button>
+            <button onClick={() => onAdvance(selected)}>
+              Advance job status
+            </button>
+            <button className="dangerAction" onClick={() => onCancel(selected)}>
+              Cancel job
+            </button>
+          </>
+        )}
+        {inspectorTab === "Notes" && (
+          <div className="jobRecordPanel">
+            <header>
+              <div>
+                <small>FIELD NOTES</small>
+                <b>{(notes[job.id] || []).length} entries</b>
+              </div>
+              <span>Visible to office + assigned tech</span>
+            </header>
+            <div className="jobNotesList">
+              {(notes[job.id] || []).map((note, index) => (
+                <article key={`${job.id}-${index}`}>
+                  <i>{index + 1}</i>
+                  <div>
+                    <p>{note}</p>
+                    <small>
+                      {job.tech} · Today, {index ? "10:42 AM" : "9:18 AM"}
+                    </small>
+                  </div>
+                </article>
+              ))}
+              {!(notes[job.id] || []).length && (
+                <p className="emptyRecord">
+                  No notes yet. Add diagnostics, work performed, unresolved
+                  issues, or next steps.
+                </p>
+              )}
+            </div>
+            <textarea
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              placeholder="Add technical notes, findings, parts used, recommendations…"
+            />
+            <button onClick={addNote}>＋ Save job note</button>
+          </div>
+        )}
+        {inspectorTab === "Photos" && (
+          <div className="jobRecordPanel">
+            <header>
+              <div>
+                <small>JOB DOCUMENTATION</small>
+                <b>{(photos[job.id] || []).length} uploads</b>
+              </div>
+              <span>Before · after · serials · test results</span>
+            </header>
+            <div className="jobPhotoGrid">
+              {(photos[job.id] || []).map((photo, index) => (
+                <article key={`${photo}-${index}`}>
+                  <div>
+                    <span>{index % 2 ? "AFTER" : "BEFORE"}</span>▧
+                  </div>
+                  <b>{photo}</b>
+                  <small>Uploaded by {job.tech}</small>
+                </article>
+              ))}
+            </div>
+            <label className="photoUploadButton">
+              ＋ Upload job photos
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={addPhotos}
+              />
+            </label>
+          </div>
+        )}
+        {inspectorTab === "Time" && (
+          <div className="jobRecordPanel timeClockPanel">
+            <header>
+              <div>
+                <small>GPS-VERIFIED TIME</small>
+                <b>{clockedIn[job.id] ? "Shift active" : "Not clocked in"}</b>
+              </div>
+              <span>Geofence · labor · drive time</span>
+            </header>
+            <div className={`clockHero ${clockedIn[job.id] ? "active" : ""}`}>
+              <span>{clockedIn[job.id] ? "● LIVE" : "○ READY"}</span>
+              <b>
+                {Math.floor((elapsed[job.id] || 0) / 60)}h{" "}
+                {(elapsed[job.id] || 0) % 60}m
+              </b>
+              <small>Total labor recorded</small>
+            </div>
+            <button className="clockAction" onClick={toggleClock}>
+              {clockedIn[job.id]
+                ? "Clock out and save time"
+                : "Clock in to this job"}
+            </button>
+            <div className="timeEntries">
+              <article>
+                <span>Arrival verified</span>
+                <b>8:29 AM</b>
+              </article>
+              <article>
+                <span>Drive time</span>
+                <b>24 min</b>
+              </article>
+              <article>
+                <span>Billable labor</span>
+                <b>{elapsed[job.id] || 0} min</b>
+              </article>
+            </div>
+          </div>
+        )}
+        {inspectorTab === "Work order" && (
+          <div className="jobRecordPanel workOrderDetail">
+            <header>
+              <div>
+                <small>WORK ORDER {job.id}</small>
+                <b>Authorized scope</b>
+              </div>
+              <span>Customer sign-off required</span>
+            </header>
+            <section>
+              <small>SCOPE OF WORK</small>
+              <p>
+                Diagnose reported issue, complete approved service, test all
+                affected systems, document equipment and provide customer
+                walkthrough.
+              </p>
+            </section>
+            <div>
+              <span>
+                <small>SCHEDULE</small>
+                <b>Today · {job.time}</b>
+              </span>
+              <span>
+                <small>TECHNICIAN</small>
+                <b>{job.tech}</b>
+              </span>
+              <span>
+                <small>AUTHORIZED</small>
+                <b>{job.revenue}</b>
+              </span>
+              <span>
+                <small>PO / TERMS</small>
+                <b>NET 15</b>
+              </span>
+            </div>
+            <label>
+              <input type="checkbox" /> Scope completed and tested
+            </label>
+            <label>
+              <input type="checkbox" /> Required photos and serials uploaded
+            </label>
+            <label>
+              <input type="checkbox" /> Customer/site sign-off obtained
+            </label>
+            <button
+              onClick={() => onFlash("Work order sent for customer signature")}
+            >
+              Request customer signature
+            </button>
+          </div>
+        )}
       </aside>
+    </div>
+  );
+}
+
+function DispatchWorkOrders({
+  jobs,
+  onFlash,
+  onViewJob,
+}: {
+  jobs: typeof dispatchJobs;
+  onFlash: (message: string) => void;
+  onViewJob: (index: number) => void;
+}) {
+  const [status, setStatus] = useState("All");
+  return (
+    <div className="workOrdersWorkspace">
+      <div className="dispatchPageHead">
+        <div>
+          <span>FIELD DOCUMENT CONTROL</span>
+          <h1>Every job, documented and billable.</h1>
+          <p>
+            Scope, labor, photos, notes, approvals, signatures, and invoice
+            readiness in one record.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Blank work-order template created")}>
+          ＋ Work order
+        </button>
+      </div>
+      <div className="workOrderMetrics">
+        {[
+          ["OPEN", "12", "7 assigned"],
+          ["AWAITING SIGNATURE", "3", "$8.4K value"],
+          ["READY TO INVOICE", "6", "$14.7K"],
+          ["DOCUMENTATION SCORE", "96%", "+8% this month"],
+        ].map((metric) => (
+          <article className="dispatchPanel" key={metric[0]}>
+            <small>{metric[0]}</small>
+            <b>{metric[1]}</b>
+            <span>{metric[2]}</span>
+          </article>
+        ))}
+      </div>
+      <section className="dispatchPanel workOrderCommandTable">
+        <header>
+          <div>
+            <small>WORK ORDER COMMAND</small>
+            <h2>Operational records</h2>
+          </div>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            aria-label="Filter work orders"
+          >
+            <option>All</option>
+            <option>Open</option>
+            <option>Ready to invoice</option>
+            <option>Complete</option>
+          </select>
+        </header>
+        <div className="workOrderTableHead">
+          <span>WORK ORDER</span>
+          <span>DOCUMENTATION</span>
+          <span>LABOR</span>
+          <span>PAYMENT</span>
+          <span>READINESS</span>
+        </div>
+        {jobs.map((job, index) => {
+          const ready = index === 0 || job.status === "COMPLETE";
+          return (
+            <button onClick={() => onViewJob(index)} key={job.id}>
+              <span>
+                <b>
+                  {job.id} · {job.customer}
+                </b>
+                <small>
+                  {job.service}
+                  <br />
+                  {job.tech}
+                </small>
+              </span>
+              <span>
+                <b>{index === 0 ? "6/6 complete" : "3/6 complete"}</b>
+                <small>
+                  {index === 0
+                    ? "Notes · photos · signature"
+                    : "Missing photos or sign-off"}
+                </small>
+              </span>
+              <span>
+                <b>{index === 0 ? "1h 34m" : "Scheduled"}</b>
+                <small>{index === 0 ? "$420 labor" : job.time}</small>
+              </span>
+              <span>
+                <b>{ready ? "Invoice ready" : "Not billed"}</b>
+                <small>{job.revenue}</small>
+              </span>
+              <em className={ready ? "ready" : "attention"}>
+                {ready ? "READY" : "ACTION NEEDED"}
+              </em>
+            </button>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
+
+function DispatchPayments({ onFlash }: { onFlash: (message: string) => void }) {
+  const [quickBooksConnected, setQuickBooksConnected] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, string>>({
+    "INV-8821": "PAID",
+    "INV-8822": "DUE",
+    "INV-8823": "DEPOSIT PAID",
+    "INV-8824": "DRAFT",
+  });
+  const invoices = [
+    ["INV-8821", "Morrison Residence", "$1,850", "Card · ending 4028", "PAID"],
+    ["INV-8822", "Atlas Dental Group", "$2,400", "Net 15 · Aug 28", "DUE"],
+    [
+      "INV-8823",
+      "Carter Collective",
+      "$4,200",
+      "$1,500 deposit",
+      "DEPOSIT PAID",
+    ],
+    ["INV-8824", "Villa Rosa HOA", "$975", "Awaiting completion", "DRAFT"],
+  ];
+  const collect = (id: string) => {
+    setPaymentStatus((current) => ({ ...current, [id]: "PAYMENT LINK SENT" }));
+    onFlash("Secure payment link created and queued");
+  };
+  return (
+    <div className="dispatchPaymentsWorkspace">
+      <div className="dispatchPageHead">
+        <div>
+          <span>REVENUE OPERATIONS</span>
+          <h1>From completed work to collected cash.</h1>
+          <p>
+            Deposits, invoices, payment links, reconciliation, disputes, and
+            accounting sync.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Invoice composer opened")}>
+          ＋ Create invoice
+        </button>
+      </div>
+      <div className="paymentMetrics">
+        {[
+          ["COLLECTED THIS WEEK", "$36,840", "+18.2%"],
+          ["OUTSTANDING", "$11,410", "8 invoices"],
+          ["AVG DAYS TO PAY", "4.2", "−1.8 days"],
+          ["AUTO-RECONCILED", "94%", "QuickBooks-ready"],
+        ].map((metric) => (
+          <article className="dispatchPanel" key={metric[0]}>
+            <small>{metric[0]}</small>
+            <b>{metric[1]}</b>
+            <span>{metric[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="paymentsGrid">
+        <section className="dispatchPanel invoiceCommand">
+          <header>
+            <div>
+              <small>INVOICE COMMAND</small>
+              <h2>Job payments</h2>
+            </div>
+            <button onClick={() => onFlash("Payment report exported")}>
+              Export
+            </button>
+          </header>
+          {invoices.map((invoice) => (
+            <article key={invoice[0]}>
+              <span>
+                <b>
+                  {invoice[0]} · {invoice[1]}
+                </b>
+                <small>{invoice[3]}</small>
+              </span>
+              <strong>{invoice[2]}</strong>
+              <em>{paymentStatus[invoice[0]] || invoice[4]}</em>
+              <button onClick={() => collect(invoice[0])}>
+                {paymentStatus[invoice[0]] === "PAID" ? "Receipt" : "Collect"}
+              </button>
+            </article>
+          ))}
+        </section>
+        <aside className="dispatchPanel quickBooksCard">
+          <header>
+            <span className={quickBooksConnected ? "connected" : ""}>QB</span>
+            <div>
+              <small>ACCOUNTING CONNECTION</small>
+              <h2>QuickBooks Online</h2>
+            </div>
+          </header>
+          <p>
+            Sync customers, invoices, deposits, taxes, service items, contractor
+            labor, materials, and payments without double entry.
+          </p>
+          <ul>
+            <li>✓ Job-to-invoice mapping</li>
+            <li>✓ Automatic payment reconciliation</li>
+            <li>✓ Expense and material categorization</li>
+            <li>✓ Failed-sync review queue</li>
+          </ul>
+          <div>
+            <small>CONNECTION STATUS</small>
+            <b>
+              {quickBooksConnected
+                ? "● Connected · last sync 2 min ago"
+                : "○ Ready to connect"}
+            </b>
+          </div>
+          <button
+            onClick={() => {
+              setQuickBooksConnected(true);
+              onFlash("QuickBooks connection demo enabled");
+            }}
+          >
+            {quickBooksConnected
+              ? "Run QuickBooks sync"
+              : "Connect QuickBooks →"}
+          </button>
+          <small>
+            Live OAuth authorization will activate after credentials are
+            configured.
+          </small>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -3500,6 +3970,62 @@ function DispatchAnalytics({
           <button onClick={() => onFlash("Learning insights opened")}>
             Review 3 new learnings →
           </button>
+        </section>
+        <section className="dispatchPanel fieldEfficiencyPanel">
+          <header>
+            <div>
+              <small>FIELD EFFICIENCY</small>
+              <h2>Paid hours vs. operational time</h2>
+            </div>
+            <span>92.4% verified</span>
+          </header>
+          {[
+            ["Billable labor", "148h", "74%"],
+            ["Drive time", "31h", "16%"],
+            ["Unallocated time", "12h", "6%"],
+            ["Overtime", "8h", "4%"],
+          ].map((row) => (
+            <article key={row[0]}>
+              <span>
+                <b>{row[0]}</b>
+                <small>{row[1]}</small>
+              </span>
+              <em>
+                <i style={{ width: row[2] }} />
+              </em>
+              <strong>{row[2]}</strong>
+            </article>
+          ))}
+        </section>
+        <section className="dispatchPanel cashVelocityPanel">
+          <small>CASH VELOCITY</small>
+          <h2>Work completed to money collected.</h2>
+          <div>
+            <span>
+              <b>1.2d</b>
+              <small>Complete → invoice</small>
+            </span>
+            <span>
+              <b>4.2d</b>
+              <small>Invoice → paid</small>
+            </span>
+            <span>
+              <b>94%</b>
+              <small>Auto-reconciled</small>
+            </span>
+          </div>
+          <article>
+            <span>Documentation-ready invoices</span>
+            <b>96%</b>
+          </article>
+          <article>
+            <span>Deposit coverage</span>
+            <b>72%</b>
+          </article>
+          <article>
+            <span>Payment disputes</span>
+            <b>0.8%</b>
+          </article>
         </section>
       </div>
     </div>
