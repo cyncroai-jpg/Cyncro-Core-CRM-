@@ -38,7 +38,7 @@ export default function Home() {
           {[
             ["home", "Overview"],
             ["book", "Booking experience"],
-            ["studio", "Platform"],
+            ["studio", "Core Studio"],
             ["crm", "Universal CRM"],
             ["admin", "Operations"],
           ].map((x) => (
@@ -314,7 +314,7 @@ function FrontExperience({
               Experience Cyncro <span>↗</span>
             </button>
             <button className="frontSecondary" onClick={onPlatform}>
-              Enter the platform <span>→</span>
+              Enter Core Studio <span>→</span>
             </button>
           </div>
           <div className="heroAssurance">
@@ -504,7 +504,7 @@ function FrontExperience({
             <br />
             <span>Infrastructure is the product.</span>
           </h2>
-          <button onClick={onPlatform}>Explore every capability →</button>
+          <button onClick={onPlatform}>Explore Core Studio →</button>
         </div>
         <div className="capabilityEditorial">
           {[
@@ -618,7 +618,16 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     [selectedResources, setSelectedResources] = useState(["Executive Studio"]),
     [questionCount, setQuestionCount] = useState(2),
     [reminder24, setReminder24] = useState(true),
-    [reminder1, setReminder1] = useState(true);
+    [reminder1, setReminder1] = useState(true),
+    [brandName, setBrandName] = useState("Cyncro Media"),
+    [bookingHeadline, setBookingHeadline] = useState(
+      "Build your next advantage.",
+    ),
+    [buttonLabel, setButtonLabel] = useState("Reserve my session"),
+    [accentColor, setAccentColor] = useState("#b51f38"),
+    [pageStyle, setPageStyle] = useState("Editorial"),
+    [industry, setIndustry] = useState("Consulting & professional services"),
+    [intakeDepth, setIntakeDepth] = useState("Guided");
   const toggleChoice = (
     value: string,
     current: string[],
@@ -636,7 +645,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
       <section className="studio">
         <div className="studiohead">
           <div>
-            <label>EVENT STUDIO</label>
+            <label>CORE STUDIO · UNIVERSAL CALENDAR</label>
             <h1>Create a booking experience</h1>
             <p>
               Everything your customer sees and everything the engine enforces.
@@ -661,6 +670,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
           <div className="side">
             {[
               "Basics",
+              "Brand & experience",
               "Availability",
               "Capacity & price",
               "Hosts & resources",
@@ -714,6 +724,213 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                       <option>Customer address</option>
                     </select>
                   </Field>
+                </div>
+              </Panel>
+            )}
+            {section === "Brand & experience" && (
+              <Panel
+                title="Brand & customer experience"
+                sub="Make every booking page feel purpose-built for the business, audience, and offer."
+              >
+                <div className="experienceEditor">
+                  <div className="experienceControls">
+                    <div className="templateBlock">
+                      <small>START FROM A BUSINESS MODEL</small>
+                      <div className="templateChoices">
+                        {[
+                          "Consulting & professional services",
+                          "Classes, events & memberships",
+                          "Field service & installations",
+                          "Healthcare & wellness",
+                          "Enterprise teams & resources",
+                          "Custom operating model",
+                        ].map((item) => (
+                          <button
+                            className={industry === item ? "active" : ""}
+                            onClick={() => setIndustry(item)}
+                            key={item}
+                          >
+                            <i>{industry === item ? "✓" : "◇"}</i>
+                            <span>{item}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="fields experienceFields">
+                      <Field label="Business or brand name">
+                        <input
+                          value={brandName}
+                          onChange={(event) => setBrandName(event.target.value)}
+                        />
+                      </Field>
+                      <Field label="Booking-page headline">
+                        <input
+                          value={bookingHeadline}
+                          onChange={(event) =>
+                            setBookingHeadline(event.target.value)
+                          }
+                        />
+                      </Field>
+                      <Field label="Primary button text">
+                        <input
+                          value={buttonLabel}
+                          onChange={(event) =>
+                            setButtonLabel(event.target.value)
+                          }
+                        />
+                      </Field>
+                      <Field label="Brand accent">
+                        <div className="colorControl">
+                          <input
+                            type="color"
+                            value={accentColor}
+                            onChange={(event) =>
+                              setAccentColor(event.target.value)
+                            }
+                          />
+                          <input
+                            value={accentColor.toUpperCase()}
+                            onChange={(event) =>
+                              setAccentColor(event.target.value)
+                            }
+                          />
+                        </div>
+                      </Field>
+                    </div>
+                    <div className="experienceOptionGroup">
+                      <small>PAGE EXPERIENCE</small>
+                      <div className="segmentedChoices">
+                        {["Minimal", "Editorial", "Immersive"].map((item) => (
+                          <button
+                            className={pageStyle === item ? "active" : ""}
+                            onClick={() => setPageStyle(item)}
+                            key={item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="experienceOptionGroup">
+                      <small>CUSTOMER INTAKE</small>
+                      <div className="segmentedChoices">
+                        {["Fast", "Guided", "Application"].map((item) => (
+                          <button
+                            className={intakeDepth === item ? "active" : ""}
+                            onClick={() => setIntakeDepth(item)}
+                            key={item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="experienceModules">
+                      <small>CHOOSE WHAT CUSTOMERS SEE</small>
+                      {[
+                        [
+                          "Service or event selection",
+                          "Let customers choose the right experience.",
+                        ],
+                        [
+                          "Location and video preference",
+                          "Offer office, customer address, phone, Meet, Zoom, or FaceTime.",
+                        ],
+                        [
+                          "Team member selection",
+                          "Allow selection or let Cyncro route automatically.",
+                        ],
+                        [
+                          "Pricing and deposit",
+                          "Show price, packages, balance, or approval requirements.",
+                        ],
+                        [
+                          "Custom intake questions",
+                          "Collect information conditionally by answer.",
+                        ],
+                        [
+                          "Confirmation next steps",
+                          "Display preparation, documents, directions, or upsells.",
+                        ],
+                      ].map((item, index) => (
+                        <label key={item[0]}>
+                          <input type="checkbox" defaultChecked={index !== 2} />
+                          <span>
+                            <b>{item[0]}</b>
+                            <small>{item[1]}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="experiencePreviewWrap">
+                    <div className="previewToolbar">
+                      <span>LIVE CUSTOMER PREVIEW</span>
+                      <div>
+                        <button>Desktop</button>
+                        <button>Mobile</button>
+                      </div>
+                    </div>
+                    <div
+                      className={`experiencePreview ${pageStyle.toLowerCase()}`}
+                      style={
+                        {
+                          "--custom-accent": accentColor,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <div className="previewBrand">
+                        <i>{brandName.slice(0, 1) || "C"}</i>
+                        <b>{brandName || "Your brand"}</b>
+                      </div>
+                      <small>{industry.toUpperCase()}</small>
+                      <h2>{bookingHeadline || "Your booking headline"}</h2>
+                      <p>Choose the experience that best fits what you need.</p>
+                      <div className="previewOffer active">
+                        <div>
+                          <b>Executive Strategy Session</b>
+                          <span>30 minutes · Video or in person</span>
+                        </div>
+                        <i>✓</i>
+                      </div>
+                      <div className="previewOffer">
+                        <div>
+                          <b>Private Implementation Day</b>
+                          <span>6 hours · Application required</span>
+                        </div>
+                        <i>→</i>
+                      </div>
+                      <div className="previewSteps">
+                        <span className="active">1</span>
+                        <i />
+                        <span>2</span>
+                        <i />
+                        <span>3</span>
+                        <em>{intakeDepth} flow</em>
+                      </div>
+                      <button className="previewCta">
+                        {buttonLabel || "Continue"} →
+                      </button>
+                      <footer>
+                        Powered by Cyncro Core · Conflict protected
+                      </footer>
+                    </div>
+                    <div className="customizationSummary">
+                      <div>
+                        <small>LAYOUT</small>
+                        <b>{pageStyle}</b>
+                      </div>
+                      <div>
+                        <small>INTAKE</small>
+                        <b>{intakeDepth}</b>
+                      </div>
+                      <div>
+                        <small>MODEL</small>
+                        <b>{industry.split(" ")[0]}</b>
+                      </div>
+                      <span>Updates appear instantly</span>
+                    </div>
+                  </div>
                 </div>
               </Panel>
             )}
@@ -1094,15 +1311,33 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     <section className="studio">
       <div className="studiohead">
         <div>
-          <label>UNIVERSAL CALENDAR</label>
-          <h1>Event & Booking Link Studio</h1>
+          <label>CORE STUDIO</label>
+          <h1>Universal Calendar</h1>
           <p>
-            Create, control, publish, and measure every scheduling experience.
+            Create, customize, control, publish, and measure every scheduling
+            experience around the customer and the business.
           </p>
         </div>
-        <button className="primary" onClick={() => setEditing(true)}>
-          + Create event
-        </button>
+        <div>
+          <button
+            className="secondary"
+            onClick={() => {
+              setSection("Brand & experience");
+              setEditing(true);
+            }}
+          >
+            Customize experience
+          </button>
+          <button
+            className="primary"
+            onClick={() => {
+              setSection("Basics");
+              setEditing(true);
+            }}
+          >
+            + Create event
+          </button>
+        </div>
       </div>
       <div className="studiostats">
         {[
