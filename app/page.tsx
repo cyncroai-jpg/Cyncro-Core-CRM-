@@ -39,7 +39,7 @@ export default function Home() {
             ["home", "Overview"],
             ["book", "Booking experience"],
             ["studio", "Core Studio"],
-            ["crm", "Cyncro Nexus"],
+            ["crm", "Cyncro CRM"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -2377,7 +2377,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
           <i>⌄</i>
         </div>
         <nav className="crmNav" aria-label="CRM navigation">
-          <small>CYNCRO NEXUS · REVENUE OS</small>
+          <small>CYNCRO CRM · REVENUE OS</small>
           {views.map((item) => (
             <button
               className={view === item.name ? "active" : ""}
@@ -2448,7 +2448,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
         <div className="crmContent">
           <div className="crmPageHead">
             <div>
-              <label>CYNCRO NEXUS</label>
+              <label>CYNCRO CRM</label>
               <h1>{view === "Overview" ? "Good afternoon, Yvette." : view}</h1>
               <p>
                 {view === "Overview"

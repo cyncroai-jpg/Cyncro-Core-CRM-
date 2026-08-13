@@ -2232,7 +2232,7 @@ label {
   flex-shrink: 0;
 }
 
-/* Universal CRM */
+/* Cyncro CRM */
 .crmShell {
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
@@ -3975,7 +3975,7 @@ label {
   font-size: 6px;
 }
 
-/* Cyncro Nexus advanced workspaces */
+/* Cyncro CRM advanced workspaces */
 .accountWorkspace,
 .journeyWorkspace,
 .graphWorkspace {
