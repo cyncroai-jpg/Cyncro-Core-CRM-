@@ -3752,6 +3752,24 @@ function DispatchSettings({ onFlash }: { onFlash: (message: string) => void }) {
             "5 systems connected",
             "Manage connections",
           ],
+          [
+            "Security + Access",
+            "Server-enforced Owner, Dispatcher, and Technician policies",
+            "RLS active · sessions verified · secrets redacted",
+            "Review security",
+          ],
+          [
+            "Reliability",
+            "Graceful failures, retries, idempotency, and offline sync",
+            "Request tracing · health checks · 50-operation sync batches",
+            "Open reliability center",
+          ],
+          [
+            "Abuse Protection",
+            "Layered SMS, GPS, job, and IP rate limits",
+            "Signed webhooks · duplicate protection · encrypted SMS",
+            "View protection rules",
+          ],
         ].map((i) => (
           <article className="dispatchPanel" key={i[0]}>
             <small>{i[0].toUpperCase()}</small>
