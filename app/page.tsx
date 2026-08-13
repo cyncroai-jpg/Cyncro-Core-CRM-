@@ -9,7 +9,7 @@ const times = [
   "2:30 PM",
   "4:00 PM",
 ];
-type Tab = "home" | "book" | "admin" | "studio";
+type Tab = "home" | "book" | "admin" | "studio" | "crm";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [step, setStep] = useState(1),
@@ -39,6 +39,7 @@ export default function Home() {
             ["home", "Overview"],
             ["book", "Booking experience"],
             ["studio", "Platform"],
+            ["crm", "Universal CRM"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -60,6 +61,8 @@ export default function Home() {
         />
       ) : tab === "studio" ? (
         <Studio onPreview={() => setTab("book")} />
+      ) : tab === "crm" ? (
+        <UniversalCRM onOpenCalendar={() => setTab("admin")} />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
       ) : (
@@ -2027,6 +2030,1047 @@ function Switch({
     </div>
   );
 }
+type CRMView =
+  | "Overview"
+  | "Pipeline"
+  | "Contacts"
+  | "Conversations"
+  | "Automations"
+  | "Intelligence";
+
+const crmContacts = [
+  {
+    name: "Alexandra Lewis",
+    company: "Northstar Advisory",
+    email: "alexandra@northstar.co",
+    phone: "+1 (561) 555-0121",
+    value: "$18,500",
+    stage: "Proposal",
+    source: "Private booking link",
+    intent: 94,
+    last: "Booked strategy session",
+  },
+  {
+    name: "Marcus Reed",
+    company: "Reed Development",
+    email: "marcus@reeddev.com",
+    phone: "+1 (305) 555-0184",
+    value: "$12,000",
+    stage: "Qualified",
+    source: "Partner referral",
+    intent: 87,
+    last: "Replied to SMS",
+  },
+  {
+    name: "Sophia Bennett",
+    company: "Atelier House",
+    email: "sophia@atelierhouse.com",
+    phone: "+1 (786) 555-0148",
+    value: "$7,500",
+    stage: "Discovery",
+    source: "Instagram",
+    intent: 76,
+    last: "Viewed proposal",
+  },
+  {
+    name: "Daniel Kim",
+    company: "Axis Systems",
+    email: "daniel@axissystems.ai",
+    phone: "+1 (646) 555-0199",
+    value: "$32,000",
+    stage: "Negotiation",
+    source: "Website",
+    intent: 91,
+    last: "Payment link opened",
+  },
+  {
+    name: "Nia Carter",
+    company: "Carter Collective",
+    email: "nia@cartercollective.com",
+    phone: "+1 (954) 555-0163",
+    value: "$5,000",
+    stage: "New lead",
+    source: "Event registration",
+    intent: 68,
+    last: "Joined waitlist",
+  },
+];
+
+function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
+  const [view, setView] = useState<CRMView>("Overview"),
+    [query, setQuery] = useState(""),
+    [selected, setSelected] = useState(0),
+    [creating, setCreating] = useState(false),
+    [aiOpen, setAiOpen] = useState(false),
+    [notice, setNotice] = useState("");
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 1800);
+  };
+  const filteredContacts = crmContacts.filter((contact) =>
+    `${contact.name} ${contact.company} ${contact.email}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  const contact = crmContacts[selected];
+  const views: { name: CRMView; icon: string; count?: string }[] = [
+    { name: "Overview", icon: "⌂" },
+    { name: "Pipeline", icon: "◫", count: "$75K" },
+    { name: "Contacts", icon: "◎", count: "2.4K" },
+    { name: "Conversations", icon: "◇", count: "12" },
+    { name: "Automations", icon: "⌁", count: "18" },
+    { name: "Intelligence", icon: "✦" },
+  ];
+  return (
+    <section className="crmShell">
+      {notice && <div className="crmToast">✓ {notice}</div>}
+      <aside className="crmSidebar">
+        <div className="crmWorkspace">
+          <span>CM</span>
+          <div>
+            <b>Cyncro Media</b>
+            <small>Universal workspace</small>
+          </div>
+          <i>⌄</i>
+        </div>
+        <nav className="crmNav" aria-label="CRM navigation">
+          <small>REVENUE OPERATING SYSTEM</small>
+          {views.map((item) => (
+            <button
+              className={view === item.name ? "active" : ""}
+              onClick={() => setView(item.name)}
+              key={item.name}
+            >
+              <i>{item.icon}</i>
+              <span>{item.name}</span>
+              {item.count && <em>{item.count}</em>}
+            </button>
+          ))}
+          <small>CONNECTED SYSTEMS</small>
+          <button onClick={onOpenCalendar}>
+            <i>□</i>
+            <span>Calendar</span>
+            <em className="liveDot">Live</em>
+          </button>
+          <button onClick={() => flash("Payments opened")}>
+            <i>◇</i>
+            <span>Payments</span>
+            <em>$12.9K</em>
+          </button>
+          <button onClick={() => flash("Analytics opened")}>
+            <i>⌁</i>
+            <span>Attribution</span>
+          </button>
+        </nav>
+        <button className="crmAgent" onClick={() => setAiOpen(true)}>
+          <span>✦</span>
+          <div>
+            <small>CYNCRO INTELLIGENCE</small>
+            <b>Ask your business</b>
+          </div>
+          <i>↗</i>
+        </button>
+        <div className="crmUser">
+          <span>YL</span>
+          <div>
+            <b>Yvette Lomeli</b>
+            <small>Founder · Admin</small>
+          </div>
+          <i>•••</i>
+        </div>
+      </aside>
+
+      <main className="crmMain">
+        <header className="crmTopbar">
+          <div className="universalSearch">
+            <span>⌕</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search any contact, company, deal, message, or booking…"
+            />
+            <kbd>⌘ K</kbd>
+          </div>
+          <button
+            className="crmIconButton"
+            onClick={() => flash("No new alerts")}
+          >
+            ◌<i />
+          </button>
+          <button className="crmCreate" onClick={() => setCreating(true)}>
+            ＋ New record
+          </button>
+        </header>
+
+        <div className="crmContent">
+          <div className="crmPageHead">
+            <div>
+              <label>UNIVERSAL CRM</label>
+              <h1>{view === "Overview" ? "Good afternoon, Yvette." : view}</h1>
+              <p>
+                {view === "Overview"
+                  ? "Every customer signal, opportunity, and next move—organized in real time."
+                  : `Manage ${view.toLowerCase()} from one connected customer record.`}
+              </p>
+            </div>
+            <div className="crmDate">
+              <small>LIVE WORKSPACE</small>
+              <b>August 13, 2026</b>
+              <span>● All systems operational</span>
+            </div>
+          </div>
+
+          {view === "Overview" && (
+            <>
+              <div className="crmMetrics">
+                {[
+                  [
+                    "OPEN PIPELINE",
+                    "$75,000",
+                    "+18.4%",
+                    "Across 14 opportunities",
+                  ],
+                  ["WEIGHTED FORECAST", "$48,250", "+$7.8K", "This quarter"],
+                  ["ACTIVE CONTACTS", "2,418", "+126", "Last 30 days"],
+                  ["CONVERSION", "31.8%", "+4.2%", "Qualified to closed"],
+                ].map((metric) => (
+                  <article key={metric[0]}>
+                    <small>{metric[0]}</small>
+                    <div>
+                      <b>{metric[1]}</b>
+                      <span>{metric[2]}</span>
+                    </div>
+                    <p>{metric[3]}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="crmOverviewGrid">
+                <article className="crmPanel crmForecast">
+                  <div className="crmPanelHead">
+                    <div>
+                      <small>REVENUE INTELLIGENCE</small>
+                      <h2>Pipeline momentum</h2>
+                    </div>
+                    <button onClick={() => setView("Pipeline")}>
+                      View pipeline →
+                    </button>
+                  </div>
+                  <div className="forecastHero">
+                    <div>
+                      <small>FORECASTED TO CLOSE</small>
+                      <b>$48,250</b>
+                      <span>64.3% of open pipeline</span>
+                    </div>
+                    <div className="forecastRing">
+                      <b>78</b>
+                      <small>HEALTH</small>
+                    </div>
+                  </div>
+                  <div className="forecastBars">
+                    {[
+                      ["New", 28, "$8K"],
+                      ["Qualified", 47, "$15K"],
+                      ["Proposal", 72, "$20K"],
+                      ["Negotiation", 90, "$32K"],
+                    ].map((item) => (
+                      <div key={item[0]}>
+                        <span>{item[0]}</span>
+                        <i>
+                          <b style={{ width: `${item[1]}%` }} />
+                        </i>
+                        <em>{item[2]}</em>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+                <article className="crmPanel aiBrief">
+                  <div className="aiBriefHead">
+                    <span>✦</span>
+                    <div>
+                      <small>CYNCRO INTELLIGENCE</small>
+                      <h2>Your daily brief</h2>
+                    </div>
+                    <i>LIVE</i>
+                  </div>
+                  <p>Three actions are most likely to create revenue today.</p>
+                  {[
+                    [
+                      "01",
+                      "Follow up with Daniel Kim",
+                      "Payment intent increased after opening the proposal twice.",
+                      "$32K",
+                    ],
+                    [
+                      "02",
+                      "Protect Alexandra’s momentum",
+                      "Her strategy session is tomorrow; send the executive brief.",
+                      "$18.5K",
+                    ],
+                    [
+                      "03",
+                      "Move Marcus to proposal",
+                      "All qualification criteria are complete.",
+                      "$12K",
+                    ],
+                  ].map((item) => (
+                    <button
+                      onClick={() => flash(`${item[1]} queued`)}
+                      key={item[0]}
+                    >
+                      <span>{item[0]}</span>
+                      <div>
+                        <b>{item[1]}</b>
+                        <small>{item[2]}</small>
+                      </div>
+                      <em>{item[3]}</em>
+                    </button>
+                  ))}
+                  <button className="askAi" onClick={() => setAiOpen(true)}>
+                    Ask Cyncro anything <span>↗</span>
+                  </button>
+                </article>
+                <article className="crmPanel crmActivity">
+                  <div className="crmPanelHead">
+                    <div>
+                      <small>LIVE CUSTOMER SIGNALS</small>
+                      <h2>What just happened</h2>
+                    </div>
+                    <button onClick={() => setView("Conversations")}>
+                      All activity →
+                    </button>
+                  </div>
+                  {[
+                    [
+                      "BK",
+                      "Alexandra booked a strategy session",
+                      "Calendar · 4 min ago",
+                      "+ Opportunity updated",
+                    ],
+                    [
+                      "$",
+                      "Daniel opened the $32K payment link",
+                      "Payments · 18 min ago",
+                      "High intent",
+                    ],
+                    [
+                      "✉",
+                      "Marcus replied: “Let’s move forward”",
+                      "SMS · 32 min ago",
+                      "Reply needed",
+                    ],
+                    [
+                      "◎",
+                      "Sophia viewed the proposal again",
+                      "Tracking · 1 hr ago",
+                      "3 total views",
+                    ],
+                  ].map((item) => (
+                    <div className="activityRow" key={item[1]}>
+                      <i>{item[0]}</i>
+                      <div>
+                        <b>{item[1]}</b>
+                        <small>{item[2]}</small>
+                      </div>
+                      <span>{item[3]}</span>
+                    </div>
+                  ))}
+                </article>
+                <article className="crmPanel crmAgenda">
+                  <div className="crmPanelHead">
+                    <div>
+                      <small>CALENDAR + TASKS</small>
+                      <h2>Next on your desk</h2>
+                    </div>
+                    <button onClick={onOpenCalendar}>Open calendar →</button>
+                  </div>
+                  {[
+                    [
+                      "1:00",
+                      "Executive Strategy Session",
+                      "Alexandra Lewis · Video",
+                    ],
+                    ["2:30", "Proposal follow-up", "Marcus Reed · Task"],
+                    ["4:00", "AI Systems Intensive", "9 attendees · Studio A"],
+                  ].map((item) => (
+                    <div className="agendaRow" key={item[0]}>
+                      <time>
+                        {item[0]}
+                        <small>PM</small>
+                      </time>
+                      <i />
+                      <div>
+                        <b>{item[1]}</b>
+                        <small>{item[2]}</small>
+                      </div>
+                      <button onClick={() => flash("Record opened")}>
+                        •••
+                      </button>
+                    </div>
+                  ))}
+                </article>
+              </div>
+            </>
+          )}
+
+          {view === "Pipeline" && <CRMPipeline onFlash={flash} />}
+          {view === "Contacts" && (
+            <div className="contactWorkspace">
+              <div className="contactList crmPanel">
+                <div className="listToolbar">
+                  <span>{filteredContacts.length} contacts</span>
+                  <div>
+                    <button onClick={() => flash("Filters opened")}>
+                      Filter
+                    </button>
+                    <button onClick={() => flash("View changed")}>
+                      Columns
+                    </button>
+                  </div>
+                </div>
+                <div className="contactTableHead">
+                  <span>CONTACT</span>
+                  <span>STAGE</span>
+                  <span>VALUE</span>
+                  <span>INTENT</span>
+                </div>
+                {filteredContacts.map((item) => {
+                  const originalIndex = crmContacts.indexOf(item);
+                  return (
+                    <button
+                      className={`contactRow ${selected === originalIndex ? "active" : ""}`}
+                      onClick={() => setSelected(originalIndex)}
+                      key={item.email}
+                    >
+                      <span>
+                        <i>
+                          {item.name
+                            .split(" ")
+                            .map((part) => part[0])
+                            .join("")}
+                        </i>
+                        <div>
+                          <b>{item.name}</b>
+                          <small>{item.company}</small>
+                        </div>
+                      </span>
+                      <em>{item.stage}</em>
+                      <strong>{item.value}</strong>
+                      <span className="intentScore">{item.intent}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <CRMContactDetail contact={contact} onFlash={flash} />
+            </div>
+          )}
+          {view === "Conversations" && <CRMConversations onFlash={flash} />}
+          {view === "Automations" && <CRMAutomations onFlash={flash} />}
+          {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
+        </div>
+      </main>
+
+      {creating && (
+        <div className="crmModalBack" onClick={() => setCreating(false)}>
+          <div
+            className="crmModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="crmModalHead">
+              <div>
+                <label>CREATE ANYTHING</label>
+                <h2>New universal record</h2>
+              </div>
+              <button onClick={() => setCreating(false)}>×</button>
+            </div>
+            <div className="recordTypes">
+              {["Contact", "Company", "Opportunity", "Task", "Note"].map(
+                (item, index) => (
+                  <button className={index === 0 ? "active" : ""} key={item}>
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+            <div className="crmForm">
+              <label>
+                Full name
+                <input placeholder="Enter contact name" />
+              </label>
+              <label>
+                Company
+                <input placeholder="Company or organization" />
+              </label>
+              <label>
+                Email
+                <input placeholder="name@company.com" />
+              </label>
+              <label>
+                Phone
+                <input placeholder="(000) 000-0000" />
+              </label>
+              <label>
+                Source
+                <select>
+                  <option>Booking link</option>
+                  <option>Website</option>
+                  <option>Referral</option>
+                  <option>Manual</option>
+                </select>
+              </label>
+              <label>
+                Lifecycle
+                <select>
+                  <option>Lead</option>
+                  <option>Qualified</option>
+                  <option>Customer</option>
+                </select>
+              </label>
+            </div>
+            <div className="crmModalActions">
+              <button onClick={() => setCreating(false)}>Cancel</button>
+              <button
+                onClick={() => {
+                  setCreating(false);
+                  flash("Contact created and enriched");
+                }}
+              >
+                Create + enrich record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {aiOpen && (
+        <div className="aiDrawer">
+          <div className="aiDrawerHead">
+            <div>
+              <span>✦</span>
+              <div>
+                <small>CYNCRO INTELLIGENCE</small>
+                <b>Business command</b>
+              </div>
+            </div>
+            <button onClick={() => setAiOpen(false)}>×</button>
+          </div>
+          <div className="aiConversation">
+            <div className="aiPrompt">What needs my attention today?</div>
+            <div className="aiAnswer">
+              <span>✦</span>
+              <p>
+                You have <b>$62,500</b> in high-intent opportunities. Daniel Kim
+                should be contacted first; his payment activity makes him 3.2×
+                more likely to close today. I can draft the message, create the
+                task, and update the opportunity.
+              </p>
+            </div>
+          </div>
+          <div className="aiSuggestions">
+            {[
+              "Draft Daniel’s follow-up",
+              "Show at-risk deals",
+              "Build today’s call list",
+            ].map((item) => (
+              <button onClick={() => flash(`${item} · ready`)} key={item}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="aiComposer">
+            <input placeholder="Ask about any contact, deal, booking, or metric…" />
+            <button onClick={() => flash("Command processed")}>↑</button>
+          </div>
+          <small className="aiPermission">
+            Cyncro asks before taking external actions.
+          </small>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
+  const columns = [
+    [
+      "NEW LEAD",
+      "$8,000",
+      [
+        ["Nia Carter", "Carter Collective", "$5,000", "68"],
+        ["Elena Torres", "Torres Studio", "$3,000", "61"],
+      ],
+    ],
+    [
+      "QUALIFIED",
+      "$15,000",
+      [
+        ["Marcus Reed", "Reed Development", "$12,000", "87"],
+        ["Owen Hart", "Hart & Co.", "$3,000", "72"],
+      ],
+    ],
+    [
+      "PROPOSAL",
+      "$20,500",
+      [
+        ["Alexandra Lewis", "Northstar Advisory", "$18,500", "94"],
+        ["Sophia Bennett", "Atelier House", "$2,000", "76"],
+      ],
+    ],
+    [
+      "NEGOTIATION",
+      "$32,000",
+      [["Daniel Kim", "Axis Systems", "$32,000", "91"]],
+    ],
+    [
+      "CLOSED WON",
+      "$24,000",
+      [
+        ["Maya Brooks", "Studio M", "$14,000", "100"],
+        ["Leo Grant", "Grant Capital", "$10,000", "100"],
+      ],
+    ],
+  ] as const;
+  return (
+    <div className="pipelineBoard">
+      {columns.map((column) => (
+        <section key={column[0]}>
+          <header>
+            <div>
+              <small>{column[0]}</small>
+              <b>{column[1]}</b>
+            </div>
+            <span>{column[2].length}</span>
+          </header>
+          <div>
+            {column[2].map((deal) => (
+              <button
+                className="dealCard"
+                onClick={() => onFlash(`${deal[0]} opened`)}
+                key={deal[0]}
+              >
+                <div>
+                  <i>
+                    {deal[0]
+                      .split(" ")
+                      .map((part) => part[0])
+                      .join("")}
+                  </i>
+                  <span>
+                    <b>{deal[0]}</b>
+                    <small>{deal[1]}</small>
+                  </span>
+                </div>
+                <strong>{deal[2]}</strong>
+                <footer>
+                  <span>Intent {deal[3]}</span>
+                  <em>•••</em>
+                </footer>
+              </button>
+            ))}
+          </div>
+          <button
+            className="addDeal"
+            onClick={() =>
+              onFlash(`New ${column[0].toLowerCase()} opportunity`)
+            }
+          >
+            ＋ Add opportunity
+          </button>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CRMContactDetail({
+  contact,
+  onFlash,
+}: {
+  contact: (typeof crmContacts)[number];
+  onFlash: (message: string) => void;
+}) {
+  return (
+    <aside className="contactDetail crmPanel">
+      <div className="contactHero">
+        <i>
+          {contact.name
+            .split(" ")
+            .map((part) => part[0])
+            .join("")}
+        </i>
+        <div>
+          <small>UNIFIED CUSTOMER RECORD</small>
+          <h2>{contact.name}</h2>
+          <p>{contact.company}</p>
+        </div>
+        <span>{contact.intent} intent</span>
+      </div>
+      <div className="contactActions">
+        <button onClick={() => onFlash("Call started")}>Call</button>
+        <button onClick={() => onFlash("Email composer opened")}>Email</button>
+        <button onClick={() => onFlash("SMS composer opened")}>SMS</button>
+        <button onClick={() => onFlash("Meeting link opened")}>Book</button>
+      </div>
+      <div className="contactFacts">
+        {[
+          ["EMAIL", contact.email],
+          ["PHONE", contact.phone],
+          ["LIFECYCLE", contact.stage],
+          ["OPPORTUNITY", contact.value],
+          ["SOURCE", contact.source],
+          ["OWNER", "Yvette Lomeli"],
+        ].map((item) => (
+          <div key={item[0]}>
+            <small>{item[0]}</small>
+            <b>{item[1]}</b>
+          </div>
+        ))}
+      </div>
+      <div className="contactTimeline">
+        <div className="crmPanelHead">
+          <div>
+            <small>COMPLETE TIMELINE</small>
+            <h3>Every interaction</h3>
+          </div>
+          <button onClick={() => onFlash("Note composer opened")}>
+            ＋ Note
+          </button>
+        </div>
+        {[
+          ["NOW", contact.last, "Customer signal"],
+          ["YESTERDAY", "Confirmation email delivered", "Automation"],
+          ["AUG 11", "Executive Strategy Session booked", "Calendar"],
+          ["AUG 10", `Entered from ${contact.source}`, "Attribution"],
+        ].map((item) => (
+          <div key={item[0] + item[1]}>
+            <time>{item[0]}</time>
+            <i />
+            <span>
+              <b>{item[1]}</b>
+              <small>{item[2]}</small>
+            </span>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
+  const [thread, setThread] = useState(0);
+  const threads = [
+    [
+      "Marcus Reed",
+      "Let’s move forward. What do you need from me?",
+      "SMS",
+      "2m",
+    ],
+    [
+      "Alexandra Lewis",
+      "Confirmed—looking forward to tomorrow.",
+      "Email",
+      "18m",
+    ],
+    ["Sophia Bennett", "Can we add a second location?", "Instagram", "1h"],
+    ["Nia Carter", "A seat opened for the intensive.", "Automation", "2h"],
+  ];
+  return (
+    <div className="conversationWorkspace crmPanel">
+      <aside>
+        <div className="inboxHead">
+          <div>
+            <small>UNIFIED INBOX</small>
+            <h2>All conversations</h2>
+          </div>
+          <button onClick={() => onFlash("Inbox filters opened")}>⌁</button>
+        </div>
+        {threads.map((item, index) => (
+          <button
+            className={thread === index ? "active" : ""}
+            onClick={() => setThread(index)}
+            key={item[0]}
+          >
+            <i>
+              {item[0]
+                .split(" ")
+                .map((part) => part[0])
+                .join("")}
+            </i>
+            <div>
+              <b>{item[0]}</b>
+              <p>{item[1]}</p>
+              <small>{item[2]}</small>
+            </div>
+            <time>{item[3]}</time>
+          </button>
+        ))}
+      </aside>
+      <article>
+        <header>
+          <div>
+            <i>
+              {threads[thread][0]
+                .split(" ")
+                .map((part) => part[0])
+                .join("")}
+            </i>
+            <span>
+              <b>{threads[thread][0]}</b>
+              <small>Opportunity · Qualified · $12,000</small>
+            </span>
+          </div>
+          <div>
+            <button onClick={() => onFlash("Call started")}>Call</button>
+            <button onClick={() => onFlash("Contact opened")}>
+              Open record
+            </button>
+          </div>
+        </header>
+        <div className="messageCanvas">
+          <div className="messageDate">TODAY</div>
+          <div className="message inbound">
+            Hi Yvette, I reviewed everything with my team.
+          </div>
+          <div className="message inbound">{threads[thread][1]}</div>
+          <div className="message outbound">
+            Absolutely—I’ll prepare the next step and send it over today.
+          </div>
+        </div>
+        <footer>
+          <button>＋</button>
+          <input placeholder="Reply by SMS…" />
+          <button onClick={() => onFlash("Reply sent")}>Send ↑</button>
+        </footer>
+      </article>
+      <aside className="conversationContext">
+        <small>CONVERSATION INTELLIGENCE</small>
+        <div className="sentiment">
+          <span>↗</span>
+          <div>
+            <b>High buying intent</b>
+            <small>Positive sentiment · Decision language detected</small>
+          </div>
+        </div>
+        <h3>Suggested next move</h3>
+        <p>
+          Send the proposal and payment link, then create a 24-hour follow-up
+          task.
+        </p>
+        <button onClick={() => onFlash("Next move executed")}>
+          ✦ Execute next move
+        </button>
+      </aside>
+    </div>
+  );
+}
+
+function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
+  return (
+    <div className="automationWorkspace">
+      <div className="automationSummary">
+        {[
+          ["18", "ACTIVE SYSTEMS"],
+          ["4,286", "ACTIONS THIS MONTH"],
+          ["96.8%", "SUCCESS RATE"],
+          ["132 hrs", "TIME RETURNED"],
+        ].map((item) => (
+          <div key={item[1]}>
+            <b>{item[0]}</b>
+            <small>{item[1]}</small>
+          </div>
+        ))}
+      </div>
+      <div className="automationGrid">
+        {[
+          [
+            "Booking → Opportunity",
+            "When a qualified booking is created, enrich the contact, open an opportunity, and assign the correct owner.",
+            "1,248 runs",
+            "LIVE",
+          ],
+          [
+            "No-show recovery",
+            "Send a recovery sequence, reopen availability, and notify the owner when a customer rebooks.",
+            "184 runs",
+            "LIVE",
+          ],
+          [
+            "High-intent escalation",
+            "Detect proposal views, payment activity, and decision language—then create the next best action.",
+            "96 runs",
+            "LIVE",
+          ],
+          [
+            "Customer onboarding",
+            "After payment, create tasks, collect documents, book kickoff, and move the lifecycle stage.",
+            "72 runs",
+            "LIVE",
+          ],
+          [
+            "Waitlist conversion",
+            "Fill cancelled seats automatically and stop the sequence when capacity is restored.",
+            "318 runs",
+            "LIVE",
+          ],
+          [
+            "Reactivation engine",
+            "Identify dormant contacts with buying signals and launch a personalized re-engagement path.",
+            "Ready",
+            "DRAFT",
+          ],
+        ].map((item, index) => (
+          <article className="crmPanel" key={item[0]}>
+            <header>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <i className={item[3] === "LIVE" ? "on" : ""}>{item[3]}</i>
+            </header>
+            <h2>{item[0]}</h2>
+            <p>{item[1]}</p>
+            <footer>
+              <small>{item[2]}</small>
+              <button onClick={() => onFlash(`${item[0]} opened`)}>
+                Open system →
+              </button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      <button
+        className="newAutomation"
+        onClick={() => onFlash("Automation builder opened")}
+      >
+        ＋ Build a new operating system
+      </button>
+    </div>
+  );
+}
+function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
+  return (
+    <div className="intelligenceWorkspace">
+      <section className="intelligenceHero">
+        <div>
+          <span>✦ CYNCRO INTELLIGENCE</span>
+          <h2>
+            Ask your entire business.
+            <br />
+            Act from one answer.
+          </h2>
+          <p>
+            Reason across contacts, bookings, conversations, revenue, payments,
+            tasks, and attribution—then execute with permission.
+          </p>
+          <div>
+            <button onClick={() => onFlash("Revenue analysis ready")}>
+              Why did revenue change?
+            </button>
+            <button onClick={() => onFlash("At-risk deals identified")}>
+              Which deals are at risk?
+            </button>
+            <button onClick={() => onFlash("Growth plan generated")}>
+              Build my growth plan
+            </button>
+          </div>
+        </div>
+        <aside>
+          <small>LIVE BUSINESS MODEL</small>
+          {[
+            ["Customer graph", "2,418 entities"],
+            ["Revenue context", "$284K analyzed"],
+            ["Behavior signals", "12,806 events"],
+            ["Connected actions", "34 capabilities"],
+          ].map((item) => (
+            <div key={item[0]}>
+              <span>{item[0]}</span>
+              <b>{item[1]}</b>
+              <i>●</i>
+            </div>
+          ))}
+        </aside>
+      </section>
+      <div className="intelligenceCards">
+        {[
+          [
+            "NEXT-BEST ACTION",
+            "Prioritize the seven contacts most likely to close this week.",
+            "+$54K influenced",
+          ],
+          [
+            "PIPELINE RISK",
+            "Two opportunities show declining engagement and need intervention.",
+            "$9.5K protected",
+          ],
+          [
+            "CAPACITY SIGNAL",
+            "Friday’s intensive can release two held seats to the waitlist.",
+            "+$1,994 potential",
+          ],
+          [
+            "ATTRIBUTION INSIGHT",
+            "Private booking links convert 2.7× better than paid traffic.",
+            "Shift budget",
+          ],
+        ].map((item) => (
+          <article className="crmPanel" key={item[0]}>
+            <small>{item[0]}</small>
+            <h3>{item[1]}</h3>
+            <b>{item[2]}</b>
+            <button onClick={() => onFlash("Insight opened")}>
+              Inspect reasoning →
+            </button>
+          </article>
+        ))}
+      </div>
+      <section className="enterpriseLayer crmPanel">
+        <div className="enterpriseLayerHead">
+          <div>
+            <small>ENTERPRISE CONTROL LAYER</small>
+            <h2>Salesforce depth. Cyncro speed.</h2>
+            <p>
+              Model any business without forcing it into rigid CRM objects or
+              requiring a team of administrators.
+            </p>
+          </div>
+          <span>Architecture ready</span>
+        </div>
+        <div className="enterpriseGrid">
+          {[
+            [
+              "Universal objects",
+              "Create any record, field, relationship, or lifecycle.",
+            ],
+            [
+              "Relationship graph",
+              "See people, companies, deals, bookings, payments, and influence.",
+            ],
+            [
+              "Permission intelligence",
+              "Role, team, field, action, and AI-level controls.",
+            ],
+            [
+              "Multi-pipeline engine",
+              "Run sales, service, recruiting, partnerships, and fulfillment.",
+            ],
+            [
+              "Open orchestration",
+              "APIs, webhooks, event streams, imports, exports, and data sync.",
+            ],
+            [
+              "Audit + governance",
+              "Full history, approvals, ownership, deduplication, and data quality.",
+            ],
+          ].map((item, index) => (
+            <article key={item[0]}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <b>{item[0]}</b>
+                <p>{item[1]}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function Admin({ onCreate }: { onCreate: () => void }) {
   const [selectedBooking, setSelectedBooking] = useState<number | null>(null);
   const [rows, setRows] = useState([
