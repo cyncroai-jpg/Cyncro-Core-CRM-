@@ -1460,6 +1460,177 @@ label {
 .linkpreview b {
   margin: 8px 0 15px;
 }
+.comparison {
+  margin-top: 52px;
+  padding-top: 44px;
+  border-top: 1px solid #38262a;
+}
+.comparisonHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+.comparisonHead h2 {
+  font-size: 34px;
+  margin: 9px 0;
+}
+.comparisonHead p {
+  max-width: 760px;
+  margin: 0;
+  line-height: 1.7;
+}
+.comparisonCallout {
+  min-width: 238px;
+  border: 1px solid #6f2635;
+  background: linear-gradient(145deg, #251116, #0d0b0c);
+  border-radius: 13px;
+  padding: 17px 19px;
+}
+.comparisonCallout small,
+.comparisonCallout b,
+.comparisonCallout span {
+  display: block;
+}
+.comparisonCallout small {
+  color: #db5269;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.comparisonCallout b {
+  font-size: 17px;
+  margin: 8px 0 4px;
+}
+.comparisonCallout span {
+  color: #fff;
+  font-size: 11px;
+}
+.capabilityCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 26px 0 20px;
+}
+.capabilityCards article {
+  min-height: 142px;
+  border: 1px solid #302529;
+  background: linear-gradient(145deg, #121011, #0b0a0a);
+  border-radius: 12px;
+  padding: 19px;
+}
+.capabilityCards article > span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #f9dfe4;
+  background: #851f32;
+  font-size: 10px;
+}
+.capabilityCards h3 {
+  font-size: 17px;
+  margin: 13px 0 7px;
+}
+.capabilityCards p {
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+}
+.matrixWrap {
+  overflow-x: auto;
+  border: 1px solid #34272a;
+  border-radius: 13px;
+  background: #0d0c0c;
+}
+.capabilityMatrix {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+.capabilityMatrix th,
+.capabilityMatrix td {
+  border-bottom: 1px solid #292123;
+  padding: 14px 13px;
+  text-align: center;
+  font-size: 11px;
+}
+.capabilityMatrix thead th {
+  position: sticky;
+  top: 0;
+  background: #151213;
+  color: #fff;
+  font-weight: 500;
+}
+.capabilityMatrix th:first-child {
+  width: 27%;
+  text-align: left;
+  color: #fff;
+  font-weight: 500;
+}
+.capabilityMatrix tbody tr:last-child th,
+.capabilityMatrix tbody tr:last-child td {
+  border-bottom: 0;
+}
+.capabilityMatrix tbody tr:hover {
+  background: #151012;
+}
+.cyncroColumn {
+  background: #1b1013 !important;
+}
+.matrixBadge {
+  display: inline-block;
+  min-width: 76px;
+  border-radius: 20px;
+  padding: 6px 9px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.matrixBest {
+  color: #fff;
+  background: #9b2137;
+  box-shadow: 0 0 20px #6e132555;
+}
+.matrixYes {
+  color: #c8f4dc;
+  border: 1px solid #28543d;
+  background: #102019;
+}
+.matrixMid {
+  color: #f2dfba;
+  border: 1px solid #5c4a27;
+  background: #201a10;
+}
+.matrixLow {
+  color: #e1d7d9;
+  border: 1px solid #413638;
+  background: #181516;
+}
+.comparisonFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 13px;
+}
+.comparisonFoot p {
+  color: #fff;
+  font-size: 10px;
+  margin: 0;
+}
+.comparisonFoot div {
+  display: flex;
+  gap: 12px;
+}
+.comparisonFoot a {
+  color: #e9b6c0;
+  font-size: 10px;
+  text-decoration: none;
+}
+.comparisonFoot a:hover {
+  color: #fff;
+}
 @media (max-width: 900px) {
   nav button {
     display: none;
@@ -1486,6 +1657,9 @@ label {
   }
   .stats,
   .studiostats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .capabilityCards {
     grid-template-columns: 1fr 1fr;
   }
   .tr {
@@ -1529,6 +1703,17 @@ label {
     grid-template-columns: 1fr;
   }
   .form {
+    grid-template-columns: 1fr;
+  }
+  .comparisonHead,
+  .comparisonFoot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .comparisonCallout {
+    width: 100%;
+  }
+  .capabilityCards {
     grid-template-columns: 1fr;
   }
 }

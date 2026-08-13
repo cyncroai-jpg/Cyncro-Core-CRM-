@@ -858,6 +858,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
         ))}
       </div>
       <AdvancedSuite onCreate={() => setEditing(true)} />
+      <CapabilityComparison />
     </section>
   );
 }
@@ -1391,6 +1392,252 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
         </div>
       )}
     </div>
+  );
+}
+
+function CapabilityComparison() {
+  const rows = [
+    [
+      "Booking links + availability",
+      "Native",
+      "Native",
+      "Native",
+      "Native",
+      "Native",
+    ],
+    [
+      "Group sessions + capacity",
+      "Native",
+      "Available",
+      "Native",
+      "Available",
+      "Available",
+    ],
+    [
+      "Waitlists + automatic seat release",
+      "Native",
+      "Extension",
+      "Workflow",
+      "Workflow",
+      "Manual",
+    ],
+    [
+      "Payments, deposits + packages",
+      "Native",
+      "Integration",
+      "Native",
+      "Integration",
+      "External",
+    ],
+    [
+      "Attribute + round-robin routing",
+      "Native",
+      "Teams+",
+      "Limited",
+      "Org+",
+      "Staff logic",
+    ],
+    [
+      "Host + physical resource locking",
+      "Native",
+      "Host-first",
+      "Resources",
+      "Host-first",
+      "Staff-first",
+    ],
+    [
+      "Customer-selected location or video app",
+      "Native",
+      "Host-defined",
+      "Host-defined",
+      "Host-defined",
+      "Teams-first",
+    ],
+    [
+      "Reschedule with conflict recheck",
+      "Native",
+      "Native",
+      "Native",
+      "Native",
+      "Native",
+    ],
+    [
+      "Multi-step email + SMS automation",
+      "Native",
+      "Plan-based",
+      "Available",
+      "Plan-based",
+      "Email-first",
+    ],
+    [
+      "Contact, booking + attribution record",
+      "Unified",
+      "Integrations",
+      "Client record",
+      "Integrations",
+      "Microsoft 365",
+    ],
+    [
+      "Month + week operations views",
+      "Native",
+      "Available",
+      "Available",
+      "Available",
+      "Available",
+    ],
+    [
+      "Custom rules, buffers + blackouts",
+      "Native",
+      "Available",
+      "Available",
+      "Available",
+      "Available",
+    ],
+    [
+      "White-label brand + interface control",
+      "Full control",
+      "Partial",
+      "Customizable",
+      "Plan-based",
+      "Limited",
+    ],
+    [
+      "Booking analytics + conversion signals",
+      "Native",
+      "Plan-based",
+      "Reports",
+      "Plan-based",
+      "Basic",
+    ],
+  ];
+  const tone = (value: string, cyncro: boolean) => {
+    if (cyncro) return "matrixBadge matrixBest";
+    if (["Native", "Available", "Resources", "Client record"].includes(value))
+      return "matrixBadge matrixYes";
+    if (["Manual", "External", "Limited", "Basic"].includes(value))
+      return "matrixBadge matrixLow";
+    return "matrixBadge matrixMid";
+  };
+  return (
+    <section className="comparison" aria-labelledby="comparison-title">
+      <div className="comparisonHead">
+        <div>
+          <label>CAPABILITY BENCHMARK</label>
+          <h2 id="comparison-title">More than a scheduling link.</h2>
+          <p>
+            Cyncro unifies the customer journey, capacity, revenue, routing,
+            operations, and follow-up in one calendar operating system.
+          </p>
+        </div>
+        <div className="comparisonCallout">
+          <small>CYNCRO ADVANTAGE</small>
+          <b>One command center</b>
+          <span>No fragmented scheduler stack</span>
+        </div>
+      </div>
+      <div className="capabilityCards">
+        {[
+          [
+            "01",
+            "Customer experience",
+            "Location choice, custom questions, confirmations",
+          ],
+          [
+            "02",
+            "Capacity intelligence",
+            "Seats, resources, holds, waitlists, conflict protection",
+          ],
+          [
+            "03",
+            "Revenue controls",
+            "Payments, deposits, packages, coupons, cancellation rules",
+          ],
+          [
+            "04",
+            "Routing engine",
+            "Hosts, teams, rooms, equipment, skills, load balancing",
+          ],
+          [
+            "05",
+            "Lifecycle automation",
+            "Email, SMS, reminders, follow-up, approval paths",
+          ],
+          [
+            "06",
+            "Operations + insight",
+            "Admin controls, contacts, attribution, conversion analytics",
+          ],
+        ].map((item) => (
+          <article key={item[0]}>
+            <span>{item[0]}</span>
+            <h3>{item[1]}</h3>
+            <p>{item[2]}</p>
+          </article>
+        ))}
+      </div>
+      <div className="matrixWrap">
+        <table className="capabilityMatrix">
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th className="cyncroColumn">Cyncro</th>
+              <th>Calendly</th>
+              <th>Acuity</th>
+              <th>Cal.com</th>
+              <th>MS Bookings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row[0]}>
+                <th scope="row">{row[0]}</th>
+                {row.slice(1).map((value, index) => (
+                  <td
+                    className={index === 0 ? "cyncroColumn" : ""}
+                    key={`${row[0]}-${value}-${index}`}
+                  >
+                    <span className={tone(value, index === 0)}>{value}</span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="comparisonFoot">
+        <p>
+          Comparison reflects publicly documented capabilities and typical
+          configurations as of August 2026. Plan and integration requirements
+          vary.
+        </p>
+        <div>
+          <a
+            href="https://calendly.com/features"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Calendly
+          </a>
+          <a
+            href="https://help.acuityscheduling.com/hc/en-us/articles/16676870315661-Getting-started-with-Acuity-Scheduling"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Acuity
+          </a>
+          <a href="https://cal.com/pricing" target="_blank" rel="noreferrer">
+            Cal.com
+          </a>
+          <a
+            href="https://www.microsoft.com/en-us/microsoft-365/business/scheduling-and-booking-app"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Microsoft
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 
