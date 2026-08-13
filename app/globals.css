@@ -90,6 +90,10 @@
   display: grid;
   gap: 3px;
   padding: 18px 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4b2529 transparent;
 }
 .disputeSidebar > nav button {
   display: flex;
@@ -870,6 +874,63 @@
 .complianceGrid button {
   font-size: 8px;
 }
+.disputeSuiteView {
+  display: grid;
+  gap: 16px;
+}
+.disputeHero.compact h1 {
+  max-width: 760px;
+  font-size: clamp(28px, 3.2vw, 48px);
+}
+.suiteSections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.suiteTable {
+  overflow: hidden;
+}
+.suiteTable > header {
+  padding: 18px;
+}
+.suiteTable > header small {
+  color: #b28c90;
+  font-size: 7px;
+  letter-spacing: 0.15em;
+}
+.suiteTable > header h2 {
+  margin-top: 5px;
+}
+.suiteTable > header > button {
+  border: 0;
+  color: #e4a3aa;
+  font-size: 8px;
+}
+.suiteTable > button {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: #c9c9ce;
+  text-align: left;
+  background: transparent;
+}
+.suiteTable > button:hover {
+  background: rgba(142, 19, 30, 0.09);
+}
+.suiteTable > button span {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suiteTable > button .primary {
+  color: #fff;
+  font-weight: 600;
+}
 @media (max-width: 1100px) {
   .disputeShell {
     grid-template-columns: 76px minmax(0, 1fr);
@@ -899,6 +960,9 @@
   .complianceGrid {
     grid-template-columns: 1fr 1fr;
   }
+  .suiteSections {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 760px) {
   .disputeShell {
@@ -917,6 +981,7 @@
   .disputeSidebar > nav {
     display: flex;
     overflow-x: auto;
+    overflow-y: hidden;
     padding: 0;
   }
   .disputeSidebar > nav button {
@@ -938,6 +1003,13 @@
   }
   .disputeHero h1 {
     font-size: 27px;
+  }
+  .suiteTable {
+    overflow-x: auto;
+  }
+  .suiteTable > header,
+  .suiteTable > button {
+    min-width: 620px;
   }
   .disputeMetrics,
   .mailMetrics {

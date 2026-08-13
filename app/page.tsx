@@ -2270,10 +2270,19 @@ function Switch({
 type DisputeView =
   | "Command"
   | "Clients"
+  | "Leads"
+  | "Report Audit"
   | "Cases"
   | "Templates"
   | "Law Library"
   | "Mail"
+  | "Inbox"
+  | "Tasks"
+  | "Billing"
+  | "Affiliates"
+  | "Client Portal"
+  | "Team"
+  | "Marketing"
   | "Analytics"
   | "Compliance";
 
@@ -2335,10 +2344,19 @@ function CyncroDispute() {
   const nav: { name: DisputeView; icon: string }[] = [
     { name: "Command", icon: "⌂" },
     { name: "Clients", icon: "◎" },
+    { name: "Leads", icon: "◫" },
+    { name: "Report Audit", icon: "◉" },
     { name: "Cases", icon: "▦" },
     { name: "Templates", icon: "▤" },
     { name: "Law Library", icon: "§" },
     { name: "Mail", icon: "✉" },
+    { name: "Inbox", icon: "▣" },
+    { name: "Tasks", icon: "✓" },
+    { name: "Billing", icon: "$" },
+    { name: "Affiliates", icon: "⌘" },
+    { name: "Client Portal", icon: "▱" },
+    { name: "Team", icon: "♙" },
+    { name: "Marketing", icon: "✦" },
     { name: "Analytics", icon: "⌁" },
     { name: "Compliance", icon: "◇" },
   ];
@@ -2422,6 +2440,8 @@ function CyncroDispute() {
           {view === "Clients" && (
             <DisputeClients onCase={() => setView("Cases")} onFlash={flash} />
           )}
+          {view === "Leads" && <DisputeLeads onFlash={flash} />}
+          {view === "Report Audit" && <DisputeReportAudit onFlash={flash} />}
           {view === "Templates" && (
             <DisputeTemplates
               template={template}
@@ -2433,6 +2453,13 @@ function CyncroDispute() {
           )}
           {view === "Law Library" && <DisputeLawLibrary />}
           {view === "Mail" && <DisputeMail onFlash={flash} />}
+          {view === "Inbox" && <DisputeInbox onFlash={flash} />}
+          {view === "Tasks" && <DisputeTasks onFlash={flash} />}
+          {view === "Billing" && <DisputeBilling onFlash={flash} />}
+          {view === "Affiliates" && <DisputeAffiliates onFlash={flash} />}
+          {view === "Client Portal" && <DisputeClientPortal onFlash={flash} />}
+          {view === "Team" && <DisputeTeam onFlash={flash} />}
+          {view === "Marketing" && <DisputeMarketing onFlash={flash} />}
           {view === "Analytics" && <DisputeAnalytics />}
           {view === "Compliance" && <DisputeCompliance onFlash={flash} />}
         </div>
@@ -3220,6 +3247,449 @@ function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
       </div>
     </div>
   );
+}
+
+const suiteData: Record<
+  string,
+  {
+    eyebrow: string;
+    title: string;
+    description: string;
+    action: string;
+    metrics: string[][];
+    sections: { title: string; subtitle: string; rows: string[][] }[];
+  }
+> = {
+  Leads: {
+    eyebrow: "LEAD-TO-CLIENT PIPELINE",
+    title: "Turn interest into compliant client relationships.",
+    description:
+      "Lead capture, consultation audits, nurture, agreement, onboarding, assignment, and attribution.",
+    action: "＋ Add lead",
+    metrics: [
+      ["NEW LEADS", "48", "+22%"],
+      ["CONSULTATIONS", "31", "64% booked"],
+      ["AGREEMENTS SIGNED", "18", "58% close"],
+      ["PIPELINE VALUE", "$27.4K", "This month"],
+    ],
+    sections: [
+      {
+        title: "Conversion pipeline",
+        subtitle: "Every lead and next action",
+        rows: [
+          ["Jordan Mills", "Credit audit requested", "CONSULTATION", "$1,497"],
+          ["Taylor Brooks", "Agreement opened", "PROPOSAL", "$997"],
+          ["Nina Alvarez", "Onboarding incomplete", "SIGNED", "$1,297"],
+          ["Owen Hart", "New website lead", "NEW", "$797"],
+        ],
+      },
+      {
+        title: "Automated nurture",
+        subtitle: "Email + SMS sequences",
+        rows: [
+          ["Credit audit follow-up", "842 enrolled", "38% reply", "LIVE"],
+          ["No-show recovery", "62 enrolled", "21% rebook", "LIVE"],
+          ["Agreement reminder", "34 enrolled", "59% signed", "LIVE"],
+        ],
+      },
+    ],
+  },
+  "Report Audit": {
+    eyebrow: "CREDIT REPORT INTELLIGENCE",
+    title: "Import once. Understand every bureau difference.",
+    description:
+      "Three-bureau import, account matching, issue tagging, one-click audit, reimport comparison, score history, and permanent report snapshots.",
+    action: "Import credit report",
+    metrics: [
+      ["REPORTS IMPORTED", "184", "100% encrypted"],
+      ["POTENTIAL ISSUES", "1,428", "Fact review required"],
+      ["REIMPORT CHANGES", "312", "This month"],
+      ["AVG AUDIT TIME", "2m 14s", "−81%"],
+    ],
+    sections: [
+      {
+        title: "Tri-bureau audit",
+        subtitle: "Account-level comparison",
+        rows: [
+          ["Capital One 4412", "EX: $4,281", "EQ: $3,994", "TU: $4,281"],
+          ["Midland Credit", "EX: Open", "EQ: Missing", "TU: Collection"],
+          ["Chase 1098", "EX: 30 late", "EQ: Current", "TU: 60 late"],
+        ],
+      },
+      {
+        title: "Reimport change detector",
+        subtitle: "Preserved historical snapshots",
+        rows: [
+          ["Deleted", "28 items", "Verified across report", "PDF saved"],
+          ["Updated positive", "41 items", "Status improved", "PDF saved"],
+          ["Updated negative", "9 items", "Review required", "Flagged"],
+          ["New accounts", "14 items", "Consumer review", "Pending"],
+        ],
+      },
+    ],
+  },
+  Inbox: {
+    eyebrow: "UNIFIED CLIENT COMMUNICATION",
+    title: "Every conversation attached to the case.",
+    description:
+      "Secure portal messages, email, SMS, web chat, assignments, internal notes, templates, and response-time controls.",
+    action: "New message",
+    metrics: [
+      ["OPEN CONVERSATIONS", "32", "8 assigned to you"],
+      ["AVG RESPONSE", "6m 18s", "−42%"],
+      ["CLIENT SATISFACTION", "96%", "Last 30 days"],
+      ["UNREAD", "7", "2 urgent"],
+    ],
+    sections: [
+      {
+        title: "Unified inbox",
+        subtitle: "SMS · email · portal · chat",
+        rows: [
+          ["Marcus Reed", "Uploaded TransUnion response", "PORTAL", "2m"],
+          ["Amelia Carter", "Question about investigation", "SMS", "8m"],
+          ["Sofia Bennett", "New Equifax alert", "EMAIL", "22m"],
+        ],
+      },
+      {
+        title: "Communication automations",
+        subtitle: "Context-aware and consent controlled",
+        rows: [
+          ["Welcome + onboarding", "New client", "Email + SMS", "ACTIVE"],
+          ["Report ready", "Import complete", "Push + email", "ACTIVE"],
+          [
+            "Response deadline",
+            "7 days remaining",
+            "Internal + client",
+            "ACTIVE",
+          ],
+        ],
+      },
+    ],
+  },
+  Tasks: {
+    eyebrow: "TEAM WORKFLOW CONTROL",
+    title: "Nothing falls through the cracks.",
+    description:
+      "Tasks, events, queues, recurring work, service-level timers, assignments, calendars, and automated handoffs.",
+    action: "＋ Create task",
+    metrics: [
+      ["DUE TODAY", "29", "5 urgent"],
+      ["COMPLETED", "94%", "This week"],
+      ["OVERDUE", "0", "SLA protected"],
+      ["AUTOMATED", "68%", "No manual touch"],
+    ],
+    sections: [
+      {
+        title: "Priority work queue",
+        subtitle: "Sorted by deadline and risk",
+        rows: [
+          ["Analyze TU response", "Marcus Reed", "TODAY 3 PM", "URGENT"],
+          [
+            "Review identity documents",
+            "Sofia Bennett",
+            "TODAY 5 PM",
+            "NORMAL",
+          ],
+          ["Prepare Round 2 facts", "Daniel Foster", "TOMORROW", "WATCH"],
+        ],
+      },
+      {
+        title: "Calendar + events",
+        subtitle: "Consultations and follow-ups",
+        rows: [
+          ["Client review call", "Amelia Carter", "Aug 14 · 10 AM", "Yvette"],
+          ["Affiliate onboarding", "Palm Funding", "Aug 14 · 1 PM", "Dana"],
+          ["Team compliance review", "All staff", "Aug 15 · 9 AM", "Owner"],
+        ],
+      },
+    ],
+  },
+  Billing: {
+    eyebrow: "COMPLIANT REVENUE OPERATIONS",
+    title: "Bill accurately. Recover revenue. Keep proof.",
+    description:
+      "Invoices, subscriptions, completed-service billing gates, payment links, dunning, refunds, disputes, tax, and accounting reconciliation.",
+    action: "＋ Create invoice",
+    metrics: [
+      ["MRR", "$86,420", "+14.8%"],
+      ["COLLECTED", "$79,118", "91.5%"],
+      ["PAST DUE", "$4,208", "Saver active"],
+      ["CHURN", "2.1%", "−0.8%"],
+    ],
+    sections: [
+      {
+        title: "Invoices + subscriptions",
+        subtitle: "CROA service-completion gates",
+        rows: [
+          ["Amelia Carter", "Monthly service completed", "$149", "PAID"],
+          ["Marcus Reed", "Round 2 service completed", "$199", "DUE"],
+          ["Sofia Bennett", "Onboarding service", "$99", "HELD · CANCELLATION"],
+        ],
+      },
+      {
+        title: "Subscription Saver",
+        subtitle: "Consent-based payment recovery",
+        rows: [
+          ["Day 1 reminder", "18 accounts", "Email", "ACTIVE"],
+          ["Day 3 card update", "9 accounts", "Portal + SMS", "ACTIVE"],
+          ["Day 7 team task", "4 accounts", "Manual review", "ACTIVE"],
+        ],
+      },
+    ],
+  },
+  Affiliates: {
+    eyebrow: "REFERRAL PARTNER OPERATIONS",
+    title: "Turn trusted partners into predictable growth.",
+    description:
+      "Affiliate portal, branded links, attribution, onboarding, lead status, commissions, documents, messaging, and performance analytics.",
+    action: "＋ Invite affiliate",
+    metrics: [
+      ["ACTIVE PARTNERS", "86", "+9 this month"],
+      ["REFERRED LEADS", "214", "Last 30 days"],
+      ["CLIENTS WON", "74", "34.6%"],
+      ["ATTRIBUTED MRR", "$22.8K", "26% total"],
+    ],
+    sections: [
+      {
+        title: "Partner leaderboard",
+        subtitle: "Quality and revenue attribution",
+        rows: [
+          ["Palm Funding Group", "42 leads", "18 clients", "$7.8K MRR"],
+          ["HomeKey Mortgage", "31 leads", "12 clients", "$4.9K MRR"],
+          ["DriveRight Auto", "28 leads", "9 clients", "$3.2K MRR"],
+        ],
+      },
+      {
+        title: "Affiliate onboarding",
+        subtitle: "Automated education and compliance",
+        rows: [
+          ["Welcome sequence", "86 enrolled", "100% delivered", "ACTIVE"],
+          ["Referral rules attestation", "84 signed", "2 pending", "REQUIRED"],
+          ["Monthly partner update", "Aug 15", "86 recipients", "SCHEDULED"],
+        ],
+      },
+    ],
+  },
+  "Client Portal": {
+    eyebrow: "SECURE CLIENT ACCESS",
+    title: "Give clients visibility without losing control.",
+    description:
+      "Mobile-first onboarding, agreements, documents, scores, dispute choices, progress, messages, invoices, notifications, education, and referrals.",
+    action: "Preview mobile portal",
+    metrics: [
+      ["PORTAL ADOPTION", "92%", "169 active"],
+      ["ONBOARDING COMPLETE", "88%", "+11%"],
+      ["PUSH ENABLED", "81%", "137 clients"],
+      ["SELF-SERVICE", "64%", "Fewer status calls"],
+    ],
+    sections: [
+      {
+        title: "Onboarding journey",
+        subtitle: "English + Spanish",
+        rows: [
+          [
+            "Identity verification",
+            "Government ID + proof of address",
+            "184/184",
+            "REQUIRED",
+          ],
+          [
+            "Consumer rights disclosure",
+            "Viewed + acknowledged",
+            "181/184",
+            "3 PENDING",
+          ],
+          [
+            "Digital agreement",
+            "Signed + cancellation notice",
+            "178/184",
+            "6 PENDING",
+          ],
+          [
+            "Report connection",
+            "Monitoring or upload",
+            "171/184",
+            "13 PENDING",
+          ],
+        ],
+      },
+      {
+        title: "Client Choice",
+        subtitle: "Consumer controls disputed items",
+        rows: [
+          ["Items selected", "428", "Truth attested", "READY"],
+          ["Items awaiting review", "72", "Needs reason", "PENDING"],
+          ["Items declined", "39", "Accurate/current", "PROTECTED"],
+        ],
+      },
+    ],
+  },
+  Team: {
+    eyebrow: "PEOPLE + PERMISSIONS",
+    title: "Scale the company without exposing client data.",
+    description:
+      "Role-based access, workload, teams, specialist assignment, approval limits, audit history, training, and performance.",
+    action: "＋ Invite teammate",
+    metrics: [
+      ["TEAM MEMBERS", "18", "4 roles"],
+      ["ACTIVE CASELOAD", "18.2", "Per specialist"],
+      ["SLA SCORE", "97%", "Top quartile"],
+      ["TRAINING CURRENT", "100%", "Quarterly"],
+    ],
+    sections: [
+      {
+        title: "Team workload",
+        subtitle: "Balanced by capacity and skill",
+        rows: [
+          ["Yvette Lomeli", "Owner", "Full access", "86 cases"],
+          ["Dana Pierce", "Compliance manager", "Approval + audit", "42 cases"],
+          ["Maya Torres", "Dispute specialist", "Assigned clients", "38 cases"],
+          ["Andre Cole", "Client success", "Portal + messaging", "52 clients"],
+        ],
+      },
+      {
+        title: "Permission policies",
+        subtitle: "Least-privilege access",
+        rows: [
+          ["Owner", "All modules + billing", "2 users", "ACTIVE"],
+          ["Compliance", "Templates + approvals + audit", "3 users", "ACTIVE"],
+          ["Specialist", "Assigned clients only", "9 users", "ACTIVE"],
+          ["Affiliate", "Referred lead status only", "86 users", "ISOLATED"],
+        ],
+      },
+    ],
+  },
+  Marketing: {
+    eyebrow: "GROWTH AUTOMATION HUB",
+    title: "Attract, nurture, convert, review, and refer.",
+    description:
+      "Landing pages, forms, email/SMS, web chat, social inbox, reputation, referral campaigns, segmentation, attribution, and scheduling.",
+    action: "＋ Create campaign",
+    metrics: [
+      ["LEADS GENERATED", "486", "This month"],
+      ["NURTURE CONVERSION", "18.4%", "+4.2%"],
+      ["REVIEWS", "4.9★", "312 total"],
+      ["CAMPAIGN ROI", "8.7×", "Attributed"],
+    ],
+    sections: [
+      {
+        title: "Campaign command",
+        subtitle: "Omnichannel journeys",
+        rows: [
+          ["Credit audit funnel", "Meta + landing page", "184 leads", "LIVE"],
+          ["Cold lead reactivation", "SMS + email", "42 appointments", "LIVE"],
+          ["Client milestone reviews", "Email + portal", "31 reviews", "LIVE"],
+          [
+            "Affiliate recruitment",
+            "Social + webinar",
+            "18 partners",
+            "SCHEDULED",
+          ],
+        ],
+      },
+      {
+        title: "Unified social + chat",
+        subtitle: "Instagram · Facebook · SMS · web",
+        rows: [
+          ["CREDIT keyword", "128 conversations", "42 booked", "ACTIVE"],
+          ["Website chat", "94 conversations", "31 qualified", "ACTIVE"],
+          ["Facebook comments", "62 triggers", "18 leads", "ACTIVE"],
+        ],
+      },
+    ],
+  },
+};
+
+function DisputeSuiteView({
+  name,
+  onFlash,
+}: {
+  name: keyof typeof suiteData;
+  onFlash: (m: string) => void;
+}) {
+  const data = suiteData[name];
+  return (
+    <div className="disputeSuiteView">
+      <div className="disputeHero compact">
+        <div>
+          <span>{data.eyebrow}</span>
+          <h1>{data.title}</h1>
+          <p>{data.description}</p>
+        </div>
+        <button onClick={() => onFlash(`${data.action} opened`)}>
+          {data.action}
+        </button>
+      </div>
+      <div className="disputeMetrics">
+        {data.metrics.map((m) => (
+          <article key={m[0]}>
+            <small>{m[0]}</small>
+            <b>{m[1]}</b>
+            <span>{m[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="suiteSections">
+        {data.sections.map((section) => (
+          <section className="disputePanel suiteTable" key={section.title}>
+            <header>
+              <div>
+                <small>{section.subtitle.toUpperCase()}</small>
+                <h2>{section.title}</h2>
+              </div>
+              <button
+                onClick={() => onFlash(`${section.title} controls opened`)}
+              >
+                Manage →
+              </button>
+            </header>
+            {section.rows.map((row, i) => (
+              <button
+                onClick={() => onFlash(`${row[0]} record opened`)}
+                key={`${row[0]}-${i}`}
+              >
+                {row.map((cell, j) => (
+                  <span
+                    className={j === 0 ? "primary" : ""}
+                    key={`${cell}-${j}`}
+                  >
+                    {cell}
+                  </span>
+                ))}
+              </button>
+            ))}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+function DisputeLeads({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Leads" onFlash={onFlash} />;
+}
+function DisputeReportAudit({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Report Audit" onFlash={onFlash} />;
+}
+function DisputeInbox({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Inbox" onFlash={onFlash} />;
+}
+function DisputeTasks({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Tasks" onFlash={onFlash} />;
+}
+function DisputeBilling({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Billing" onFlash={onFlash} />;
+}
+function DisputeAffiliates({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Affiliates" onFlash={onFlash} />;
+}
+function DisputeClientPortal({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Client Portal" onFlash={onFlash} />;
+}
+function DisputeTeam({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Team" onFlash={onFlash} />;
+}
+function DisputeMarketing({ onFlash }: { onFlash: (m: string) => void }) {
+  return <DisputeSuiteView name="Marketing" onFlash={onFlash} />;
 }
 
 type DispatchRole = "Owner" | "Dispatcher" | "Technician";
