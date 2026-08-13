@@ -857,14 +857,6 @@ function Studio({ onPreview }: { onPreview: () => void }) {
           </article>
         ))}
       </div>
-      <div className="platformbar">
-        <b>Built to outperform basic schedulers</b>
-        <span>Capacity & waitlists</span>
-        <span>Payments & deposits</span>
-        <span>Host + resource routing</span>
-        <span>Custom questions</span>
-        <span>One-time or recurring events</span>
-      </div>
       <AdvancedSuite onCreate={() => setEditing(true)} />
     </section>
   );
