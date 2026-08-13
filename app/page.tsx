@@ -9,9 +9,9 @@ const times = [
   "2:30 PM",
   "4:00 PM",
 ];
-type Tab = "book" | "admin" | "studio";
+type Tab = "home" | "book" | "admin" | "studio";
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("studio"),
+  const [tab, setTab] = useState<Tab>("home"),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
@@ -30,15 +30,16 @@ export default function Home() {
   return (
     <main onClickCapture={acknowledge}>
       {globalNotice && <div className="globalToast">✓ {globalNotice}</div>}
-      <header>
-        <div className="logo">
+      <header className={tab === "home" ? "frontHeader" : ""}>
+        <button className="logo logoButton" onClick={() => setTab("home")}>
           <i>Cyncro</i> Core
-        </div>
+        </button>
         <nav>
           {[
-            ["book", "Customer booking"],
-            ["admin", "Bookings"],
-            ["studio", "Event Studio"],
+            ["home", "Overview"],
+            ["book", "Booking experience"],
+            ["studio", "Platform"],
+            ["admin", "Operations"],
           ].map((x) => (
             <button
               className={tab === x[0] ? "navon" : ""}
@@ -51,7 +52,13 @@ export default function Home() {
           <span>● DEMO LIVE</span>
         </nav>
       </header>
-      {tab === "studio" ? (
+      {tab === "home" ? (
+        <FrontExperience
+          onExperience={() => setTab("book")}
+          onPlatform={() => setTab("studio")}
+          onOperations={() => setTab("admin")}
+        />
+      ) : tab === "studio" ? (
         <Studio onPreview={() => setTab("book")} />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
@@ -235,6 +242,326 @@ export default function Home() {
         </section>
       )}
     </main>
+  );
+}
+
+function FrontExperience({
+  onExperience,
+  onPlatform,
+  onOperations,
+}: {
+  onExperience: () => void;
+  onPlatform: () => void;
+  onOperations: () => void;
+}) {
+  const journeys = {
+    "Sales & consulting": {
+      promise: "Turn qualified interest into protected, high-value meetings.",
+      event: "Executive Strategy Session",
+      route: "Yvette · Best-fit host",
+      value: "$5,000 opportunity",
+      signals: ["Qualification", "Host routing", "CRM attribution"],
+    },
+    "Classes & events": {
+      promise: "Sell every seat, automate the waitlist, and protect capacity.",
+      event: "AI Systems Intensive",
+      route: "Studio A · 9 of 12 seats",
+      value: "$8,973 collected",
+      signals: ["Seat inventory", "Deposit paid", "Waitlist active"],
+    },
+    "Service businesses": {
+      promise:
+        "Match every customer to the right team, territory, and resource.",
+      event: "On-Site Consultation",
+      route: "Palm Beach · Crew 02",
+      value: "Route optimized",
+      signals: ["Territory match", "Drive buffer", "Equipment locked"],
+    },
+    "Teams & resources": {
+      promise: "Coordinate people, rooms, and equipment without conflicts.",
+      event: "Production Review",
+      route: "2 hosts · Boardroom · Display",
+      value: "3 resources secured",
+      signals: ["Collective availability", "Room lock", "Conflict scan"],
+    },
+  } as const;
+  const [journey, setJourney] =
+    useState<keyof typeof journeys>("Sales & consulting");
+  const active = journeys[journey];
+  return (
+    <div className="frontExperience">
+      <section className="frontHero">
+        <div className="frontGlow" />
+        <div className="heroCopy">
+          <div className="heroKicker">
+            <span>●</span> THE INTELLIGENT CALENDAR OPERATING SYSTEM
+          </div>
+          <h1>
+            Your calendar should
+            <br />
+            <em>run the business.</em>
+          </h1>
+          <p>
+            Cyncro turns every booking into a coordinated business operation—
+            routing the right people, protecting capacity, collecting revenue,
+            and moving the customer forward automatically.
+          </p>
+          <div className="heroActions">
+            <button className="frontPrimary" onClick={onExperience}>
+              Experience Cyncro <span>↗</span>
+            </button>
+            <button className="frontSecondary" onClick={onPlatform}>
+              Enter the platform <span>→</span>
+            </button>
+          </div>
+          <div className="heroAssurance">
+            <span>Built for complex operations</span>
+            <span>Engineered around your business</span>
+            <span>One unified system</span>
+          </div>
+        </div>
+        <div className="heroProduct" aria-label="Live Cyncro booking operation">
+          <div className="productTop">
+            <div>
+              <small>LIVE OPERATION</small>
+              <b>New booking processed</b>
+            </div>
+            <span>12:48:09</span>
+          </div>
+          <div className="productClient">
+            <div className="clientAvatar">AL</div>
+            <div>
+              <small>CUSTOMER</small>
+              <b>Alexandra Lewis</b>
+              <span>Qualified · High intent</span>
+            </div>
+            <i>✓</i>
+          </div>
+          <div className="productRoute">
+            <div className="routeLine">
+              <i>1</i>
+              <span>
+                <small>REQUEST</small>
+                <b>Executive Strategy Session</b>
+              </span>
+              <em>30 min</em>
+            </div>
+            <div className="routeLine">
+              <i>2</i>
+              <span>
+                <small>INTELLIGENCE</small>
+                <b>Availability + conflict scan</b>
+              </span>
+              <em className="passed">Passed</em>
+            </div>
+            <div className="routeLine">
+              <i>3</i>
+              <span>
+                <small>ROUTING</small>
+                <b>Best-fit host assigned</b>
+              </span>
+              <em>Yvette</em>
+            </div>
+            <div className="routeLine">
+              <i>4</i>
+              <span>
+                <small>AUTOMATION</small>
+                <b>Contact + confirmation created</b>
+              </span>
+              <em className="passed">Live</em>
+            </div>
+          </div>
+          <div className="productFooter">
+            <div>
+              <small>REVENUE SIGNAL</small>
+              <b>$5,000</b>
+            </div>
+            <div>
+              <small>SOURCE</small>
+              <b>Private link</b>
+            </div>
+            <span>Operation complete</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="frontProof">
+        {[
+          ["01", "BOOK", "A seamless customer experience"],
+          ["02", "DECIDE", "Capacity, routing, and rules applied"],
+          ["03", "OPERATE", "Teams and resources coordinated"],
+          ["04", "GROW", "Revenue and attribution measured"],
+        ].map((item) => (
+          <article key={item[0]}>
+            <span>{item[0]}</span>
+            <b>{item[1]}</b>
+            <p>{item[2]}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="journeySection">
+        <div className="sectionLead">
+          <label>BUILT AROUND THE WAY YOU OPERATE</label>
+          <h2>One system. Your business model.</h2>
+          <p>
+            Choose what you schedule and watch Cyncro configure the operation
+            around it.
+          </p>
+        </div>
+        <div className="journeyPicker">
+          <div className="journeyTabs">
+            {(Object.keys(journeys) as (keyof typeof journeys)[]).map(
+              (item) => (
+                <button
+                  className={journey === item ? "active" : ""}
+                  onClick={() => setJourney(item)}
+                  key={item}
+                >
+                  <span>{item}</span>
+                  <i>→</i>
+                </button>
+              ),
+            )}
+          </div>
+          <div className="journeyCanvas">
+            <div className="journeyTitle">
+              <div>
+                <small>LIVE USE CASE</small>
+                <h3>{journey}</h3>
+              </div>
+              <span>Configured instantly</span>
+            </div>
+            <h4>{active.promise}</h4>
+            <div className="journeyOperation">
+              <div>
+                <small>EVENT</small>
+                <b>{active.event}</b>
+              </div>
+              <div>
+                <small>ASSIGNMENT</small>
+                <b>{active.route}</b>
+              </div>
+              <div>
+                <small>BUSINESS OUTCOME</small>
+                <b>{active.value}</b>
+              </div>
+            </div>
+            <div className="signalRow">
+              {active.signals.map((signal) => (
+                <span key={signal}>✓ {signal}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="operationStory">
+        <div className="sectionLead centered">
+          <label>ONE BOOKING. THE ENTIRE OPERATION MOVES.</label>
+          <h2>
+            What customers see is simple.
+            <br />
+            What Cyncro handles is extraordinary.
+          </h2>
+        </div>
+        <div className="operationFlow">
+          {[
+            ["Customer", "Chooses the experience, location, date, and time."],
+            [
+              "Intelligence",
+              "Checks rules, capacity, conflicts, resources, and fit.",
+            ],
+            ["Revenue", "Collects the payment, deposit, package, or approval."],
+            [
+              "Operations",
+              "Creates the contact, assigns the team, and locks resources.",
+            ],
+            [
+              "Growth",
+              "Launches reminders, follow-up, attribution, and analytics.",
+            ],
+          ].map((item, index) => (
+            <article key={item[0]}>
+              <span>0{index + 1}</span>
+              <div>
+                <h3>{item[0]}</h3>
+                <p>{item[1]}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="frontCapabilities">
+        <div className="capabilityStatement">
+          <label>THE CYNCRO DIFFERENCE</label>
+          <h2>
+            Scheduling is the surface.
+            <br />
+            <span>Infrastructure is the product.</span>
+          </h2>
+          <button onClick={onPlatform}>Explore every capability →</button>
+        </div>
+        <div className="capabilityEditorial">
+          {[
+            [
+              "01",
+              "Revenue",
+              "Payments, deposits, packages, coupons, and cancellation protection.",
+            ],
+            [
+              "02",
+              "Capacity",
+              "Seats, waitlists, rooms, equipment, buffers, and resource locking.",
+            ],
+            [
+              "03",
+              "Intelligence",
+              "Qualification, territory rules, host matching, and load balancing.",
+            ],
+            [
+              "04",
+              "Lifecycle",
+              "Confirmations, reminders, approvals, follow-up, and contact history.",
+            ],
+            [
+              "05",
+              "Control",
+              "Week and month views, rescheduling, analytics, and attribution.",
+            ],
+          ].map((item) => (
+            <article key={item[0]}>
+              <span>{item[0]}</span>
+              <h3>{item[1]}</h3>
+              <p>{item[2]}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="frontFinal">
+        <div>
+          <label>THIS IS NOT ANOTHER BOOKING LINK.</label>
+          <h2>
+            It is the operating system
+            <br />
+            behind every appointment.
+          </h2>
+          <p>
+            Experience the customer journey or step inside the command center.
+          </p>
+        </div>
+        <div className="finalActions">
+          <button className="frontPrimary" onClick={onExperience}>
+            Start the experience ↗
+          </button>
+          <button className="frontSecondary" onClick={onOperations}>
+            Open operations →
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
