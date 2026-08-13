@@ -3975,6 +3975,961 @@ label {
   font-size: 6px;
 }
 
+/* Social automation engine */
+.socialAutomationWorkspace {
+  margin-top: 22px;
+}
+.socialHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 35px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #4a2931;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 82% 22%, rgba(184, 34, 61, 0.3), transparent 28%),
+    linear-gradient(125deg, #211216, #0f0e0f 62%);
+  padding: 31px;
+}
+.socialHero small,
+.channelConnections .crmPanelHead small,
+.flowLibrary header small,
+.flowCanvas header small,
+.socialInboxHead small,
+.socialAudience .crmPanelHead small,
+.socialAnalytics .crmPanelHead small {
+  color: #c46478;
+  font-size: 6px;
+  letter-spacing: 0.13em;
+}
+.socialHero h2 {
+  max-width: 730px;
+  margin: 9px 0;
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1.16;
+}
+.socialHero p {
+  max-width: 690px;
+  margin: 0;
+  color: #d3c7ca;
+  font-size: 9px;
+  line-height: 1.75;
+}
+.socialHeroActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+.socialHeroActions button:first-child,
+.publishFlow {
+  border-color: #a5223a !important;
+  background: #a5223a !important;
+  color: #fff !important;
+}
+.socialPulse {
+  border-left: 1px solid #54313a;
+  padding-left: 28px;
+}
+.socialPulse > span,
+.socialPulse > b,
+.socialPulse > small,
+.socialPulse > em {
+  display: block;
+}
+.socialPulse > span {
+  color: #f0a4b4;
+  font-size: 6px;
+  letter-spacing: 0.11em;
+}
+.socialPulse > b {
+  margin: 9px 0 3px;
+  font-size: 35px;
+  font-weight: 300;
+}
+.socialPulse > small {
+  color: #a99b9e;
+  font-size: 5px;
+}
+.socialPulse > div {
+  height: 3px;
+  margin: 16px 0 8px;
+  border-radius: 10px;
+  background: #43262d;
+}
+.socialPulse > div i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8e1d33, #ee617c);
+}
+.socialPulse > em {
+  color: #94d9aa;
+  font-size: 6px;
+  font-style: normal;
+}
+.socialStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 12px 0;
+  border: 1px solid #302729;
+  background: #302729;
+}
+.socialStats article {
+  position: relative;
+  background: #121012;
+  padding: 16px;
+}
+.socialStats small,
+.socialStats b,
+.socialStats span {
+  display: block;
+}
+.socialStats small {
+  color: #95878a;
+  font-size: 5px;
+  letter-spacing: 0.08em;
+}
+.socialStats b {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 300;
+}
+.socialStats span {
+  position: absolute;
+  right: 13px;
+  bottom: 17px;
+  color: #8fd5a6;
+  font-size: 6px;
+}
+.channelConnections {
+  padding: 20px;
+}
+.channelGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.channelGrid > article,
+.channelAdd {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 77px;
+  border: 1px solid #352c2e;
+  border-radius: 7px;
+  background: #141113;
+  color: #fff;
+  padding: 13px;
+  text-align: left;
+}
+.channelGrid > article.connected {
+  border-color: #375543;
+}
+.channelGrid > article > span,
+.channelAdd > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 14px;
+}
+.instagramGlyph {
+  background: linear-gradient(135deg, #7c3bb0, #d23568 58%, #f09a3e);
+}
+.facebookGlyph {
+  background: #2165c7;
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+}
+.channelGrid b,
+.channelGrid small {
+  display: block;
+}
+.channelGrid b {
+  font-size: 8px;
+  font-weight: 500;
+}
+.channelGrid small {
+  margin-top: 4px;
+  color: #a4979a;
+  font-size: 6px;
+  line-height: 1.5;
+}
+.channelGrid article > em {
+  grid-column: 2;
+  color: #82d09d;
+  font-size: 5px;
+  font-style: normal;
+}
+.channelGrid article > button {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+}
+.channelAdd {
+  grid-template-columns: 34px 1fr;
+  opacity: 0.82;
+}
+.channelAdd > span {
+  grid-row: 1 / span 2;
+  border: 1px dashed #67414a;
+  color: #d77488;
+}
+.socialTabs {
+  display: flex;
+  gap: 5px;
+  margin: 17px 0 10px;
+  border-bottom: 1px solid #352b2e;
+}
+.socialTabs button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: #a49699;
+  padding: 11px 15px 13px;
+  font-size: 7px;
+}
+.socialTabs button.active {
+  color: #fff;
+}
+.socialTabs button.active::after {
+  content: "";
+  position: absolute;
+  right: 9px;
+  bottom: -1px;
+  left: 9px;
+  height: 2px;
+  background: #b32742;
+}
+.socialBuilder {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 10px;
+}
+.flowLibrary,
+.flowCanvas {
+  overflow: hidden;
+}
+.flowLibrary header,
+.flowCanvas > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  border-bottom: 1px solid #30272a;
+  padding: 16px;
+}
+.flowLibrary header h2,
+.flowCanvas > header h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 400;
+}
+.flowCanvas > header > div:first-child > span {
+  display: block;
+  margin-top: 4px;
+  color: #897b7e;
+  font-size: 5px;
+}
+.flowLibrary > button:not(.flowTemplate) {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  border: 0;
+  border-bottom: 1px solid #282123;
+  background: transparent;
+  color: #fff;
+  padding: 10px 13px;
+  text-align: left;
+}
+.flowLibrary > button.active {
+  background: linear-gradient(90deg, rgba(161, 31, 55, 0.2), transparent);
+  box-shadow: inset 2px 0 #b32843;
+}
+.flowLibrary > button > i {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border: 1px solid #63313c;
+  border-radius: 7px;
+  background: #27151a;
+  color: #eda5b4;
+  font-size: 6px;
+  font-style: normal;
+}
+.flowLibrary b,
+.flowLibrary small {
+  display: block;
+}
+.flowLibrary b {
+  font-size: 7px;
+  font-weight: 500;
+}
+.flowLibrary button small {
+  margin-top: 3px;
+  color: #94868a;
+  font-size: 5px;
+}
+.flowLibrary button > em,
+.publishState {
+  border: 1px solid #3f5f49;
+  border-radius: 20px;
+  color: #7fd49c;
+  padding: 4px 6px;
+  font-size: 5px;
+  font-style: normal;
+}
+.flowLibrary button > em.draft,
+.publishState:not(.live) {
+  border-color: #5f512f;
+  color: #d7bd6b;
+}
+.flowTemplate {
+  width: calc(100% - 24px);
+  margin: 14px 12px;
+  border: 1px dashed #59333b;
+  border-radius: 6px;
+  background: #171214;
+  color: #d68b9a;
+  padding: 11px;
+  font-size: 6px;
+}
+.flowCanvas > header > div:last-child {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.flowDesignArea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 13px;
+  padding: 16px;
+}
+.flowSequence {
+  min-width: 0;
+}
+.flowStep {
+  border: 1px solid #3d3034;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #191416, #111011);
+  padding: 13px;
+}
+.flowStepHead {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 9px;
+  align-items: center;
+}
+.flowStepHead > span {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border-radius: 7px;
+  background: #341922;
+  color: #eb8da0;
+  font-size: 8px;
+}
+.flowStepHead small,
+.flowStepHead b {
+  display: block;
+}
+.flowStepHead small {
+  color: #b25e70;
+  font-size: 5px;
+  letter-spacing: 0.1em;
+}
+.flowStepHead b {
+  margin-top: 3px;
+  font-size: 8px;
+  font-weight: 500;
+}
+.flowStepHead > em {
+  color: #74666a;
+  font-size: 6px;
+  font-style: normal;
+}
+.flowStep > p {
+  margin: 10px 0;
+  color: #a99c9f;
+  font-size: 6px;
+  line-height: 1.6;
+}
+.keywordEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  border: 1px solid #3b2e32;
+  border-radius: 6px;
+  background: #100f10;
+  padding: 8px;
+}
+.keywordEditor button:not(.addKeyword) {
+  border: 1px solid #61313b;
+  border-radius: 4px;
+  background: #29161b;
+  color: #f0b4c0;
+  padding: 5px 7px;
+  font-size: 6px;
+}
+.keywordEditor input {
+  min-width: 75px;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 6px;
+}
+.keywordEditor .addKeyword {
+  border: 0;
+  background: transparent;
+  color: #d2677b;
+}
+.flowStep > label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 9px;
+  color: #a99c9f;
+  font-size: 5px;
+}
+.flowStep > label input {
+  accent-color: #a8233c;
+}
+.flowLine {
+  position: relative;
+  height: 37px;
+  border-left: 1px dashed #693442;
+  margin-left: 27px;
+}
+.flowLine span {
+  position: absolute;
+  top: 13px;
+  left: 10px;
+  color: #85777b;
+  font-size: 5px;
+}
+.messageStep textarea {
+  width: 100%;
+  min-height: 75px;
+  margin-top: 11px;
+  border: 1px solid #3a2e31;
+  border-radius: 5px;
+  outline: none;
+  resize: vertical;
+  background: #100f10;
+  color: #f0e8ea;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 7px;
+  line-height: 1.55;
+}
+.quickReplies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.quickReplies button {
+  border: 1px solid #4d3840;
+  border-radius: 20px;
+  background: #1b1416;
+  color: #d9cdd0;
+  padding: 6px 8px;
+  font-size: 5px;
+}
+.flowBranch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.flowBranch .flowStep > button {
+  border: 0;
+  background: transparent;
+  color: #d77e90;
+  padding: 0;
+  font-size: 6px;
+}
+.addFlowStep {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px dashed #553139;
+  border-radius: 6px;
+  background: #151113;
+  color: #c78996;
+  padding: 11px;
+  font-size: 6px;
+}
+.dmPreview {
+  display: flex;
+  min-height: 585px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #393033;
+  border-radius: 14px;
+  background: #0f0e0f;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.dmPreview > header {
+  display: grid;
+  grid-template-columns: 27px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #2e2729;
+  padding: 11px;
+}
+.dmPreview > header > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3bb0, #d23568 58%, #f09a3e);
+}
+.dmPreview header b,
+.dmPreview header small {
+  display: block;
+}
+.dmPreview header b {
+  font-size: 7px;
+  font-weight: 500;
+}
+.dmPreview header small {
+  margin-top: 2px;
+  color: #8f8184;
+  font-size: 5px;
+}
+.dmPreview header i {
+  color: #8b7d80;
+  font-size: 6px;
+  font-style: normal;
+}
+.dmMessages {
+  flex: 1;
+  padding: 14px 10px;
+}
+.dmMessages time {
+  display: block;
+  color: #74676a;
+  text-align: center;
+  font-size: 5px;
+}
+.dmMessages p,
+.inboxConversation > p {
+  width: fit-content;
+  max-width: 88%;
+  border-radius: 11px;
+  padding: 9px;
+  font-size: 7px;
+  line-height: 1.45;
+}
+.dmMessages .incoming,
+.inboxConversation .incoming {
+  margin-right: auto;
+  border-bottom-left-radius: 3px;
+  background: #2b2527;
+}
+.dmMessages .outgoing,
+.inboxConversation .outgoing {
+  margin-left: auto;
+  border-bottom-right-radius: 3px;
+  background: #8e1f36;
+}
+.previewReplies {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+}
+.previewReplies button {
+  border: 1px solid #55313a;
+  border-radius: 6px;
+  background: transparent;
+  color: #e28b9c;
+  padding: 7px;
+  font-size: 6px;
+}
+.dmPreview > footer {
+  display: grid;
+  grid-template-columns: 20px 1fr 20px;
+  gap: 6px;
+  align-items: center;
+  border-top: 1px solid #2e2729;
+  padding: 9px;
+}
+.dmPreview footer input {
+  min-width: 0;
+  border: 1px solid #393033;
+  border-radius: 20px;
+  outline: 0;
+  background: #171415;
+  color: #fff;
+  padding: 7px 9px;
+  font-size: 6px;
+}
+.socialInbox {
+  display: grid;
+  grid-template-columns: 250px minmax(360px, 1fr) 220px;
+  min-height: 590px;
+  overflow: hidden;
+}
+.socialInbox > aside:first-child {
+  border-right: 1px solid #30272a;
+}
+.socialInboxHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid #30272a;
+  padding: 15px;
+}
+.socialInboxHead h2 {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 400;
+}
+.socialInboxHead > span {
+  border-radius: 20px;
+  background: #321920;
+  color: #dc7d90;
+  padding: 5px 7px;
+  font-size: 5px;
+}
+.socialInbox > aside:first-child > button {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #272123;
+  background: transparent;
+  color: #fff;
+  padding: 12px;
+  text-align: left;
+}
+.socialInbox > aside:first-child > button.active {
+  background: #241419;
+  box-shadow: inset 2px 0 #aa243e;
+}
+.socialInbox > aside:first-child > button i {
+  display: grid;
+  grid-row: 1 / span 2;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border-radius: 50%;
+  background: #302128;
+  color: #f1b4c0;
+  font-size: 6px;
+  font-style: normal;
+}
+.socialInbox > aside:first-child b,
+.socialInbox > aside:first-child small,
+.socialInbox > aside:first-child em {
+  display: block;
+}
+.socialInbox > aside:first-child b {
+  font-size: 7px;
+  font-weight: 500;
+}
+.socialInbox > aside:first-child small {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #95878a;
+  font-size: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.socialInbox > aside:first-child em {
+  grid-column: 2;
+  color: #b06071;
+  font-size: 5px;
+  font-style: normal;
+}
+.socialInbox > article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.socialInbox > article > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #30272a;
+  padding: 14px;
+}
+.socialInbox > article header b,
+.socialInbox > article header small {
+  display: block;
+}
+.socialInbox > article header b {
+  font-size: 9px;
+  font-weight: 500;
+}
+.socialInbox > article header small {
+  margin-top: 4px;
+  color: #928488;
+  font-size: 5px;
+}
+.inboxConversation {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.aiSocialAssist {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  margin-top: 22px;
+  border: 1px solid #5c2e39;
+  border-radius: 8px;
+  background: #211318;
+  padding: 12px;
+}
+.aiSocialAssist > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 7px;
+  background: #8f1f36;
+}
+.aiSocialAssist p {
+  margin: 0;
+  color: #cfc4c7;
+  font-size: 6px;
+  line-height: 1.6;
+}
+.aiSocialAssist p b {
+  display: block;
+  margin-bottom: 3px;
+  color: #fff;
+}
+.socialInbox > article > footer {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 6px;
+  border-top: 1px solid #30272a;
+  padding: 10px;
+}
+.socialInbox > article > footer input {
+  min-width: 0;
+  border: 1px solid #3c3033;
+  border-radius: 5px;
+  outline: 0;
+  background: #151214;
+  color: #fff;
+  padding: 9px;
+  font-size: 7px;
+}
+.socialContactPanel {
+  border-left: 1px solid #30272a;
+  padding: 17px;
+  text-align: center;
+}
+.socialContactPanel > small {
+  color: #b75c6f;
+  font-size: 5px;
+  letter-spacing: 0.1em;
+}
+.socialContactPanel > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin: 22px auto 10px;
+  place-items: center;
+  border: 1px solid #66303d;
+  border-radius: 50%;
+  background: #29161b;
+  color: #efafbc;
+  font-size: 10px;
+}
+.socialContactPanel h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+}
+.socialContactPanel p {
+  color: #918387;
+  font-size: 6px;
+}
+.socialContactPanel > div {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #2c2426;
+  padding: 11px 0;
+  text-align: left;
+}
+.socialContactPanel > div small {
+  color: #85777b;
+  font-size: 5px;
+}
+.socialContactPanel > div b {
+  font-size: 7px;
+  font-weight: 500;
+}
+.socialContactPanel > button {
+  width: 100%;
+  margin-top: 12px;
+}
+.socialAudience,
+.socialAnalytics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 10px;
+}
+.socialAudience > section,
+.socialAudience > aside,
+.socialAnalytics > section,
+.socialAnalytics > aside {
+  padding: 18px;
+}
+.audienceRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 100px 110px 15px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #2e2729;
+  background: transparent;
+  color: #fff;
+  padding: 14px 4px;
+  text-align: left;
+}
+.audienceRow b,
+.audienceRow small {
+  display: block;
+}
+.audienceRow b,
+.audienceRow strong {
+  font-size: 8px;
+  font-weight: 500;
+}
+.audienceRow small {
+  margin-top: 4px;
+  color: #94868a;
+  font-size: 6px;
+}
+.audienceRow em {
+  color: #8fd5a6;
+  font-size: 6px;
+  font-style: normal;
+}
+.socialAudience > aside {
+  text-align: center;
+}
+.socialAudience > aside > small,
+.socialAnalytics > aside > small {
+  color: #bc6174;
+  font-size: 6px;
+  letter-spacing: 0.1em;
+}
+.socialAudience > aside > h2 {
+  margin: 16px 0 3px;
+  font-size: 29px;
+  font-weight: 300;
+}
+.socialAudience > aside > p {
+  color: #97898c;
+  font-size: 7px;
+  line-height: 1.6;
+}
+.audienceRing {
+  display: grid;
+  width: 112px;
+  height: 112px;
+  margin: 20px auto;
+  place-items: center;
+  border: 8px solid #322329;
+  border-top-color: #aa2941;
+  border-right-color: #aa2941;
+  border-radius: 50%;
+}
+.audienceRing b,
+.audienceRing small {
+  display: block;
+}
+.audienceRing b {
+  font-size: 19px;
+  font-weight: 300;
+}
+.audienceRing small {
+  margin-top: 3px;
+  color: #8e8084;
+  font-size: 5px;
+}
+.socialAudience > aside > button,
+.socialAnalytics > aside > button {
+  width: 100%;
+}
+.socialFunnel {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 17px;
+}
+.socialFunnel article {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 18px;
+  align-items: center;
+  min-height: 48px;
+  border: 1px solid #542c36;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(158, 29, 52, 0.25), #181214);
+  padding: 10px 15px;
+}
+.socialFunnel small {
+  color: #b0a3a6;
+  font-size: 6px;
+}
+.socialFunnel b {
+  font-size: 13px;
+  font-weight: 400;
+}
+.socialFunnel span {
+  color: #d17a8c;
+  font-size: 6px;
+}
+.socialAnalytics > aside h2 {
+  margin: 7px 0 15px;
+  font-size: 16px;
+  font-weight: 400;
+}
+.socialAnalytics > aside > div {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #2f282a;
+  padding: 12px 0;
+}
+.socialAnalytics > aside > div span {
+  color: #75676b;
+  font-size: 6px;
+}
+.socialAnalytics > aside > div b {
+  font-size: 8px;
+  font-weight: 500;
+}
+.socialAnalytics > aside > div em {
+  color: #a99c9f;
+  font-size: 6px;
+  font-style: normal;
+}
+
 /* Cyncro CRM advanced workspaces */
 .accountWorkspace,
 .journeyWorkspace,
@@ -5191,6 +6146,34 @@ label {
   .intelligenceCards {
     grid-template-columns: 1fr 1fr;
   }
+  .socialHero {
+    grid-template-columns: 1fr;
+  }
+  .socialPulse {
+    border-top: 1px solid #54313a;
+    border-left: 0;
+    padding-top: 20px;
+    padding-left: 0;
+  }
+  .channelGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .flowDesignArea {
+    grid-template-columns: 1fr;
+  }
+  .dmPreview {
+    min-height: 470px;
+  }
+  .socialInbox {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .socialContactPanel {
+    display: none;
+  }
+  .socialAudience,
+  .socialAnalytics {
+    grid-template-columns: 1fr;
+  }
   .experienceEditor {
     grid-template-columns: 1fr;
   }
@@ -5489,6 +6472,62 @@ label {
   }
   .crmForm {
     grid-template-columns: 1fr;
+  }
+  .socialHero {
+    padding: 22px 18px;
+  }
+  .socialHero h2 {
+    font-size: 24px;
+  }
+  .socialStats,
+  .channelGrid {
+    grid-template-columns: 1fr;
+  }
+  .socialTabs {
+    overflow-x: auto;
+  }
+  .socialTabs button {
+    min-width: max-content;
+  }
+  .socialBuilder {
+    grid-template-columns: 1fr;
+  }
+  .flowLibrary > button:not(.flowTemplate) {
+    min-height: 56px;
+  }
+  .flowCanvas > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .flowCanvas > header > div:last-child {
+    flex-wrap: wrap;
+  }
+  .flowBranch {
+    grid-template-columns: 1fr;
+  }
+  .socialInbox {
+    display: block;
+  }
+  .socialInbox > aside:first-child {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid #30272a;
+  }
+  .socialInboxHead {
+    display: none;
+  }
+  .socialInbox > aside:first-child > button {
+    min-width: 190px;
+  }
+  .socialInbox > article {
+    min-height: 510px;
+  }
+  .audienceRow {
+    grid-template-columns: minmax(160px, 1fr) auto 15px;
+  }
+  .audienceRow em {
+    display: none;
   }
   .accountPortfolioHead,
   .accountPortfolio > button:not(.crmPanelHead button) {

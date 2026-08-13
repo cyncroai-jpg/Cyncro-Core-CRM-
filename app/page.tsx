@@ -2271,6 +2271,7 @@ type CRMView =
   | "Accounts"
   | "Contacts"
   | "Conversations"
+  | "Social Automations"
   | "Journeys"
   | "Automations"
   | "Data Graph"
@@ -2358,6 +2359,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
     { name: "Accounts", icon: "▦", count: "386" },
     { name: "Contacts", icon: "◎", count: "2.4K" },
     { name: "Conversations", icon: "◇", count: "12" },
+    { name: "Social Automations", icon: "⚡", count: "8" },
     { name: "Journeys", icon: "↝", count: "6" },
     { name: "Automations", icon: "⌁", count: "18" },
     { name: "Data Graph", icon: "⌘" },
@@ -2708,6 +2710,9 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
             </div>
           )}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
+          {view === "Social Automations" && (
+            <CRMSocialAutomations onFlash={flash} />
+          )}
           {view === "Journeys" && <CRMJourneys onFlash={flash} />}
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
@@ -3105,6 +3110,465 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
           ✦ Execute next move
         </button>
       </aside>
+    </div>
+  );
+}
+
+function CRMSocialAutomations({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  const [panel, setPanel] = useState("Flow Builder");
+  const [selectedFlow, setSelectedFlow] = useState(0);
+  const [instagramConnected, setInstagramConnected] = useState(true);
+  const [facebookConnected, setFacebookConnected] = useState(true);
+  const [published, setPublished] = useState(true);
+  const [reply, setReply] = useState(
+    "You’re in ✦ I can help you choose the right Cyncro system. What would you like to accomplish?",
+  );
+  const [customKeyword, setCustomKeyword] = useState("");
+  const [extraKeywords, setExtraKeywords] = useState<string[]>([]);
+  const flows = [
+    {
+      name: "DEMO keyword",
+      channel: "Instagram + Facebook",
+      trigger: "DEMO",
+      reach: "1,284",
+      leads: "386",
+      rate: "30.1%",
+      status: "LIVE",
+    },
+    {
+      name: "Comment-to-DM launch",
+      channel: "Instagram comments",
+      trigger: "SYSTEM",
+      reach: "842",
+      leads: "214",
+      rate: "25.4%",
+      status: "LIVE",
+    },
+    {
+      name: "Pricing concierge",
+      channel: "Facebook Messenger",
+      trigger: "PRICE",
+      reach: "419",
+      leads: "172",
+      rate: "41.1%",
+      status: "LIVE",
+    },
+    {
+      name: "Event waitlist",
+      channel: "Instagram story replies",
+      trigger: "WAITLIST",
+      reach: "268",
+      leads: "96",
+      rate: "35.8%",
+      status: "DRAFT",
+    },
+  ];
+  const active = flows[selectedFlow];
+  const addKeyword = () => {
+    const clean = customKeyword.trim().toUpperCase();
+    if (!clean || extraKeywords.includes(clean)) return;
+    setExtraKeywords([...extraKeywords, clean]);
+    setCustomKeyword("");
+    onFlash(`${clean} trigger added`);
+  };
+  return (
+    <div className="socialAutomationWorkspace">
+      <section className="socialHero">
+        <div>
+          <small>SOCIAL REVENUE ENGINE</small>
+          <h2>Turn every comment and DM into a customer journey.</h2>
+          <p>
+            Connect Instagram and Facebook, listen for buying words, respond
+            instantly, capture the lead, and move them into Cyncro CRM.
+          </p>
+          <div className="socialHeroActions">
+            <button onClick={() => onFlash("New social flow created")}>
+              ＋ Create automation
+            </button>
+            <button onClick={() => setPanel("Live Inbox")}>
+              Open live inbox →
+            </button>
+          </div>
+        </div>
+        <div className="socialPulse">
+          <span>LIVE CONVERSION PULSE</span>
+          <b>386</b>
+          <small>LEADS CAPTURED THIS MONTH</small>
+          <div>
+            <i style={{ width: "72%" }} />
+          </div>
+          <em>↑ 28.6% from social automation</em>
+        </div>
+      </section>
+
+      <div className="socialStats">
+        {[
+          ["2,813", "AUTOMATED CONVERSATIONS", "+18.4%"],
+          ["34.6%", "LEAD CAPTURE RATE", "+6.2%"],
+          ["18 sec", "AVERAGE FIRST RESPONSE", "Always on"],
+          ["$42.8K", "SOCIAL-ATTRIBUTED PIPELINE", "+$9.4K"],
+        ].map((stat) => (
+          <article key={stat[1]}>
+            <small>{stat[1]}</small>
+            <b>{stat[0]}</b>
+            <span>{stat[2]}</span>
+          </article>
+        ))}
+      </div>
+
+      <section className="channelConnections crmPanel">
+        <div className="crmPanelHead">
+          <div>
+            <small>CONNECTED CHANNELS</small>
+            <h2>Your social front desk</h2>
+          </div>
+          <button onClick={() => onFlash("Channel settings opened")}>
+            Manage permissions
+          </button>
+        </div>
+        <div className="channelGrid">
+          <article className={instagramConnected ? "connected" : ""}>
+            <span className="instagramGlyph">◎</span>
+            <div>
+              <b>Instagram Business</b>
+              <small>@cyncromedia · DMs, comments, stories, mentions</small>
+            </div>
+            <em>{instagramConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
+            <button
+              onClick={() => {
+                setInstagramConnected(!instagramConnected);
+                onFlash(
+                  instagramConnected
+                    ? "Instagram disconnected"
+                    : "Instagram connected",
+                );
+              }}
+            >
+              {instagramConnected ? "Settings" : "Connect"}
+            </button>
+          </article>
+          <article className={facebookConnected ? "connected" : ""}>
+            <span className="facebookGlyph">f</span>
+            <div>
+              <b>Facebook Page</b>
+              <small>Cyncro Media · Messenger, comments, ads</small>
+            </div>
+            <em>{facebookConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
+            <button
+              onClick={() => {
+                setFacebookConnected(!facebookConnected);
+                onFlash(
+                  facebookConnected
+                    ? "Facebook disconnected"
+                    : "Facebook connected",
+                );
+              }}
+            >
+              {facebookConnected ? "Settings" : "Connect"}
+            </button>
+          </article>
+          <button
+            className="channelAdd"
+            onClick={() => onFlash("WhatsApp connection ready")}
+          >
+            <span>＋</span>
+            <b>Add WhatsApp</b>
+            <small>Bring every conversation into one inbox</small>
+          </button>
+        </div>
+      </section>
+
+      <nav className="socialTabs" aria-label="Social automation workspace">
+        {["Flow Builder", "Live Inbox", "Audience", "Analytics"].map(
+          (item) => (
+            <button
+              className={panel === item ? "active" : ""}
+              onClick={() => setPanel(item)}
+              key={item}
+            >
+              {item}
+            </button>
+          ),
+        )}
+      </nav>
+
+      {panel === "Flow Builder" && (
+        <div className="socialBuilder">
+          <aside className="flowLibrary crmPanel">
+            <header>
+              <div>
+                <small>KEYWORD AUTOMATIONS</small>
+                <h2>Live flows</h2>
+              </div>
+              <button onClick={() => onFlash("Blank flow created")}>＋</button>
+            </header>
+            {flows.map((flow, index) => (
+              <button
+                className={selectedFlow === index ? "active" : ""}
+                onClick={() => {
+                  setSelectedFlow(index);
+                  setPublished(flow.status === "LIVE");
+                }}
+                key={flow.name}
+              >
+                <i>{flow.trigger.slice(0, 2)}</i>
+                <span>
+                  <b>{flow.name}</b>
+                  <small>{flow.channel}</small>
+                </span>
+                <em className={flow.status.toLowerCase()}>{flow.status}</em>
+              </button>
+            ))}
+            <button
+              className="flowTemplate"
+              onClick={() => onFlash("Template library opened")}
+            >
+              ✦ Browse conversion templates
+            </button>
+          </aside>
+
+          <main className="flowCanvas crmPanel">
+            <header>
+              <div>
+                <small>EDITING AUTOMATION</small>
+                <h2>{active.name}</h2>
+                <span>Last edited 2 minutes ago · Autosaved</span>
+              </div>
+              <div>
+                <span className={published ? "publishState live" : "publishState"}>
+                  ● {published ? "LIVE" : "DRAFT"}
+                </span>
+                <button onClick={() => onFlash("Flow tested successfully")}>
+                  Test flow
+                </button>
+                <button
+                  className="publishFlow"
+                  onClick={() => {
+                    setPublished(!published);
+                    onFlash(published ? "Flow paused" : "Flow published");
+                  }}
+                >
+                  {published ? "Pause" : "Publish"}
+                </button>
+              </div>
+            </header>
+            <div className="flowDesignArea">
+              <div className="flowSequence">
+                <article className="flowStep triggerStep">
+                  <div className="flowStepHead">
+                    <span>⚡</span>
+                    <div>
+                      <small>TRIGGER</small>
+                      <b>Customer says a keyword</b>
+                    </div>
+                    <em>01</em>
+                  </div>
+                  <p>Listen in DMs, comments, story replies, and ad responses.</p>
+                  <div className="keywordEditor">
+                    {[active.trigger, "INFO", ...extraKeywords].map((word) => (
+                      <button
+                        onClick={() => onFlash(`${word} keyword selected`)}
+                        key={word}
+                      >
+                        {word} ×
+                      </button>
+                    ))}
+                    <input
+                      value={customKeyword}
+                      onChange={(event) => setCustomKeyword(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") addKeyword();
+                      }}
+                      placeholder="Add word…"
+                    />
+                    <button className="addKeyword" onClick={addKeyword}>
+                      ＋
+                    </button>
+                  </div>
+                  <label>
+                    <input type="checkbox" defaultChecked /> Match close phrases
+                    and misspellings with AI
+                  </label>
+                </article>
+                <div className="flowLine">
+                  <span>immediately</span>
+                </div>
+                <article className="flowStep messageStep">
+                  <div className="flowStepHead">
+                    <span>✦</span>
+                    <div>
+                      <small>SMART REPLY</small>
+                      <b>Send an instant response</b>
+                    </div>
+                    <em>02</em>
+                  </div>
+                  <textarea
+                    value={reply}
+                    onChange={(event) => setReply(event.target.value)}
+                    aria-label="Automatic social reply"
+                  />
+                  <div className="quickReplies">
+                    {["Book a demo", "See pricing", "Ask a question"].map(
+                      (item) => (
+                        <button
+                          onClick={() => onFlash(`${item} reply edited`)}
+                          key={item}
+                        >
+                          {item}
+                        </button>
+                      ),
+                    )}
+                    <button onClick={() => onFlash("Quick reply added")}>＋</button>
+                  </div>
+                </article>
+                <div className="flowLine">
+                  <span>after response</span>
+                </div>
+                <div className="flowBranch">
+                  <article className="flowStep captureStep">
+                    <div className="flowStepHead">
+                      <span>◎</span>
+                      <div>
+                        <small>CAPTURE + ENRICH</small>
+                        <b>Create CRM contact</b>
+                      </div>
+                    </div>
+                    <p>Name, email, phone, social profile, source, consent, and intent.</p>
+                    <button onClick={() => onFlash("Contact mapping opened")}>
+                      Edit field mapping →
+                    </button>
+                  </article>
+                  <article className="flowStep actionStep">
+                    <div className="flowStepHead">
+                      <span>↗</span>
+                      <div>
+                        <small>CONVERSION ACTION</small>
+                        <b>Route the next move</b>
+                      </div>
+                    </div>
+                    <p>Send booking link, payment request, offer, or human handoff.</p>
+                    <button onClick={() => onFlash("Conversion action opened")}>
+                      Book a strategy call ▾
+                    </button>
+                  </article>
+                </div>
+                <button
+                  className="addFlowStep"
+                  onClick={() => onFlash("Flow step library opened")}
+                >
+                  ＋ Add condition, message, delay, action, or AI decision
+                </button>
+              </div>
+              <aside className="dmPreview">
+                <header>
+                  <span>◎</span>
+                  <div>
+                    <b>@cyncromedia</b>
+                    <small>Typically replies instantly</small>
+                  </div>
+                  <i>•••</i>
+                </header>
+                <div className="dmMessages">
+                  <time>TODAY · 2:14 PM</time>
+                  <p className="incoming">{active.trigger}</p>
+                  <p className="outgoing">{reply}</p>
+                  <div className="previewReplies">
+                    <button>Book a demo</button>
+                    <button>See pricing</button>
+                    <button>Ask a question</button>
+                  </div>
+                </div>
+                <footer>
+                  <span>＋</span>
+                  <input placeholder="Message…" />
+                  <span>♡</span>
+                </footer>
+              </aside>
+            </div>
+          </main>
+        </div>
+      )}
+
+      {panel === "Live Inbox" && (
+        <div className="socialInbox crmPanel">
+          <aside>
+            <div className="socialInboxHead">
+              <div>
+                <small>UNIFIED SOCIAL INBOX</small>
+                <h2>Needs attention</h2>
+              </div>
+              <span>12 open</span>
+            </div>
+            {[
+              ["SL", "Sophia Lewis", "IG", "I want the demo—can I see pricing?", "Now"],
+              ["MR", "Marcus Reed", "FB", "SYSTEM", "3m"],
+              ["NC", "Nia Carter", "IG", "Can someone help me choose?", "9m"],
+              ["DK", "Daniel Kim", "FB", "Sent a payment screenshot", "18m"],
+            ].map((item, index) => (
+              <button className={index === 0 ? "active" : ""} key={item[1]}>
+                <i>{item[0]}</i>
+                <span>
+                  <b>{item[1]}</b>
+                  <small>{item[3]}</small>
+                </span>
+                <em>{item[2]} · {item[4]}</em>
+              </button>
+            ))}
+          </aside>
+          <article>
+            <header>
+              <div><b>Sophia Lewis</b><small>Instagram · High buying intent · Contact matched</small></div>
+              <button onClick={() => onFlash("Conversation assigned")}>Assign ▾</button>
+            </header>
+            <div className="inboxConversation">
+              <p className="incoming">DEMO</p>
+              <p className="outgoing">You’re in ✦ What would you like to accomplish?</p>
+              <p className="incoming">I want the demo—can I see pricing?</p>
+              <div className="aiSocialAssist"><span>✦</span><p><b>Suggested reply</b>Absolutely. I can show you the platform and recommend the best setup based on your goals. Want the private booking link?</p><button onClick={() => onFlash("AI reply inserted")}>Use reply</button></div>
+            </div>
+            <footer><button>＋</button><input placeholder="Reply as Cyncro Media…"/><button onClick={() => onFlash("Social reply sent")}>Send ↑</button></footer>
+          </article>
+          <aside className="socialContactPanel">
+            <small>CONTACT INTELLIGENCE</small>
+            <span>SL</span><h3>Sophia Lewis</h3><p>@sophialewis · Palm Beach, FL</p>
+            <div><small>INTENT SCORE</small><b>92</b></div>
+            <div><small>TRIGGER</small><b>DEMO</b></div>
+            <div><small>ATTRIBUTION</small><b>Instagram Reel</b></div>
+            <button onClick={() => onFlash("CRM record opened")}>Open CRM record →</button>
+          </aside>
+        </div>
+      )}
+
+      {panel === "Audience" && (
+        <div className="socialAudience">
+          <section className="crmPanel">
+            <div className="crmPanelHead"><div><small>SMART AUDIENCES</small><h2>Segments that update themselves</h2></div><button onClick={() => onFlash("Segment builder opened")}>＋ New segment</button></div>
+            {[
+              ["High-intent social leads", "386 people", "Intent above 80 + replied in 14 days", "+42"],
+              ["Pricing requested", "172 people", "Said PRICE, COST, or PAYMENT", "+18"],
+              ["Booked from Instagram", "96 people", "Social attribution + confirmed booking", "+11"],
+              ["Needs human follow-up", "28 people", "AI confidence below threshold", "−6"],
+            ].map((item) => <button className="audienceRow" onClick={() => onFlash(`${item[0]} opened`)} key={item[0]}><span><b>{item[0]}</b><small>{item[2]}</small></span><strong>{item[1]}</strong><em>{item[3]} this week</em><i>→</i></button>)}
+          </section>
+          <aside className="crmPanel"><small>AUDIENCE INTELLIGENCE</small><h2>2,418</h2><p>Known social profiles unified with Cyncro contacts.</p><div className="audienceRing"><span><b>68%</b><small>reachable</small></span></div><button onClick={() => onFlash("Audience opportunity analyzed")}>✦ Find revenue opportunity</button></aside>
+        </div>
+      )}
+
+      {panel === "Analytics" && (
+        <div className="socialAnalytics">
+          <section className="crmPanel">
+            <div className="crmPanelHead"><div><small>CONVERSION ANALYTICS</small><h2>From keyword to revenue</h2></div><button onClick={() => onFlash("Analytics exported")}>Export report</button></div>
+            <div className="socialFunnel">
+              {[["REACHED", "8,142", "100%"], ["ENGAGED", "2,813", "34.5%"], ["CAPTURED", "973", "11.9%"], ["BOOKED", "286", "3.5%"], ["WON", "$42.8K", "1.2%"]].map((item, index) => <article style={{width: `${100 - index * 11}%`}} key={item[0]}><small>{item[0]}</small><b>{item[1]}</b><span>{item[2]}</span></article>)}
+            </div>
+          </section>
+          <aside className="crmPanel"><small>TOP BUYING WORDS</small><h2>Intent leaderboard</h2>{[["DEMO", "386 leads"], ["PRICE", "172 leads"], ["SYSTEM", "128 leads"], ["BOOK", "96 leads"], ["HELP", "74 leads"]].map((item, index) => <div key={item[0]}><span>{index + 1}</span><b>{item[0]}</b><em>{item[1]}</em></div>)}<button onClick={() => onFlash("AI keywords discovered")}>✦ Discover hidden keywords</button></aside>
+        </div>
+      )}
     </div>
   );
 }
