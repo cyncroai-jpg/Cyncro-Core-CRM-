@@ -12,7 +12,7 @@
 }
 .advancedTitle h2 {
   font:
-    600 34px Inter,
+    800 34px Montserrat,
     sans-serif;
   margin: 9px 0;
 }
@@ -21,7 +21,7 @@
   max-width: 720px;
 }
 .health {
-  font-size: 10px;
+  font-size: 11px;
   color: #8eaf9e;
   border: 1px solid #254036;
   background: #0d1915;
@@ -140,7 +140,7 @@
   margin-bottom: 7px;
 }
 .bookingfacts b {
-  font-size: 11px;
+  font-size: 12px;
 }
 .modalactions {
   display: flex;
@@ -190,13 +190,13 @@
 }
 .suitecard h3 {
   font:
-    600 21px Inter,
+    700 21px Montserrat,
     sans-serif;
   margin: 9px 0;
 }
 .suitecard p {
   color: #7e7375;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 .widecard {
@@ -237,11 +237,11 @@
 }
 .pulse b {
   font:
-    600 26px Inter,
+    700 26px Montserrat,
     sans-serif;
 }
 .pulse span {
-  font-size: 9px;
+  font-size: 10px;
   color: #7d7274;
   margin-top: 5px;
 }
@@ -257,7 +257,7 @@
 }
 .timeline i {
   font-style: normal;
-  font-size: 9px;
+  font-size: 10px;
   padding: 10px;
   background: linear-gradient(90deg, #6e1727, #a9273d);
   border-radius: 6px;
@@ -279,7 +279,7 @@
 }
 .redbadge {
   font:
-    600 10px Inter,
+    700 11px Montserrat,
     sans-serif !important;
   color: #e15a70 !important;
   background: #30151b;
@@ -306,7 +306,7 @@
 .exception b,
 .exception span {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
 }
 .exception span {
   color: #776c6e;
@@ -356,7 +356,7 @@
   gap: 10px;
 }
 .miniFields label {
-  font-size: 9px;
+  font-size: 10px;
   color: #867a7c;
 }
 .miniFields input,
@@ -456,7 +456,7 @@
 }
 .offers b {
   font:
-    600 22px Inter,
+    700 22px Montserrat,
     sans-serif;
   margin: 12px 0 4px;
 }
@@ -467,7 +467,7 @@
   margin-top: 15px;
 }
 .checkline {
-  font-size: 11px;
+  font-size: 12px;
   color: #55cf93;
   border-top: 1px solid #2b2224;
   padding: 10px 0;
@@ -534,7 +534,7 @@
 .score {
   display: block;
   font:
-    600 40px Inter,
+    800 40px Montserrat,
     sans-serif;
   color: #d9475f;
   margin: 15px 0;
@@ -549,7 +549,7 @@
 }
 .integrations h3 {
   font:
-    600 15px Inter,
+    700 15px Montserrat,
     sans-serif;
   margin: 0;
 }
@@ -591,7 +591,7 @@
 }
 .analyticsStats b {
   font:
-    600 24px Inter,
+    700 24px Montserrat,
     sans-serif;
   margin: 8px 0;
 }
@@ -699,7 +699,7 @@
 
 /* Cyncro luxury typography system */
 body {
-  font-family: Inter, sans-serif;
+  font-family: Montserrat, sans-serif;
 }
 h1,
 h2,
@@ -710,19 +710,22 @@ h3,
 .offers b,
 .score,
 .analyticsStats b {
-  font-family: Cinzel, serif !important;
-  letter-spacing: -0.02em;
+  font-family: Montserrat, sans-serif !important;
+  font-weight: 800;
+  letter-spacing: -0.035em;
 }
 .logo {
-  font-family: Inter, sans-serif !important;
-  font-weight: 600;
+  font-family: Montserrat, sans-serif !important;
+  font-weight: 800;
+  letter-spacing: -0.035em;
 }
 .logo i {
-  font-family: Parisienne, cursive !important;
-  font-size: 34px;
-  font-weight: 400;
+  font-family: Montserrat, sans-serif !important;
+  font-size: inherit;
+  font-style: normal;
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: 0;
+  letter-spacing: -0.035em;
 }
 
 /* Bright supporting copy for a sharper black/red presentation */
@@ -775,7 +778,7 @@ body {
   background:
     radial-gradient(circle at 70% -20%, #310d15, transparent 35%), #080808;
   color: #f6eeee;
-  font-family: Inter, sans-serif;
+  font-family: Montserrat, sans-serif;
 }
 button {
   cursor: pointer;
@@ -808,7 +811,7 @@ header {
 }
 .logo {
   font:
-    600 21px Inter,
+    800 22px Montserrat,
     sans-serif;
 }
 .logo i {
@@ -833,7 +836,7 @@ nav button {
 }
 nav span,
 label {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   color: #c2334a;
 }
@@ -873,14 +876,14 @@ label {
   place-items: center;
   color: #d94059;
   font:
-    600 24px Inter,
+    700 24px Montserrat,
     sans-serif;
 }
 .card h1,
 .admin h1,
 .studio h1 {
   font:
-    600 40px/1.08 Inter,
+    800 40px/1.08 Montserrat,
     sans-serif;
   margin: 13px 0;
 }
@@ -918,7 +921,7 @@ label {
 .card h2,
 .panel h2 {
   font:
-    600 30px Inter,
+    800 30px Montserrat,
     sans-serif;
 }
 .locations {
@@ -1103,7 +1106,7 @@ label {
 .stats small,
 .studiostats small,
 .studiostats span {
-  font-size: 9px;
+  font-size: 10px;
   color: #756a6c;
   display: block;
 }
@@ -1111,7 +1114,7 @@ label {
 .studiostats b {
   display: block;
   font:
-    600 30px Inter,
+    800 30px Montserrat,
     sans-serif;
   margin: 12px 0;
 }
@@ -1155,13 +1158,13 @@ label {
 }
 .eventgrid h2 {
   font:
-    600 22px Inter,
+    700 22px Montserrat,
     sans-serif;
   margin: 18px 0 7px;
 }
 .eventgrid > article > p {
   color: #795f64;
-  font-size: 11px;
+  font-size: 12px;
 }
 .eventtop,
 .eventbuttons,
@@ -1172,7 +1175,7 @@ label {
 }
 .eventtop span,
 .eventtop em {
-  font-size: 9px;
+  font-size: 10px;
   border-radius: 20px;
   padding: 6px 9px;
   font-style: normal;
@@ -1203,7 +1206,7 @@ label {
   color: #675d5f;
 }
 .eventmetrics b {
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 6px;
 }
 .eventbuttons {
@@ -1271,7 +1274,7 @@ label {
 .fields label,
 .panel > label {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: #a99b9e;
   margin-top: 18px;
 }
@@ -1378,7 +1381,7 @@ label {
 }
 .switchrow p {
   color: #796e70;
-  font-size: 11px;
+  font-size: 12px;
   margin: 5px 0;
 }
 .switch {
@@ -1421,7 +1424,7 @@ label {
   display: block;
 }
 .selectcards span {
-  font-size: 10px;
+  font-size: 11px;
   color: #776d6f;
   margin-top: 5px;
 }
