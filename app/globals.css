@@ -696,6 +696,72 @@
     font-size: 28px;
   }
 }
+
+/* Cyncro luxury typography system */
+body {
+  font-family: Montserrat, sans-serif;
+}
+h1,
+h2,
+h3,
+.stats b,
+.studiostats b,
+.pulse b,
+.offers b,
+.score,
+.analyticsStats b {
+  font-family: "Playfair Display", serif !important;
+  letter-spacing: -0.02em;
+}
+.logo {
+  font-family: Montserrat, sans-serif !important;
+  font-weight: 600;
+}
+.logo i {
+  font-family: "Great Vibes", cursive !important;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* Bright supporting copy for a sharper black/red presentation */
+body p,
+body small,
+nav button,
+.platformbar,
+.platformbar span,
+.zone span,
+.attribution span,
+.exception span,
+.rule small,
+.offers small,
+.teamlist span,
+.teamlist small,
+.resource small,
+.eventgrid > article > p,
+.selectcards span,
+.switchrow p,
+.card aside footer,
+.progress,
+.note,
+.summary,
+.toggle button,
+.tr small,
+.features,
+.side button,
+.fields label,
+.panel > label,
+.prefix,
+.choice button {
+  color: #ffffff !important;
+}
+button,
+input,
+select,
+textarea {
+  color: #ffffff;
+}
 :root {
   --red: #a71f35;
   --line: #302527;
