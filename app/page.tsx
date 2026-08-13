@@ -39,7 +39,7 @@ export default function Home() {
             ["home", "Overview"],
             ["book", "Booking experience"],
             ["studio", "Core Studio"],
-            ["crm", "Universal CRM"],
+            ["crm", "Cyncro Nexus"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -2268,9 +2268,13 @@ function Switch({
 type CRMView =
   | "Overview"
   | "Pipeline"
+  | "Accounts"
   | "Contacts"
   | "Conversations"
+  | "Journeys"
   | "Automations"
+  | "Data Graph"
+  | "Agent Team"
   | "Intelligence";
 
 const crmContacts = [
@@ -2351,9 +2355,13 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
     { name: "Pipeline", icon: "◫", count: "$75K" },
+    { name: "Accounts", icon: "▦", count: "386" },
     { name: "Contacts", icon: "◎", count: "2.4K" },
     { name: "Conversations", icon: "◇", count: "12" },
+    { name: "Journeys", icon: "↝", count: "6" },
     { name: "Automations", icon: "⌁", count: "18" },
+    { name: "Data Graph", icon: "⌘" },
+    { name: "Agent Team", icon: "✧", count: "5" },
     { name: "Intelligence", icon: "✦" },
   ];
   return (
@@ -2369,7 +2377,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
           <i>⌄</i>
         </div>
         <nav className="crmNav" aria-label="CRM navigation">
-          <small>REVENUE OPERATING SYSTEM</small>
+          <small>CYNCRO NEXUS · REVENUE OS</small>
           {views.map((item) => (
             <button
               className={view === item.name ? "active" : ""}
@@ -2440,7 +2448,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
         <div className="crmContent">
           <div className="crmPageHead">
             <div>
-              <label>UNIVERSAL CRM</label>
+              <label>CYNCRO NEXUS</label>
               <h1>{view === "Overview" ? "Good afternoon, Yvette." : view}</h1>
               <p>
                 {view === "Overview"
@@ -2648,6 +2656,7 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
           )}
 
           {view === "Pipeline" && <CRMPipeline onFlash={flash} />}
+          {view === "Accounts" && <CRMAccounts onFlash={flash} />}
           {view === "Contacts" && (
             <div className="contactWorkspace">
               <div className="contactList crmPanel">
@@ -2699,7 +2708,10 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
             </div>
           )}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
+          {view === "Journeys" && <CRMJourneys onFlash={flash} />}
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
+          {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
+          {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
       </main>
@@ -3097,6 +3109,329 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
+  const [account, setAccount] = useState(0);
+  const accounts = [
+    [
+      "Axis Systems",
+      "$32,000",
+      "Expansion",
+      "92",
+      "Strong",
+      "Daniel Kim",
+      "3 stakeholders",
+    ],
+    [
+      "Northstar Advisory",
+      "$18,500",
+      "Proposal",
+      "88",
+      "Strong",
+      "Alexandra Lewis",
+      "2 stakeholders",
+    ],
+    [
+      "Reed Development",
+      "$12,000",
+      "Qualified",
+      "81",
+      "Growing",
+      "Marcus Reed",
+      "4 stakeholders",
+    ],
+    [
+      "Atelier House",
+      "$7,500",
+      "Discovery",
+      "67",
+      "Watch",
+      "Sophia Bennett",
+      "2 stakeholders",
+    ],
+  ];
+  const active = accounts[account];
+  return (
+    <div className="accountWorkspace">
+      <section className="accountPortfolio crmPanel">
+        <div className="crmPanelHead">
+          <div>
+            <small>ACCOUNT PORTFOLIO</small>
+            <h2>Revenue relationships</h2>
+          </div>
+          <button onClick={() => onFlash("Portfolio filters opened")}>
+            Segment accounts
+          </button>
+        </div>
+        <div className="accountPortfolioHead">
+          <span>ACCOUNT</span>
+          <span>VALUE</span>
+          <span>STAGE</span>
+          <span>HEALTH</span>
+        </div>
+        {accounts.map((item, index) => (
+          <button
+            className={account === index ? "active" : ""}
+            onClick={() => setAccount(index)}
+            key={item[0]}
+          >
+            <span>
+              <i>{item[0].slice(0, 2).toUpperCase()}</i>
+              <div>
+                <b>{item[0]}</b>
+                <small>{item[5]}</small>
+              </div>
+            </span>
+            <strong>{item[1]}</strong>
+            <em>{item[2]}</em>
+            <span className={`accountHealth ${item[4].toLowerCase()}`}>
+              {item[3]} · {item[4]}
+            </span>
+          </button>
+        ))}
+      </section>
+      <section className="accountCommand crmPanel">
+        <div className="accountCommandHead">
+          <div>
+            <small>ACCOUNT COMMAND</small>
+            <h2>{active[0]}</h2>
+            <p>
+              Unified relationship, revenue, engagement, and delivery
+              intelligence.
+            </p>
+          </div>
+          <span>{active[3]} health</span>
+        </div>
+        <div className="accountValueGrid">
+          {[
+            ["OPEN VALUE", active[1]],
+            ["LIFETIME VALUE", "$84,500"],
+            ["ENGAGEMENT", "High"],
+            ["NEXT RENEWAL", "Oct 18"],
+          ].map((item) => (
+            <div key={item[0]}>
+              <small>{item[0]}</small>
+              <b>{item[1]}</b>
+            </div>
+          ))}
+        </div>
+        <div className="buyingCommittee">
+          <div className="crmPanelHead">
+            <div>
+              <small>RELATIONSHIP MAP</small>
+              <h3>Buying committee</h3>
+            </div>
+            <button onClick={() => onFlash("Stakeholder added")}>
+              ＋ Stakeholder
+            </button>
+          </div>
+          {[
+            [active[5], "Decision maker", "Champion", "94"],
+            ["Mia Thompson", "Finance lead", "Supportive", "79"],
+            ["Jordan Ellis", "Operations", "Evaluator", "72"],
+          ].map((person) => (
+            <div key={person[0]}>
+              <i>
+                {person[0]
+                  .split(" ")
+                  .map((part) => part[0])
+                  .join("")}
+              </i>
+              <span>
+                <b>{person[0]}</b>
+                <small>
+                  {person[1]} · {person[2]}
+                </small>
+              </span>
+              <em>{person[3]} influence</em>
+            </div>
+          ))}
+        </div>
+        <div className="accountSignals">
+          <small>PREDICTIVE SIGNALS</small>
+          {[
+            [
+              "Payment activity",
+              "Proposal and payment link opened twice today",
+              "+18",
+            ],
+            ["Stakeholder coverage", active[6] + " identified", "+12"],
+            [
+              "Engagement risk",
+              "No response from finance lead in 6 days",
+              "−7",
+            ],
+          ].map((signal) => (
+            <button onClick={() => onFlash("Signal explained")} key={signal[0]}>
+              <span>
+                <b>{signal[0]}</b>
+                <small>{signal[1]}</small>
+              </span>
+              <em>{signal[2]}</em>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
+  const [journey, setJourney] = useState("Client acquisition");
+  const journeys = [
+    "Client acquisition",
+    "Paid event",
+    "Customer onboarding",
+    "Renewal & expansion",
+  ];
+  return (
+    <div className="journeyWorkspace">
+      <aside className="journeyLibrary crmPanel">
+        <div>
+          <small>JOURNEY ORCHESTRATOR</small>
+          <h2>Lifecycle systems</h2>
+          <p>Coordinate every customer moment across teams and channels.</p>
+        </div>
+        {journeys.map((item, index) => (
+          <button
+            className={journey === item ? "active" : ""}
+            onClick={() => setJourney(item)}
+            key={item}
+          >
+            <i>{String(index + 1).padStart(2, "0")}</i>
+            <span>
+              <b>{item}</b>
+              <small>
+                {index === 0
+                  ? "842 active contacts"
+                  : `${(index + 2) * 61} active contacts`}
+              </small>
+            </span>
+            <em>→</em>
+          </button>
+        ))}
+        <button
+          className="newJourney"
+          onClick={() => onFlash("Journey builder opened")}
+        >
+          ＋ Create journey
+        </button>
+      </aside>
+      <main className="journeyBuilder crmPanel">
+        <header>
+          <div>
+            <small>LIVE JOURNEY</small>
+            <h2>{journey}</h2>
+          </div>
+          <div>
+            <span>● 842 enrolled</span>
+            <button onClick={() => onFlash("Journey published")}>
+              Publish changes
+            </button>
+          </div>
+        </header>
+        <div className="journeyFlowCanvas">
+          <div className="journeyLane">
+            <small>ENTRY</small>
+            <article>
+              <i>⚡</i>
+              <div>
+                <b>Customer signal</b>
+                <span>
+                  Qualified booking, form, payment, or manual enrollment
+                </span>
+              </div>
+              <em>842</em>
+            </article>
+          </div>
+          <div className="journeyConnector">
+            <span>Conditions passed · 78%</span>
+          </div>
+          <div className="journeyLane">
+            <small>INTELLIGENCE</small>
+            <div className="journeyBranch">
+              <article>
+                <i>✦</i>
+                <div>
+                  <b>Evaluate fit + intent</b>
+                  <span>
+                    Score profile, behavior, source, value, and timing
+                  </span>
+                </div>
+                <em>AI</em>
+              </article>
+              <article>
+                <i>⌁</i>
+                <div>
+                  <b>Route ownership</b>
+                  <span>
+                    Match territory, service, workload, and relationship
+                  </span>
+                </div>
+                <em>3 rules</em>
+              </article>
+            </div>
+          </div>
+          <div className="journeyConnector">
+            <span>High intent → personal path</span>
+          </div>
+          <div className="journeyLane">
+            <small>ORCHESTRATION</small>
+            <div className="journeyBranch three">
+              <article>
+                <i>✉</i>
+                <div>
+                  <b>Personalized follow-up</b>
+                  <span>Email + SMS</span>
+                </div>
+                <em>2 min</em>
+              </article>
+              <article>
+                <i>□</i>
+                <div>
+                  <b>Create next action</b>
+                  <span>Task + booking link</span>
+                </div>
+                <em>Owner</em>
+              </article>
+              <article>
+                <i>$</i>
+                <div>
+                  <b>Revenue path</b>
+                  <span>Offer + payment</span>
+                </div>
+                <em>Dynamic</em>
+              </article>
+            </div>
+          </div>
+          <div className="journeyConnector">
+            <span>Wait until outcome or signal</span>
+          </div>
+          <div className="journeyLane">
+            <small>OUTCOME</small>
+            <article className="journeyOutcome">
+              <i>✓</i>
+              <div>
+                <b>Lifecycle advanced</b>
+                <span>
+                  Contact, account, opportunity, forecast, and analytics
+                  synchronized
+                </span>
+              </div>
+              <em>31.8%</em>
+            </article>
+          </div>
+          <button
+            className="journeyAdd"
+            onClick={() => onFlash("Journey step added")}
+          >
+            ＋ Add decision, action, delay, experiment, or AI agent
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
   return (
     <div className="automationWorkspace">
@@ -3177,6 +3512,268 @@ function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
     </div>
   );
 }
+function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
+  const [focus, setFocus] = useState("Alexandra Lewis");
+  const nodes = [
+    ["Alexandra Lewis", "CONTACT", "graphContact", "50%", "44%"],
+    ["Northstar Advisory", "ACCOUNT", "graphAccount", "50%", "12%"],
+    ["$18.5K Proposal", "OPPORTUNITY", "graphDeal", "19%", "38%"],
+    ["Strategy Session", "BOOKING", "graphBooking", "81%", "38%"],
+    ["Yvette Lomeli", "OWNER", "graphOwner", "27%", "73%"],
+    ["Private Link", "SOURCE", "graphSource", "73%", "73%"],
+    ["Payment Intent", "SIGNAL", "graphSignal", "50%", "83%"],
+  ];
+  return (
+    <div className="graphWorkspace">
+      <section className="graphCanvas crmPanel">
+        <header>
+          <div>
+            <small>UNIVERSAL RELATIONSHIP GRAPH</small>
+            <h2>Every record. Every relationship. One truth.</h2>
+          </div>
+          <div>
+            <button onClick={() => onFlash("Graph filter opened")}>
+              Filter objects
+            </button>
+            <button onClick={() => onFlash("Graph expanded")}>
+              Expand network
+            </button>
+          </div>
+        </header>
+        <div className="graphStage">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <line x1="50" y1="44" x2="50" y2="12" />
+            <line x1="50" y1="44" x2="19" y2="38" />
+            <line x1="50" y1="44" x2="81" y2="38" />
+            <line x1="50" y1="44" x2="27" y2="73" />
+            <line x1="50" y1="44" x2="73" y2="73" />
+            <line x1="50" y1="44" x2="50" y2="83" />
+            <line x1="19" y1="38" x2="27" y2="73" />
+            <line x1="81" y1="38" x2="73" y2="73" />
+          </svg>
+          {nodes.map((node) => (
+            <button
+              className={`graphNode ${node[2]} ${focus === node[0] ? "active" : ""}`}
+              style={{ left: node[3], top: node[4] }}
+              onClick={() => setFocus(node[0])}
+              key={node[0]}
+            >
+              <small>{node[1]}</small>
+              <b>{node[0]}</b>
+              <i>●</i>
+            </button>
+          ))}
+        </div>
+        <footer>
+          <span>
+            <i className="graphContact" /> Contact
+          </span>
+          <span>
+            <i className="graphAccount" /> Account
+          </span>
+          <span>
+            <i className="graphDeal" /> Revenue
+          </span>
+          <span>
+            <i className="graphBooking" /> Booking
+          </span>
+          <span>
+            <i className="graphSignal" /> Signal
+          </span>
+        </footer>
+      </section>
+      <aside className="graphInspector crmPanel">
+        <small>GRAPH INSPECTOR</small>
+        <h2>{focus}</h2>
+        <p>Live context assembled across the complete Cyncro object model.</p>
+        <div className="graphScore">
+          <span>
+            <b>94</b>
+            <small>INTENT</small>
+          </span>
+          <span>
+            <b>88</b>
+            <small>HEALTH</small>
+          </span>
+          <span>
+            <b>76</b>
+            <small>FIT</small>
+          </span>
+        </div>
+        {[
+          ["Connected records", "18"],
+          ["Relationship depth", "4 levels"],
+          ["Last signal", "4 min ago"],
+          ["Data confidence", "98.7%"],
+        ].map((item) => (
+          <div className="graphFact" key={item[0]}>
+            <span>{item[0]}</span>
+            <b>{item[1]}</b>
+          </div>
+        ))}
+        <h3>Ask the graph</h3>
+        {[
+          "Who influences this deal?",
+          "What changed this week?",
+          "Show the shortest path to revenue",
+        ].map((item) => (
+          <button onClick={() => onFlash("Graph answer generated")} key={item}>
+            ✦ {item}
+          </button>
+        ))}
+      </aside>
+    </div>
+  );
+}
+
+function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
+  const agents = [
+    [
+      "Atlas",
+      "Revenue strategist",
+      "Prioritizes pipeline, forecasts outcomes, and builds next-best actions.",
+      "128 decisions",
+      "LIVE",
+    ],
+    [
+      "Nova",
+      "Conversation agent",
+      "Handles inbound qualification and maintains context across every channel.",
+      "84 conversations",
+      "LIVE",
+    ],
+    [
+      "Sage",
+      "Customer intelligence",
+      "Enriches records, maps relationships, and monitors health and intent.",
+      "2,418 records",
+      "LIVE",
+    ],
+    [
+      "Kronos",
+      "Operations agent",
+      "Coordinates tasks, bookings, owners, resources, deadlines, and SLAs.",
+      "396 actions",
+      "LIVE",
+    ],
+    [
+      "Onyx",
+      "Governance agent",
+      "Monitors permissions, data quality, duplicates, risk, and audit policy.",
+      "14 reviews",
+      "GUARDED",
+    ],
+  ];
+  return (
+    <div className="agentWorkspace">
+      <section className="agentHero">
+        <div>
+          <small>AGENTIC REVENUE OPERATING SYSTEM</small>
+          <h2>Your AI team works across the entire customer lifecycle.</h2>
+          <p>
+            Each agent has a defined role, access boundary, approval policy,
+            memory scope, and measurable business outcome.
+          </p>
+        </div>
+        <aside>
+          <span>5 agents online</span>
+          <b>99.98%</b>
+          <small>CONTROLLED EXECUTION RATE</small>
+          <button onClick={() => onFlash("Agent orchestration opened")}>
+            Open orchestration map →
+          </button>
+        </aside>
+      </section>
+      <div className="agentGrid">
+        {agents.map((agent, index) => (
+          <article className="crmPanel" key={agent[0]}>
+            <header>
+              <span>{agent[0][0]}</span>
+              <div>
+                <small>AGENT {String(index + 1).padStart(2, "0")}</small>
+                <h3>{agent[0]}</h3>
+              </div>
+              <i className={agent[4] === "LIVE" ? "live" : "guarded"}>
+                {agent[4]}
+              </i>
+            </header>
+            <b>{agent[1]}</b>
+            <p>{agent[2]}</p>
+            <div className="agentStats">
+              <span>
+                <small>LAST 30 DAYS</small>
+                <b>{agent[3]}</b>
+              </span>
+              <span>
+                <small>AUTHORITY</small>
+                <b>
+                  {index < 2
+                    ? "Approve to send"
+                    : index === 4
+                      ? "Audit only"
+                      : "Internal actions"}
+                </b>
+              </span>
+            </div>
+            <footer>
+              <button onClick={() => onFlash(`${agent[0]} activity opened`)}>
+                View activity
+              </button>
+              <button onClick={() => onFlash(`${agent[0]} controls opened`)}>
+                Permissions
+              </button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      <section className="agentCommand crmPanel">
+        <div>
+          <small>SHARED MISSION CONTROL</small>
+          <h2>Coordinate agents around an outcome—not disconnected tasks.</h2>
+        </div>
+        <div className="missionFlow">
+          <article>
+            <span>01</span>
+            <b>Observe</b>
+            <small>Business event stream</small>
+          </article>
+          <i>→</i>
+          <article>
+            <span>02</span>
+            <b>Reason</b>
+            <small>Shared context + policy</small>
+          </article>
+          <i>→</i>
+          <article>
+            <span>03</span>
+            <b>Propose</b>
+            <small>Plan + predicted impact</small>
+          </article>
+          <i>→</i>
+          <article>
+            <span>04</span>
+            <b>Approve</b>
+            <small>Human or policy gate</small>
+          </article>
+          <i>→</i>
+          <article>
+            <span>05</span>
+            <b>Execute</b>
+            <small>Action + full audit</small>
+          </article>
+        </div>
+        <button onClick={() => onFlash("Mission builder opened")}>
+          ＋ Build an agent mission
+        </button>
+      </section>
+    </div>
+  );
+}
+
 function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
   return (
     <div className="intelligenceWorkspace">
