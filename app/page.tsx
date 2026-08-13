@@ -16,20 +16,9 @@ export default function Home() {
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
-    [date, setDate] = useState(18),
-    [globalNotice, setGlobalNotice] = useState("");
-  const acknowledge = (event: React.MouseEvent<HTMLElement>) => {
-    const button = (event.target as HTMLElement).closest("button");
-    if (!button || button.disabled) return;
-    const name = (button.textContent || "Action").replace(/\s+/g, " ").trim();
-    setGlobalNotice(
-      name.length > 36 ? "Calendar updated" : `${name} · complete`,
-    );
-    window.setTimeout(() => setGlobalNotice(""), 1500);
-  };
+    [date, setDate] = useState(18);
   return (
-    <main onClickCapture={acknowledge}>
-      {globalNotice && <div className="globalToast">✓ {globalNotice}</div>}
+    <main>
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => setTab("home")}>
           <i>Cyncro</i> Core
@@ -2339,6 +2328,7 @@ function CyncroDispatch() {
   const [selectedJob, setSelectedJob] = useState(0);
   const [techStatus, setTechStatus] = useState("EN ROUTE");
   const [loginEmail, setLoginEmail] = useState("");
+  const [jobModalOpen, setJobModalOpen] = useState(false);
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
@@ -2357,6 +2347,59 @@ function CyncroDispatch() {
     setJobs(next);
     setSelectedJob(target);
     flash("Route order updated · ETA recalculated");
+  };
+  const createJob = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const customer = String(data.get("customer") || "").trim();
+    const service = String(data.get("service") || "").trim();
+    const address = String(data.get("address") || "").trim();
+    if (!customer || !service || !address) {
+      flash("Customer, service, and address are required");
+      return;
+    }
+    const newJob = {
+      id: `JOB-${2841 + jobs.length}`,
+      time: String(data.get("time") || "9:00 AM"),
+      customer,
+      service,
+      address,
+      tech: String(data.get("tech") || "Unassigned"),
+      status: "BOOKED",
+      revenue: `$${Number(data.get("revenue") || 0).toLocaleString()}`,
+      eta: "Not routed",
+      color: "green",
+    };
+    setJobs((current) => [...current, newJob]);
+    setSelectedJob(jobs.length);
+    setView("Jobs");
+    setJobModalOpen(false);
+    flash(`${newJob.id} created`);
+  };
+  const advanceJob = (index: number) => {
+    const lifecycle = [
+      "BOOKED",
+      "ASSIGNED",
+      "IN PROGRESS",
+      "COMPLETE",
+      "INVOICED",
+    ];
+    setJobs((current) =>
+      current.map((job, jobIndex) => {
+        if (jobIndex !== index) return job;
+        const next =
+          lifecycle[
+            Math.min(lifecycle.indexOf(job.status) + 1, lifecycle.length - 1)
+          ];
+        return { ...job, status: next };
+      }),
+    );
+    flash("Job status advanced");
+  };
+  const cancelJob = (index: number) => {
+    setJobs((current) => current.filter((_, jobIndex) => jobIndex !== index));
+    setSelectedJob(0);
+    flash("Job cancelled");
   };
 
   if (!authenticated) {
@@ -2655,6 +2698,76 @@ function CyncroDispatch() {
   return (
     <section className="dispatchShell">
       {notice && <div className="dispatchToast">✓ {notice}</div>}
+      {jobModalOpen && (
+        <div className="dispatchModalBackdrop" role="presentation">
+          <form className="dispatchModal" onSubmit={createJob}>
+            <header>
+              <div>
+                <small>JOB COMMAND</small>
+                <h2>Create a field job</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setJobModalOpen(false)}
+                aria-label="Close new job form"
+              >
+                ×
+              </button>
+            </header>
+            <label>
+              Customer
+              <input
+                name="customer"
+                placeholder="Customer or company"
+                required
+              />
+            </label>
+            <label>
+              Service
+              <input name="service" placeholder="Service requested" required />
+            </label>
+            <label>
+              Job address
+              <input
+                name="address"
+                placeholder="Full service address"
+                required
+              />
+            </label>
+            <div>
+              <label>
+                Time
+                <input name="time" type="time" defaultValue="09:00" required />
+              </label>
+              <label>
+                Estimated revenue
+                <input
+                  name="revenue"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue="500"
+                />
+              </label>
+            </div>
+            <label>
+              Assign technician
+              <select name="tech" defaultValue="Unassigned">
+                <option>Unassigned</option>
+                <option>Andre Cole</option>
+                <option>Maya Torres</option>
+                <option>Derek Stone</option>
+              </select>
+            </label>
+            <footer>
+              <button type="button" onClick={() => setJobModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit">Create job →</button>
+            </footer>
+          </form>
+        </div>
+      )}
       <aside className="dispatchSidebar">
         <div className="dispatchBrand">
           <span>D</span>
@@ -2733,7 +2846,7 @@ function CyncroDispatch() {
             <button onClick={() => flash("No dispatch alerts")}>
               ◌<i />
             </button>
-            <button onClick={() => flash("New job created")}>＋ New job</button>
+            <button onClick={() => setJobModalOpen(true)}>＋ New job</button>
           </div>
         </header>
         <div className="dispatchContent">
@@ -2752,6 +2865,9 @@ function CyncroDispatch() {
               selected={selectedJob}
               setSelected={setSelectedJob}
               onFlash={flash}
+              onNew={() => setJobModalOpen(true)}
+              onAdvance={advanceJob}
+              onCancel={cancelJob}
             />
           )}
           {view === "GPS Map" && (
@@ -3022,13 +3138,29 @@ function DispatchJobs({
   selected,
   setSelected,
   onFlash,
+  onNew,
+  onAdvance,
+  onCancel,
 }: {
   jobs: typeof dispatchJobs;
   selected: number;
   setSelected: (index: number) => void;
   onFlash: (message: string) => void;
+  onNew: () => void;
+  onAdvance: (index: number) => void;
+  onCancel: (index: number) => void;
 }) {
   const job = jobs[selected];
+  if (!job) {
+    return (
+      <div className="dispatchEmptyState dispatchPanel">
+        <small>JOB COMMAND</small>
+        <h1>No jobs scheduled</h1>
+        <p>Create the first job to begin dispatching your team.</p>
+        <button onClick={onNew}>＋ Create job</button>
+      </div>
+    );
+  }
   return (
     <div className="dispatchJobsWorkspace">
       <section className="jobBoard dispatchPanel">
@@ -3041,7 +3173,7 @@ function DispatchJobs({
             <button onClick={() => onFlash("Job filters opened")}>
               Filter
             </button>
-            <button onClick={() => onFlash("New job created")}>＋ Job</button>
+            <button onClick={onNew}>＋ Job</button>
           </div>
         </header>
         <div className="jobBoardCols">
@@ -3115,11 +3247,14 @@ function DispatchJobs({
             </span>
           ))}
         </div>
-        <button onClick={() => onFlash("Customer notified by SMS")}>
+        <button
+          onClick={() => onFlash("Customer update queued for SMS delivery")}
+        >
           Send customer update
         </button>
-        <button onClick={() => onFlash("Work order edited")}>
-          Edit work order
+        <button onClick={() => onAdvance(selected)}>Advance job status</button>
+        <button className="dangerAction" onClick={() => onCancel(selected)}>
+          Cancel job
         </button>
       </aside>
     </div>

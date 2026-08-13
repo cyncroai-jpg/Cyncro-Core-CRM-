@@ -5,6 +5,123 @@
   padding-top: 40px;
   position: relative;
 }
+
+.dispatchModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.dispatchModal {
+  width: min(620px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: #0d0d0f;
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.75);
+}
+
+.dispatchModal header,
+.dispatchModal footer,
+.dispatchModal > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.dispatchModal header h2 {
+  margin: 5px 0 0;
+  font-size: 25px;
+}
+
+.dispatchModal header small,
+.dispatchModal label {
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.dispatchModal header > button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 22px;
+}
+
+.dispatchModal label {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+}
+
+.dispatchModal input,
+.dispatchModal select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: #fff;
+  background: #17171a;
+  font: inherit;
+}
+
+.dispatchModal input:focus,
+.dispatchModal select:focus {
+  outline: 2px solid rgba(174, 24, 35, 0.7);
+  border-color: #b71825;
+}
+
+.dispatchModal footer {
+  justify-content: flex-end;
+  padding-top: 5px;
+}
+
+.dispatchModal footer button,
+.dispatchEmptyState button {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 9px;
+}
+
+.dispatchModal footer button[type="submit"] {
+  background: #a91320;
+  color: #fff;
+}
+
+.jobInspector .dangerAction {
+  border-color: rgba(255, 82, 92, 0.35);
+  color: #ff7881;
+}
+
+.dispatchEmptyState {
+  max-width: 620px;
+  margin: 60px auto;
+  padding: 42px;
+  text-align: center;
+}
+
+.dispatchEmptyState h1 {
+  margin: 8px 0;
+}
+
+@media (max-width: 640px) {
+  .dispatchModal {
+    padding: 20px;
+  }
+  .dispatchModal > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .advancedTitle {
   display: flex;
   align-items: flex-end;
