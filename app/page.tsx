@@ -16,7 +16,8 @@ type Tab =
   | "studio"
   | "crm"
   | "dispatch"
-  | "dispute";
+  | "dispute"
+  | "finance";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [step, setStep] = useState(1),
@@ -38,6 +39,7 @@ export default function Home() {
             ["crm", "Cyncro CRM"],
             ["dispatch", "Dispatch"],
             ["dispute", "Dispute"],
+            ["finance", "Finance"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -65,6 +67,8 @@ export default function Home() {
         <CyncroDispatch />
       ) : tab === "dispute" ? (
         <CyncroDispute />
+      ) : tab === "finance" ? (
+        <CyncroFinance />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
       ) : (
@@ -3690,6 +3694,1041 @@ function DisputeTeam({ onFlash }: { onFlash: (m: string) => void }) {
 }
 function DisputeMarketing({ onFlash }: { onFlash: (m: string) => void }) {
   return <DisputeSuiteView name="Marketing" onFlash={onFlash} />;
+}
+
+type FinanceView =
+  | "Command"
+  | "Deal Queue"
+  | "Deal Architect"
+  | "Lenders"
+  | "Product Menu"
+  | "Contracts"
+  | "Funding"
+  | "Compliance"
+  | "Customers"
+  | "Analytics";
+
+const financeDeals = [
+  {
+    customer: "Olivia Bennett",
+    vehicle: "2026 Porsche Macan S",
+    stock: "P24018",
+    score: "742",
+    payment: "$1,146",
+    gross: "$6,840",
+    status: "READY TO PRESENT",
+    lender: "Chase Auto",
+    risk: "LOW",
+  },
+  {
+    customer: "Noah Williams",
+    vehicle: "2025 BMW X5 xDrive40i",
+    stock: "B51882",
+    score: "681",
+    payment: "$984",
+    gross: "$5,420",
+    status: "LENDER REVIEW",
+    lender: "BMW Financial",
+    risk: "MEDIUM",
+  },
+  {
+    customer: "Sophia Carter",
+    vehicle: "2026 Mercedes GLC 300",
+    stock: "M60117",
+    score: "718",
+    payment: "$862",
+    gross: "$7,190",
+    status: "STIPS NEEDED",
+    lender: "Mercedes-Benz FS",
+    risk: "MEDIUM",
+  },
+  {
+    customer: "Liam Rodriguez",
+    vehicle: "2025 Audi Q7 Premium Plus",
+    stock: "A74221",
+    score: "655",
+    payment: "$1,032",
+    gross: "$4,980",
+    status: "CONTRACTING",
+    lender: "Ally",
+    risk: "WATCH",
+  },
+];
+
+function CyncroFinance() {
+  const [view, setView] = useState<FinanceView>("Command");
+  const [deal, setDeal] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [aiOpen, setAiOpen] = useState(true);
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 1800);
+  };
+  const nav: { name: FinanceView; icon: string }[] = [
+    { name: "Command", icon: "⌂" },
+    { name: "Deal Queue", icon: "▦" },
+    { name: "Deal Architect", icon: "✦" },
+    { name: "Lenders", icon: "◎" },
+    { name: "Product Menu", icon: "◇" },
+    { name: "Contracts", icon: "▤" },
+    { name: "Funding", icon: "$" },
+    { name: "Compliance", icon: "◈" },
+    { name: "Customers", icon: "♙" },
+    { name: "Analytics", icon: "⌁" },
+  ];
+  return (
+    <section className="financeShell">
+      {notice && <div className="dispatchToast">✓ {notice}</div>}
+      <aside className="financeSidebar">
+        <div className="financeBrand">
+          <span>CF</span>
+          <div>
+            <b>Cyncro Finance</b>
+            <small>AUTOMOTIVE F&amp;I INTELLIGENCE</small>
+          </div>
+        </div>
+        <button
+          className="rooftopPicker"
+          onClick={() => flash("Rooftop switcher opened")}
+        >
+          <span>VP</span>
+          <div>
+            <small>ACTIVE ROOFTOP</small>
+            <b>Vivid Premier Auto</b>
+          </div>
+          <i>⌄</i>
+        </button>
+        <nav>
+          {nav.map((item) => (
+            <button
+              key={item.name}
+              className={view === item.name ? "active" : ""}
+              onClick={() => setView(item.name)}
+            >
+              <i>{item.icon}</i>
+              <span>{item.name}</span>
+              {item.name === "Deal Queue" && <em>18</em>}
+            </button>
+          ))}
+        </nav>
+        <div className="financePulse">
+          <span>FUNDING PULSE</span>
+          <b>$428,600</b>
+          <small>14 contracts pending · 2 aging alerts</small>
+          <div>
+            <i style={{ width: "78%" }} />
+          </div>
+        </div>
+      </aside>
+      <main className="financeMain">
+        <header className="financeTopbar">
+          <div>
+            <small>THURSDAY, AUGUST 13</small>
+            <b>{view === "Command" ? "Finance Command" : view}</b>
+          </div>
+          <div>
+            <button
+              onClick={() =>
+                flash("Global vehicle, customer and deal search opened")
+              }
+            >
+              ⌕ Search
+            </button>
+            <button onClick={() => setAiOpen(!aiOpen)}>✦ Cyncro AI</button>
+            <button
+              onClick={() => {
+                setView("Deal Architect");
+                flash("New deal jacket created");
+              }}
+            >
+              ＋ New deal
+            </button>
+          </div>
+        </header>
+        <div className="financeContent">
+          {view === "Command" && (
+            <FinanceCommand
+              onView={setView}
+              onFlash={flash}
+              onDeal={(i) => {
+                setDeal(i);
+                setView("Deal Architect");
+              }}
+            />
+          )}
+          {view === "Deal Queue" && (
+            <FinanceDealQueue
+              onOpen={(i) => {
+                setDeal(i);
+                setView("Deal Architect");
+              }}
+              onFlash={flash}
+            />
+          )}
+          {view === "Deal Architect" && (
+            <FinanceArchitect deal={financeDeals[deal]} onFlash={flash} />
+          )}
+          {view !== "Command" &&
+            view !== "Deal Queue" &&
+            view !== "Deal Architect" && (
+              <FinanceWorkspace view={view} onFlash={flash} />
+            )}
+        </div>
+      </main>
+      {aiOpen && <FinanceAI onClose={() => setAiOpen(false)} onFlash={flash} />}
+    </section>
+  );
+}
+
+function FinanceCommand({
+  onView,
+  onFlash,
+  onDeal,
+}: {
+  onView: (v: FinanceView) => void;
+  onFlash: (m: string) => void;
+  onDeal: (i: number) => void;
+}) {
+  return (
+    <>
+      <section className="financeHero">
+        <div>
+          <span>LIVE F&amp;I OPERATING SYSTEM</span>
+          <h1>
+            Move every deal.
+            <br />
+            <i>Protect every dollar.</i>
+          </h1>
+          <p>
+            One intelligent command layer for desking, lender strategy, product
+            presentation, compliance, contracting, funding and customer
+            delivery.
+          </p>
+        </div>
+        <div className="financeHeroActions">
+          <button onClick={() => onView("Deal Architect")}>
+            ✦ Architect a deal
+          </button>
+          <button onClick={() => onView("Deal Queue")}>
+            Open live queue →
+          </button>
+        </div>
+      </section>
+      <section className="financeKpis">
+        {[
+          ["TODAY'S FRONT GROSS", "$48,920", "+12.8% vs pace"],
+          ["BACK GROSS / DEAL", "$2,418", "+$284 MTD"],
+          ["PRODUCT PENETRATION", "68.4%", "VSC · GAP · Tire"],
+          ["AVG FUNDING TIME", "1.7 days", "−0.6 days"],
+        ].map((x) => (
+          <article key={x[0]}>
+            <small>{x[0]}</small>
+            <b>{x[1]}</b>
+            <span>{x[2]}</span>
+          </article>
+        ))}
+      </section>
+      <div className="financeCommandGrid">
+        <section className="financePanel liveDeals">
+          <header>
+            <div>
+              <small>REAL-TIME DEAL FLOW</small>
+              <h2>Deals requiring attention</h2>
+            </div>
+            <button onClick={() => onView("Deal Queue")}>View all 18 →</button>
+          </header>
+          {financeDeals.map((d, i) => (
+            <button key={d.stock} onClick={() => onDeal(i)}>
+              <span className={`riskDot ${d.risk.toLowerCase()}`} />
+              <div>
+                <b>{d.customer}</b>
+                <small>
+                  {d.vehicle} · {d.stock}
+                </small>
+              </div>
+              <div>
+                <small>PAYMENT</small>
+                <b>{d.payment}</b>
+              </div>
+              <div>
+                <small>BACK GROSS</small>
+                <b>{d.gross}</b>
+              </div>
+              <em>{d.status}</em>
+              <i>→</i>
+            </button>
+          ))}
+        </section>
+        <section className="financePanel aiBrief">
+          <header>
+            <div>
+              <small>CYNCRO INTELLIGENCE</small>
+              <h2>Morning opportunity brief</h2>
+            </div>
+            <span>LIVE</span>
+          </header>
+          <h3>$18,420 in recoverable gross</h3>
+          <p>
+            Seven open deals have a higher approval probability or product
+            opportunity than their current structure reflects.
+          </p>
+          {[
+            ["3 deals", "Improve lender fit", "Est. +$5,800"],
+            ["4 menus", "Rebuild product mix", "Est. +$7,260"],
+            ["2 contracts", "Resolve funding holds", "Release $92K"],
+          ].map((x) => (
+            <button
+              key={x[0]}
+              onClick={() => onFlash(`${x[1]} recommendations opened`)}
+            >
+              <b>{x[0]}</b>
+              <span>{x[1]}</span>
+              <em>{x[2]}</em>
+            </button>
+          ))}
+          <button
+            className="askFinanceAI"
+            onClick={() => onFlash("Cyncro AI deal briefing opened")}
+          >
+            Ask Cyncro AI about the book →
+          </button>
+        </section>
+        <section className="financePanel fundingBoard">
+          <header>
+            <div>
+              <small>FUNDING CONTROL</small>
+              <h2>Contract aging</h2>
+            </div>
+            <button onClick={() => onView("Funding")}>Funding center →</button>
+          </header>
+          {[
+            ["0–1 DAYS", "9", "$286K", "healthy"],
+            ["2–3 DAYS", "3", "$96K", "watch"],
+            ["4+ DAYS", "2", "$46K", "danger"],
+          ].map((x) => (
+            <article key={x[0]}>
+              <span className={x[3]}>{x[0]}</span>
+              <b>{x[1]} deals</b>
+              <strong>{x[2]}</strong>
+            </article>
+          ))}
+        </section>
+        <section className="financePanel lenderPulse">
+          <header>
+            <div>
+              <small>LENDER NETWORK</small>
+              <h2>Approval performance</h2>
+            </div>
+            <button onClick={() => onView("Lenders")}>Lender matrix →</button>
+          </header>
+          {[
+            ["Chase Auto", "86%", "1.4d"],
+            ["Ally", "82%", "1.8d"],
+            ["Capital One Auto", "79%", "1.2d"],
+            ["Westlake", "71%", "2.6d"],
+          ].map((x, i) => (
+            <article key={x[0]}>
+              <b>{x[0]}</b>
+              <div>
+                <i style={{ width: x[1] }} />
+              </div>
+              <span>{x[1]} approval</span>
+              <em>{x[2]}</em>
+            </article>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
+
+function FinanceDealQueue({
+  onOpen,
+  onFlash,
+}: {
+  onOpen: (i: number) => void;
+  onFlash: (m: string) => void;
+}) {
+  const [filter, setFilter] = useState("All deals");
+  return (
+    <div className="financeWorkspace">
+      <div className="financePageHead">
+        <div>
+          <span>18 ACTIVE DEALS · $126K GROSS AT WORK</span>
+          <h1>Deal Queue</h1>
+          <p>
+            Every handoff, approval, stipulation, signature and funding deadline
+            in one live queue.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Deal imported from CRM")}>
+          ＋ Import deal
+        </button>
+      </div>
+      <div className="financeFilters">
+        {[
+          "All deals",
+          "Needs attention",
+          "Awaiting lender",
+          "Contracting",
+          "Funding",
+        ].map((x) => (
+          <button
+            className={filter === x ? "active" : ""}
+            onClick={() => setFilter(x)}
+            key={x}
+          >
+            {x}
+          </button>
+        ))}
+        <input
+          aria-label="Search deals"
+          placeholder="Search customer, VIN or stock…"
+        />
+      </div>
+      <section className="financePanel dealTable">
+        <header>
+          <span>CUSTOMER / VEHICLE</span>
+          <span>CREDIT</span>
+          <span>STRUCTURE</span>
+          <span>LENDER</span>
+          <span>STATUS</span>
+          <span>GROSS</span>
+        </header>
+        {[
+          ...financeDeals,
+          ...financeDeals
+            .slice(0, 2)
+            .map((d, i) => ({
+              ...d,
+              customer: i ? "Ethan Parker" : "Mia Thompson",
+              stock: i ? "L51207" : "R88103",
+            })),
+        ].map((d, i) => (
+          <button
+            key={`${d.stock}-${i}`}
+            onClick={() => onOpen(i % financeDeals.length)}
+          >
+            <div>
+              <b>{d.customer}</b>
+              <small>
+                {d.vehicle} · {d.stock}
+              </small>
+            </div>
+            <span>
+              {d.score}
+              <small>{d.risk} RISK</small>
+            </span>
+            <span>
+              {d.payment}
+              <small>72 mo · 7.49%</small>
+            </span>
+            <span>
+              {d.lender}
+              <small>Top match</small>
+            </span>
+            <em>{d.status}</em>
+            <strong>{d.gross}</strong>
+          </button>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function FinanceArchitect({
+  deal,
+  onFlash,
+}: {
+  deal: (typeof financeDeals)[number];
+  onFlash: (m: string) => void;
+}) {
+  const [term, setTerm] = useState(72);
+  const [down, setDown] = useState(7500);
+  const [selected, setSelected] = useState([
+    "Vehicle Service Contract",
+    "GAP Protection",
+  ]);
+  const payment = Math.round(
+    890 + (72 - term) * 8 - down * 0.014 + selected.length * 34,
+  );
+  return (
+    <div className="financeWorkspace">
+      <div className="dealIdentity">
+        <div>
+          <span>ACTIVE DEAL · {deal.stock}</span>
+          <h1>{deal.customer}</h1>
+          <p>
+            {deal.vehicle} · Score {deal.score} · {deal.lender}
+          </p>
+        </div>
+        <div>
+          <button onClick={() => onFlash("Customer co-browse link sent")}>
+            Invite customer
+          </button>
+          <button onClick={() => onFlash("Deal saved and compliance checked")}>
+            Save deal
+          </button>
+          <button onClick={() => onFlash("Deal advanced to contracting")}>
+            Send to contract →
+          </button>
+        </div>
+      </div>
+      <div className="architectGrid">
+        <section className="financePanel structurePanel">
+          <header>
+            <div>
+              <small>LIVE DEAL STRUCTURE</small>
+              <h2>Build the approval</h2>
+            </div>
+            <em>AI OPTIMIZED</em>
+          </header>
+          <div className="vehiclePrice">
+            <span>Selling price</span>
+            <b>$78,450</b>
+            <small>Market position: 97%</small>
+          </div>
+          <label>
+            Cash down <b>${down.toLocaleString()}</b>
+            <input
+              type="range"
+              min="0"
+              max="20000"
+              step="500"
+              value={down}
+              onChange={(e) => setDown(Number(e.target.value))}
+            />
+          </label>
+          <div className="termOptions">
+            {[60, 72, 84].map((x) => (
+              <button
+                className={term === x ? "active" : ""}
+                onClick={() => setTerm(x)}
+                key={x}
+              >
+                <b>{x}</b>
+                <small>months</small>
+              </button>
+            ))}
+          </div>
+          <div className="paymentOutput">
+            <small>ESTIMATED PAYMENT</small>
+            <b>
+              ${payment}
+              <i>/mo</i>
+            </b>
+            <span>7.49% APR · ${down.toLocaleString()} down</span>
+          </div>
+          <div className="dealMath">
+            {[
+              ["Trade allowance", "$24,600"],
+              ["Trade payoff", "−$18,220"],
+              ["Taxes + fees", "$5,984"],
+              ["Amount financed", "$71,614"],
+            ].map((x) => (
+              <p key={x[0]}>
+                <span>{x[0]}</span>
+                <b>{x[1]}</b>
+              </p>
+            ))}
+          </div>
+        </section>
+        <section className="financePanel lenderMatches">
+          <header>
+            <div>
+              <small>REAL-TIME LENDER FIT</small>
+              <h2>Approval paths</h2>
+            </div>
+            <button onClick={() => onFlash("All lender programs compared")}>
+              Compare all
+            </button>
+          </header>
+          {[
+            ["Chase Auto", "94%", "7.49%", "$1,425", "BEST FIT"],
+            ["Capital One Auto", "89%", "7.79%", "$1,180", "FASTEST"],
+            ["Ally", "84%", "8.10%", "$1,695", "MAX ADVANCE"],
+          ].map((x, i) => (
+            <button
+              className={i === 0 ? "selected" : ""}
+              key={x[0]}
+              onClick={() => onFlash(`${x[0]} program selected`)}
+            >
+              <span>{i + 1}</span>
+              <div>
+                <b>{x[0]}</b>
+                <small>{x[4]}</small>
+              </div>
+              <strong>
+                {x[1]}
+                <small>approval</small>
+              </strong>
+              <em>
+                {x[2]}
+                <small>buy rate</small>
+              </em>
+              <i>
+                {x[3]}
+                <small>reserve</small>
+              </i>
+            </button>
+          ))}
+        </section>
+        <section className="financePanel productBuilder">
+          <header>
+            <div>
+              <small>PERSONALIZED MENU</small>
+              <h2>Protection products</h2>
+            </div>
+            <span>{selected.length} SELECTED</span>
+          </header>
+          {[
+            ["Vehicle Service Contract", "$2,895", "82% fit"],
+            ["GAP Protection", "$995", "91% fit"],
+            ["Tire & Wheel", "$1,295", "76% fit"],
+            ["Appearance Protection", "$895", "58% fit"],
+          ].map((x) => (
+            <button
+              className={selected.includes(x[0]) ? "selected" : ""}
+              onClick={() =>
+                setSelected((s) =>
+                  s.includes(x[0]) ? s.filter((y) => y !== x[0]) : [...s, x[0]],
+                )
+              }
+              key={x[0]}
+            >
+              <i>{selected.includes(x[0]) ? "✓" : "＋"}</i>
+              <div>
+                <b>{x[0]}</b>
+                <small>{x[2]} · customer profile match</small>
+              </div>
+              <strong>{x[1]}</strong>
+            </button>
+          ))}
+          <button
+            className="presentMenu"
+            onClick={() => onFlash("Interactive customer menu launched")}
+          >
+            Present customer menu →
+          </button>
+        </section>
+        <section className="financePanel dealGuard">
+          <header>
+            <div>
+              <small>AUTOMATED DEAL GUARD</small>
+              <h2>Compliance + funding readiness</h2>
+            </div>
+            <em>7/8 CLEAR</em>
+          </header>
+          {[
+            ["OFAC / identity verification", "PASS"],
+            ["Credit authorization", "SIGNED"],
+            ["Adverse action logic", "CLEAR"],
+            ["Income verification", "NEEDED"],
+            ["Red Flags review", "PASS"],
+            ["Menu disclosure", "TRACKED"],
+          ].map((x) => (
+            <p key={x[0]}>
+              <span>{x[0]}</span>
+              <b className={x[1] === "NEEDED" ? "warn" : ""}>{x[1]}</b>
+            </p>
+          ))}
+          <button
+            onClick={() => onFlash("Secure income verification request sent")}
+          >
+            Request missing stipulation →
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+const financeWorkspaceData: Record<
+  Exclude<FinanceView, "Command" | "Deal Queue" | "Deal Architect">,
+  {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    action: string;
+    metrics: string[][];
+    sections: { title: string; rows: string[][] }[];
+  }
+> = {
+  Lenders: {
+    eyebrow: "INTELLIGENT LENDER NETWORK",
+    title: "Route every deal to its strongest approval path.",
+    desc: "Live program matrix, callback comparison, advance limits, stipulation patterns, reserve and funding-speed intelligence.",
+    action: "Compare programs",
+    metrics: [
+      ["CONNECTED LENDERS", "42", "Live programs"],
+      ["APPROVAL RATE", "81.6%", "+6.2%"],
+      ["AVG CALLBACK", "4m 12s", "−38%"],
+      ["RESERVE MTD", "$84.2K", "Protected"],
+    ],
+    sections: [
+      {
+        title: "Lender performance",
+        rows: [
+          [
+            "Chase Auto",
+            "86% approval",
+            "1.4 day funding",
+            "$1,425 avg reserve",
+          ],
+          [
+            "Capital One Auto",
+            "79% approval",
+            "1.2 day funding",
+            "$1,180 avg reserve",
+          ],
+          ["Ally", "82% approval", "1.8 day funding", "$1,695 avg reserve"],
+        ],
+      },
+      {
+        title: "Program opportunities",
+        rows: [
+          ["Prime loyalty", "6 eligible deals", "Up to −0.50%", "MATCH"],
+          ["EV incentive", "3 eligible units", "$2,500 credit", "MATCH"],
+          ["First-time buyer", "4 prospects", "Flexible history", "REVIEW"],
+        ],
+      },
+    ],
+  },
+  "Product Menu": {
+    eyebrow: "PERSONALIZED F&I PRESENTATION",
+    title: "Build value—not pressure.",
+    desc: "AI-personalized product recommendations, transparent option menus, e-signatures, declinations and penetration coaching.",
+    action: "Create menu",
+    metrics: [
+      ["PVR", "$2,418", "+$284"],
+      ["VSC PENETRATION", "54.8%", "+7.1%"],
+      ["GAP PENETRATION", "46.2%", "Target 50%"],
+      ["MENU COMPLETION", "98.6%", "Audited"],
+    ],
+    sections: [
+      {
+        title: "Live product performance",
+        rows: [
+          [
+            "Vehicle Service Contract",
+            "54.8% penetration",
+            "$1,420 avg gross",
+            "↑ 7.1%",
+          ],
+          ["GAP Protection", "46.2% penetration", "$684 avg gross", "↑ 3.8%"],
+          ["Tire & Wheel", "31.9% penetration", "$790 avg gross", "↑ 5.2%"],
+        ],
+      },
+      {
+        title: "Customer-ready menus",
+        rows: [
+          ["Olivia Bennett", "Premium protection", "2 selected", "PRESENTING"],
+          ["Noah Williams", "Essential protection", "1 selected", "REVIEW"],
+          ["Sophia Carter", "Custom menu", "3 selected", "SIGNED"],
+        ],
+      },
+    ],
+  },
+  Contracts: {
+    eyebrow: "DIGITAL DEAL JACKET",
+    title: "Contract once. Validate everything.",
+    desc: "Remote signing, document generation, version control, missing-field detection, secure vault and accounting handoff.",
+    action: "Generate contract",
+    metrics: [
+      ["CONTRACTING", "8", "Live deals"],
+      ["E-SIGN RATE", "78%", "Remote + in-store"],
+      ["AVG CONTRACT TIME", "11m", "−43%"],
+      ["ERROR RATE", "0.4%", "Auto-validated"],
+    ],
+    sections: [
+      {
+        title: "Contract desk",
+        rows: [
+          ["Liam Rodriguez", "18/21 documents", "3 signatures", "IN PROGRESS"],
+          ["Sophia Carter", "21/21 documents", "Complete", "READY TO FUND"],
+          ["Noah Williams", "14/21 documents", "Lender pending", "ON HOLD"],
+        ],
+      },
+      {
+        title: "Document intelligence",
+        rows: [
+          [
+            "Retail installment contract",
+            "All fields validated",
+            "Current version",
+            "CLEAR",
+          ],
+          [
+            "Buyer’s order",
+            "Tax + fees reconciled",
+            "Current version",
+            "CLEAR",
+          ],
+          [
+            "Privacy + credit notices",
+            "Delivery confirmed",
+            "Immutable proof",
+            "CLEAR",
+          ],
+        ],
+      },
+    ],
+  },
+  Funding: {
+    eyebrow: "CONTRACT-IN-TRANSIT CONTROL",
+    title: "Turn signed deals into cash faster.",
+    desc: "Funding packets, lender checklists, aging alerts, exception ownership, receivables, reserve reconciliation and chargeback risk.",
+    action: "Open funding packet",
+    metrics: [
+      ["PENDING FUNDING", "$428.6K", "14 contracts"],
+      ["AVG TIME TO FUND", "1.7 days", "−0.6 days"],
+      ["EXCEPTIONS", "4", "2 urgent"],
+      ["CHARGEBACK RISK", "$7.8K", "Protected"],
+    ],
+    sections: [
+      {
+        title: "Funding queue",
+        rows: [
+          ["Sophia Carter", "Mercedes-Benz FS", "$68,420", "STIP RECEIVED"],
+          ["Liam Rodriguez", "Ally", "$74,880", "CONTRACT REVIEW"],
+          ["Emma Davis", "Chase Auto", "$46,210", "FUNDED TODAY"],
+        ],
+      },
+      {
+        title: "Exceptions",
+        rows: [
+          ["Proof of income", "Noah Williams", "Owner: Jason", "2h SLA"],
+          ["Insurance binder", "Sophia Carter", "Owner: Maya", "4h SLA"],
+          ["Trade title", "Ethan Parker", "Owner: DMV desk", "1 day"],
+        ],
+      },
+    ],
+  },
+  Compliance: {
+    eyebrow: "CONTINUOUS DEAL COMPLIANCE",
+    title: "Protect the customer, manager and rooftop.",
+    desc: "OFAC, Red Flags, consent, adverse action, disclosures, identity, menu proof, audit trails and policy enforcement.",
+    action: "Run deal audit",
+    metrics: [
+      ["DEALS AUDITED", "100%", "Automatic"],
+      ["OPEN EXCEPTIONS", "3", "Owners assigned"],
+      ["POLICY SCORE", "98.7", "Enterprise"],
+      ["AUDIT EVIDENCE", "7 years", "Retained"],
+    ],
+    sections: [
+      {
+        title: "Automated controls",
+        rows: [
+          ["OFAC screening", "All active deals", "Real time", "ENFORCED"],
+          [
+            "Red Flags program",
+            "Identity + anomaly review",
+            "Risk based",
+            "ENFORCED",
+          ],
+          [
+            "Adverse action",
+            "Trigger + notice tracking",
+            "Automated",
+            "ENFORCED",
+          ],
+        ],
+      },
+      {
+        title: "Audit stream",
+        rows: [
+          ["Deal P24018", "Menu disclosure signed", "Yvette L.", "10:42 AM"],
+          ["Deal M60117", "Credit consent verified", "System", "10:31 AM"],
+          ["Deal A74221", "Rate change approved", "Dana P.", "10:08 AM"],
+        ],
+      },
+    ],
+  },
+  Customers: {
+    eyebrow: "ONE AUTOMOTIVE CUSTOMER RECORD",
+    title: "See the complete relationship—not one transaction.",
+    desc: "Identity, household, vehicles, trade equity, credit consent, communications, service history, documents and lifetime value.",
+    action: "Add customer",
+    metrics: [
+      ["ACTIVE CUSTOMERS", "12,842", "All rooftops"],
+      ["RETURNING BUYERS", "31.4%", "+4.8%"],
+      ["POSITIVE EQUITY", "1,208", "Opportunities"],
+      ["AVG LIFETIME VALUE", "$8,940", "Sales + service"],
+    ],
+    sections: [
+      {
+        title: "Priority customers",
+        rows: [
+          [
+            "Olivia Bennett",
+            "2026 Porsche Macan S",
+            "$18.4K LTV",
+            "IN DELIVERY",
+          ],
+          ["Noah Williams", "2025 BMW X5", "$11.2K LTV", "FINANCING"],
+          ["Sophia Carter", "2026 Mercedes GLC", "$14.8K LTV", "STIPS"],
+        ],
+      },
+      {
+        title: "Equity opportunities",
+        rows: [
+          [
+            "118 customers",
+            "$5K+ positive equity",
+            "0–36 months",
+            "HIGH INTENT",
+          ],
+          ["264 customers", "Lease maturity <120d", "Campaign ready", "ENGAGE"],
+          ["82 customers", "Payment reduction path", "AI matched", "REVIEW"],
+        ],
+      },
+    ],
+  },
+  Analytics: {
+    eyebrow: "MULTI-ROOFTOP FINANCE INTELLIGENCE",
+    title: "Know exactly where profit moves—and why.",
+    desc: "Real-time PVR, penetration, lender, funding, manager, compliance and chargeback analytics with AI explanations.",
+    action: "Ask finance data",
+    metrics: [
+      ["TOTAL GROSS MTD", "$1.28M", "+11.7%"],
+      ["BACK GROSS", "$486K", "38% mix"],
+      ["DEALS FUNDED", "214", "96% clean"],
+      ["FORECAST", "$1.62M", "103% target"],
+    ],
+    sections: [
+      {
+        title: "Manager performance",
+        rows: [
+          ["Yvette Lomeli", "$2,684 PVR", "74% products", "112% target"],
+          ["Dana Pierce", "$2,420 PVR", "68% products", "104% target"],
+          ["Jason Cole", "$2,186 PVR", "61% products", "96% target"],
+        ],
+      },
+      {
+        title: "Rooftop comparison",
+        rows: [
+          ["Vivid Premier West", "$2,590 PVR", "1.4d fund", "LEADER"],
+          ["Vivid Premier Central", "$2,402 PVR", "1.8d fund", "ON PACE"],
+          ["Vivid Premier North", "$2,110 PVR", "2.6d fund", "COACH"],
+        ],
+      },
+    ],
+  },
+};
+
+function FinanceWorkspace({
+  view,
+  onFlash,
+}: {
+  view: Exclude<FinanceView, "Command" | "Deal Queue" | "Deal Architect">;
+  onFlash: (m: string) => void;
+}) {
+  const d = financeWorkspaceData[view];
+  return (
+    <div className="financeWorkspace">
+      <div className="financePageHead">
+        <div>
+          <span>{d.eyebrow}</span>
+          <h1>{d.title}</h1>
+          <p>{d.desc}</p>
+        </div>
+        <button onClick={() => onFlash(`${d.action} opened`)}>
+          {d.action} →
+        </button>
+      </div>
+      <section className="financeKpis">
+        {d.metrics.map((x) => (
+          <article key={x[0]}>
+            <small>{x[0]}</small>
+            <b>{x[1]}</b>
+            <span>{x[2]}</span>
+          </article>
+        ))}
+      </section>
+      <div className="financeDataGrid">
+        {d.sections.map((s) => (
+          <section className="financePanel financeDataTable" key={s.title}>
+            <header>
+              <div>
+                <small>LIVE OPERATIONS</small>
+                <h2>{s.title}</h2>
+              </div>
+              <button onClick={() => onFlash(`${s.title} controls opened`)}>
+                Manage →
+              </button>
+            </header>
+            {s.rows.map((r, i) => (
+              <button
+                onClick={() => onFlash(`${r[0]} opened`)}
+                key={`${r[0]}-${i}`}
+              >
+                {r.map((c, j) => (
+                  <span className={j === 0 ? "primary" : ""} key={`${c}-${j}`}>
+                    {c}
+                  </span>
+                ))}
+              </button>
+            ))}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FinanceAI({
+  onClose,
+  onFlash,
+}: {
+  onClose: () => void;
+  onFlash: (m: string) => void;
+}) {
+  return (
+    <aside className="financeAI">
+      <header>
+        <div>
+          <span>✦</span>
+          <div>
+            <b>Cyncro Finance AI</b>
+            <small>Deal-aware intelligence</small>
+          </div>
+        </div>
+        <button onClick={onClose}>×</button>
+      </header>
+      <div className="aiContext">
+        <span>LIVE BOOK CONTEXT</span>
+        <b>18 active deals · $126K gross</b>
+        <small>42 lender programs · 4 exceptions</small>
+      </div>
+      <div className="aiConversation">
+        <p>Where should I focus right now?</p>
+        <article>
+          <b>Three actions can protect approximately $18,420 in gross today.</b>
+          <ol>
+            <li>Move Noah Williams to Capital One’s current tier.</li>
+            <li>Resolve Sophia Carter’s income stipulation.</li>
+            <li>Re-present GAP on four high-LTV deals.</li>
+          </ol>
+        </article>
+      </div>
+      <div className="aiPrompts">
+        {[
+          "Optimize today’s deal book",
+          "Find funding delays",
+          "Compare manager PVR",
+        ].map((x) => (
+          <button key={x} onClick={() => onFlash(`${x} analysis generated`)}>
+            {x} →
+          </button>
+        ))}
+      </div>
+      <label>
+        <input placeholder="Ask about any deal, lender or KPI…" />
+        <button onClick={() => onFlash("AI analysis generated")}>↑</button>
+      </label>
+      <footer>AI recommendations require authorized manager review.</footer>
+    </aside>
+  );
 }
 
 type DispatchRole = "Owner" | "Dispatcher" | "Technician";

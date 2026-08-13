@@ -6,6 +6,1114 @@
   position: relative;
 }
 
+/* Cyncro Finance */
+.financeShell {
+  min-height: calc(100vh - 74px);
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr) auto;
+  background: #070708;
+  color: #fff;
+}
+.financeShell button {
+  transition: 0.18s ease;
+}
+.financeSidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 74px);
+  padding: 19px 13px;
+  border-right: 1px solid #242126;
+  background: #0b0b0d;
+}
+.financeBrand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 7px 18px;
+}
+.financeBrand > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #a91624;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #a91624, #380408);
+  font-size: 11px;
+}
+.financeBrand > div {
+  display: grid;
+  gap: 3px;
+}
+.financeBrand b {
+  font-size: 13px;
+}
+.financeBrand small,
+.rooftopPicker small {
+  color: #817d83;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.rooftopPicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 8px;
+  border-color: #28252b;
+  text-align: left;
+}
+.rooftopPicker > span {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+  background: #242126;
+  font-size: 8px;
+}
+.rooftopPicker > div {
+  display: grid;
+  gap: 3px;
+}
+.rooftopPicker b {
+  font-size: 9px;
+}
+.rooftopPicker i {
+  margin-left: auto;
+}
+.financeSidebar nav {
+  display: grid;
+  gap: 3px;
+  padding: 17px 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.financeSidebar nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 0;
+  color: #9a979d;
+  text-align: left;
+  background: transparent;
+}
+.financeSidebar nav button:hover {
+  color: #fff;
+}
+.financeSidebar nav button.active {
+  border-radius: 7px;
+  color: #fff;
+  background: linear-gradient(
+    90deg,
+    rgba(160, 16, 30, 0.88),
+    rgba(160, 16, 30, 0.12)
+  );
+}
+.financeSidebar nav i {
+  width: 17px;
+  color: #d4d0d4;
+  font-style: normal;
+}
+.financeSidebar nav span {
+  flex: 1;
+  font-size: 9px;
+}
+.financeSidebar nav em {
+  padding: 3px 6px;
+  border-radius: 9px;
+  background: #2c292e;
+  font-size: 7px;
+}
+.financePulse {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+  padding: 13px;
+  border: 1px solid #38252a;
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(126, 12, 23, 0.12), transparent);
+}
+.financePulse > span {
+  color: #8d878e;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+}
+.financePulse > b {
+  font-size: 19px;
+  font-weight: 500;
+}
+.financePulse > small {
+  color: #8e898f;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.financePulse > div {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #29262b;
+}
+.financePulse > div i {
+  display: block;
+  height: 100%;
+  background: #a71927;
+}
+.financeMain {
+  min-width: 0;
+}
+.financeTopbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 0 22px;
+  border-bottom: 1px solid #242126;
+  background: rgba(10, 10, 12, 0.97);
+}
+.financeTopbar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.financeTopbar small {
+  color: #77737a;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+}
+.financeTopbar b {
+  font-size: 13px;
+}
+.financeTopbar > div:last-child {
+  display: flex;
+  gap: 7px;
+}
+.financeTopbar button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-color: #302c32;
+  color: #bcb8bd;
+  font-size: 8px;
+}
+.financeTopbar button:last-child {
+  border-color: #9e1724;
+  color: #fff;
+  background: #8d111d;
+}
+.financeContent {
+  padding: 22px;
+  overflow: hidden;
+}
+.financeHero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 31px;
+  border: 1px solid #332329;
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      circle at 85% 30%,
+      rgba(142, 14, 27, 0.22),
+      transparent 28%
+    ),
+    linear-gradient(135deg, #121014, #09090b);
+}
+.financeHero > div:first-child > span,
+.financePageHead span,
+.dealIdentity > div > span {
+  color: #cb6f79;
+  font-size: 7px;
+  letter-spacing: 0.17em;
+}
+.financeHero h1 {
+  margin: 12px 0 11px;
+  font-family: Georgia, serif;
+  font-size: clamp(31px, 3.2vw, 49px);
+  font-weight: 400;
+  line-height: 1.04;
+}
+.financeHero h1 i {
+  color: #cf4c59;
+  font-weight: 400;
+}
+.financeHero p,
+.financePageHead p {
+  max-width: 680px;
+  color: #aaa5ab;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.financeHeroActions {
+  display: flex;
+  gap: 7px;
+}
+.financeHeroActions button,
+.financePageHead > button {
+  min-height: 39px;
+  padding: 0 15px;
+  font-size: 8px;
+}
+.financeHeroActions button:first-child,
+.financePageHead > button {
+  border-color: #a51624;
+  color: #fff;
+  background: #8d111d;
+}
+.financeKpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 13px 0;
+}
+.financeKpis article {
+  display: grid;
+  gap: 7px;
+  padding: 17px;
+  border: 1px solid #29262b;
+  border-radius: 10px;
+  background: #101013;
+}
+.financeKpis small {
+  color: #817c83;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.financeKpis b {
+  font-size: 22px;
+  font-weight: 450;
+}
+.financeKpis span {
+  color: #c6c1c7;
+  font-size: 8px;
+}
+.financeCommandGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.7fr);
+  gap: 12px;
+}
+.financePanel {
+  border: 1px solid #29262b;
+  border-radius: 11px;
+  background: #101013;
+}
+.financePanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #28252a;
+}
+.financePanel > header > div {
+  display: grid;
+  gap: 5px;
+}
+.financePanel header small {
+  color: #817c83;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.financePanel header h2 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.financePanel header button {
+  border: 0;
+  color: #cb747d;
+  font-size: 8px;
+}
+.liveDeals > button {
+  display: grid;
+  grid-template-columns: 8px minmax(155px, 1.5fr) 0.65fr 0.7fr 0.95fr 15px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-top: 1px solid #242126;
+  text-align: left;
+}
+.liveDeals > button:hover,
+.dealTable > button:hover,
+.financeDataTable > button:hover {
+  background: rgba(151, 17, 30, 0.09);
+}
+.liveDeals > button:first-of-type {
+  border-top: 0;
+}
+.riskDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #68c98b;
+}
+.riskDot.medium {
+  background: #e1ad5e;
+}
+.riskDot.watch {
+  background: #dc5e69;
+}
+.liveDeals div {
+  display: grid;
+  gap: 4px;
+}
+.liveDeals b {
+  font-size: 9px;
+}
+.liveDeals small {
+  color: #89858b;
+  font-size: 7px;
+}
+.liveDeals em {
+  padding: 5px;
+  border-radius: 4px;
+  color: #e2bdc1;
+  background: #2c171b;
+  font-size: 6px;
+  text-align: center;
+}
+.liveDeals i {
+  font-style: normal;
+}
+.aiBrief {
+  grid-row: span 2;
+  padding-bottom: 12px;
+}
+.aiBrief > header > span {
+  color: #6ee09a;
+  font-size: 7px;
+}
+.aiBrief > h3 {
+  padding: 20px 16px 7px;
+  font-size: 22px;
+  font-weight: 450;
+}
+.aiBrief > p {
+  padding: 0 16px 14px;
+  color: #9d989f;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.aiBrief > button:not(.askFinanceAI) {
+  display: grid;
+  grid-template-columns: 0.55fr 1.15fr 0.7fr;
+  gap: 7px;
+  width: calc(100% - 24px);
+  margin: 0 12px;
+  padding: 12px 4px;
+  border: 0;
+  border-top: 1px solid #28252a;
+  text-align: left;
+}
+.aiBrief > button b,
+.aiBrief > button span,
+.aiBrief > button em {
+  font-size: 8px;
+}
+.aiBrief > button span {
+  color: #b7b2b8;
+}
+.aiBrief > button em {
+  color: #d9757e;
+}
+.askFinanceAI {
+  width: calc(100% - 24px);
+  margin: 12px;
+  padding: 11px;
+  border-color: #54232a;
+  color: #e9b3b8;
+  font-size: 8px;
+  background: #211014;
+}
+.fundingBoard,
+.lenderPulse {
+  min-width: 0;
+}
+.fundingBoard > article {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 0.6fr;
+  gap: 8px;
+  padding: 13px 16px;
+  border-top: 1px solid #242126;
+}
+.fundingBoard article span {
+  font-size: 7px;
+}
+.fundingBoard article .healthy {
+  color: #70d495;
+}
+.fundingBoard article .watch {
+  color: #e3b45e;
+}
+.fundingBoard article .danger {
+  color: #e35e69;
+}
+.fundingBoard article b,
+.fundingBoard article strong {
+  font-size: 9px;
+}
+.lenderPulse > article {
+  display: grid;
+  grid-template-columns: 95px 1fr 72px 30px;
+  gap: 9px;
+  align-items: center;
+  padding: 11px 16px;
+}
+.lenderPulse article b,
+.lenderPulse article span,
+.lenderPulse article em {
+  font-size: 7px;
+}
+.lenderPulse article div {
+  height: 3px;
+  background: #29262b;
+}
+.lenderPulse article div i {
+  display: block;
+  height: 100%;
+  background: #9f1825;
+}
+.financeWorkspace {
+  display: grid;
+  gap: 15px;
+}
+.financePageHead,
+.dealIdentity {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 4px 5px;
+}
+.financePageHead h1,
+.dealIdentity h1 {
+  max-width: 800px;
+  margin: 9px 0 8px;
+  font-family: Georgia, serif;
+  font-size: clamp(28px, 3vw, 43px);
+  font-weight: 400;
+  line-height: 1.08;
+}
+.financeFilters {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid #2c292e;
+  border-radius: 9px;
+  background: #101013;
+}
+.financeFilters button {
+  min-width: max-content;
+  padding: 9px 11px;
+  border: 0;
+  color: #8f8b91;
+  font-size: 8px;
+}
+.financeFilters button.active {
+  border-radius: 6px;
+  color: #fff;
+  background: #83101b;
+}
+.financeFilters input {
+  min-width: 180px;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+}
+.dealTable {
+  overflow-x: auto;
+}
+.dealTable > header,
+.dealTable > button {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.5fr) 0.45fr 0.6fr 0.8fr 0.8fr 0.5fr;
+  gap: 12px;
+  align-items: center;
+  min-width: 840px;
+}
+.dealTable > header {
+  color: #7d7980;
+  font-size: 7px;
+}
+.dealTable > button {
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-top: 1px solid #28252a;
+  text-align: left;
+}
+.dealTable > button div,
+.dealTable > button > span {
+  display: grid;
+  gap: 4px;
+}
+.dealTable b,
+.dealTable span,
+.dealTable strong {
+  font-size: 9px;
+}
+.dealTable small {
+  color: #827e84;
+  font-size: 7px;
+}
+.dealTable em {
+  padding: 5px;
+  border-radius: 4px;
+  color: #dfadb2;
+  background: #2d171b;
+  font-size: 6px;
+  text-align: center;
+}
+.dealIdentity > div:last-child {
+  display: flex;
+  gap: 6px;
+}
+.dealIdentity button {
+  min-height: 35px;
+  padding: 0 11px;
+  font-size: 8px;
+}
+.dealIdentity button:last-child {
+  border-color: #9f1724;
+  color: #fff;
+  background: #8c111d;
+}
+.architectGrid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(390px, 1.25fr);
+  gap: 12px;
+}
+.structurePanel {
+  grid-row: span 2;
+  padding-bottom: 15px;
+}
+.structurePanel header em,
+.dealGuard header em {
+  color: #72d79a;
+  font-size: 7px;
+}
+.vehiclePrice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px;
+  padding: 18px;
+}
+.vehiclePrice span {
+  color: #928d94;
+  font-size: 8px;
+}
+.vehiclePrice b {
+  font-size: 19px;
+}
+.vehiclePrice small {
+  grid-column: 1/-1;
+  color: #70d495;
+  font-size: 7px;
+}
+.structurePanel > label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 0 18px 15px;
+  color: #928d94;
+  font-size: 8px;
+}
+.structurePanel input {
+  grid-column: 1/-1;
+  width: 100%;
+  accent-color: #a81826;
+}
+.termOptions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  padding: 0 18px;
+}
+.termOptions button {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-color: #332f35;
+}
+.termOptions button.active {
+  border-color: #a11825;
+  background: #301318;
+}
+.termOptions b {
+  font-size: 14px;
+}
+.termOptions small {
+  font-size: 7px;
+}
+.paymentOutput {
+  display: grid;
+  gap: 5px;
+  margin: 15px 18px;
+  padding: 18px;
+  border: 1px solid #54232a;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 80% 30%, rgba(153, 18, 31, 0.2), transparent 45%),
+    #151014;
+}
+.paymentOutput small {
+  color: #9a9299;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.paymentOutput > b {
+  font-size: 35px;
+  font-weight: 450;
+}
+.paymentOutput b i {
+  font-size: 10px;
+}
+.paymentOutput span {
+  color: #a9a4aa;
+  font-size: 8px;
+}
+.dealMath {
+  padding: 0 18px;
+}
+.dealMath p {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-top: 1px solid #28252a;
+  font-size: 8px;
+}
+.lenderMatches > button {
+  display: grid;
+  grid-template-columns: 22px minmax(120px, 1fr) 0.55fr 0.55fr 0.55fr;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 13px 15px;
+  border: 0;
+  border-top: 1px solid #29262b;
+  text-align: left;
+}
+.lenderMatches > button.selected {
+  background: linear-gradient(90deg, rgba(151, 17, 30, 0.14), transparent);
+}
+.lenderMatches > button > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #4a3035;
+  border-radius: 50%;
+  font-size: 7px;
+}
+.lenderMatches div,
+.lenderMatches strong,
+.lenderMatches em,
+.lenderMatches i {
+  display: grid;
+  gap: 3px;
+}
+.lenderMatches b,
+.lenderMatches strong,
+.lenderMatches em,
+.lenderMatches i {
+  font-size: 8px;
+}
+.lenderMatches small {
+  color: #837e85;
+  font-size: 6px;
+}
+.productBuilder > header > span {
+  color: #d4737c;
+  font-size: 7px;
+}
+.productBuilder > button:not(.presentMenu) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 15px;
+  border: 0;
+  border-top: 1px solid #29262b;
+  text-align: left;
+}
+.productBuilder > button.selected {
+  background: rgba(141, 16, 29, 0.08);
+}
+.productBuilder > button > i {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid #4d3035;
+  border-radius: 5px;
+  font-size: 8px;
+}
+.productBuilder > button.selected > i {
+  border-color: #a21724;
+  background: #86101b;
+}
+.productBuilder > button > div {
+  display: grid;
+  gap: 3px;
+}
+.productBuilder b,
+.productBuilder strong {
+  font-size: 8px;
+}
+.productBuilder small {
+  color: #858087;
+  font-size: 7px;
+}
+.productBuilder strong {
+  margin-left: auto;
+}
+.presentMenu {
+  width: calc(100% - 28px);
+  margin: 14px;
+  padding: 11px;
+  border-color: #9f1724;
+  color: #fff;
+  font-size: 8px;
+  background: #8a111c;
+}
+.dealGuard p {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 15px;
+  border-top: 1px solid #29262b;
+  font-size: 8px;
+}
+.dealGuard p b {
+  color: #70d495;
+  font-size: 7px;
+}
+.dealGuard p b.warn {
+  color: #e3ad5c;
+}
+.dealGuard > button {
+  width: calc(100% - 28px);
+  margin: 12px 14px;
+  padding: 10px;
+  color: #e9b3b8;
+  font-size: 8px;
+}
+.financeDataGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.financeDataTable {
+  overflow: hidden;
+}
+.financeDataTable > button {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-top: 1px solid #29262b;
+  color: #aaa5ab;
+  text-align: left;
+}
+.financeDataTable > button span {
+  overflow: hidden;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.financeDataTable > button .primary {
+  color: #fff;
+  font-weight: 600;
+}
+.financeAI {
+  width: 315px;
+  min-height: calc(100vh - 74px);
+  padding: 14px;
+  border-left: 1px solid #302229;
+  background: #0d0c0f;
+}
+.financeAI > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 2px 14px;
+}
+.financeAI > header > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.financeAI > header > div > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: #fff;
+  background: #8f111d;
+}
+.financeAI header div div {
+  display: grid;
+  gap: 3px;
+}
+.financeAI header b {
+  font-size: 10px;
+}
+.financeAI header small {
+  color: #858087;
+  font-size: 7px;
+}
+.financeAI header button {
+  border: 0;
+  font-size: 17px;
+}
+.aiContext {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid #40252b;
+  border-radius: 8px;
+  background: #171014;
+}
+.aiContext span {
+  color: #ca6d76;
+  font-size: 7px;
+}
+.aiContext b {
+  font-size: 10px;
+}
+.aiContext small {
+  color: #89848a;
+  font-size: 7px;
+}
+.aiConversation {
+  display: grid;
+  gap: 8px;
+  padding: 18px 0;
+}
+.aiConversation > p {
+  justify-self: end;
+  padding: 9px 11px;
+  border-radius: 9px 9px 2px 9px;
+  background: #29262b;
+  font-size: 8px;
+}
+.aiConversation article {
+  padding: 12px;
+  border-radius: 2px 9px 9px 9px;
+  background: #17151a;
+}
+.aiConversation article b {
+  font-size: 9px;
+  line-height: 1.5;
+}
+.aiConversation ol {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding-left: 16px;
+  color: #aaa5ab;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.aiPrompts {
+  display: grid;
+  gap: 5px;
+}
+.aiPrompts button {
+  padding: 10px;
+  border-color: #302c32;
+  color: #b9b4ba;
+  font-size: 8px;
+  text-align: left;
+}
+.financeAI > label {
+  display: flex;
+  margin-top: 12px;
+  padding: 5px;
+  border: 1px solid #48282e;
+  border-radius: 8px;
+  background: #141216;
+}
+.financeAI > label input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+}
+.financeAI > label button {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: #fff;
+  background: #8c111d;
+}
+.financeAI > footer {
+  padding: 10px 2px;
+  color: #6f6b71;
+  font-size: 6px;
+  text-align: center;
+}
+@media (max-width: 1250px) {
+  .financeShell {
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+  .financeAI {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    top: 74px;
+    box-shadow: -20px 0 50px #000;
+  }
+  .financeBrand > div,
+  .rooftopPicker > div,
+  .rooftopPicker > i,
+  .financeSidebar nav span,
+  .financeSidebar nav em,
+  .financePulse {
+    display: none;
+  }
+  .financeBrand {
+    justify-content: center;
+  }
+  .rooftopPicker {
+    justify-content: center;
+  }
+  .financeSidebar nav button {
+    justify-content: center;
+  }
+  .financeSidebar nav i {
+    width: auto;
+  }
+  .financeCommandGrid {
+    grid-template-columns: 1fr 340px;
+  }
+}
+@media (max-width: 900px) {
+  .financeCommandGrid,
+  .architectGrid,
+  .financeDataGrid {
+    grid-template-columns: 1fr;
+  }
+  .aiBrief {
+    grid-row: auto;
+  }
+  .structurePanel {
+    grid-row: auto;
+  }
+  .financeKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .financeHero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .financeTopbar > div:last-child button:first-child {
+    display: none;
+  }
+  .liveDeals > button {
+    grid-template-columns: 8px minmax(150px, 1fr) 0.7fr 0.7fr 15px;
+  }
+  .liveDeals > button em {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  .financeShell {
+    display: block;
+  }
+  .financeSidebar {
+    min-height: auto;
+    padding: 8px;
+  }
+  .financeBrand,
+  .rooftopPicker,
+  .financePulse {
+    display: none;
+  }
+  .financeSidebar nav {
+    display: flex;
+    overflow-x: auto;
+    padding: 0;
+  }
+  .financeSidebar nav button {
+    min-width: 64px;
+  }
+  .financeSidebar nav span {
+    display: block;
+    font-size: 6px;
+  }
+  .financeTopbar {
+    padding: 0 11px;
+  }
+  .financeTopbar > div:last-child button:nth-child(2) {
+    font-size: 0;
+  }
+  .financeTopbar > div:last-child button:nth-child(2)::after {
+    content: "✦ AI";
+    font-size: 8px;
+  }
+  .financeContent {
+    padding: 13px;
+  }
+  .financeHero {
+    padding: 22px;
+  }
+  .financeHeroActions {
+    flex-wrap: wrap;
+  }
+  .financeKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .financeKpis article {
+    padding: 13px;
+  }
+  .financeKpis b {
+    font-size: 18px;
+  }
+  .financePageHead,
+  .dealIdentity {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dealIdentity > div:last-child {
+    flex-wrap: wrap;
+  }
+  .financeFilters {
+    overflow-x: auto;
+  }
+  .financeFilters input {
+    display: none;
+  }
+  .liveDeals {
+    overflow-x: auto;
+  }
+  .liveDeals > button {
+    min-width: 650px;
+  }
+  .financeAI {
+    top: 0;
+    width: min(330px, 100vw);
+    min-height: 100vh;
+  }
+  .lenderMatches {
+    overflow-x: auto;
+  }
+  .lenderMatches > button {
+    min-width: 620px;
+  }
+  .financeDataTable {
+    overflow-x: auto;
+  }
+  .financeDataTable > button,
+  .financeDataTable > header {
+    min-width: 620px;
+  }
+}
+
 /* Cyncro Dispute */
 .disputeShell {
   min-height: calc(100vh - 74px);
