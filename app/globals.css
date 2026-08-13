@@ -957,6 +957,297 @@
   font-size: 6px;
   text-align: center;
 }
+.taxLabHead > div:last-child {
+  display: flex;
+  gap: 7px;
+}
+.taxLabHead > div:last-child button:first-child {
+  border-color: #493137;
+  color: #d4b0b4;
+  background: transparent;
+}
+.taxConfidence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 11px 14px;
+  border: 1px solid #493137;
+  border-radius: 9px;
+  background: linear-gradient(90deg, rgba(143, 17, 29, 0.12), transparent);
+}
+.taxConfidence > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.taxConfidence > div > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: #e28b94;
+  background: #291419;
+}
+.taxConfidence p {
+  display: grid;
+  gap: 3px;
+}
+.taxConfidence b {
+  font-size: 9px;
+}
+.taxConfidence small {
+  color: #969198;
+  font-size: 7px;
+}
+.taxConfidence em {
+  color: #e2b15e;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+.taxLeaseGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.88fr) minmax(320px, 1fr);
+  gap: 12px;
+}
+.calculatorInputs {
+  grid-row: span 2;
+  padding-bottom: 15px;
+}
+.calculatorInputs > header > button,
+.taxOutput > button {
+  color: #df9ba2;
+}
+.calcFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 16px;
+}
+.calcFields label {
+  display: grid;
+  gap: 6px;
+  color: #8f8a91;
+  font-size: 7px;
+}
+.calcFields input,
+.calcFields select {
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #302c32;
+  border-radius: 6px;
+  color: #fff;
+  background: #151317;
+  font-size: 9px;
+}
+.calcFields label small {
+  color: #6f6a71;
+  font-size: 6px;
+}
+.taxRuleStack {
+  margin: 0 16px;
+  border-top: 1px solid #2b282d;
+}
+.taxRuleStack p,
+.taxBreakdown p,
+.paymentAnatomy p {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid #29262b;
+  font-size: 8px;
+}
+.taxRuleStack span,
+.taxBreakdown span,
+.paymentAnatomy span {
+  color: #979299;
+}
+.taxOutput {
+  padding-bottom: 14px;
+}
+.taxOutput header em,
+.leaseOutput header em {
+  color: #6fd496;
+  font-size: 7px;
+}
+.taxHeroNumber,
+.leasePayment {
+  display: grid;
+  gap: 6px;
+  margin: 15px;
+  padding: 18px;
+  border: 1px solid #50252c;
+  border-radius: 9px;
+  background:
+    radial-gradient(
+      circle at 85% 30%,
+      rgba(153, 18, 31, 0.22),
+      transparent 45%
+    ),
+    #151014;
+}
+.taxHeroNumber small,
+.leasePayment small {
+  color: #a09aa1;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.taxHeroNumber b,
+.leasePayment b {
+  font-size: 34px;
+  font-weight: 450;
+}
+.taxHeroNumber span,
+.leasePayment span {
+  color: #b5b0b6;
+  font-size: 8px;
+}
+.taxBreakdown,
+.paymentAnatomy {
+  padding: 0 15px;
+}
+.taxOutput > button {
+  width: calc(100% - 30px);
+  margin: 12px 15px 0;
+  padding: 10px;
+  font-size: 8px;
+}
+.leaseInputs > header > span {
+  color: #d27a83;
+  font-size: 7px;
+}
+.leaseControls {
+  display: grid;
+  gap: 15px;
+  padding: 16px;
+}
+.leaseControls > label {
+  display: grid;
+  gap: 8px;
+  color: #9a959c;
+  font-size: 7px;
+}
+.leaseControls label > b {
+  color: #fff;
+  font-size: 8px;
+  font-weight: 500;
+}
+.leaseControls label > div {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.leaseControls label:last-child > div {
+  grid-template-columns: 1fr 1fr;
+}
+.leaseControls button {
+  padding: 9px 5px;
+  border-color: #302d32;
+  color: #9d989e;
+  font-size: 7px;
+}
+.leaseControls button.active {
+  border-color: #9e1825;
+  color: #fff;
+  background: #301419;
+}
+.leaseControls input {
+  width: 100%;
+  accent-color: #a81725;
+}
+.leasePayment b i {
+  font-size: 9px;
+}
+.scenarioLab > header > button {
+  padding: 8px 11px;
+  border: 1px solid #8d1824;
+  border-radius: 6px;
+  color: #fff;
+  background: #7f101a;
+}
+.scenarioLab > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  padding: 14px;
+}
+.scenarioLab article {
+  display: grid;
+  gap: 10px;
+  padding: 17px;
+  border: 1px solid #302d32;
+  border-radius: 9px;
+  background: #121114;
+}
+.scenarioLab article.featured {
+  border-color: #8f1a26;
+  background:
+    radial-gradient(
+      circle at 85% 10%,
+      rgba(166, 20, 34, 0.22),
+      transparent 42%
+    ),
+    #151114;
+}
+.scenarioLab article > span {
+  color: #a29ca3;
+  font-size: 6px;
+  letter-spacing: 0.12em;
+}
+.scenarioLab article.featured > span {
+  color: #e27d86;
+}
+.scenarioLab h3 {
+  font-size: 12px;
+}
+.scenarioLab article > b {
+  font-size: 27px;
+  font-weight: 450;
+}
+.scenarioLab article > b i {
+  font-size: 8px;
+}
+.scenarioLab article p {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #2c292e;
+  font-size: 7px;
+}
+.scenarioLab article p span {
+  color: #8d888e;
+}
+.scenarioLab article button {
+  padding: 9px;
+  color: #dab0b4;
+  font-size: 7px;
+}
+.scenarioLab article.featured button {
+  border-color: #9e1825;
+  color: #fff;
+  background: #82101b;
+}
+.taxDisclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 13px 15px;
+  border: 1px solid #363238;
+  border-radius: 8px;
+  color: #8d888f;
+  background: #0e0d10;
+}
+.taxDisclaimer b {
+  min-width: max-content;
+  color: #d2cdd2;
+  font-size: 8px;
+}
+.taxDisclaimer p {
+  font-size: 7px;
+  line-height: 1.6;
+}
 @media (max-width: 1250px) {
   .financeShell {
     grid-template-columns: 74px minmax(0, 1fr);
@@ -991,12 +1282,27 @@
   .financeCommandGrid {
     grid-template-columns: 1fr 340px;
   }
+  .taxLeaseGrid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 @media (max-width: 900px) {
   .financeCommandGrid,
   .architectGrid,
   .financeDataGrid {
     grid-template-columns: 1fr;
+  }
+  .taxLeaseGrid {
+    grid-template-columns: 1fr;
+  }
+  .calculatorInputs {
+    grid-row: auto;
+  }
+  .scenarioLab > div {
+    grid-template-columns: 1fr 1fr;
+  }
+  .scenarioLab article:last-child {
+    grid-column: 1/-1;
   }
   .aiBrief {
     grid-row: auto;
@@ -1111,6 +1417,31 @@
   .financeDataTable > button,
   .financeDataTable > header {
     min-width: 620px;
+  }
+  .taxLabHead > div:last-child {
+    flex-wrap: wrap;
+  }
+  .taxConfidence {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .calcFields {
+    grid-template-columns: 1fr;
+  }
+  .scenarioLab > div {
+    grid-template-columns: 1fr;
+  }
+  .scenarioLab article:last-child {
+    grid-column: auto;
+  }
+  .taxDisclaimer {
+    flex-direction: column;
+  }
+  .taxLeaseGrid {
+    display: block;
+  }
+  .taxLeaseGrid > .financePanel {
+    margin-bottom: 11px;
   }
 }
 

@@ -3704,6 +3704,7 @@ type FinanceView =
   | "Product Menu"
   | "Contracts"
   | "Funding"
+  | "Tax & Lease Lab"
   | "Compliance"
   | "Customers"
   | "Analytics";
@@ -3772,6 +3773,7 @@ function CyncroFinance() {
     { name: "Product Menu", icon: "◇" },
     { name: "Contracts", icon: "▤" },
     { name: "Funding", icon: "$" },
+    { name: "Tax & Lease Lab", icon: "%" },
     { name: "Compliance", icon: "◈" },
     { name: "Customers", icon: "♙" },
     { name: "Analytics", icon: "⌁" },
@@ -3868,9 +3870,11 @@ function CyncroFinance() {
           {view === "Deal Architect" && (
             <FinanceArchitect deal={financeDeals[deal]} onFlash={flash} />
           )}
+          {view === "Tax & Lease Lab" && <TaxLeaseLab onFlash={flash} />}
           {view !== "Command" &&
             view !== "Deal Queue" &&
-            view !== "Deal Architect" && (
+            view !== "Deal Architect" &&
+            view !== "Tax & Lease Lab" && (
               <FinanceWorkspace view={view} onFlash={flash} />
             )}
         </div>
@@ -4097,13 +4101,11 @@ function FinanceDealQueue({
         </header>
         {[
           ...financeDeals,
-          ...financeDeals
-            .slice(0, 2)
-            .map((d, i) => ({
-              ...d,
-              customer: i ? "Ethan Parker" : "Mia Thompson",
-              stock: i ? "L51207" : "R88103",
-            })),
+          ...financeDeals.slice(0, 2).map((d, i) => ({
+            ...d,
+            customer: i ? "Ethan Parker" : "Mia Thompson",
+            stock: i ? "L51207" : "R88103",
+          })),
         ].map((d, i) => (
           <button
             key={`${d.stock}-${i}`}
@@ -4343,8 +4345,462 @@ function FinanceArchitect({
   );
 }
 
+const stateTaxRules = [
+  ["AL", "Alabama", 4],
+  ["AK", "Alaska", 0],
+  ["AZ", "Arizona", 5.6],
+  ["AR", "Arkansas", 6.5],
+  ["CA", "California", 7.25],
+  ["CO", "Colorado", 2.9],
+  ["CT", "Connecticut", 6.35],
+  ["DE", "Delaware", 0],
+  ["DC", "District of Columbia", 6],
+  ["FL", "Florida", 6],
+  ["GA", "Georgia", 7],
+  ["HI", "Hawaii", 4],
+  ["ID", "Idaho", 6],
+  ["IL", "Illinois", 6.25],
+  ["IN", "Indiana", 7],
+  ["IA", "Iowa", 6],
+  ["KS", "Kansas", 6.5],
+  ["KY", "Kentucky", 6],
+  ["LA", "Louisiana", 5],
+  ["ME", "Maine", 5.5],
+  ["MD", "Maryland", 6],
+  ["MA", "Massachusetts", 6.25],
+  ["MI", "Michigan", 6],
+  ["MN", "Minnesota", 6.875],
+  ["MS", "Mississippi", 5],
+  ["MO", "Missouri", 4.225],
+  ["MT", "Montana", 0],
+  ["NE", "Nebraska", 5.5],
+  ["NV", "Nevada", 6.85],
+  ["NH", "New Hampshire", 0],
+  ["NJ", "New Jersey", 6.625],
+  ["NM", "New Mexico", 4.875],
+  ["NY", "New York", 4],
+  ["NC", "North Carolina", 3],
+  ["ND", "North Dakota", 5],
+  ["OH", "Ohio", 5.75],
+  ["OK", "Oklahoma", 3.25],
+  ["OR", "Oregon", 0],
+  ["PA", "Pennsylvania", 6],
+  ["RI", "Rhode Island", 7],
+  ["SC", "South Carolina", 5],
+  ["SD", "South Dakota", 4.2],
+  ["TN", "Tennessee", 7],
+  ["TX", "Texas", 6.25],
+  ["UT", "Utah", 6.1],
+  ["VT", "Vermont", 6],
+  ["VA", "Virginia", 4.15],
+  ["WA", "Washington", 6.5],
+  ["WV", "West Virginia", 6],
+  ["WI", "Wisconsin", 5],
+  ["WY", "Wyoming", 4],
+] as const;
+
+function TaxLeaseLab({ onFlash }: { onFlash: (m: string) => void }) {
+  const [state, setState] = useState("FL");
+  const [zip, setZip] = useState("33411");
+  const [price, setPrice] = useState(78450);
+  const [trade, setTrade] = useState(24600);
+  const [payoff, setPayoff] = useState(18220);
+  const [rebate, setRebate] = useState(1500);
+  const [fees, setFees] = useState(1295);
+  const [localRate, setLocalRate] = useState(1);
+  const [term, setTerm] = useState(36);
+  const [miles, setMiles] = useState(10000);
+  const [residual, setResidual] = useState(58);
+  const [moneyFactor, setMoneyFactor] = useState(0.00215);
+  const [driveOff, setDriveOff] = useState(3500);
+  const [taxMode, setTaxMode] = useState<"monthly" | "upfront">("monthly");
+  const rule = stateTaxRules.find((x) => x[0] === state) ?? stateTaxRules[9];
+  const combinedRate = Number(rule[2]) + localRate;
+  const equity = Math.max(0, trade - payoff);
+  const taxablePurchase = Math.max(0, price - trade - rebate);
+  const purchaseTax = taxablePurchase * (combinedRate / 100);
+  const outTheDoor = price - equity - rebate + fees + purchaseTax;
+  const residualValue = price * (residual / 100);
+  const adjustedCap = Math.max(0, price + fees - rebate - equity - driveOff);
+  const depreciation = (adjustedCap - residualValue) / term;
+  const rentCharge = (adjustedCap + residualValue) * moneyFactor;
+  const baseLease = Math.max(0, depreciation + rentCharge);
+  const monthlyTax =
+    taxMode === "monthly" ? baseLease * (combinedRate / 100) : 0;
+  const upfrontTax =
+    taxMode === "upfront" ? baseLease * term * (combinedRate / 100) : 0;
+  const leasePayment = baseLease + monthlyTax;
+  const totalLease = leasePayment * term + driveOff + upfrontTax;
+  const apr = moneyFactor * 2400;
+  const mileageAdjustment =
+    miles === 7500 ? 2 : miles === 10000 ? 0 : miles === 12000 ? -1 : -3;
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const scenarios = [
+    [
+      "Lowest payment",
+      term + 3,
+      residual + 2 + mileageAdjustment,
+      Math.max(0.0001, moneyFactor - 0.0002),
+      driveOff + 2500,
+    ],
+    ["Balanced", term, residual + mileageAdjustment, moneyFactor, driveOff],
+    [
+      "Lowest drive-off",
+      term,
+      residual + mileageAdjustment,
+      moneyFactor + 0.0001,
+      995,
+    ],
+  ] as const;
+  return (
+    <div className="financeWorkspace taxLeaseLab">
+      <div className="financePageHead taxLabHead">
+        <div>
+          <span>50-STATE + D.C. DEAL INTELLIGENCE</span>
+          <h1>Tax &amp; Lease Intelligence Lab</h1>
+          <p>
+            Model the complete transaction—not just a payment. Compare
+            jurisdiction logic, trade treatment, rebates, fees, residual
+            exposure and lease structures in one customer-ready workspace.
+          </p>
+        </div>
+        <div>
+          <button onClick={() => onFlash("State rule verification requested")}>
+            Verify jurisdiction
+          </button>
+          <button onClick={() => onFlash("Customer comparison link generated")}>
+            Share live comparison →
+          </button>
+        </div>
+      </div>
+      <div className="taxConfidence">
+        <div>
+          <span>◈</span>
+          <p>
+            <b>Jurisdiction confidence layer</b>
+            <small>
+              {rule[1]} baseline loaded · ZIP {zip || "required"} · Local rate
+              manually confirmed at {localRate.toFixed(2)}%
+            </small>
+          </p>
+        </div>
+        <em>ESTIMATE · VERIFY BEFORE CONTRACT</em>
+      </div>
+      <div className="taxLeaseGrid">
+        <section className="financePanel calculatorInputs">
+          <header>
+            <div>
+              <small>TRANSACTION INPUTS</small>
+              <h2>Vehicle + jurisdiction</h2>
+            </div>
+            <button onClick={() => onFlash("VIN decoded and fees refreshed")}>
+              Decode VIN
+            </button>
+          </header>
+          <div className="calcFields">
+            <label>
+              State
+              <select value={state} onChange={(e) => setState(e.target.value)}>
+                {stateTaxRules.map((x) => (
+                  <option key={x[0]} value={x[0]}>
+                    {x[1]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Registration ZIP
+              <input
+                value={zip}
+                onChange={(e) =>
+                  setZip(e.target.value.replace(/\D/g, "").slice(0, 5))
+                }
+              />
+            </label>
+            <CalcInput label="Selling price" value={price} set={setPrice} />
+            <CalcInput label="Trade allowance" value={trade} set={setTrade} />
+            <CalcInput label="Trade payoff" value={payoff} set={setPayoff} />
+            <CalcInput
+              label="Rebate / incentive"
+              value={rebate}
+              set={setRebate}
+            />
+            <CalcInput label="Taxable fees" value={fees} set={setFees} />
+            <label>
+              Local + district rate
+              <input
+                type="number"
+                step="0.01"
+                value={localRate}
+                onChange={(e) => setLocalRate(Number(e.target.value))}
+              />
+              <small>State baseline {Number(rule[2]).toFixed(3)}%</small>
+            </label>
+          </div>
+          <div className="taxRuleStack">
+            {[
+              ["State baseline", `${Number(rule[2]).toFixed(3)}%`],
+              ["Local override", `${localRate.toFixed(3)}%`],
+              ["Combined estimate", `${combinedRate.toFixed(3)}%`],
+              ["Trade equity", fmt(equity)],
+            ].map((x) => (
+              <p key={x[0]}>
+                <span>{x[0]}</span>
+                <b>{x[1]}</b>
+              </p>
+            ))}
+          </div>
+        </section>
+        <section className="financePanel taxOutput">
+          <header>
+            <div>
+              <small>OUT-THE-DOOR ENGINE</small>
+              <h2>{rule[1]} purchase estimate</h2>
+            </div>
+            <em>ZIP-AWARE READY</em>
+          </header>
+          <div className="taxHeroNumber">
+            <small>ESTIMATED OUT-THE-DOOR</small>
+            <b>{fmt(outTheDoor)}</b>
+            <span>{combinedRate.toFixed(3)}% modeled combined rate</span>
+          </div>
+          <div className="taxBreakdown">
+            {[
+              ["Selling price", fmt(price)],
+              ["Net trade equity", `−${fmt(equity)}`],
+              ["Rebates", `−${fmt(rebate)}`],
+              ["Estimated taxable base", fmt(taxablePurchase)],
+              ["Government + dealer fees", fmt(fees)],
+              ["Estimated tax", fmt(purchaseTax)],
+            ].map((x) => (
+              <p key={x[0]}>
+                <span>{x[0]}</span>
+                <b>{x[1]}</b>
+              </p>
+            ))}
+          </div>
+          <button
+            onClick={() => onFlash("Line-by-line tax worksheet generated")}
+          >
+            Generate audit-ready worksheet →
+          </button>
+        </section>
+        <section className="financePanel leaseInputs">
+          <header>
+            <div>
+              <small>LEASE STRUCTURE</small>
+              <h2>Build the lease</h2>
+            </div>
+            <span>MF = {moneyFactor.toFixed(5)}</span>
+          </header>
+          <div className="leaseControls">
+            <label>
+              Term
+              <div>
+                {[24, 36, 39, 48].map((x) => (
+                  <button
+                    className={term === x ? "active" : ""}
+                    onClick={() => setTerm(x)}
+                    key={x}
+                  >
+                    {x} mo
+                  </button>
+                ))}
+              </div>
+            </label>
+            <label>
+              Annual mileage
+              <div>
+                {[7500, 10000, 12000, 15000].map((x) => (
+                  <button
+                    className={miles === x ? "active" : ""}
+                    onClick={() => setMiles(x)}
+                    key={x}
+                  >
+                    {x.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </label>
+            <label>
+              Residual{" "}
+              <b>
+                {residual}% · {fmt(residualValue)}
+              </b>
+              <input
+                type="range"
+                min="40"
+                max="75"
+                value={residual}
+                onChange={(e) => setResidual(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Money factor{" "}
+              <b>
+                {moneyFactor.toFixed(5)} · {apr.toFixed(2)}% APR equiv.
+              </b>
+              <input
+                type="range"
+                min="0.0001"
+                max="0.005"
+                step="0.00005"
+                value={moneyFactor}
+                onChange={(e) => setMoneyFactor(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Drive-off reduction <b>{fmt(driveOff)}</b>
+              <input
+                type="range"
+                min="0"
+                max="10000"
+                step="250"
+                value={driveOff}
+                onChange={(e) => setDriveOff(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Tax method
+              <div>
+                <button
+                  className={taxMode === "monthly" ? "active" : ""}
+                  onClick={() => setTaxMode("monthly")}
+                >
+                  Tax payment
+                </button>
+                <button
+                  className={taxMode === "upfront" ? "active" : ""}
+                  onClick={() => setTaxMode("upfront")}
+                >
+                  Tax upfront
+                </button>
+              </div>
+            </label>
+          </div>
+        </section>
+        <section className="financePanel leaseOutput">
+          <header>
+            <div>
+              <small>LEASE PAYMENT ENGINE</small>
+              <h2>Transparent payment anatomy</h2>
+            </div>
+            <em>
+              {term} MO · {miles.toLocaleString()} MI
+            </em>
+          </header>
+          <div className="leasePayment">
+            <small>ESTIMATED PAYMENT</small>
+            <b>
+              {fmt(leasePayment)}
+              <i>/mo</i>
+            </b>
+            <span>{fmt(driveOff + upfrontTax)} estimated due at signing</span>
+          </div>
+          <div className="paymentAnatomy">
+            {[
+              ["Monthly depreciation", fmt(depreciation)],
+              ["Monthly rent charge", fmt(rentCharge)],
+              ["Monthly tax", fmt(monthlyTax)],
+              ["Residual value", fmt(residualValue)],
+              ["Total lease commitment", fmt(totalLease)],
+              ["Effective monthly", fmt(totalLease / term)],
+            ].map((x) => (
+              <p key={x[0]}>
+                <span>{x[0]}</span>
+                <b>{x[1]}</b>
+              </p>
+            ))}
+          </div>
+        </section>
+      </div>
+      <section className="financePanel scenarioLab">
+        <header>
+          <div>
+            <small>CYNCRO STRUCTURE DNA™</small>
+            <h2>Three paths from the same deal</h2>
+          </div>
+          <button
+            onClick={() => onFlash("AI structure optimization completed")}
+          >
+            ✦ Optimize with AI
+          </button>
+        </header>
+        <div>
+          {scenarios.map((s, i) => {
+            const rVal = price * (s[2] / 100);
+            const cap = Math.max(0, price + fees - rebate - equity - s[4]);
+            const base = Math.max(0, (cap - rVal) / s[1] + (cap + rVal) * s[3]);
+            const pay = base * (1 + combinedRate / 100);
+            return (
+              <article className={i === 1 ? "featured" : ""} key={s[0]}>
+                <span>{i === 1 ? "RECOMMENDED" : "SCENARIO 0" + (i + 1)}</span>
+                <h3>{s[0]}</h3>
+                <b>
+                  {fmt(pay)}
+                  <i>/mo</i>
+                </b>
+                <p>
+                  <span>Due at signing</span>
+                  <strong>{fmt(s[4])}</strong>
+                </p>
+                <p>
+                  <span>Term / residual</span>
+                  <strong>
+                    {s[1]} mo · {s[2]}%
+                  </strong>
+                </p>
+                <p>
+                  <span>Total commitment</span>
+                  <strong>{fmt(pay * s[1] + s[4])}</strong>
+                </p>
+                <button onClick={() => onFlash(`${s[0]} scenario selected`)}>
+                  Use this structure →
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+      <div className="taxDisclaimer">
+        <b>Important calculation boundary</b>
+        <p>
+          This tool provides dealership estimates. Final tax and lease figures
+          must be verified against current state, county, city, registration
+          address, vehicle classification, incentives, lender program, DMV and
+          dealer-specific rules before contracting.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CalcInput({
+  label,
+  value,
+  set,
+}: {
+  label: string;
+  value: number;
+  set: (n: number) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => set(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
 const financeWorkspaceData: Record<
-  Exclude<FinanceView, "Command" | "Deal Queue" | "Deal Architect">,
+  Exclude<
+    FinanceView,
+    "Command" | "Deal Queue" | "Deal Architect" | "Tax & Lease Lab"
+  >,
   {
     eyebrow: string;
     title: string;
@@ -4620,7 +5076,10 @@ function FinanceWorkspace({
   view,
   onFlash,
 }: {
-  view: Exclude<FinanceView, "Command" | "Deal Queue" | "Deal Architect">;
+  view: Exclude<
+    FinanceView,
+    "Command" | "Deal Queue" | "Deal Architect" | "Tax & Lease Lab"
+  >;
   onFlash: (m: string) => void;
 }) {
   const d = financeWorkspaceData[view];
