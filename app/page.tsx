@@ -9,7 +9,7 @@ const times = [
   "2:30 PM",
   "4:00 PM",
 ];
-type Tab = "home" | "book" | "admin" | "studio" | "crm";
+type Tab = "home" | "book" | "admin" | "studio" | "crm" | "dispatch";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [step, setStep] = useState(1),
@@ -40,6 +40,7 @@ export default function Home() {
             ["book", "Booking experience"],
             ["studio", "Core Studio"],
             ["crm", "Cyncro CRM"],
+            ["dispatch", "Dispatch"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -63,6 +64,8 @@ export default function Home() {
         <Studio onPreview={() => setTab("book")} />
       ) : tab === "crm" ? (
         <UniversalCRM onOpenCalendar={() => setTab("admin")} />
+      ) : tab === "dispatch" ? (
+        <CyncroDispatch />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
       ) : (
@@ -2265,6 +2268,1503 @@ function Switch({
     </div>
   );
 }
+type DispatchRole = "Owner" | "Dispatcher" | "Technician";
+type DispatchView =
+  | "Dashboard"
+  | "Jobs"
+  | "GPS Map"
+  | "Analytics"
+  | "AI Agents"
+  | "Equipment"
+  | "Team"
+  | "Settings";
+
+const dispatchJobs = [
+  {
+    id: "JOB-2841",
+    time: "8:30 AM",
+    customer: "Morrison Residence",
+    service: "Home theater calibration",
+    address: "145 Ocean Breeze Dr, Wellington",
+    tech: "Andre Cole",
+    status: "IN PROGRESS",
+    revenue: "$1,850",
+    eta: "On site",
+    color: "red",
+  },
+  {
+    id: "JOB-2842",
+    time: "11:15 AM",
+    customer: "Atlas Dental Group",
+    service: "Digital signage service",
+    address: "2101 S Congress Ave, Palm Springs",
+    tech: "Andre Cole",
+    status: "ASSIGNED",
+    revenue: "$2,400",
+    eta: "24 min",
+    color: "amber",
+  },
+  {
+    id: "JOB-2843",
+    time: "1:45 PM",
+    customer: "Carter Collective",
+    service: "Access control installation",
+    address: "675 Royal Palm Beach Blvd",
+    tech: "Maya Torres",
+    status: "ASSIGNED",
+    revenue: "$4,200",
+    eta: "38 min",
+    color: "blue",
+  },
+  {
+    id: "JOB-2844",
+    time: "3:30 PM",
+    customer: "Villa Rosa HOA",
+    service: "Camera system inspection",
+    address: "880 Forest Hill Blvd, WPB",
+    tech: "Derek Stone",
+    status: "BOOKED",
+    revenue: "$975",
+    eta: "1 hr 12 min",
+    color: "green",
+  },
+];
+
+function CyncroDispatch() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [role, setRole] = useState<DispatchRole>("Owner");
+  const [view, setView] = useState<DispatchView>("Dashboard");
+  const [notice, setNotice] = useState("");
+  const [jobs, setJobs] = useState(dispatchJobs);
+  const [selectedJob, setSelectedJob] = useState(0);
+  const [techStatus, setTechStatus] = useState("EN ROUTE");
+  const [loginEmail, setLoginEmail] = useState("");
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 1800);
+  };
+  const login = (nextRole: DispatchRole) => {
+    setRole(nextRole);
+    setAuthenticated(true);
+    setView(nextRole === "Technician" ? "Jobs" : "Dashboard");
+    flash(`${nextRole} workspace unlocked`);
+  };
+  const moveJob = (index: number, direction: number) => {
+    const target = index + direction;
+    if (target < 0 || target >= jobs.length) return;
+    const next = [...jobs];
+    [next[index], next[target]] = [next[target], next[index]];
+    setJobs(next);
+    setSelectedJob(target);
+    flash("Route order updated · ETA recalculated");
+  };
+
+  if (!authenticated) {
+    return (
+      <section className="dispatchGate">
+        {notice && <div className="dispatchToast">✓ {notice}</div>}
+        <div className="dispatchGateGlow" />
+        <div className="dispatchGateCopy">
+          <span>CYNCRO FIELD OPERATIONS</span>
+          <h1>
+            Cyncro <i>Dispatch</i>
+          </h1>
+          <p>
+            The command system for contractors—jobs, crews, GPS, routes,
+            customers, revenue, and AI agents operating as one.
+          </p>
+          <div className="dispatchGateProof">
+            <span>◆ Live field visibility</span>
+            <span>◆ AI booking + follow-up</span>
+            <span>◆ Profit on every job</span>
+          </div>
+          <div
+            className="dispatchProductPreview"
+            aria-label="Dispatch live operation preview"
+          >
+            <header>
+              <span>LIVE FIELD OPERATION</span>
+              <b>4 crews active</b>
+            </header>
+            <div className="miniDispatchMap">
+              <i className="miniRoute routeOne" />
+              <i className="miniRoute routeTwo" />
+              {[
+                ["AC", "22%", "63%"],
+                ["MT", "58%", "28%"],
+                ["DS", "76%", "71%"],
+              ].map((tech) => (
+                <button style={{ left: tech[1], top: tech[2] }} key={tech[0]}>
+                  {tech[0]}
+                  <small>● moving</small>
+                </button>
+              ))}
+              <span className="miniJob one">1</span>
+              <span className="miniJob two">2</span>
+              <span className="miniJob three">3</span>
+            </div>
+            <footer>
+              <div>
+                <small>BOOKED TODAY</small>
+                <b>$9,425</b>
+              </div>
+              <div>
+                <small>ON-TIME RATE</small>
+                <b>96.8%</b>
+              </div>
+              <div>
+                <small>DRIVE TIME SAVED</small>
+                <b>2h 14m</b>
+              </div>
+            </footer>
+          </div>
+        </div>
+
+        <aside className="dispatchLoginCard">
+          <div className="dispatchMark">D</div>
+          <small>CONTRACTOR ACCESS</small>
+          <h2>Enter Dispatch</h2>
+          <p>Separate, secure access for every company and field role.</p>
+          <label>
+            Work email
+            <input
+              value={loginEmail}
+              onChange={(event) => setLoginEmail(event.target.value)}
+              placeholder="you@company.com"
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              defaultValue="dispatch2026"
+              aria-label="Dispatch password"
+            />
+          </label>
+          <button className="dispatchSignIn" onClick={() => login("Owner")}>
+            Sign in to Dispatch →
+          </button>
+          <button
+            className="dispatchSSO"
+            onClick={() => flash("Secure sign-in prepared")}
+          >
+            Continue with company SSO
+          </button>
+          <div className="demoRolePicker">
+            <span>EXPLORE ROLE DEMOS</span>
+            <div>
+              {(["Owner", "Dispatcher", "Technician"] as DispatchRole[]).map(
+                (item) => (
+                  <button onClick={() => login(item)} key={item}>
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+          <div className="dispatchPlan">
+            <div>
+              <small>DISPATCH PROFESSIONAL</small>
+              <b>
+                $249<em>/month</em>
+              </b>
+            </div>
+            <span>Up to 10 technicians · Cancel anytime</span>
+            <button onClick={() => flash("Dispatch checkout opened")}>
+              Start contractor account
+            </button>
+          </div>
+          <footer>
+            Protected by role-based access · Your crews only see assigned work.
+          </footer>
+        </aside>
+      </section>
+    );
+  }
+
+  if (role === "Technician") {
+    return (
+      <section className="techAppStage">
+        {notice && <div className="dispatchToast">✓ {notice}</div>}
+        <div className="techStageCopy">
+          <button
+            className="backToDispatch"
+            onClick={() => setAuthenticated(false)}
+          >
+            ← Contractor login
+          </button>
+          <span>CYNCRO DISPATCH · TECH APP</span>
+          <h1>
+            Built for the field.
+            <br />
+            Impossible to mess up.
+          </h1>
+          <p>
+            Only today’s assigned work, the fastest route, clear job steps, and
+            one-tap proof of completion.
+          </p>
+          <div className="offlineReady">
+            <i>✓</i>
+            <div>
+              <b>Offline ready</b>
+              <small>
+                Jobs, photos, notes, and signatures sync when service returns.
+              </small>
+            </div>
+          </div>
+          <div className="techDemoControls">
+            <button onClick={() => setTechStatus("ARRIVED")}>
+              Simulate arrival
+            </button>
+            <button onClick={() => setTechStatus("COMPLETE")}>
+              Complete job
+            </button>
+            <button
+              onClick={() => {
+                setRole("Owner");
+                setView("Dashboard");
+              }}
+            >
+              Open owner view
+            </button>
+          </div>
+        </div>
+        <div className="phoneShell">
+          <div className="phoneBar">
+            <span>9:41</span>
+            <i>● ● ◼</i>
+          </div>
+          <header>
+            <div>
+              <small>THURSDAY · AUG 13</small>
+              <h2>Good morning, Andre.</h2>
+            </div>
+            <span>AC</span>
+          </header>
+          <div className="techStatusStrip">
+            <i>●</i>
+            <span>
+              <b>
+                {techStatus === "COMPLETE"
+                  ? "Job completed"
+                  : techStatus === "ARRIVED"
+                    ? "You’ve arrived at Job 1"
+                    : "Route optimized"}
+              </b>
+              <small>
+                {techStatus === "COMPLETE"
+                  ? "Invoice + owner SMS sent"
+                  : techStatus === "ARRIVED"
+                    ? "Geofence verified · Timer started"
+                    : "31 minutes of drive time saved"}
+              </small>
+            </span>
+          </div>
+          <nav>
+            <button className="active">Today</button>
+            <button onClick={() => flash("Route map opened")}>Route</button>
+            <button onClick={() => flash("Tech profile opened")}>
+              Profile
+            </button>
+          </nav>
+          <main>
+            <div className="nextJobLabel">
+              <span>NEXT JOB</span>
+              <em>1 OF 3</em>
+            </div>
+            <article className="mobileJobCard">
+              <div className="mobileJobMap">
+                <span>AC</span>
+                <i>1</i>
+                <em>8 min · 3.2 mi</em>
+              </div>
+              <div className="mobileJobBody">
+                <small>
+                  {jobs[0].id} · {jobs[0].time}
+                </small>
+                <h3>{jobs[0].customer}</h3>
+                <p>{jobs[0].service}</p>
+                <address>{jobs[0].address}</address>
+                <div>
+                  <button
+                    onClick={() => flash("Turn-by-turn navigation opened")}
+                  >
+                    Navigate
+                  </button>
+                  <button onClick={() => setTechStatus("ARRIVED")}>
+                    {techStatus === "ARRIVED" ? "✓ Arrived" : "I’ve arrived"}
+                  </button>
+                </div>
+              </div>
+            </article>
+            <div className="workOrderMobile">
+              <header>
+                <span>WORK ORDER</span>
+                <b>Scope + customer notes</b>
+              </header>
+              <p>
+                Diagnose audio zones, calibrate speakers, verify network
+                control, and demonstrate final settings to customer.
+              </p>
+              <button onClick={() => flash("Before photo captured")}>
+                ＋ Before photo
+              </button>
+              <button onClick={() => flash("Field note saved")}>
+                ＋ Add note
+              </button>
+              <button onClick={() => flash("Signature captured")}>
+                ✎ Capture signature
+              </button>
+            </div>
+            <button
+              className="completeMobileJob"
+              onClick={() => {
+                setTechStatus("COMPLETE");
+                flash("Job complete · Invoice and SMS triggered");
+              }}
+            >
+              Mark job complete
+            </button>
+          </main>
+          <footer>
+            <button className="active">
+              ▦<small>Jobs</small>
+            </button>
+            <button>
+              ⌖<small>Route</small>
+            </button>
+            <button>
+              ◎<small>Account</small>
+            </button>
+          </footer>
+        </div>
+      </section>
+    );
+  }
+
+  const navItems: { name: DispatchView; icon: string }[] = [
+    { name: "Dashboard", icon: "⌂" },
+    { name: "Jobs", icon: "▦" },
+    { name: "GPS Map", icon: "⌖" },
+    { name: "Analytics", icon: "⌁" },
+    { name: "AI Agents", icon: "✦" },
+    { name: "Equipment", icon: "◇" },
+    { name: "Team", icon: "◎" },
+    { name: "Settings", icon: "⚙" },
+  ];
+  return (
+    <section className="dispatchShell">
+      {notice && <div className="dispatchToast">✓ {notice}</div>}
+      <aside className="dispatchSidebar">
+        <div className="dispatchBrand">
+          <span>D</span>
+          <div>
+            <b>Cyncro Dispatch</b>
+            <small>CTS Audio Video</small>
+          </div>
+        </div>
+        <div className="dispatchRole">
+          <small>ACTIVE WORKSPACE</small>
+          <button
+            onClick={() => setRole(role === "Owner" ? "Dispatcher" : "Owner")}
+          >
+            <span>{role === "Owner" ? "YL" : "DP"}</span>
+            <div>
+              <b>{role}</b>
+              <small>
+                {role === "Owner" ? "Full company access" : "Field operations"}
+              </small>
+            </div>
+            <i>⌄</i>
+          </button>
+        </div>
+        <nav>
+          {navItems
+            .filter(
+              (item) =>
+                role === "Owner" ||
+                !["Analytics", "Settings"].includes(item.name),
+            )
+            .map((item) => (
+              <button
+                className={view === item.name ? "active" : ""}
+                onClick={() => setView(item.name)}
+                key={item.name}
+              >
+                <i>{item.icon}</i>
+                <span>{item.name}</span>
+                {item.name === "Jobs" && <em>12</em>}
+                {item.name === "AI Agents" && (
+                  <em className="agentLive">LIVE</em>
+                )}
+              </button>
+            ))}
+        </nav>
+        <div className="dispatchSideSystem">
+          <small>CONNECTED PLATFORM</small>
+          <button onClick={() => flash("Cyncro CRM opened")}>
+            <i>◫</i>
+            <span>Cyncro CRM</span>
+            <em>↗</em>
+          </button>
+          <button onClick={() => flash("Universal Calendar opened")}>
+            <i>□</i>
+            <span>Calendar</span>
+            <em>↗</em>
+          </button>
+        </div>
+        <div className="dispatchSubscription">
+          <span>PRO</span>
+          <div>
+            <b>Dispatch Professional</b>
+            <small>$249/mo · 7 of 10 techs</small>
+          </div>
+          <button onClick={() => setAuthenticated(false)}>•••</button>
+        </div>
+      </aside>
+      <main className="dispatchMain">
+        <header className="dispatchTopbar">
+          <div>
+            <small>THURSDAY, AUGUST 13</small>
+            <b>{view === "Dashboard" ? `${role} Command Center` : view}</b>
+          </div>
+          <div>
+            <button onClick={() => flash("Search opened")}>⌕</button>
+            <button onClick={() => flash("No dispatch alerts")}>
+              ◌<i />
+            </button>
+            <button onClick={() => flash("New job created")}>＋ New job</button>
+          </div>
+        </header>
+        <div className="dispatchContent">
+          {view === "Dashboard" && (
+            <DispatchDashboard
+              jobs={jobs}
+              onView={setView}
+              onFlash={flash}
+              onMove={moveJob}
+              role={role}
+            />
+          )}
+          {view === "Jobs" && (
+            <DispatchJobs
+              jobs={jobs}
+              selected={selectedJob}
+              setSelected={setSelectedJob}
+              onFlash={flash}
+            />
+          )}
+          {view === "GPS Map" && (
+            <DispatchMap jobs={jobs} onFlash={flash} onMove={moveJob} />
+          )}
+          {view === "Analytics" && <DispatchAnalytics onFlash={flash} />}
+          {view === "AI Agents" && <DispatchAgents onFlash={flash} />}
+          {view === "Equipment" && <DispatchEquipment onFlash={flash} />}
+          {view === "Team" && (
+            <DispatchTeam
+              onTech={() => setRole("Technician")}
+              onFlash={flash}
+            />
+          )}
+          {view === "Settings" && <DispatchSettings onFlash={flash} />}
+        </div>
+      </main>
+    </section>
+  );
+}
+
+function DispatchDashboard({
+  jobs,
+  onView,
+  onFlash,
+  onMove,
+  role,
+}: {
+  jobs: typeof dispatchJobs;
+  onView: (view: DispatchView) => void;
+  onFlash: (message: string) => void;
+  onMove: (index: number, direction: number) => void;
+  role: DispatchRole;
+}) {
+  return (
+    <>
+      <div className="dispatchPageHead">
+        <div>
+          <span>LIVE FIELD INTELLIGENCE</span>
+          <h1>
+            {role === "Owner"
+              ? "Your field business, in motion."
+              : "Every crew. Every job. Right now."}
+          </h1>
+          <p>
+            Real-time jobs, crews, routes, revenue, and exceptions—one command
+            surface.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Daily dispatch brief generated")}>
+          ✦ Generate daily brief
+        </button>
+      </div>
+      <div className="dispatchMetrics">
+        {[
+          ["BOOKED THIS WEEK", "$48,250", "+18.4%"],
+          ["COLLECTED", "$36,840", "+$7.2K"],
+          ["OUTSTANDING", "$11,410", "8 invoices"],
+          ["JOBS COMPLETED", "42", "96.8% on time"],
+        ].map((item) => (
+          <article key={item[0]}>
+            <small>{item[0]}</small>
+            <b>{item[1]}</b>
+            <span>{item[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="dispatchDashboardGrid">
+        <section className="liveOpsMap dispatchPanel">
+          <header>
+            <div>
+              <small>LIVE GPS COMMAND</small>
+              <h2>4 crews · 12 jobs</h2>
+            </div>
+            <button onClick={() => onView("GPS Map")}>Full map →</button>
+          </header>
+          <div className="mapSurface">
+            <i className="mapRoad r1" />
+            <i className="mapRoad r2" />
+            <i className="mapRoad r3" />
+            {[
+              ["AC", "24%", "56%", "On site"],
+              ["MT", "61%", "28%", "Moving"],
+              ["DS", "77%", "68%", "18 min away"],
+            ].map((tech) => (
+              <button
+                style={{ left: tech[1], top: tech[2] }}
+                onClick={() => onFlash(`${tech[0]} location opened`)}
+                key={tech[0]}
+              >
+                <span>{tech[0]}</span>
+                <b>{tech[3]}</b>
+              </button>
+            ))}
+            {jobs.map((job, index) => (
+              <i className={`jobPin pin${index + 1}`} key={job.id}>
+                {index + 1}
+              </i>
+            ))}
+          </div>
+          <footer>
+            <span>
+              <i className="moving" /> Moving
+            </span>
+            <span>
+              <i className="onsite" /> On site
+            </span>
+            <span>
+              <i className="available" /> Available
+            </span>
+            <b>Updated 8 sec ago</b>
+          </footer>
+        </section>
+        <section className="routeCommand dispatchPanel">
+          <header>
+            <div>
+              <small>ROUTE OPTIMIZATION</small>
+              <h2>Andre Cole · 3 jobs</h2>
+            </div>
+            <span>31 min saved</span>
+          </header>
+          <div className="routeList">
+            {jobs.slice(0, 3).map((job, index) => (
+              <article key={job.id}>
+                <span>{index + 1}</span>
+                <div>
+                  <b>
+                    {job.time} · {job.customer}
+                  </b>
+                  <small>{job.service}</small>
+                </div>
+                <em>{job.eta}</em>
+                <div>
+                  <button onClick={() => onMove(index, -1)}>↑</button>
+                  <button onClick={() => onMove(index, 1)}>↓</button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <button
+            className="optimizeRoute"
+            onClick={() => onFlash("Optimal route applied · 31 minutes saved")}
+          >
+            ✦ Optimize route now
+          </button>
+        </section>
+        <section className="todayDispatch dispatchPanel">
+          <header>
+            <div>
+              <small>TODAY'S DISPATCH</small>
+              <h2>Live job board</h2>
+            </div>
+            <button onClick={() => onView("Jobs")}>All jobs →</button>
+          </header>
+          {jobs.map((job) => (
+            <button onClick={() => onView("Jobs")} key={job.id}>
+              <time>{job.time}</time>
+              <i className={job.color} />
+              <span>
+                <b>{job.customer}</b>
+                <small>
+                  {job.tech} · {job.service}
+                </small>
+              </span>
+              <em>{job.status}</em>
+              <strong>{job.revenue}</strong>
+            </button>
+          ))}
+        </section>
+        <section className="techProductivity dispatchPanel">
+          <header>
+            <div>
+              <small>TECH PRODUCTIVITY</small>
+              <h2>Revenue per billable hour</h2>
+            </div>
+            <button onClick={() => onView("Analytics")}>Analyze →</button>
+          </header>
+          {[
+            ["AC", "Andre Cole", "$78/hr", "+14%", "84%"],
+            ["MT", "Maya Torres", "$72/hr", "+9%", "77%"],
+            ["DS", "Derek Stone", "$68/hr", "+6%", "69%"],
+          ].map((tech) => (
+            <div key={tech[1]}>
+              <i>{tech[0]}</i>
+              <span>
+                <b>{tech[1]}</b>
+                <small>
+                  {tech[2]} · {tech[3]} WoW
+                </small>
+              </span>
+              <em>
+                <i style={{ width: tech[4] }} />
+              </em>
+              <strong>{tech[4]}</strong>
+            </div>
+          ))}
+        </section>
+        <section className="agentRevenue dispatchPanel">
+          <header>
+            <div>
+              <small>AI AGENT PERFORMANCE</small>
+              <h2>Revenue created automatically</h2>
+            </div>
+            <button onClick={() => onView("AI Agents")}>Agent center →</button>
+          </header>
+          <div className="agentRevenueHero">
+            <span>✦</span>
+            <div>
+              <b>$15,420</b>
+              <small>FROM SETTER FOLLOW-UPS THIS MONTH</small>
+            </div>
+            <em>18.2% close rate</em>
+          </div>
+          {[
+            ["Receptionist", "81% booking conversion", "+6%"],
+            ["Setter", "42 leads recovered", "$15.4K"],
+            ["Learning system", "3 new insights ready", "Review"],
+          ].map((item) => (
+            <button onClick={() => onView("AI Agents")} key={item[0]}>
+              <span>
+                <b>{item[0]}</b>
+                <small>{item[1]}</small>
+              </span>
+              <em>{item[2]}</em>
+            </button>
+          ))}
+        </section>
+        <section className="profitPulse dispatchPanel">
+          <header>
+            <div>
+              <small>PROFITABILITY</small>
+              <h2>Live job economics</h2>
+            </div>
+            <button onClick={() => onView("Analytics")}>Details →</button>
+          </header>
+          <div className="profitRing">
+            <span>
+              <b>38.4%</b>
+              <small>NET MARGIN</small>
+            </span>
+          </div>
+          <div className="profitFacts">
+            <span>
+              <small>REVENUE</small>
+              <b>$48,250</b>
+            </span>
+            <span>
+              <small>LABOR</small>
+              <b>$12,840</b>
+            </span>
+            <span>
+              <small>MATERIALS</small>
+              <b>$16,880</b>
+            </span>
+            <span>
+              <small>PROFIT</small>
+              <b>$18,530</b>
+            </span>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function DispatchJobs({
+  jobs,
+  selected,
+  setSelected,
+  onFlash,
+}: {
+  jobs: typeof dispatchJobs;
+  selected: number;
+  setSelected: (index: number) => void;
+  onFlash: (message: string) => void;
+}) {
+  const job = jobs[selected];
+  return (
+    <div className="dispatchJobsWorkspace">
+      <section className="jobBoard dispatchPanel">
+        <header>
+          <div>
+            <small>JOB COMMAND</small>
+            <h1>All field work</h1>
+          </div>
+          <div>
+            <button onClick={() => onFlash("Job filters opened")}>
+              Filter
+            </button>
+            <button onClick={() => onFlash("New job created")}>＋ Job</button>
+          </div>
+        </header>
+        <div className="jobBoardCols">
+          <span>JOB + CUSTOMER</span>
+          <span>TECH</span>
+          <span>STATUS</span>
+          <span>VALUE</span>
+        </div>
+        {jobs.map((item, index) => (
+          <button
+            className={selected === index ? "active" : ""}
+            onClick={() => setSelected(index)}
+            key={item.id}
+          >
+            <span>
+              <i>{index + 1}</i>
+              <div>
+                <b>{item.customer}</b>
+                <small>
+                  {item.id} · {item.service}
+                  <br />
+                  {item.address}
+                </small>
+              </div>
+            </span>
+            <strong>{item.tech}</strong>
+            <em>{item.status}</em>
+            <b>{item.revenue}</b>
+          </button>
+        ))}
+      </section>
+      <aside className="jobInspector dispatchPanel">
+        <header>
+          <div>
+            <small>WORK ORDER</small>
+            <h2>{job.id}</h2>
+          </div>
+          <button onClick={() => onFlash("Job actions opened")}>•••</button>
+        </header>
+        <span className="jobStatusLarge">● {job.status}</span>
+        <h3>{job.customer}</h3>
+        <p>{job.service}</p>
+        <address>{job.address}</address>
+        <div className="jobTimeline">
+          {[
+            ["BOOKED", "Calendar created job", "8:02 AM"],
+            ["ASSIGNED", `${job.tech} assigned`, "8:05 AM"],
+            ["EN ROUTE", "GPS tracking started", "8:18 AM"],
+            ["ARRIVED", "Geofence verified", "8:29 AM"],
+          ].map((event, index) => (
+            <div className={index < 3 ? "done" : ""} key={event[0]}>
+              <i>{index < 3 ? "✓" : ""}</i>
+              <span>
+                <b>{event[0]}</b>
+                <small>{event[1]}</small>
+              </span>
+              <time>{event[2]}</time>
+            </div>
+          ))}
+        </div>
+        <div className="jobEconomics">
+          {[
+            ["Revenue", job.revenue],
+            ["Labor", "$420"],
+            ["Materials", "$315"],
+            ["Projected profit", "$1,115"],
+          ].map((item) => (
+            <span key={item[0]}>
+              <small>{item[0]}</small>
+              <b>{item[1]}</b>
+            </span>
+          ))}
+        </div>
+        <button onClick={() => onFlash("Customer notified by SMS")}>
+          Send customer update
+        </button>
+        <button onClick={() => onFlash("Work order edited")}>
+          Edit work order
+        </button>
+      </aside>
+    </div>
+  );
+}
+
+function DispatchMap({
+  jobs,
+  onFlash,
+  onMove,
+}: {
+  jobs: typeof dispatchJobs;
+  onFlash: (message: string) => void;
+  onMove: (index: number, direction: number) => void;
+}) {
+  return (
+    <div className="dispatchMapWorkspace">
+      <section className="fullDispatchMap dispatchPanel">
+        <header>
+          <div>
+            <small>REAL-TIME GPS</small>
+            <h1>Field visibility</h1>
+          </div>
+          <div>
+            <button onClick={() => onFlash("Map layers opened")}>Layers</button>
+            <button onClick={() => onFlash("Map centered on all crews")}>
+              Fit all
+            </button>
+          </div>
+        </header>
+        <div className="bigMap">
+          <i className="mapRoad r1" />
+          <i className="mapRoad r2" />
+          <i className="mapRoad r3" />
+          <i className="mapRoad r4" />
+          {[
+            ["AC", "21%", "58%", "On site · 42 min"],
+            ["MT", "62%", "30%", "Moving · 34 mph"],
+            ["DS", "79%", "70%", "En route · 18 min"],
+          ].map((t) => (
+            <button
+              style={{ left: t[1], top: t[2] }}
+              onClick={() => onFlash(`${t[0]} live location selected`)}
+              key={t[0]}
+            >
+              <span>{t[0]}</span>
+              <b>{t[3]}</b>
+            </button>
+          ))}
+          {jobs.map((job, index) => (
+            <i className={`jobPin pin${index + 1}`} key={job.id}>
+              {index + 1}
+            </i>
+          ))}
+        </div>
+      </section>
+      <aside className="routeDrawer dispatchPanel">
+        <small>ROUTE COMMAND</small>
+        <h2>Andre Cole</h2>
+        <p>Thursday · 3 stops · 42.6 miles</p>
+        <div className="routeSummary">
+          <span>
+            <small>DRIVE</small>
+            <b>1h 42m</b>
+          </span>
+          <span>
+            <small>SAVED</small>
+            <b>31m</b>
+          </span>
+          <span>
+            <small>ON TIME</small>
+            <b>98%</b>
+          </span>
+        </div>
+        {jobs.slice(0, 3).map((job, index) => (
+          <article key={job.id}>
+            <span>{index + 1}</span>
+            <div>
+              <b>
+                {job.time} · {job.customer}
+              </b>
+              <small>{job.address}</small>
+            </div>
+            <em>{job.eta}</em>
+            <footer>
+              <button onClick={() => onMove(index, -1)}>Move up</button>
+              <button onClick={() => onMove(index, 1)}>Move down</button>
+            </footer>
+          </article>
+        ))}
+        <button
+          className="optimizeRoute"
+          onClick={() => onFlash("Route optimized with live traffic")}
+        >
+          ✦ Re-optimize route
+        </button>
+        <button onClick={() => onFlash("Optimized route sent to Andre")}>
+          Send to technician
+        </button>
+      </aside>
+    </div>
+  );
+}
+
+function DispatchAnalytics({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  return (
+    <div className="dispatchAnalytics">
+      <div className="dispatchPageHead">
+        <div>
+          <span>PROFIT + PERFORMANCE</span>
+          <h1>Know what every job is worth.</h1>
+          <p>
+            Revenue, labor, material, source, technician, and lifecycle
+            intelligence.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Analytics report exported")}>
+          Export report
+        </button>
+      </div>
+      <div className="dispatchMetrics">
+        {[
+          ["WEEKLY PROFIT", "$18,530", "38.4% margin"],
+          ["AVG PROFIT / JOB", "$882", "+$96 WoW"],
+          ["REVENUE / HOUR", "$72.40", "+$6.20"],
+          ["LEAD SOURCE ROI", "1,640%", "Google Ads"],
+        ].map((i, index) => (
+          <article key={i[0]}>
+            <small>{i[0]}</small>
+            <b>{i[1]}</b>
+            <span>{i[2]}</span>
+          </article>
+        ))}
+      </div>
+      <div className="analyticsDispatchGrid">
+        <section className="dispatchPanel revenueChart">
+          <header>
+            <div>
+              <small>REVENUE BY TECHNICIAN</small>
+              <h2>Productivity comparison</h2>
+            </div>
+            <button onClick={() => onFlash("Date range changed")}>
+              This month ▾
+            </button>
+          </header>
+          <div>
+            {[
+              ["Andre", "$24.8K", "88%"],
+              ["Maya", "$21.2K", "76%"],
+              ["Derek", "$18.9K", "67%"],
+              ["Luis", "$15.4K", "55%"],
+            ].map((i) => (
+              <article key={i[0]}>
+                <span>{i[0]}</span>
+                <em>
+                  <i style={{ width: i[2] }} />
+                </em>
+                <b>{i[1]}</b>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="dispatchPanel sourceROI">
+          <header>
+            <div>
+              <small>LEAD SOURCE ECONOMICS</small>
+              <h2>Spend to lifetime value</h2>
+            </div>
+          </header>
+          {[
+            ["Google Ads", "$500", "10", "3", "$8,100", "1,520%"],
+            ["Referral", "$0", "8", "6", "$24,000", "∞"],
+            ["Facebook", "$680", "14", "4", "$9,600", "1,312%"],
+            ["Organic", "$0", "12", "5", "$14,200", "∞"],
+          ].map((i) => (
+            <div key={i[0]}>
+              <b>{i[0]}</b>
+              <span>{i[1]} spend</span>
+              <span>{i[2]} leads</span>
+              <span>{i[3]} booked</span>
+              <strong>{i[4]}</strong>
+              <em>{i[5]}</em>
+            </div>
+          ))}
+        </section>
+        <section className="dispatchPanel marginBreakdown">
+          <header>
+            <div>
+              <small>JOB PROFITABILITY</small>
+              <h2>Margin by service type</h2>
+            </div>
+          </header>
+          {[
+            ["Access control", "46.2%", "$8.4K"],
+            ["Digital signage", "41.8%", "$6.7K"],
+            ["Home theater", "38.4%", "$5.2K"],
+            ["Camera systems", "34.1%", "$4.8K"],
+          ].map((i) => (
+            <button
+              onClick={() => onFlash(`${i[0]} profitability opened`)}
+              key={i[0]}
+            >
+              <span>
+                <b>{i[0]}</b>
+                <small>{i[2]} profit</small>
+              </span>
+              <em>{i[1]}</em>
+              <i>
+                <span style={{ width: i[1] }} />
+              </i>
+            </button>
+          ))}
+        </section>
+        <section className="dispatchPanel learningTrend">
+          <small>AGENT LEARNING TREND</small>
+          <h2>Every conversation makes the system smarter.</h2>
+          <div>
+            <span>
+              <i style={{ height: "42%" }} />
+              <small>W1</small>
+              <b>72%</b>
+            </span>
+            <span>
+              <i style={{ height: "55%" }} />
+              <small>W2</small>
+              <b>75%</b>
+            </span>
+            <span>
+              <i style={{ height: "72%" }} />
+              <small>W3</small>
+              <b>81%</b>
+            </span>
+            <span>
+              <i style={{ height: "83%" }} />
+              <small>W4</small>
+              <b>84%</b>
+            </span>
+          </div>
+          <button onClick={() => onFlash("Learning insights opened")}>
+            Review 3 new learnings →
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DispatchAgents({ onFlash }: { onFlash: (message: string) => void }) {
+  return (
+    <div className="dispatchAgents">
+      <div className="dispatchPageHead">
+        <div>
+          <span>AI FIELD WORKFORCE</span>
+          <h1>Agents that book, recover, notify, and learn.</h1>
+          <p>
+            Controlled automation with full conversation history and human
+            approval.
+          </p>
+        </div>
+        <button onClick={() => onFlash("New field agent created")}>
+          ＋ Create agent
+        </button>
+      </div>
+      <div className="dispatchAgentGrid">
+        {[
+          [
+            "Nova",
+            "SMS Receptionist",
+            "81%",
+            "Qualifies inbound leads, books jobs, collects deposits, and assigns the best technician.",
+            "1,284 conversations",
+          ],
+          [
+            "Atlas",
+            "Setter Agent",
+            "18.2%",
+            "Recovers dead leads through Day 3, 7, and 14 follow-up sequences.",
+            "$15.4K recovered",
+          ],
+          [
+            "Sage",
+            "Learning System",
+            "+12%",
+            "Analyzes which questions, times, and messages produce the best bookings.",
+            "3 insights ready",
+          ],
+          [
+            "Kronos",
+            "Dispatch Agent",
+            "96.8%",
+            "Monitors routes, delays, job status, workload, and customer arrival notifications.",
+            "438 actions",
+          ],
+        ].map((agent, index) => (
+          <article className="dispatchPanel" key={agent[0]}>
+            <header>
+              <span>{agent[0][0]}</span>
+              <div>
+                <small>AGENT {String(index + 1).padStart(2, "0")}</small>
+                <h2>{agent[0]}</h2>
+              </div>
+              <em>● LIVE</em>
+            </header>
+            <b>{agent[1]}</b>
+            <strong>{agent[2]}</strong>
+            <p>{agent[3]}</p>
+            <div>
+              <small>LAST 30 DAYS</small>
+              <b>{agent[4]}</b>
+            </div>
+            <footer>
+              <button
+                onClick={() => onFlash(`${agent[0]} conversations opened`)}
+              >
+                Activity
+              </button>
+              <button onClick={() => onFlash(`${agent[0]} permissions opened`)}>
+                Controls
+              </button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      <section className="agentLearningTable dispatchPanel">
+        <header>
+          <div>
+            <small>LEARNING APPROVAL QUEUE</small>
+            <h2>What the agents discovered</h2>
+          </div>
+          <span>Human approval required</span>
+        </header>
+        {[
+          [
+            "Specific times convert 3.1× better",
+            "Offer “10 AM tomorrow” before asking an open-ended availability question.",
+            "+14% predicted booking rate",
+          ],
+          [
+            "Deposit timing reduces drop-off",
+            "Send the deposit link within 45 seconds after appointment confirmation.",
+            "−22% abandonment",
+          ],
+          [
+            "Maintenance language wins",
+            "“Protect your installation” outperforms “annual service” in warranty reminders.",
+            "+18% response rate",
+          ],
+        ].map((i) => (
+          <article key={i[0]}>
+            <span>✦</span>
+            <div>
+              <b>{i[0]}</b>
+              <p>{i[1]}</p>
+              <small>{i[2]}</small>
+            </div>
+            <button
+              onClick={() => onFlash("Learning approved and prompt updated")}
+            >
+              Approve
+            </button>
+            <button onClick={() => onFlash("Learning details opened")}>
+              Review
+            </button>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DispatchEquipment({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  return (
+    <div className="equipmentWorkspace">
+      <div className="dispatchPageHead">
+        <div>
+          <span>INSTALLED ASSET REGISTRY</span>
+          <h1>Equipment intelligence after the job.</h1>
+          <p>
+            Every model, serial, installation, warranty, and maintenance
+            opportunity.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Equipment registered")}>
+          ＋ Register equipment
+        </button>
+      </div>
+      <section className="dispatchPanel equipmentTable">
+        <header>
+          <span>EQUIPMENT</span>
+          <span>CUSTOMER</span>
+          <span>INSTALLED</span>
+          <span>WARRANTY</span>
+          <span>STATUS</span>
+        </header>
+        {[
+          [
+            "Sony VPL-XW5000ES",
+            "Morrison Residence",
+            "Aug 13, 2026",
+            "Aug 13, 2029",
+            "ACTIVE",
+          ],
+          [
+            "Brivo ACS6000",
+            "Carter Collective",
+            "Aug 12, 2026",
+            "Aug 12, 2028",
+            "ACTIVE",
+          ],
+          [
+            'Samsung QMC 75"',
+            "Atlas Dental Group",
+            "Jul 18, 2026",
+            "Jul 18, 2029",
+            "ACTIVE",
+          ],
+          [
+            "Luma X20 NVR",
+            "Villa Rosa HOA",
+            "Sep 21, 2023",
+            "Sep 21, 2026",
+            "EXPIRING",
+          ],
+        ].map((i, index) => (
+          <button onClick={() => onFlash(`${i[0]} registry opened`)} key={i[0]}>
+            <span>
+              <i>◇</i>
+              <div>
+                <b>{i[0]}</b>
+                <small>
+                  Serial · CY{[842106, 591284, 735902, 418675][index]}
+                </small>
+              </div>
+            </span>
+            <strong>{i[1]}</strong>
+            <em>{i[2]}</em>
+            <em>{i[3]}</em>
+            <span className={i[4].toLowerCase()}>{i[4]}</span>
+          </button>
+        ))}
+      </section>
+      <div className="equipmentInsights">
+        <section className="dispatchPanel">
+          <small>WARRANTY AUTOMATION</small>
+          <h2>12 upcoming opportunities</h2>
+          <p>
+            Automatic SMS reminders 30 days before warranty or maintenance
+            milestones.
+          </p>
+          <div>
+            <b>35%</b>
+            <span>book service</span>
+          </div>
+          <button onClick={() => onFlash("Warranty campaign opened")}>
+            Open reminder system →
+          </button>
+        </section>
+        <section className="dispatchPanel">
+          <small>INSTALLED BASE</small>
+          <h2>$428K customer equipment</h2>
+          <p>186 registered assets across 84 active customer locations.</p>
+          <div>
+            <b>$82K</b>
+            <span>service opportunity</span>
+          </div>
+          <button onClick={() => onFlash("Installed base analyzed")}>
+            Analyze installed base →
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DispatchTeam({
+  onTech,
+  onFlash,
+}: {
+  onTech: () => void;
+  onFlash: (message: string) => void;
+}) {
+  return (
+    <div className="teamWorkspace">
+      <div className="dispatchPageHead">
+        <div>
+          <span>PEOPLE + ACCESS</span>
+          <h1>One team. Exactly the right access.</h1>
+          <p>
+            Owners see the business, dispatchers command the field, technicians
+            see assigned work only.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Team invitation created")}>
+          ＋ Invite teammate
+        </button>
+      </div>
+      <div className="teamRoleCards">
+        {[
+          [
+            "OWNER",
+            "Full CRM + Dispatch + Analytics",
+            "2 users",
+            "All records, revenue, settings, billing",
+          ],
+          [
+            "DISPATCHER",
+            "Field command access",
+            "3 users",
+            "Jobs, crews, GPS, routes, customers",
+          ],
+          [
+            "TECHNICIAN",
+            "Assigned work only",
+            "7 users",
+            "Today’s jobs, work orders, photos, notes",
+          ],
+        ].map((i) => (
+          <article className="dispatchPanel" key={i[0]}>
+            <small>{i[0]}</small>
+            <h2>{i[1]}</h2>
+            <b>{i[2]}</b>
+            <p>{i[3]}</p>
+            <button
+              onClick={() =>
+                i[0] === "TECHNICIAN"
+                  ? onTech()
+                  : onFlash(`${i[0]} access opened`)
+              }
+            >
+              Preview access →
+            </button>
+          </article>
+        ))}
+      </div>
+      <section className="dispatchPanel teamTable">
+        <header>
+          <span>TEAM MEMBER</span>
+          <span>ROLE</span>
+          <span>TODAY</span>
+          <span>STATUS</span>
+          <span>ACCESS</span>
+        </header>
+        {[
+          ["AC", "Andre Cole", "Technician", "3 jobs · $4.2K", "On job"],
+          ["MT", "Maya Torres", "Technician", "3 jobs · $5.8K", "Moving"],
+          ["DS", "Derek Stone", "Technician", "2 jobs · $2.9K", "Available"],
+          ["DP", "Dana Pierce", "Dispatcher", "12 jobs managed", "Online"],
+          ["YL", "Yvette Lomeli", "Owner", "Full command", "Online"],
+        ].map((i) => (
+          <article className="teamMemberRow" key={i[1]}>
+            <span>
+              <i>{i[0]}</i>
+              <b>{i[1]}</b>
+            </span>
+            <em>{i[2]}</em>
+            <strong>{i[3]}</strong>
+            <span>{i[4]}</span>
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                onFlash(`${i[1]} permissions opened`);
+              }}
+            >
+              Manage
+            </button>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DispatchSettings({ onFlash }: { onFlash: (message: string) => void }) {
+  return (
+    <div className="dispatchSettings">
+      <div className="dispatchPageHead">
+        <div>
+          <span>DISPATCH CONFIGURATION</span>
+          <h1>Built around your field operation.</h1>
+          <p>
+            Service rules, territories, notifications, roles, integrations, and
+            billing.
+          </p>
+        </div>
+        <button onClick={() => onFlash("Settings saved")}>Save changes</button>
+      </div>
+      <div className="settingsDispatchGrid">
+        {[
+          [
+            "Company + Billing",
+            "CTS Audio Video · Dispatch Professional",
+            "$249/mo · Renews Sep 13",
+            "Manage subscription",
+          ],
+          [
+            "Service Territory",
+            "Palm Beach County · 42-mile radius",
+            "6 ZIP rules · 2 priority zones",
+            "Edit territory",
+          ],
+          [
+            "Job Lifecycle",
+            "BOOKED → ASSIGNED → IN PROGRESS → COMPLETE → INVOICED",
+            "5 automation triggers active",
+            "Edit lifecycle",
+          ],
+          [
+            "GPS + Geofencing",
+            "5-minute active-job pings · 200m arrival radius",
+            "Arrival and departure automation on",
+            "Configure tracking",
+          ],
+          [
+            "Customer SMS",
+            "Booked, en route, arrival, completion, warranty",
+            "6 message templates active",
+            "Edit messages",
+          ],
+          [
+            "Integrations",
+            "Cyncro CRM, Calendar, Stripe, n8n, OSRM",
+            "5 systems connected",
+            "Manage connections",
+          ],
+        ].map((i) => (
+          <article className="dispatchPanel" key={i[0]}>
+            <small>{i[0].toUpperCase()}</small>
+            <h2>{i[1]}</h2>
+            <p>{i[2]}</p>
+            <button onClick={() => onFlash(`${i[0]} opened`)}>{i[3]} →</button>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type CRMView =
   | "Overview"
   | "Pipeline"
@@ -3283,17 +4783,15 @@ function CRMSocialAutomations({
       </section>
 
       <nav className="socialTabs" aria-label="Social automation workspace">
-        {["Flow Builder", "Live Inbox", "Audience", "Analytics"].map(
-          (item) => (
-            <button
-              className={panel === item ? "active" : ""}
-              onClick={() => setPanel(item)}
-              key={item}
-            >
-              {item}
-            </button>
-          ),
-        )}
+        {["Flow Builder", "Live Inbox", "Audience", "Analytics"].map((item) => (
+          <button
+            className={panel === item ? "active" : ""}
+            onClick={() => setPanel(item)}
+            key={item}
+          >
+            {item}
+          </button>
+        ))}
       </nav>
 
       {panel === "Flow Builder" && (
@@ -3339,7 +4837,9 @@ function CRMSocialAutomations({
                 <span>Last edited 2 minutes ago · Autosaved</span>
               </div>
               <div>
-                <span className={published ? "publishState live" : "publishState"}>
+                <span
+                  className={published ? "publishState live" : "publishState"}
+                >
                   ● {published ? "LIVE" : "DRAFT"}
                 </span>
                 <button onClick={() => onFlash("Flow tested successfully")}>
@@ -3367,7 +4867,9 @@ function CRMSocialAutomations({
                     </div>
                     <em>01</em>
                   </div>
-                  <p>Listen in DMs, comments, story replies, and ad responses.</p>
+                  <p>
+                    Listen in DMs, comments, story replies, and ad responses.
+                  </p>
                   <div className="keywordEditor">
                     {[active.trigger, "INFO", ...extraKeywords].map((word) => (
                       <button
@@ -3422,7 +4924,9 @@ function CRMSocialAutomations({
                         </button>
                       ),
                     )}
-                    <button onClick={() => onFlash("Quick reply added")}>＋</button>
+                    <button onClick={() => onFlash("Quick reply added")}>
+                      ＋
+                    </button>
                   </div>
                 </article>
                 <div className="flowLine">
@@ -3437,7 +4941,10 @@ function CRMSocialAutomations({
                         <b>Create CRM contact</b>
                       </div>
                     </div>
-                    <p>Name, email, phone, social profile, source, consent, and intent.</p>
+                    <p>
+                      Name, email, phone, social profile, source, consent, and
+                      intent.
+                    </p>
                     <button onClick={() => onFlash("Contact mapping opened")}>
                       Edit field mapping →
                     </button>
@@ -3450,7 +4957,10 @@ function CRMSocialAutomations({
                         <b>Route the next move</b>
                       </div>
                     </div>
-                    <p>Send booking link, payment request, offer, or human handoff.</p>
+                    <p>
+                      Send booking link, payment request, offer, or human
+                      handoff.
+                    </p>
                     <button onClick={() => onFlash("Conversion action opened")}>
                       Book a strategy call ▾
                     </button>
@@ -3504,7 +5014,13 @@ function CRMSocialAutomations({
               <span>12 open</span>
             </div>
             {[
-              ["SL", "Sophia Lewis", "IG", "I want the demo—can I see pricing?", "Now"],
+              [
+                "SL",
+                "Sophia Lewis",
+                "IG",
+                "I want the demo—can I see pricing?",
+                "Now",
+              ],
               ["MR", "Marcus Reed", "FB", "SYSTEM", "3m"],
               ["NC", "Nia Carter", "IG", "Can someone help me choose?", "9m"],
               ["DK", "Daniel Kim", "FB", "Sent a payment screenshot", "18m"],
@@ -3515,30 +5031,68 @@ function CRMSocialAutomations({
                   <b>{item[1]}</b>
                   <small>{item[3]}</small>
                 </span>
-                <em>{item[2]} · {item[4]}</em>
+                <em>
+                  {item[2]} · {item[4]}
+                </em>
               </button>
             ))}
           </aside>
           <article>
             <header>
-              <div><b>Sophia Lewis</b><small>Instagram · High buying intent · Contact matched</small></div>
-              <button onClick={() => onFlash("Conversation assigned")}>Assign ▾</button>
+              <div>
+                <b>Sophia Lewis</b>
+                <small>Instagram · High buying intent · Contact matched</small>
+              </div>
+              <button onClick={() => onFlash("Conversation assigned")}>
+                Assign ▾
+              </button>
             </header>
             <div className="inboxConversation">
               <p className="incoming">DEMO</p>
-              <p className="outgoing">You’re in ✦ What would you like to accomplish?</p>
+              <p className="outgoing">
+                You’re in ✦ What would you like to accomplish?
+              </p>
               <p className="incoming">I want the demo—can I see pricing?</p>
-              <div className="aiSocialAssist"><span>✦</span><p><b>Suggested reply</b>Absolutely. I can show you the platform and recommend the best setup based on your goals. Want the private booking link?</p><button onClick={() => onFlash("AI reply inserted")}>Use reply</button></div>
+              <div className="aiSocialAssist">
+                <span>✦</span>
+                <p>
+                  <b>Suggested reply</b>Absolutely. I can show you the platform
+                  and recommend the best setup based on your goals. Want the
+                  private booking link?
+                </p>
+                <button onClick={() => onFlash("AI reply inserted")}>
+                  Use reply
+                </button>
+              </div>
             </div>
-            <footer><button>＋</button><input placeholder="Reply as Cyncro Media…"/><button onClick={() => onFlash("Social reply sent")}>Send ↑</button></footer>
+            <footer>
+              <button>＋</button>
+              <input placeholder="Reply as Cyncro Media…" />
+              <button onClick={() => onFlash("Social reply sent")}>
+                Send ↑
+              </button>
+            </footer>
           </article>
           <aside className="socialContactPanel">
             <small>CONTACT INTELLIGENCE</small>
-            <span>SL</span><h3>Sophia Lewis</h3><p>@sophialewis · Palm Beach, FL</p>
-            <div><small>INTENT SCORE</small><b>92</b></div>
-            <div><small>TRIGGER</small><b>DEMO</b></div>
-            <div><small>ATTRIBUTION</small><b>Instagram Reel</b></div>
-            <button onClick={() => onFlash("CRM record opened")}>Open CRM record →</button>
+            <span>SL</span>
+            <h3>Sophia Lewis</h3>
+            <p>@sophialewis · Palm Beach, FL</p>
+            <div>
+              <small>INTENT SCORE</small>
+              <b>92</b>
+            </div>
+            <div>
+              <small>TRIGGER</small>
+              <b>DEMO</b>
+            </div>
+            <div>
+              <small>ATTRIBUTION</small>
+              <b>Instagram Reel</b>
+            </div>
+            <button onClick={() => onFlash("CRM record opened")}>
+              Open CRM record →
+            </button>
           </aside>
         </div>
       )}
@@ -3546,27 +5100,124 @@ function CRMSocialAutomations({
       {panel === "Audience" && (
         <div className="socialAudience">
           <section className="crmPanel">
-            <div className="crmPanelHead"><div><small>SMART AUDIENCES</small><h2>Segments that update themselves</h2></div><button onClick={() => onFlash("Segment builder opened")}>＋ New segment</button></div>
+            <div className="crmPanelHead">
+              <div>
+                <small>SMART AUDIENCES</small>
+                <h2>Segments that update themselves</h2>
+              </div>
+              <button onClick={() => onFlash("Segment builder opened")}>
+                ＋ New segment
+              </button>
+            </div>
             {[
-              ["High-intent social leads", "386 people", "Intent above 80 + replied in 14 days", "+42"],
-              ["Pricing requested", "172 people", "Said PRICE, COST, or PAYMENT", "+18"],
-              ["Booked from Instagram", "96 people", "Social attribution + confirmed booking", "+11"],
-              ["Needs human follow-up", "28 people", "AI confidence below threshold", "−6"],
-            ].map((item) => <button className="audienceRow" onClick={() => onFlash(`${item[0]} opened`)} key={item[0]}><span><b>{item[0]}</b><small>{item[2]}</small></span><strong>{item[1]}</strong><em>{item[3]} this week</em><i>→</i></button>)}
+              [
+                "High-intent social leads",
+                "386 people",
+                "Intent above 80 + replied in 14 days",
+                "+42",
+              ],
+              [
+                "Pricing requested",
+                "172 people",
+                "Said PRICE, COST, or PAYMENT",
+                "+18",
+              ],
+              [
+                "Booked from Instagram",
+                "96 people",
+                "Social attribution + confirmed booking",
+                "+11",
+              ],
+              [
+                "Needs human follow-up",
+                "28 people",
+                "AI confidence below threshold",
+                "−6",
+              ],
+            ].map((item) => (
+              <button
+                className="audienceRow"
+                onClick={() => onFlash(`${item[0]} opened`)}
+                key={item[0]}
+              >
+                <span>
+                  <b>{item[0]}</b>
+                  <small>{item[2]}</small>
+                </span>
+                <strong>{item[1]}</strong>
+                <em>{item[3]} this week</em>
+                <i>→</i>
+              </button>
+            ))}
           </section>
-          <aside className="crmPanel"><small>AUDIENCE INTELLIGENCE</small><h2>2,418</h2><p>Known social profiles unified with Cyncro contacts.</p><div className="audienceRing"><span><b>68%</b><small>reachable</small></span></div><button onClick={() => onFlash("Audience opportunity analyzed")}>✦ Find revenue opportunity</button></aside>
+          <aside className="crmPanel">
+            <small>AUDIENCE INTELLIGENCE</small>
+            <h2>2,418</h2>
+            <p>Known social profiles unified with Cyncro contacts.</p>
+            <div className="audienceRing">
+              <span>
+                <b>68%</b>
+                <small>reachable</small>
+              </span>
+            </div>
+            <button onClick={() => onFlash("Audience opportunity analyzed")}>
+              ✦ Find revenue opportunity
+            </button>
+          </aside>
         </div>
       )}
 
       {panel === "Analytics" && (
         <div className="socialAnalytics">
           <section className="crmPanel">
-            <div className="crmPanelHead"><div><small>CONVERSION ANALYTICS</small><h2>From keyword to revenue</h2></div><button onClick={() => onFlash("Analytics exported")}>Export report</button></div>
+            <div className="crmPanelHead">
+              <div>
+                <small>CONVERSION ANALYTICS</small>
+                <h2>From keyword to revenue</h2>
+              </div>
+              <button onClick={() => onFlash("Analytics exported")}>
+                Export report
+              </button>
+            </div>
             <div className="socialFunnel">
-              {[["REACHED", "8,142", "100%"], ["ENGAGED", "2,813", "34.5%"], ["CAPTURED", "973", "11.9%"], ["BOOKED", "286", "3.5%"], ["WON", "$42.8K", "1.2%"]].map((item, index) => <article style={{width: `${100 - index * 11}%`}} key={item[0]}><small>{item[0]}</small><b>{item[1]}</b><span>{item[2]}</span></article>)}
+              {[
+                ["REACHED", "8,142", "100%"],
+                ["ENGAGED", "2,813", "34.5%"],
+                ["CAPTURED", "973", "11.9%"],
+                ["BOOKED", "286", "3.5%"],
+                ["WON", "$42.8K", "1.2%"],
+              ].map((item, index) => (
+                <article
+                  style={{ width: `${100 - index * 11}%` }}
+                  key={item[0]}
+                >
+                  <small>{item[0]}</small>
+                  <b>{item[1]}</b>
+                  <span>{item[2]}</span>
+                </article>
+              ))}
             </div>
           </section>
-          <aside className="crmPanel"><small>TOP BUYING WORDS</small><h2>Intent leaderboard</h2>{[["DEMO", "386 leads"], ["PRICE", "172 leads"], ["SYSTEM", "128 leads"], ["BOOK", "96 leads"], ["HELP", "74 leads"]].map((item, index) => <div key={item[0]}><span>{index + 1}</span><b>{item[0]}</b><em>{item[1]}</em></div>)}<button onClick={() => onFlash("AI keywords discovered")}>✦ Discover hidden keywords</button></aside>
+          <aside className="crmPanel">
+            <small>TOP BUYING WORDS</small>
+            <h2>Intent leaderboard</h2>
+            {[
+              ["DEMO", "386 leads"],
+              ["PRICE", "172 leads"],
+              ["SYSTEM", "128 leads"],
+              ["BOOK", "96 leads"],
+              ["HELP", "74 leads"],
+            ].map((item, index) => (
+              <div key={item[0]}>
+                <span>{index + 1}</span>
+                <b>{item[0]}</b>
+                <em>{item[1]}</em>
+              </div>
+            ))}
+            <button onClick={() => onFlash("AI keywords discovered")}>
+              ✦ Discover hidden keywords
+            </button>
+          </aside>
         </div>
       )}
     </div>
