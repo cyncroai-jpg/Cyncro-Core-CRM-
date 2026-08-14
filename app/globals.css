@@ -12451,3 +12451,76 @@ label {
     0 2px 0 #cabfbb,
     0 7px 16px rgba(48, 27, 32, 0.1) !important;
 }
+
+/* Consumer-facing readability floor across every Cyncro workspace. */
+.readable {
+  font-size: 15px;
+}
+
+.readable :is(small, label, em, time, .eyebrow) {
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  line-height: 1.55 !important;
+}
+
+.readable p {
+  font-size: 15px !important;
+  font-weight: 500;
+  line-height: 1.65 !important;
+}
+
+.readable :is(button, nav button) {
+  font-size: 13px !important;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.readable :is(input, select, textarea) {
+  font-size: 14px !important;
+  line-height: 1.45;
+}
+
+.readable
+  :is(
+    table,
+    [class*="Table"],
+    [class*="table"],
+    .financeSidebar nav span,
+    .crmNav button span,
+    .dispatchSidebar nav span,
+    .disputeSidebar > nav span
+  ) {
+  font-size: 13px !important;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.readable
+  :is(
+    .financePanel,
+    .crmPanel,
+    .dispatchPanel,
+    .disputePanel,
+    .financeKpis,
+    .crmMetrics,
+    .dispatchMetrics,
+    .disputeMetrics
+  )
+  :is(span, strong, b) {
+  font-size: max(13px, 0.82rem);
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .readable :is(small, label, em, time, .eyebrow) {
+    font-size: 13px !important;
+  }
+
+  .readable p {
+    font-size: 14px !important;
+  }
+
+  .readable :is(button, nav button, input, select, textarea) {
+    font-size: 13px !important;
+  }
+}
