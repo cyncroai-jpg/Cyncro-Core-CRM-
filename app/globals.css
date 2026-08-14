@@ -6,6 +6,256 @@
   position: relative;
 }
 
+/* Readability upgrade + reversible luxury light study */
+.readable small,
+.readable label,
+.readable em,
+.readable time,
+.readable .eyebrow {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.45;
+}
+.readable p {
+  font-size: max(12px, 0.76rem) !important;
+}
+.readable nav button,
+.readable table,
+.readable [class*="Table"] > button,
+.readable [class*="table"] > button {
+  font-size: 11px !important;
+  font-weight: 600;
+}
+.readable input,
+.readable select,
+.readable textarea {
+  font-size: 12px !important;
+}
+.readable .financeSidebar nav span,
+.readable .crmNav button span,
+.readable .dispatchSidebar nav span,
+.readable .disputeSidebar > nav span {
+  font-size: 11px !important;
+  font-weight: 600;
+}
+.readable .financePanel span,
+.readable .financePanel strong,
+.readable .financePanel b,
+.readable .crmPanel span,
+.readable .dispatchPanel span,
+.readable .disputePanel span {
+  font-weight: 600;
+}
+.themeSwitch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  margin-left: 5px;
+  padding: 0 11px !important;
+  border: 1px solid #4a3338 !important;
+  color: #fff !important;
+  background: #171315 !important;
+  font-size: 10px !important;
+  font-weight: 700;
+}
+.themeSwitch i {
+  color: #db4d61;
+  font-size: 13px;
+  font-style: normal;
+}
+.themeLight {
+  min-height: 100vh;
+  color: #1c1718;
+  background: #f3efea;
+}
+.themeLight > header,
+.themeLight .frontHeader {
+  border-bottom-color: #d8cfca !important;
+  background: rgba(250, 247, 243, 0.94) !important;
+  box-shadow: 0 1px 18px rgba(44, 25, 29, 0.06);
+}
+.themeLight .logoButton,
+.themeLight > header nav button {
+  color: #241d1f !important;
+}
+.themeLight > header nav .navon {
+  color: #fff !important;
+  background: #8e1726 !important;
+}
+.themeLight .themeSwitch {
+  color: #241d1f !important;
+  border-color: #cfc3be !important;
+  background: #fff !important;
+}
+.themeLight
+  :is(
+    .frontExperience,
+    .wrap,
+    .admin,
+    .studio,
+    .crmShell,
+    .dispatchShell,
+    .dispatchGate,
+    .techAppStage,
+    .disputeShell,
+    .financeShell
+  ) {
+  color: #1d1719 !important;
+  background: #f3efea !important;
+}
+.themeLight
+  :is(.crmSidebar, .dispatchSidebar, .disputeSidebar, .financeSidebar) {
+  border-color: #d8cfca !important;
+  background: #ebe5df !important;
+}
+.themeLight :is(.crmTopbar, .dispatchTopbar, .disputeTopbar, .financeTopbar) {
+  border-color: #d8cfca !important;
+  background: rgba(250, 247, 243, 0.96) !important;
+}
+.themeLight
+  :is(
+    .card,
+    .panel,
+    .suitecard,
+    .crmPanel,
+    .dispatchPanel,
+    .disputePanel,
+    .financePanel,
+    .financeHero,
+    .disputeHero,
+    .frontProof,
+    .heroProduct,
+    .crmModal,
+    .dispatchModal
+  ) {
+  color: #1d1719 !important;
+  border-color: #d8cfca !important;
+  background: #fffdfb !important;
+  box-shadow: 0 14px 38px rgba(54, 31, 36, 0.07);
+}
+.themeLight
+  :is(
+    .financeKpis article,
+    .disputeMetrics article,
+    .crmMetrics article,
+    .dispatchMetrics article,
+    .taxConfidence,
+    .aiContext,
+    .paymentOutput,
+    .taxHeroNumber,
+    .leasePayment,
+    .scenarioLab article,
+    .financeFilters,
+    .rooftopPicker,
+    .financePulse,
+    .disputeGuard
+  ) {
+  color: #1d1719 !important;
+  border-color: #d8cfca !important;
+  background: #fffaf6 !important;
+}
+.themeLight
+  :is(
+    p,
+    small,
+    label,
+    time,
+    .financePanel span,
+    .financePanel strong,
+    .crmPanel span,
+    .dispatchPanel span,
+    .disputePanel span,
+    .platformbar,
+    .features,
+    .summary,
+    .progress
+  ) {
+  color: #3f3537 !important;
+}
+.themeLight :is(h1, h2, h3, h4, b, strong) {
+  color: #181315;
+}
+.themeLight :is(input, select, textarea) {
+  color: #211a1c !important;
+  border-color: #cfc5c1 !important;
+  background: #fff !important;
+}
+.themeLight
+  :is(
+    .financePanel,
+    .crmPanel,
+    .dispatchPanel,
+    .disputePanel,
+    .dealTable,
+    .suiteTable
+  )
+  > :is(button, article, p) {
+  border-color: #e2dad6 !important;
+}
+.themeLight
+  :is(.financeSidebar, .crmSidebar, .dispatchSidebar, .disputeSidebar)
+  nav
+  button {
+  color: #3b3234 !important;
+}
+.themeLight
+  :is(.financeSidebar, .crmSidebar, .dispatchSidebar, .disputeSidebar)
+  nav
+  button.active {
+  color: #fff !important;
+  background: linear-gradient(90deg, #971928, #c53c4c) !important;
+}
+.themeLight .financeAI {
+  color: #1d1719;
+  border-color: #d8cfca;
+  background: #f8f3ef;
+  box-shadow: -15px 0 40px rgba(52, 29, 34, 0.1);
+}
+.themeLight .aiConversation article,
+.themeLight .aiConversation > p {
+  color: #1d1719;
+  background: #fff !important;
+}
+.themeLight .frontHero::before {
+  background:
+    linear-gradient(90deg, #f3efea 0 42%, transparent 72%),
+    radial-gradient(circle at 85% 38%, rgba(166, 24, 46, 0.15), transparent 38%);
+}
+.themeLight .frontGlow {
+  opacity: 0.45;
+}
+.themeLight .frontHero,
+.themeLight .frontCapabilities,
+.themeLight .frontFinal {
+  background-color: #f3efea !important;
+}
+.themeLight button:not(.navon):not(.active):not(.themeSwitch) {
+  color: #342a2c;
+}
+.themeLight
+  :is(
+    .presentMenu,
+    .clockAction,
+    .frontPrimary,
+    .crmCreate,
+    .financePageHead > button,
+    .financeHeroActions button:first-child
+  ) {
+  color: #fff !important;
+}
+@media (max-width: 1180px) {
+  .themeSwitch {
+    width: 35px;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 0 !important;
+  }
+  .themeSwitch i {
+    font-size: 13px;
+  }
+}
+
 /* Cyncro Finance */
 .financeShell {
   min-height: calc(100vh - 74px);

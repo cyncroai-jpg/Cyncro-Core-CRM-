@@ -20,13 +20,16 @@ type Tab =
   | "finance";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
+    [lightMode, setLightMode] = useState(false),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
   return (
-    <main>
+    <main
+      className={`cyncroApp readable ${lightMode ? "themeLight" : "themeDark"}`}
+    >
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => setTab("home")}>
           <i>Cyncro</i> Core
@@ -51,6 +54,14 @@ export default function Home() {
             </button>
           ))}
           <span>● DEMO LIVE</span>
+          <button
+            className="themeSwitch"
+            onClick={() => setLightMode(!lightMode)}
+            aria-label={`Switch to ${lightMode ? "dark" : "light"} theme`}
+          >
+            <i>{lightMode ? "◐" : "☀"}</i>
+            {lightMode ? "Dark" : "Light"}
+          </button>
         </nav>
       </header>
       {tab === "home" ? (
