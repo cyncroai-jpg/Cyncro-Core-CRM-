@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 const times = [
   "9:00 AM",
@@ -3711,6 +3711,9 @@ type FinanceView =
   | "Command"
   | "Deal Queue"
   | "Deal Architect"
+  | "Performance"
+  | "Inventory"
+  | "Deal Documents"
   | "Lenders"
   | "Product Menu"
   | "Contracts"
@@ -3731,6 +3734,12 @@ const financeDeals = [
     status: "READY TO PRESENT",
     lender: "Chase Auto",
     risk: "LOW",
+    salesperson: "Maya Torres",
+    financeManager: "Yvette Lomeli",
+    frontGross: "$4,120",
+    backGross: "$2,720",
+    pointsHeld: "2.00 pts",
+    reserve: "$1,425",
   },
   {
     customer: "Noah Williams",
@@ -3742,6 +3751,12 @@ const financeDeals = [
     status: "LENDER REVIEW",
     lender: "BMW Financial",
     risk: "MEDIUM",
+    salesperson: "Andre Cole",
+    financeManager: "Dana Pierce",
+    frontGross: "$3,240",
+    backGross: "$2,180",
+    pointsHeld: "1.75 pts",
+    reserve: "$1,180",
   },
   {
     customer: "Sophia Carter",
@@ -3753,6 +3768,12 @@ const financeDeals = [
     status: "STIPS NEEDED",
     lender: "Mercedes-Benz FS",
     risk: "MEDIUM",
+    salesperson: "Maya Torres",
+    financeManager: "Yvette Lomeli",
+    frontGross: "$4,505",
+    backGross: "$2,685",
+    pointsHeld: "2.25 pts",
+    reserve: "$1,695",
   },
   {
     customer: "Liam Rodriguez",
@@ -3764,6 +3785,12 @@ const financeDeals = [
     status: "CONTRACTING",
     lender: "Ally",
     risk: "WATCH",
+    salesperson: "Jason Cole",
+    financeManager: "Jason Cole",
+    frontGross: "$2,910",
+    backGross: "$2,070",
+    pointsHeld: "1.50 pts",
+    reserve: "$1,040",
   },
 ];
 
@@ -3780,6 +3807,9 @@ function CyncroFinance() {
     { name: "Command", icon: "⌂" },
     { name: "Deal Queue", icon: "▦" },
     { name: "Deal Architect", icon: "✦" },
+    { name: "Performance", icon: "↗" },
+    { name: "Inventory", icon: "▥" },
+    { name: "Deal Documents", icon: "▤" },
     { name: "Lenders", icon: "◎" },
     { name: "Product Menu", icon: "◇" },
     { name: "Contracts", icon: "▤" },
@@ -3881,10 +3911,26 @@ function CyncroFinance() {
           {view === "Deal Architect" && (
             <FinanceArchitect deal={financeDeals[deal]} onFlash={flash} />
           )}
+          {view === "Performance" && (
+            <FinancePerformance
+              onOpen={(i) => {
+                setDeal(i);
+                setView("Deal Architect");
+              }}
+              onFlash={flash}
+            />
+          )}
+          {view === "Inventory" && <FinanceInventory onFlash={flash} />}
+          {view === "Deal Documents" && (
+            <FinanceDealDocuments onFlash={flash} />
+          )}
           {view === "Tax & Lease Lab" && <TaxLeaseLab onFlash={flash} />}
           {view !== "Command" &&
             view !== "Deal Queue" &&
             view !== "Deal Architect" &&
+            view !== "Performance" &&
+            view !== "Inventory" &&
+            view !== "Deal Documents" &&
             view !== "Tax & Lease Lab" && (
               <FinanceWorkspace view={view} onFlash={flash} />
             )}
@@ -4786,6 +4832,498 @@ function TaxLeaseLab({ onFlash }: { onFlash: (m: string) => void }) {
   );
 }
 
+function FinancePerformance({
+  onOpen,
+  onFlash,
+}: {
+  onOpen: (i: number) => void;
+  onFlash: (m: string) => void;
+}) {
+  const [period, setPeriod] = useState("Month to date");
+  return (
+    <div className="financeWorkspace financePerformance">
+      <div className="financePageHead">
+        <div>
+          <span>SALES + F&amp;I PERFORMANCE</span>
+          <h1>See who sold it—and who protected the deal.</h1>
+          <p>
+            Separate sales and finance-manager production with lender reserve,
+            points held, product gross, total PVR and funding status on every
+            transaction.
+          </p>
+        </div>
+        <div className="performanceActions">
+          {["Today", "Month to date", "Quarter"].map((item) => (
+            <button
+              className={period === item ? "active" : ""}
+              key={item}
+              onClick={() => {
+                setPeriod(item);
+                onFlash(item + " performance loaded");
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+      <section className="financeKpis">
+        {[
+          ["TOTAL DEAL GROSS", "$24,430", "+14.2% vs pace"],
+          ["FINANCE PVR", "$2,414", "$9,655 back gross"],
+          ["LENDER RESERVE", "$5,340", "1.88 avg points held"],
+          ["FUNDED DEALS", "37", "96% clean funding"],
+        ].map((item) => (
+          <article key={item[0]}>
+            <small>{item[0]}</small>
+            <b>{item[1]}</b>
+            <span>{item[2]}</span>
+          </article>
+        ))}
+      </section>
+      <div className="performanceSplit">
+        <section className="financePanel managerScoreboard">
+          <header>
+            <div>
+              <small>FINANCE MANAGER STATUS</small>
+              <h2>F&amp;I production</h2>
+            </div>
+            <span>{period.toUpperCase()}</span>
+          </header>
+          {[
+            ["Yvette Lomeli", "18 deals", "$2,684 PVR", "2.12 pts", "112%"],
+            ["Dana Pierce", "14 deals", "$2,420 PVR", "1.84 pts", "104%"],
+            ["Jason Cole", "11 deals", "$2,186 PVR", "1.61 pts", "96%"],
+          ].map((row) => (
+            <button
+              key={row[0]}
+              onClick={() => onFlash(row[0] + " performance profile opened")}
+            >
+              <span className="managerAvatar">{row[0][0]}</span>
+              <b>{row[0]}</b>
+              <span>{row[1]}</span>
+              <span>{row[2]}</span>
+              <span>{row[3]}</span>
+              <em>{row[4]} TARGET</em>
+            </button>
+          ))}
+        </section>
+        <section className="financePanel salesScoreboard">
+          <header>
+            <div>
+              <small>SALES PERFORMANCE</small>
+              <h2>Salesperson production</h2>
+            </div>
+            <button onClick={() => onFlash("Sales coaching report exported")}>
+              Export report
+            </button>
+          </header>
+          {[
+            ["Maya Torres", "16 units", "$4,312 front avg", "$98.6K total"],
+            ["Andre Cole", "13 units", "$3,884 front avg", "$76.2K total"],
+            ["Jason Cole", "10 units", "$3,240 front avg", "$54.9K total"],
+          ].map((row) => (
+            <button
+              key={row[0]}
+              onClick={() => onFlash(row[0] + " sales profile opened")}
+            >
+              <b>{row[0]}</b>
+              <span>{row[1]}</span>
+              <span>{row[2]}</span>
+              <strong>{row[3]}</strong>
+            </button>
+          ))}
+        </section>
+      </div>
+      <section className="financePanel dealProfitLedger">
+        <header>
+          <div>
+            <small>PER-DEAL SALES + FINANCE DATA</small>
+            <h2>Deal profitability ledger</h2>
+          </div>
+          <button onClick={() => onFlash("Profit ledger filters opened")}>
+            Filter deals
+          </button>
+        </header>
+        <div className="dealProfitHead">
+          {[
+            "DEAL / CUSTOMER",
+            "SALESPERSON",
+            "FRONT GROSS",
+            "FINANCE MANAGER",
+            "BACK GROSS",
+            "POINTS HELD",
+            "RESERVE",
+            "TOTAL",
+          ].map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+        {financeDeals.map((deal, index) => (
+          <button key={deal.stock} onClick={() => onOpen(index)}>
+            <span>
+              <b>{deal.stock}</b>
+              <small>{deal.customer}</small>
+            </span>
+            <span>{deal.salesperson}</span>
+            <strong>{deal.frontGross}</strong>
+            <span>{deal.financeManager}</span>
+            <strong>{deal.backGross}</strong>
+            <em>{deal.pointsHeld}</em>
+            <span>{deal.reserve}</span>
+            <b>{deal.gross}</b>
+          </button>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function FinanceInventory({ onFlash }: { onFlash: (m: string) => void }) {
+  const [filter, setFilter] = useState("All inventory");
+  const inventory = [
+    [
+      "P24018",
+      "2026 Porsche Macan S",
+      "12 days",
+      "$71,820",
+      "$78,450",
+      "AVAILABLE",
+    ],
+    [
+      "B51882",
+      "2025 BMW X5 xDrive40i",
+      "38 days",
+      "$66,100",
+      "$72,980",
+      "PENDING",
+    ],
+    [
+      "M60117",
+      "2026 Mercedes GLC 300",
+      "21 days",
+      "$54,440",
+      "$61,290",
+      "AVAILABLE",
+    ],
+    [
+      "A74221",
+      "2025 Audi Q7 Premium Plus",
+      "67 days",
+      "$63,280",
+      "$69,995",
+      "AGED",
+    ],
+    [
+      "L51207",
+      "2026 Lexus RX 350",
+      "8 days",
+      "$48,620",
+      "$55,440",
+      "IN TRANSIT",
+    ],
+  ];
+  return (
+    <div className="financeWorkspace financeInventory">
+      <div className="financePageHead">
+        <div>
+          <span>LIVE VEHICLE INVENTORY</span>
+          <h1>Every unit connected to every deal.</h1>
+          <p>
+            Track availability, age, acquisition cost, asking price, estimated
+            margin, floorplan exposure and the customer deal attached to each
+            vehicle.
+          </p>
+        </div>
+        <button onClick={() => onFlash("New inventory record opened")}>
+          ＋ Add vehicle
+        </button>
+      </div>
+      <section className="financeKpis">
+        {[
+          ["TOTAL UNITS", "284", "New + pre-owned"],
+          ["INVENTORY VALUE", "$18.6M", "Across rooftops"],
+          ["AVG AGE", "31 days", "−4 days"],
+          ["AGED 60+ DAYS", "18", "$1.12M exposed"],
+        ].map((item) => (
+          <article key={item[0]}>
+            <small>{item[0]}</small>
+            <b>{item[1]}</b>
+            <span>{item[2]}</span>
+          </article>
+        ))}
+      </section>
+      <div className="financeFilters inventoryFilters">
+        {["All inventory", "Available", "Pending", "Aged"].map((item) => (
+          <button
+            className={filter === item ? "active" : ""}
+            key={item}
+            onClick={() => setFilter(item)}
+          >
+            {item}
+          </button>
+        ))}
+        <input placeholder="Search VIN, stock, make or model…" />
+      </div>
+      <section className="financePanel inventoryLedger">
+        <header className="inventoryHead">
+          {[
+            "STOCK / VEHICLE",
+            "AGE",
+            "ACQUISITION",
+            "ASKING",
+            "EST. MARGIN",
+            "STATUS",
+          ].map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </header>
+        {inventory
+          .filter((row) =>
+            filter === "All inventory"
+              ? true
+              : row[5].includes(filter.toUpperCase()),
+          )
+          .map((row) => {
+            const margin =
+              Number(row[4].replace(/[$,]/g, "")) -
+              Number(row[3].replace(/[$,]/g, ""));
+            return (
+              <button
+                key={row[0]}
+                onClick={() => onFlash(row[0] + " inventory record opened")}
+              >
+                <span>
+                  <b>{row[0]}</b>
+                  <small>{row[1]}</small>
+                </span>
+                <span>{row[2]}</span>
+                <span>{row[3]}</span>
+                <strong>{row[4]}</strong>
+                <b>
+                  {"$"}
+                  {margin.toLocaleString()}
+                </b>
+                <em>{row[5]}</em>
+              </button>
+            );
+          })}
+      </section>
+    </div>
+  );
+}
+
+function FinanceDealDocuments({ onFlash }: { onFlash: (m: string) => void }) {
+  const [selectedStock, setSelectedStock] = useState(financeDeals[0].stock);
+  const [documents, setDocuments] = useState([
+    {
+      stock: "P24018",
+      name: "Retail Installment Contract.pdf",
+      source: "E-SIGNED",
+      time: "10:42 AM",
+    },
+    {
+      stock: "P24018",
+      name: "Driver License — Olivia Bennett.jpg",
+      source: "SCANNED",
+      time: "10:38 AM",
+    },
+    {
+      stock: "P24018",
+      name: "Proof of Insurance.pdf",
+      source: "UPLOADED",
+      time: "10:34 AM",
+    },
+    {
+      stock: "B51882",
+      name: "Credit Application.pdf",
+      source: "UPLOADED",
+      time: "9:51 AM",
+    },
+  ]);
+  const deal = financeDeals.find((item) => item.stock === selectedStock)!;
+  const attachFiles = (
+    event: ChangeEvent<HTMLInputElement>,
+    source: "UPLOADED" | "SCANNED",
+  ) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setDocuments((current) => [
+      ...files.map((file) => ({
+        stock: selectedStock,
+        name: file.name,
+        source,
+        time: "Just now",
+      })),
+      ...current,
+    ]);
+    onFlash(
+      String(files.length) +
+        (source === "SCANNED" ? " scan" : " document") +
+        (files.length > 1 ? "s" : "") +
+        " attached to deal " +
+        selectedStock,
+    );
+    event.target.value = "";
+  };
+  const dealDocs = documents.filter((item) => item.stock === selectedStock);
+  return (
+    <div className="financeWorkspace financeDocuments">
+      <div className="financePageHead">
+        <div>
+          <span>SECURE DIGITAL DEAL JACKET</span>
+          <h1>Every client document. One verified deal file.</h1>
+          <p>
+            Upload, scan, classify and attach customer documents directly to the
+            deal with source tracking, completion status and an audit-ready
+            history.
+          </p>
+        </div>
+        <div className="documentActions">
+          <label>
+            ＋ Upload documents
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,image/*"
+              onChange={(event) => attachFiles(event, "UPLOADED")}
+            />
+          </label>
+          <label className="scanAction">
+            ▣ Scan document
+            <input
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              capture="environment"
+              onChange={(event) => attachFiles(event, "SCANNED")}
+            />
+          </label>
+        </div>
+      </div>
+      <div className="dealJacketGrid">
+        <aside className="financePanel dealJacketList">
+          <header>
+            <div>
+              <small>ACTIVE DEAL JACKETS</small>
+              <h2>Client deals</h2>
+            </div>
+            <span>{financeDeals.length}</span>
+          </header>
+          {financeDeals.map((item) => (
+            <button
+              className={selectedStock === item.stock ? "active" : ""}
+              key={item.stock}
+              onClick={() => setSelectedStock(item.stock)}
+            >
+              <span>{item.customer[0]}</span>
+              <div>
+                <b>{item.customer}</b>
+                <small>{item.vehicle}</small>
+              </div>
+              <em>
+                {documents.filter((doc) => doc.stock === item.stock).length}{" "}
+                DOCS
+              </em>
+            </button>
+          ))}
+        </aside>
+        <section className="financePanel documentVault">
+          <header>
+            <div>
+              <small>DEAL {deal.stock}</small>
+              <h2>{deal.customer}</h2>
+              <p>
+                {deal.vehicle} · {deal.lender} · {deal.financeManager}
+              </p>
+            </div>
+            <span>{dealDocs.length}/12 COMPLETE</span>
+          </header>
+          <div className="documentProgress">
+            <i
+              style={{
+                width:
+                  String(Math.min(100, (dealDocs.length / 12) * 100)) + "%",
+              }}
+            />
+          </div>
+          <div className="documentChecklist">
+            {dealDocs.map((document, index) => (
+              <button
+                key={document.name + "-" + String(index)}
+                onClick={() => onFlash(document.name + " preview opened")}
+              >
+                <span>
+                  {document.name.toLowerCase().endsWith(".pdf") ? "PDF" : "IMG"}
+                </span>
+                <div>
+                  <b>{document.name}</b>
+                  <small>
+                    {document.source} · {document.time}
+                  </small>
+                </div>
+                <em>✓ VERIFIED</em>
+                <i>⋮</i>
+              </button>
+            ))}
+            {!dealDocs.length && (
+              <div className="emptyDocumentVault">
+                <span>▤</span>
+                <b>No documents attached yet</b>
+                <p>
+                  Upload a file or scan the first page into this deal jacket.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+        <aside className="financePanel dealCompletion">
+          <header>
+            <small>DEAL COMPLETION</small>
+            <h2>Required documents</h2>
+          </header>
+          {[
+            ["Identity", dealDocs.some((doc) => doc.name.includes("License"))],
+            [
+              "Credit application",
+              dealDocs.some((doc) => doc.name.includes("Credit")),
+            ],
+            [
+              "Insurance",
+              dealDocs.some((doc) => doc.name.includes("Insurance")),
+            ],
+            ["Buyer’s order", false],
+            [
+              "Finance contract",
+              dealDocs.some((doc) => doc.name.includes("Contract")),
+            ],
+            ["Product forms", false],
+          ].map((item) => (
+            <button
+              key={item[0] as string}
+              onClick={() => onFlash(String(item[0]) + " requirement opened")}
+            >
+              <span className={item[1] ? "complete" : ""}>
+                {item[1] ? "✓" : "○"}
+              </span>
+              <b>{item[0]}</b>
+              <em>{item[1] ? "COMPLETE" : "NEEDED"}</em>
+            </button>
+          ))}
+          <button
+            className="requestDocuments"
+            onClick={() =>
+              onFlash("Secure upload request sent to " + deal.customer)
+            }
+          >
+            Send client upload request
+          </button>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 function CalcInput({
   label,
   value,
@@ -4810,7 +5348,13 @@ function CalcInput({
 const financeWorkspaceData: Record<
   Exclude<
     FinanceView,
-    "Command" | "Deal Queue" | "Deal Architect" | "Tax & Lease Lab"
+    | "Command"
+    | "Deal Queue"
+    | "Deal Architect"
+    | "Performance"
+    | "Inventory"
+    | "Deal Documents"
+    | "Tax & Lease Lab"
   >,
   {
     eyebrow: string;
@@ -5089,7 +5633,13 @@ function FinanceWorkspace({
 }: {
   view: Exclude<
     FinanceView,
-    "Command" | "Deal Queue" | "Deal Architect" | "Tax & Lease Lab"
+    | "Command"
+    | "Deal Queue"
+    | "Deal Architect"
+    | "Performance"
+    | "Inventory"
+    | "Deal Documents"
+    | "Tax & Lease Lab"
   >;
   onFlash: (m: string) => void;
 }) {

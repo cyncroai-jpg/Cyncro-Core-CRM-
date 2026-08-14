@@ -12524,3 +12524,355 @@ label {
     font-size: 13px !important;
   }
 }
+
+/* Finance manager performance, inventory and digital deal jackets */
+.performanceActions,
+.documentActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.performanceActions button,
+.documentActions label {
+  border: 1px solid #413238;
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #f5f3f4;
+  background: #151214;
+  cursor: pointer;
+  font-weight: 700;
+}
+.performanceActions button.active,
+.documentActions .scanAction {
+  border-color: #8d2135;
+  background: linear-gradient(145deg, #8d2135, #3c111a);
+}
+.performanceSplit {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.managerScoreboard > button {
+  display: grid;
+  grid-template-columns: 38px 1.35fr repeat(3, 0.75fr) 0.8fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 15px;
+  border: 0;
+  border-top: 1px solid #34282c;
+  color: #f5f3f4;
+  background: transparent;
+  text-align: left;
+}
+.managerAvatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #6f2634;
+  border-radius: 9px;
+  color: #fff !important;
+  background: #521521;
+}
+.managerScoreboard > button em {
+  color: #7fe3af;
+  text-align: right;
+}
+.salesScoreboard > button {
+  display: grid;
+  grid-template-columns: 1.25fr 0.65fr 1fr 0.85fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  border-top: 1px solid #34282c;
+  color: #f5f3f4;
+  background: transparent;
+  text-align: left;
+}
+.salesScoreboard > button strong {
+  color: #e75a70;
+  text-align: right;
+}
+.dealProfitLedger,
+.inventoryLedger {
+  overflow-x: auto;
+}
+.dealProfitHead,
+.dealProfitLedger > button {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 0.75fr 1fr 0.75fr 0.7fr 0.7fr 0.7fr;
+  gap: 12px;
+  align-items: center;
+  min-width: 1040px;
+}
+.dealProfitHead {
+  padding: 12px 16px;
+  border-top: 1px solid #34282c;
+  border-bottom: 1px solid #34282c;
+  color: #9f9498;
+  background: #100e0f;
+}
+.dealProfitLedger > button {
+  width: 100%;
+  padding: 15px 16px;
+  border: 0;
+  border-bottom: 1px solid #2f2528;
+  color: #f3f0f1;
+  background: transparent;
+  text-align: left;
+}
+.dealProfitLedger > button:hover,
+.inventoryLedger > button:hover {
+  background: #241419;
+}
+.dealProfitLedger > button > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dealProfitLedger > button em {
+  color: #ffbd68;
+}
+.inventoryHead,
+.inventoryLedger > button {
+  display: grid;
+  grid-template-columns: 1.65fr 0.7fr 0.9fr 0.9fr 0.85fr 0.8fr;
+  gap: 14px;
+  align-items: center;
+  min-width: 840px;
+}
+.inventoryHead {
+  padding: 13px 16px !important;
+  color: #9f9498;
+  background: #100e0f;
+}
+.inventoryLedger > button {
+  width: 100%;
+  padding: 15px 16px;
+  border: 0;
+  border-top: 1px solid #302528;
+  color: #f4f1f2;
+  background: transparent;
+  text-align: left;
+}
+.inventoryLedger > button > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inventoryLedger > button em {
+  width: max-content;
+  border: 1px solid #69303a;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #ef8595;
+  background: #2b151b;
+}
+.documentActions input {
+  display: none;
+}
+.dealJacketGrid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.72fr) minmax(430px, 1.55fr) minmax(
+      240px,
+      0.7fr
+    );
+  gap: 16px;
+  align-items: start;
+}
+.dealJacketList > button {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-top: 1px solid #302528;
+  color: #f3f0f1;
+  background: transparent;
+  text-align: left;
+}
+.dealJacketList > button.active {
+  background: #2a141a;
+  box-shadow: inset 3px 0 #b82c43;
+}
+.dealJacketList > button > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: #4f1721;
+}
+.dealJacketList > button div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.dealJacketList > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dealJacketList > button em {
+  color: #c97988;
+}
+.documentVault > header p {
+  margin: 5px 0 0;
+}
+.documentProgress {
+  height: 5px;
+  margin: 0 16px 14px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #31272a;
+}
+.documentProgress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9d1e33, #ef6478);
+}
+.documentChecklist > button {
+  display: grid;
+  grid-template-columns: 42px 1fr auto 20px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-top: 1px solid #302528;
+  color: #f4f1f2;
+  background: transparent;
+  text-align: left;
+}
+.documentChecklist > button > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #5d3038;
+  border-radius: 9px;
+  color: #ec7b8d;
+  background: #29161b;
+}
+.documentChecklist > button div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.documentChecklist > button em {
+  color: #70d39f;
+}
+.emptyDocumentVault {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 30px;
+  text-align: center;
+}
+.emptyDocumentVault > span {
+  font-size: 34px;
+  color: #a72a3e;
+}
+.dealCompletion > button {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-top: 1px solid #302528;
+  color: #f3f0f1;
+  background: transparent;
+  text-align: left;
+}
+.dealCompletion > button > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: #9b8f93;
+  background: #30272a;
+}
+.dealCompletion > button > span.complete {
+  color: #76e0a9;
+  background: #173021;
+}
+.dealCompletion .requestDocuments {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 14px;
+  border: 1px solid #84263a;
+  border-radius: 9px;
+  color: #fff;
+  background: #70192a;
+  text-align: center;
+}
+.themeLight
+  :is(
+    .managerScoreboard > button,
+    .salesScoreboard > button,
+    .dealProfitLedger > button,
+    .inventoryLedger > button,
+    .dealJacketList > button,
+    .documentChecklist > button,
+    .dealCompletion > button
+  ) {
+  border-color: #dfd6d2;
+  color: #181315;
+}
+.themeLight :is(.dealProfitHead, .inventoryHead) {
+  color: #51474a;
+  background: #eee9e6;
+}
+.themeLight
+  :is(
+    .dealJacketList > button.active,
+    .dealProfitLedger > button:hover,
+    .inventoryLedger > button:hover
+  ) {
+  background: #f6e9eb;
+}
+@media (max-width: 1180px) {
+  .performanceSplit,
+  .dealJacketGrid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .performanceActions,
+  .documentActions {
+    width: 100%;
+  }
+  .performanceActions button,
+  .documentActions label {
+    flex: 1;
+    text-align: center;
+  }
+  .managerScoreboard > button {
+    grid-template-columns: 34px 1fr 0.8fr;
+  }
+  .managerScoreboard > button span:nth-of-type(2),
+  .managerScoreboard > button span:nth-of-type(3) {
+    display: none;
+  }
+  .salesScoreboard > button {
+    grid-template-columns: 1fr 0.7fr;
+  }
+  .salesScoreboard > button span {
+    display: none;
+  }
+}
