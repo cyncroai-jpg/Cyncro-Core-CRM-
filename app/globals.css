@@ -12451,3 +12451,180 @@ label {
     0 2px 0 #cabfbb,
     0 7px 16px rgba(48, 27, 32, 0.1) !important;
 }
+
+/* Replace the last dark-mode islands with dimensional graphite surfaces. */
+.themeLight
+  :is(
+    .rooftopPicker,
+    .financePulse,
+    .lenderPulse article div,
+    .financeFilters,
+    .dealTable,
+    .paymentOutput,
+    .financeAI,
+    .aiContext,
+    .aiConversation > p,
+    .aiConversation article,
+    .financeAI > label,
+    .taxConfidence,
+    .taxHeroNumber,
+    .leasePayment,
+    .scenarioLab article,
+    .taxDisclaimer,
+    .mailMetrics article,
+    .jobPhotoGrid article,
+    .jobPhotoGrid article > div,
+    .workOrderCommandTable,
+    .quickBooksCard,
+    .health,
+    .calendar > div:first-child,
+    .platformbar,
+    .editor,
+    .linkpreview,
+    .matrixWrap,
+    .comparisonCallout,
+    .journeyCanvas,
+    .operationStory,
+    .dispatchProductPreview,
+    .miniDispatchMap,
+    .mapSurface,
+    .bigMap,
+    .dispatchLoginCard,
+    .dispatchPlan,
+    .dispatchToast,
+    .dispatchSubscription,
+    .optimizeRoute,
+    .agentRevenueHero,
+    .jobEconomics,
+    .routeSummary,
+    .revenueChart,
+    .dispatchAgentGrid article > div,
+    .agentLearningTable,
+    .equipmentTable,
+    .teamTable,
+    .phoneShell,
+    .techStatusStrip,
+    .mobileJobCard,
+    .mobileJobMap,
+    .phoneShell > footer,
+    .crmAgent,
+    .crmMain,
+    .universalSearch,
+    .crmIconButton,
+    .aiBrief,
+    .pipelineBoard > section,
+    .dealCard,
+    .contactTableHead,
+    .contactRow,
+    .contactHero,
+    .conversationWorkspace,
+    .messageCanvas,
+    .message,
+    .sentiment,
+    .automationSummary,
+    .automationGrid,
+    .intelligenceHero,
+    .intelligenceHero aside,
+    .enterpriseLayer,
+    .crmModalBack,
+    .crmModalHead,
+    .aiDrawer,
+    .aiPrompt,
+    .aiComposer,
+    .socialHero,
+    .socialStats,
+    .socialStats article,
+    .channelGrid > article,
+    .channelAdd,
+    .flowTemplate,
+    .flowStep,
+    .keywordEditor,
+    .dmPreview,
+    .socialInbox,
+    .aiSocialAssist,
+    .socialContactPanel,
+    .accountValueGrid,
+    .graphScore,
+    .journeyLane article,
+    .graphNode,
+    .graphInspector,
+    .agentHero,
+    .agentGrid,
+    .agentStats,
+    .segmentedChoices,
+    .experiencePreviewWrap,
+    .experiencePreview
+  ) {
+  color: #171719 !important;
+  border-color: #b9b9bf !important;
+  background-color: #d5d5d9 !important;
+  background-image: linear-gradient(
+    145deg,
+    #ededf0 0%,
+    #d1d1d6 100%
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 3px 0 rgba(109, 109, 116, 0.18),
+    0 14px 28px rgba(45, 45, 50, 0.13) !important;
+}
+
+.themeLight
+  :is(
+    .calcFields input,
+    .calcFields select,
+    .jobRecordPanel textarea,
+    .workOrderCommandTable select,
+    .dispatchModal input,
+    .dispatchModal select,
+    .dispatchLoginCard > label input,
+    .crmForm input,
+    .crmForm select,
+    .messageStep textarea,
+    .dmPreview footer input,
+    .socialInbox > article > footer input
+  ) {
+  color: #111113 !important;
+  border-color: #aaaab0 !important;
+  background: #e5e5e8 !important;
+}
+
+.themeLight
+  :is(
+    .miniJob,
+    .jobPin,
+    .jobEconomics span,
+    .routeSummary span,
+    .agentLearningTable > header > span,
+    .agentLearningTable article > span,
+    .activityRow > i,
+    .dealCard > div > i,
+    .contactRow > span:first-child > i,
+    .conversationWorkspace aside button > i,
+    .conversationWorkspace article header i,
+    .flowLibrary > button > i,
+    .flowStepHead > span,
+    .socialInboxHead > span,
+    .socialInbox > aside:first-child > button i,
+    .socialContactPanel > span,
+    .journeyLane article > i,
+    .journeyOutcome > i,
+    .agentGrid header > span
+  ) {
+  border-color: #a7a7ad !important;
+  background: linear-gradient(145deg, #c8c8cd, #a9a9b0) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65) !important;
+}
+
+.themeLight
+  :is(
+    .financeAI,
+    .phoneShell,
+    .socialInbox,
+    .aiDrawer,
+    .graphInspector,
+    .experiencePreview
+  )
+  :is(p, small, label, span:not(.redbadge), strong, b) {
+  color: #242428 !important;
+}
