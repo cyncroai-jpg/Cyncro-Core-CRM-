@@ -20,7 +20,7 @@ type Tab =
   | "finance";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
-    [lightMode, setLightMode] = useState(false),
+    [lightMode, setLightMode] = useState(true),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
