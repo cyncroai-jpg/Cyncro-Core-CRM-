@@ -331,6 +331,9 @@ function FrontExperience({
       ],
       proof: "96%",
       proofLabel: "confirmation rate",
+      image: "/module-images/cyncro-calendar.webp",
+      imageAlt:
+        "Universal calendar command center with month, week, and capacity views",
       route: "book" as Tab,
       action: "Experience the calendar",
     },
@@ -347,6 +350,9 @@ function FrontExperience({
       ],
       proof: "360°",
       proofLabel: "customer context",
+      image: "/module-images/cyncro-crm.webp",
+      imageAlt:
+        "Customer intelligence command center with pipeline and relationship signals",
       route: "crm" as Tab,
       action: "Open Cyncro CRM",
     },
@@ -362,6 +368,9 @@ function FrontExperience({
       ],
       proof: "12",
       proofLabel: "agents aligned",
+      image: "/module-images/cyncro-prime.webp",
+      imageAlt:
+        "Cyncro Prime orchestration core connected to twelve specialist agents",
       route: "prime" as Tab,
       action: "Meet Cyncro Prime",
     },
@@ -377,6 +386,9 @@ function FrontExperience({
       ],
       proof: "LIVE",
       proofLabel: "field visibility",
+      image: "/module-images/cyncro-dispatch.webp",
+      imageAlt:
+        "Field service routing map with technicians, jobs, and live operations",
       route: "dispatch" as Tab,
       action: "Enter Dispatch",
     },
@@ -392,6 +404,9 @@ function FrontExperience({
       ],
       proof: "$2.8M",
       proofLabel: "tracked deal value",
+      image: "/module-images/cyncro-finance.webp",
+      imageAlt:
+        "Automotive finance desk with deal analytics, inventory, and lender signals",
       route: "finance" as Tab,
       action: "Explore Finance",
     },
@@ -407,6 +422,9 @@ function FrontExperience({
       ],
       proof: "100%",
       proofLabel: "case visibility",
+      image: "/module-images/cyncro-dispute.webp",
+      imageAlt:
+        "Secure dispute operations workspace with document and case workflows",
       route: "dispute" as Tab,
       action: "Open Dispute",
     },
@@ -423,6 +441,9 @@ function FrontExperience({
       ],
       proof: "24/7",
       proofLabel: "conversation capture",
+      image: "/module-images/cyncro-social.webp",
+      imageAlt:
+        "Social conversation automation flowing from messages into customer records",
       route: "crm" as Tab,
       action: "See social automation",
     },
@@ -439,6 +460,9 @@ function FrontExperience({
       ],
       proof: "+2.7%",
       proofLabel: "tracked CLV",
+      image: "/module-images/cyncro-sports.webp",
+      imageAlt:
+        "Sports intelligence workspace with market movement and risk analysis",
       route: "sports" as Tab,
       action: "Open Sports AI",
     },
@@ -601,6 +625,17 @@ function FrontExperience({
                 <i>CONNECTED</i>
               </div>
               <h3>{module.name}</h3>
+              <figure className="moduleVisual">
+                <img
+                  src={module.image}
+                  alt={module.imageAlt}
+                  decoding="async"
+                />
+                <figcaption>
+                  <span>LIVE PRODUCT ENVIRONMENT</span>
+                  <i>◆ CYNCRO CORE</i>
+                </figcaption>
+              </figure>
               <h4>{module.headline}</h4>
               <p>{module.copy}</p>
               <div className="moduleCapabilities">
