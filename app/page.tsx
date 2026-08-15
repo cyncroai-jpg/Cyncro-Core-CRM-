@@ -322,17 +322,24 @@ function FrontExperience({
         <div className="frontGlow" />
         <div className="heroCopy">
           <div className="heroKicker">
-            <span>●</span> THE INTELLIGENT CALENDAR OPERATING SYSTEM
+            <span>●</span> THE BUSINESS OPERATING SYSTEM THAT STARTS WITH A
+            BOOKING
           </div>
-          <h1>
-            Your calendar should
-            <br />
-            <em>run the business.</em>
+          <h1
+            className="hero3DTitle"
+            aria-label="Turn every booking into business"
+          >
+            <span className="hero3DLine" data-text="Turn every booking">
+              Turn every booking
+            </span>
+            <em className="hero3DLine hero3DRed" data-text="into business.">
+              into business.
+            </em>
           </h1>
-          <p>
-            Cyncro turns every booking into a coordinated business operation—
-            routing the right people, protecting capacity, collecting revenue,
-            and moving the customer forward automatically.
+          <p className="heroSalesCopy">
+            Cyncro does more than fill your calendar. It qualifies the customer,
+            protects capacity, routes the right team, collects revenue, and
+            moves every opportunity forward—automatically.
           </p>
           <div className="heroActions">
             <button className="frontPrimary" onClick={onExperience}>
@@ -346,6 +353,23 @@ function FrontExperience({
             <span>Built for complex operations</span>
             <span>Engineered around your business</span>
             <span>One unified system</span>
+          </div>
+          <div
+            className="heroImpactRail"
+            aria-label="Cyncro performance highlights"
+          >
+            <div>
+              <b>24/7</b>
+              <span>Revenue capture</span>
+            </div>
+            <div>
+              <b>ZERO</b>
+              <span>Manual handoffs</span>
+            </div>
+            <div>
+              <b>ONE</b>
+              <span>Command center</span>
+            </div>
           </div>
         </div>
         <div className="heroProduct" aria-label="Live Cyncro booking operation">
