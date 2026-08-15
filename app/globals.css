@@ -12525,6 +12525,590 @@ label {
   }
 }
 
+/* Cyncro Prime + Sports Intelligence */
+.intelligenceShell {
+  min-height: calc(100vh - 72px);
+  padding: 46px clamp(22px, 4vw, 70px) 70px;
+  color: #f7f4f5;
+  background:
+    radial-gradient(circle at 80% 4%, rgba(145, 20, 42, 0.24), transparent 34%),
+    linear-gradient(145deg, #09090a 0%, #0f0d0e 55%, #130c0e 100%);
+}
+.intelligenceHero,
+.sportsHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.65fr);
+  align-items: end;
+  gap: 46px;
+  max-width: 1450px;
+  margin: 0 auto 28px;
+}
+.intelligenceHero h1,
+.sportsHero h1 {
+  max-width: 870px;
+  margin: 12px 0 18px;
+  font-family: "Cinzel", serif;
+  font-size: clamp(36px, 5.4vw, 76px);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+.intelligenceHero h1 em,
+.sportsHero h1 em {
+  color: #b62e45;
+  font-style: normal;
+}
+.readable .intelligenceHero h1 em,
+.readable .sportsHero h1 em {
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  line-height: inherit;
+}
+.intelligenceHero > div:first-child > p:last-child,
+.sportsHero > div:first-child > p:not(.eyebrow) {
+  max-width: 760px;
+  color: #d8d0d2;
+  font-size: 15px !important;
+  line-height: 1.7;
+}
+.primeStatus,
+.edgeGauge,
+.riskDesk,
+.agentDetail {
+  border: 1px solid #3c292e;
+  border-radius: 18px;
+  background: linear-gradient(
+    155deg,
+    rgba(31, 24, 26, 0.96),
+    rgba(13, 12, 13, 0.98)
+  );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+.primeStatus {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  padding: 24px;
+}
+.primeStatus > small,
+.primeStatus > strong {
+  grid-column: 1 / -1;
+}
+.primeStatus > strong {
+  font-size: 20px;
+}
+.primeStatus > div {
+  display: grid;
+  gap: 4px;
+}
+.primeStatus > div b {
+  font-size: 19px;
+}
+.primeStatus > div span {
+  color: #aca2a5;
+  font-size: 11px;
+}
+.liveOrb {
+  color: #5ee097;
+}
+.commandDeck {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  max-width: 1450px;
+  margin: 0 auto;
+  padding: 18px;
+  border: 1px solid #562d35;
+  border-radius: 16px;
+  background: #171315;
+}
+.commandDeck > div {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+.commandDeck span,
+.sectionTitle small,
+.agentDetail > small,
+.riskDesk > small,
+.modelDrivers > small {
+  color: #c76072;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+.commandDeck input {
+  width: 100%;
+  border: 0 !important;
+  padding: 2px !important;
+  color: #fff;
+  background: transparent !important;
+  font-size: 15px !important;
+  outline: none;
+}
+.commandDeck button,
+.agentDetail > button,
+.sportsActions button:first-child,
+.riskDesk > button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid #a43044;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #7e182b, #b52d45);
+  font-weight: 700;
+}
+.primeMessage {
+  display: flex;
+  gap: 10px;
+  max-width: 1450px;
+  margin: 12px auto 22px;
+  padding: 11px 15px;
+  color: #d9d0d2;
+  border-left: 2px solid #a92a40;
+  background: #160f11;
+  font-size: 12px;
+}
+.primeMessage i {
+  color: #d0445b;
+}
+.primeMessage.running i {
+  animation: primePulse 0.7s infinite alternate;
+}
+@keyframes primePulse {
+  to {
+    opacity: 0.25;
+    transform: scale(0.75);
+  }
+}
+.primeWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.65fr);
+  gap: 20px;
+  max-width: 1450px;
+  margin: 0 auto;
+}
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.agentGrid > button {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid #2e2729;
+  border-radius: 12px;
+  color: #f8f5f6;
+  background: #121011;
+  text-align: left;
+  transition: 0.2s ease;
+}
+.agentGrid > button:hover,
+.agentGrid > button.active {
+  transform: translateY(-2px);
+  border-color: #923047;
+  background: #211317;
+}
+.agentGrid > button > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 9px;
+  color: #f08798;
+  background: #32161d;
+  font-weight: 800;
+}
+.agentGrid > button div {
+  display: grid;
+  gap: 3px;
+}
+.agentGrid > button small {
+  color: #b9afb2;
+}
+.agentGrid > button em {
+  color: #db7182;
+  font-size: 10px;
+  font-style: normal;
+}
+.agentDetail {
+  padding: 26px;
+}
+.agentMonogram {
+  margin: 30px 0 14px;
+  color: #b52d45;
+  font-family: "Cinzel", serif;
+  font-size: 42px;
+}
+.agentDetail h2 {
+  font-size: 24px;
+}
+.agentDetail p {
+  min-height: 68px;
+  color: #c7bdc0;
+  line-height: 1.65;
+}
+.agentFacts {
+  display: grid;
+  margin: 20px 0;
+  border-top: 1px solid #34282b;
+}
+.agentFacts span {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #34282b;
+  color: #aaa0a3;
+  font-size: 11px;
+}
+.agentFacts b {
+  color: #fff;
+}
+.primeFlow,
+.sportsStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 1450px;
+  margin: 22px auto 0;
+}
+.primeFlow article,
+.sportsStats article {
+  padding: 22px;
+  border: 1px solid #2f282a;
+  border-radius: 13px;
+  background: rgba(19, 16, 17, 0.9);
+}
+.primeFlow small,
+.sportsStats small {
+  color: #c64b60;
+}
+.primeFlow b {
+  display: block;
+  margin: 10px 0;
+  font-size: 16px;
+}
+.primeFlow p {
+  color: #aaa0a3;
+  line-height: 1.6;
+}
+.sportsActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 26px;
+}
+.sportsActions button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid #45353a;
+  border-radius: 9px;
+  color: #fff;
+  background: #181416;
+  font-weight: 700;
+}
+.edgeGauge {
+  padding: 25px;
+}
+.edgeGauge strong {
+  display: block;
+  margin: 10px 0 0;
+  color: #e35870;
+  font-family: "Cinzel", serif;
+  font-size: 58px;
+}
+.edgeGauge > span {
+  color: #fff;
+}
+.edgeGauge > div {
+  height: 7px;
+  margin: 22px 0 8px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #30272a;
+}
+.edgeGauge i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c1728, #ec6077);
+}
+.edgeGauge b {
+  font-size: 11px;
+}
+.sportsTicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  max-width: 1450px;
+  margin: 0 auto 22px;
+  padding: 12px 15px;
+  border-block: 1px solid #30262a;
+  color: #b9afb2;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.sportsTicker span {
+  color: #61d99a;
+}
+.sportsLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.55fr);
+  gap: 18px;
+  max-width: 1450px;
+  margin: 0 auto;
+}
+.matchupBoard {
+  border: 1px solid #30272a;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #121011;
+}
+.sectionTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  padding: 20px;
+}
+.sectionTitle h2 {
+  margin: 7px 0 0;
+}
+.sectionTitle > span {
+  color: #92878a;
+  font-size: 10px;
+}
+.matchupBoard > button {
+  display: grid;
+  grid-template-columns: 50px 1.4fr 0.8fr 60px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 0;
+  border-top: 1px solid #2c2427;
+  color: #f5f2f3;
+  background: transparent;
+  text-align: left;
+}
+.matchupBoard > button:hover,
+.matchupBoard > button.active {
+  background: #211318;
+}
+.matchupBoard > button div {
+  display: grid;
+  gap: 5px;
+}
+.matchupBoard > button small {
+  color: #aaa0a3;
+}
+.matchupBoard > button em {
+  color: #e35e75;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 800;
+}
+.leagueTag {
+  display: grid;
+  height: 31px;
+  place-items: center;
+  border-radius: 7px;
+  color: #e06a7e;
+  background: #32171e;
+  font-size: 9px;
+  font-weight: 800;
+}
+.modelDrivers {
+  margin: 14px;
+  padding: 17px;
+  border-radius: 12px;
+  background: #191516;
+}
+.modelDrivers > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #30272a;
+  color: #b9afb2;
+}
+.modelDrivers b {
+  color: #fff;
+}
+.riskDesk {
+  padding: 22px;
+}
+.riskDesk h2 {
+  margin: 8px 0 22px;
+}
+.riskDesk label {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  color: #b8adb0;
+  font-size: 11px;
+}
+.riskDesk input,
+.riskDesk select {
+  min-height: 43px;
+  padding: 0 12px;
+  border: 1px solid #443238;
+  border-radius: 8px;
+  color: #fff;
+  background: #0e0c0d;
+}
+.unitCard {
+  display: grid;
+  gap: 3px;
+  margin: 19px 0;
+  padding: 17px;
+  border: 1px solid #59313a;
+  border-radius: 11px;
+  background: #26151a;
+}
+.unitCard strong {
+  color: #e86278;
+  font-size: 28px;
+}
+.unitCard small {
+  color: #b8adb0;
+}
+.exposureList {
+  display: grid;
+  margin-bottom: 18px;
+}
+.exposureList span {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid #33282b;
+  color: #aba1a4;
+  font-size: 11px;
+}
+.exposureList b {
+  color: #fff;
+}
+.sportsStats {
+  grid-template-columns: repeat(4, 1fr);
+}
+.sportsStats article {
+  display: grid;
+  gap: 6px;
+}
+.sportsStats b {
+  font-family: "Cinzel", serif;
+  font-size: 25px;
+}
+.sportsStats span {
+  color: #aaa0a3;
+  font-size: 11px;
+}
+.sportsNotice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  max-width: 1450px;
+  margin: 16px auto 0;
+  padding: 16px;
+  border: 1px solid #38292d;
+  border-radius: 12px;
+  background: #120f10;
+}
+.sportsNotice span {
+  grid-row: 1/3;
+  color: #d94d65;
+}
+.sportsNotice p {
+  color: #a99fa2;
+}
+.themeLight :is(.intelligenceShell) {
+  color: #1d1719 !important;
+  background: #f3efea !important;
+}
+.themeLight
+  :is(
+    .primeStatus,
+    .edgeGauge,
+    .riskDesk,
+    .agentDetail,
+    .commandDeck,
+    .matchupBoard,
+    .primeFlow article,
+    .sportsStats article,
+    .sportsNotice
+  ) {
+  color: #1d1719;
+  border-color: #d9ceca;
+  background: #fff;
+}
+.themeLight :is(.agentGrid > button, .modelDrivers) {
+  color: #1d1719;
+  border-color: #ddd2ce;
+  background: #faf7f5;
+}
+.themeLight :is(.agentGrid > button.active, .matchupBoard > button.active) {
+  background: #f5e6e9;
+}
+.themeLight :is(.commandDeck input, .riskDesk input, .riskDesk select) {
+  color: #1d1719 !important;
+  background: #fff !important;
+}
+@media (max-width: 1050px) {
+  .intelligenceHero,
+  .sportsHero,
+  .primeWorkspace,
+  .sportsLayout {
+    grid-template-columns: 1fr;
+  }
+  .agentGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .primeStatus {
+    max-width: 620px;
+  }
+  .sportsStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .intelligenceShell {
+    padding-inline: 14px;
+  }
+  .agentGrid,
+  .primeFlow,
+  .sportsStats {
+    grid-template-columns: 1fr;
+  }
+  .commandDeck,
+  .sportsActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .matchupBoard > button {
+    grid-template-columns: 44px 1fr auto;
+  }
+  .matchupBoard > button div:nth-of-type(2) {
+    display: none;
+  }
+  .intelligenceHero h1,
+  .sportsHero h1 {
+    font-size: 38px;
+  }
+  .primeStatus {
+    grid-template-columns: 1fr;
+  }
+  .primeStatus > div {
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+  }
+  .sectionTitle {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 /* Finance manager performance, inventory and digital deal jackets */
 .performanceActions,
 .documentActions {

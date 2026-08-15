@@ -17,7 +17,9 @@ type Tab =
   | "crm"
   | "dispatch"
   | "dispute"
-  | "finance";
+  | "finance"
+  | "prime"
+  | "sports";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [lightMode, setLightMode] = useState(false),
@@ -43,6 +45,8 @@ export default function Home() {
             ["dispatch", "Dispatch"],
             ["dispute", "Dispute"],
             ["finance", "Finance"],
+            ["prime", "Prime AI"],
+            ["sports", "Sports AI"],
             ["admin", "Operations"],
           ].map((x) => (
             <button
@@ -80,6 +84,10 @@ export default function Home() {
         <CyncroDispute />
       ) : tab === "finance" ? (
         <CyncroFinance />
+      ) : tab === "prime" ? (
+        <CyncroPrime />
+      ) : tab === "sports" ? (
+        <CyncroSports />
       ) : tab === "admin" ? (
         <Admin onCreate={() => setTab("studio")} />
       ) : (
@@ -10188,6 +10196,459 @@ function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
         </div>
       </section>
     </div>
+  );
+}
+
+const primeAgents = [
+  [
+    "EON",
+    "Executive intelligence",
+    "Turns company-wide signals into a clear daily decision brief.",
+    "6 priorities",
+  ],
+  [
+    "NOVA",
+    "Sales acquisition",
+    "Qualifies demand, drafts follow-up, and advances the next best action.",
+    "18 leads",
+  ],
+  [
+    "ATLAS",
+    "Operations",
+    "Finds delivery risk, assigns owners, and protects service levels.",
+    "4 workflows",
+  ],
+  [
+    "VYRA",
+    "Marketing intelligence",
+    "Connects campaign spend to pipeline, revenue, and creative insight.",
+    "9 campaigns",
+  ],
+  [
+    "ONYX",
+    "Analytics",
+    "Explains performance shifts and surfaces anomalies before they become losses.",
+    "12 insights",
+  ],
+  [
+    "KRONOS",
+    "Scheduling",
+    "Optimizes capacity, routing, waitlists, and conflict-free calendars.",
+    "31 bookings",
+  ],
+  [
+    "SAGE",
+    "Knowledge engine",
+    "Answers from approved company policy, playbooks, and customer history.",
+    "842 sources",
+  ],
+  [
+    "VEGA",
+    "Customer success",
+    "Detects churn risk and launches personal retention moments.",
+    "7 accounts",
+  ],
+  [
+    "APEX",
+    "Lead intelligence",
+    "Scores intent, urgency, fit, and predicted lifetime value.",
+    "94 scored",
+  ],
+  [
+    "ORBIT",
+    "Workflow control",
+    "Orchestrates cross-module automations with approvals and audit trails.",
+    "22 runs",
+  ],
+  [
+    "TITAN",
+    "Revenue operations",
+    "Forecasts revenue and reveals conversion, margin, and leakage.",
+    "$418K forecast",
+  ],
+  [
+    "LUX",
+    "Brand + creative",
+    "Creates on-brand campaigns, offers, and premium customer messaging.",
+    "5 concepts",
+  ],
+];
+
+function CyncroPrime() {
+  const [active, setActive] = useState(0);
+  const [command, setCommand] = useState(
+    "Find this week's revenue leaks and launch the safest recovery plan.",
+  );
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("System ready · 12 agents connected");
+  const runPrime = () => {
+    setRunning(true);
+    setMessage(
+      "Cyncro Prime is assigning the mission across EON, ONYX, TITAN, and ORBIT…",
+    );
+    window.setTimeout(() => {
+      setRunning(false);
+      setMessage(
+        "Mission prepared · 4 actions ready for approval · projected recovery $28,400",
+      );
+    }, 900);
+  };
+  return (
+    <section className="intelligenceShell">
+      <div className="intelligenceHero">
+        <div>
+          <p className="eyebrow">CYNCRO PRIME · AI OPERATING SYSTEM</p>
+          <h1>
+            One command.
+            <br />
+            <em>Your entire company moves.</em>
+          </h1>
+          <p>
+            Prime coordinates specialist agents across revenue, customers,
+            operations, scheduling, marketing, and execution—while keeping every
+            consequential action under human approval.
+          </p>
+        </div>
+        <div className="primeStatus">
+          <span className="liveOrb">●</span>
+          <small>ORCHESTRATOR STATUS</small>
+          <strong>All systems aligned</strong>
+          <div>
+            <b>12</b>
+            <span>Agents online</span>
+          </div>
+          <div>
+            <b>98.7%</b>
+            <span>Automation health</span>
+          </div>
+          <div>
+            <b>2.4s</b>
+            <span>Decision latency</span>
+          </div>
+        </div>
+      </div>
+      <div className="commandDeck">
+        <div>
+          <span>ASK CYNCRO PRIME</span>
+          <input
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            aria-label="Command for Cyncro Prime"
+          />
+        </div>
+        <button onClick={runPrime} disabled={running || !command.trim()}>
+          {running ? "Coordinating…" : "Run mission →"}
+        </button>
+      </div>
+      <div className={`primeMessage ${running ? "running" : ""}`}>
+        <i>✦</i>
+        {message}
+      </div>
+      <div className="primeWorkspace">
+        <div className="agentGrid">
+          {primeAgents.map((agent, index) => (
+            <button
+              className={active === index ? "active" : ""}
+              onClick={() => setActive(index)}
+              key={agent[0]}
+            >
+              <span>{agent[0].slice(0, 1)}</span>
+              <div>
+                <b>{agent[0]}</b>
+                <small>{agent[1]}</small>
+              </div>
+              <em>{agent[3]}</em>
+            </button>
+          ))}
+        </div>
+        <aside className="agentDetail">
+          <small>SPECIALIST AGENT</small>
+          <div className="agentMonogram">{primeAgents[active][0]}</div>
+          <h2>{primeAgents[active][1]}</h2>
+          <p>{primeAgents[active][2]}</p>
+          <div className="agentFacts">
+            <span>
+              Permission mode <b>Approval required</b>
+            </span>
+            <span>
+              Current workload <b>{primeAgents[active][3]}</b>
+            </span>
+            <span>
+              Connected context <b>Live + governed</b>
+            </span>
+          </div>
+          <button
+            onClick={() =>
+              setMessage(
+                `${primeAgents[active][0]} opened · context and current assignments loaded`,
+              )
+            }
+          >
+            Open agent workspace →
+          </button>
+        </aside>
+      </div>
+      <div className="primeFlow">
+        <article>
+          <small>01 · UNDERSTAND</small>
+          <b>Reads the whole business</b>
+          <p>
+            Unified context from CRM, calendars, conversations, operations,
+            finance, and campaigns.
+          </p>
+        </article>
+        <article>
+          <small>02 · DECIDE</small>
+          <b>Builds a coordinated plan</b>
+          <p>
+            Routes each task to the right specialist and forecasts impact before
+            execution.
+          </p>
+        </article>
+        <article>
+          <small>03 · CONTROL</small>
+          <b>You approve the moments that matter</b>
+          <p>
+            Guardrails, permissions, logs, rollback, and accountable human
+            review are built in.
+          </p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+const matchups = [
+  {
+    game: "New York @ Boston",
+    league: "NBA",
+    time: "7:30 PM",
+    market: "BOS -4.5",
+    edge: 6.8,
+    confidence: 74,
+    move: "-3.5 → -4.5",
+    signal: "Model edge",
+  },
+  {
+    game: "Dallas @ Phoenix",
+    league: "NBA",
+    time: "9:00 PM",
+    market: "O 228.5",
+    edge: 4.2,
+    confidence: 67,
+    move: "226.5 → 228.5",
+    signal: "Pace signal",
+  },
+  {
+    game: "Miami @ Buffalo",
+    league: "NFL",
+    time: "8:20 PM",
+    market: "BUF -2.5",
+    edge: 2.1,
+    confidence: 58,
+    move: "-2 → -2.5",
+    signal: "Watchlist",
+  },
+];
+
+function CyncroSports() {
+  const [active, setActive] = useState(0);
+  const [bankroll, setBankroll] = useState(5000);
+  const [risk, setRisk] = useState("Balanced");
+  const [run, setRun] = useState(0);
+  const [notice, setNotice] = useState(
+    "Models refreshed · 18 market inputs checked",
+  );
+  const game = matchups[active];
+  const unitPct =
+    risk === "Conservative" ? 0.005 : risk === "Aggressive" ? 0.02 : 0.01;
+  const unit = Math.round(bankroll * unitPct);
+  return (
+    <section className="intelligenceShell sportsShell">
+      <div className="sportsHero">
+        <div>
+          <p className="eyebrow">CYNCRO SPORTS · EDGE INTELLIGENCE</p>
+          <h1>
+            Sharper analysis.
+            <br />
+            <em>Disciplined decisions.</em>
+          </h1>
+          <p>
+            Compare markets, understand line movement, pressure-test model
+            signals, and protect bankroll exposure from one controlled
+            workspace.
+          </p>
+          <div className="sportsActions">
+            <button
+              onClick={() => {
+                setRun(run + 1);
+                setNotice(
+                  `Analysis #${run + 1} complete · no material injury conflicts detected`,
+                );
+              }}
+            >
+              Run fresh analysis →
+            </button>
+            <button
+              onClick={() =>
+                setNotice(
+                  "Alert saved · you’ll be notified if the edge crosses 7%",
+                )
+              }
+            >
+              Create edge alert
+            </button>
+          </div>
+        </div>
+        <div className="edgeGauge">
+          <small>TOP VERIFIED EDGE</small>
+          <strong>{game.edge}%</strong>
+          <span>{game.market}</span>
+          <div>
+            <i style={{ width: `${game.confidence}%` }} />
+          </div>
+          <b>{game.confidence}% model confidence</b>
+        </div>
+      </div>
+      <div className="sportsTicker">
+        <span>● DATA HEALTHY</span>
+        <b>Odds comparison</b>
+        <b>Line movement</b>
+        <b>Injuries</b>
+        <b>Weather</b>
+        <b>Rest + travel</b>
+        <b>Public exposure</b>
+      </div>
+      <div className="sportsLayout">
+        <div className="matchupBoard">
+          <div className="sectionTitle">
+            <div>
+              <small>MARKET BOARD</small>
+              <h2>Tonight’s monitored edges</h2>
+            </div>
+            <span>Updated 14 sec ago</span>
+          </div>
+          {matchups.map((m, index) => (
+            <button
+              className={active === index ? "active" : ""}
+              onClick={() => setActive(index)}
+              key={m.game}
+            >
+              <span className="leagueTag">{m.league}</span>
+              <div>
+                <b>{m.game}</b>
+                <small>
+                  {m.time} · {m.signal}
+                </small>
+              </div>
+              <div>
+                <strong>{m.market}</strong>
+                <small>{m.move}</small>
+              </div>
+              <em>+{m.edge}%</em>
+            </button>
+          ))}
+          <div className="modelDrivers">
+            <small>WHY THE MODEL SEES IT</small>
+            <div>
+              <span>Recent efficiency differential</span>
+              <b>+2.8</b>
+            </div>
+            <div>
+              <span>Rest and travel adjustment</span>
+              <b>+1.4</b>
+            </div>
+            <div>
+              <span>Availability / injury impact</span>
+              <b>+1.7</b>
+            </div>
+            <div>
+              <span>Market price penalty</span>
+              <b>-0.9</b>
+            </div>
+          </div>
+        </div>
+        <aside className="riskDesk">
+          <small>BANKROLL CONTROL</small>
+          <h2>Risk before picks.</h2>
+          <label>
+            Tracked bankroll
+            <input
+              type="number"
+              min="100"
+              value={bankroll}
+              onChange={(e) =>
+                setBankroll(Math.max(100, Number(e.target.value) || 100))
+              }
+            />
+          </label>
+          <label>
+            Risk profile
+            <select value={risk} onChange={(e) => setRisk(e.target.value)}>
+              <option>Conservative</option>
+              <option>Balanced</option>
+              <option>Aggressive</option>
+            </select>
+          </label>
+          <div className="unitCard">
+            <span>Recommended unit</span>
+            <strong>${unit.toLocaleString()}</strong>
+            <small>{(unitPct * 100).toFixed(1)}% of tracked bankroll</small>
+          </div>
+          <div className="exposureList">
+            <span>
+              Open exposure <b>2.0 units</b>
+            </span>
+            <span>
+              Daily loss limit <b>3.0 units</b>
+            </span>
+            <span>
+              Correlation warning <b>Clear</b>
+            </span>
+          </div>
+          <button
+            onClick={() =>
+              setNotice(
+                `${game.market} added to journal as a tracked decision · no wager placed`,
+              )
+            }
+          >
+            Add to decision journal
+          </button>
+        </aside>
+      </div>
+      <div className="sportsStats">
+        <article>
+          <small>DECISION JOURNAL</small>
+          <b>142</b>
+          <span>Tracked positions</span>
+        </article>
+        <article>
+          <small>CLV</small>
+          <b>+2.7%</b>
+          <span>Average closing-line value</span>
+        </article>
+        <article>
+          <small>MODEL ACCURACY</small>
+          <b>61.8%</b>
+          <span>Last 90 evaluated signals</span>
+        </article>
+        <article>
+          <small>MAX DRAWDOWN</small>
+          <b>-4.3u</b>
+          <span>Within configured guardrail</span>
+        </article>
+      </div>
+      <div className="sportsNotice">
+        <span>✦</span>
+        <b>{notice}</b>
+        <p>
+          Analysis tools only. No outcome is guaranteed and this demo never
+          places wagers. Use only where legal, at the required age, and within
+          firm personal limits.
+        </p>
+      </div>
+    </section>
   );
 }
 
