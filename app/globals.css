@@ -12525,6 +12525,467 @@ label {
   }
 }
 
+/* Unified platform landing page */
+.frontHero {
+  background-image: none;
+}
+.frontHero .heroCopy::before {
+  inset: -80px -20px -70px -70px;
+  background: radial-gradient(
+    circle at 38% 45%,
+    rgba(122, 17, 38, 0.15),
+    transparent 62%
+  );
+  filter: blur(24px);
+}
+.heroCopy h1 {
+  display: block;
+  max-width: 850px;
+  margin: 28px 0 26px;
+  transform: none;
+  color: #fff;
+  font-size: clamp(49px, 5.2vw, 82px);
+  font-weight: 400 !important;
+  line-height: 0.98;
+  letter-spacing: -0.064em;
+  text-shadow: none;
+}
+.readable .heroCopy h1 em,
+.heroCopy h1 em {
+  color: #c72b45;
+  font-size: inherit !important;
+  font-style: normal;
+  font-weight: 400 !important;
+  line-height: inherit;
+  text-shadow: none;
+}
+.heroKicker {
+  border-color: rgba(188, 40, 65, 0.24);
+  background: rgba(41, 16, 22, 0.35);
+  box-shadow: none;
+}
+.readable .heroCopy > .heroSalesCopy {
+  max-width: 720px;
+  padding-left: 17px;
+  border-left: 1px solid #9e2438;
+  color: #eee8ea !important;
+  font-size: clamp(14px, 1vw, 16px) !important;
+  font-weight: 500;
+  line-height: 1.75;
+  text-shadow: none;
+}
+.heroActions .frontPrimary,
+.heroActions .frontSecondary {
+  transform: none;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.heroActions .frontPrimary {
+  border-color: #c52d46;
+  background: #a91f36;
+}
+.heroActions .frontSecondary {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+}
+.heroActions .frontPrimary:hover,
+.heroActions .frontSecondary:hover {
+  transform: translateY(-2px);
+}
+.heroImpactRail {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+.heroImpactRail > div {
+  background: rgba(15, 13, 14, 0.9);
+}
+.heroImpactRail b {
+  color: #f3edef;
+  font-family: "Cinzel", serif;
+  font-weight: 400;
+  text-shadow: none;
+}
+.frontHero .heroProduct {
+  transform: perspective(1300px) rotateY(-3deg) rotateX(1deg);
+  box-shadow:
+    0 45px 100px rgba(0, 0, 0, 0.76),
+    0 0 65px rgba(117, 22, 43, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.11);
+  animation: none;
+}
+.frontHero .heroProduct::after {
+  display: none;
+}
+.sectionLead h2,
+.capabilityStatement h2,
+.frontFinal h2,
+.frontCapabilities .capabilityStatement h2 span {
+  text-shadow: none;
+}
+.platformUniverse {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 130px 5vw 110px;
+}
+.platformLead {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  column-gap: 80px;
+  align-items: end;
+  margin-bottom: 46px;
+}
+.platformLead label {
+  grid-column: 1 / -1;
+}
+.platformLead h2 {
+  margin-bottom: 0;
+}
+.platformLead h2 span {
+  color: #c62e47;
+}
+.platformLead > p {
+  max-width: 440px;
+  margin: 0 0 7px;
+  color: #c8bec1;
+  font-size: 13px !important;
+  line-height: 1.75;
+}
+.platformShowcase {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.65fr) minmax(0, 1.35fr);
+  min-height: 650px;
+  overflow: hidden;
+  border: 1px solid #33282b;
+  border-radius: 16px;
+  background: #0e0c0d;
+  box-shadow: 0 45px 100px rgba(0, 0, 0, 0.35);
+}
+.platformRail {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #33282b;
+  background: #0a0909;
+}
+.platformRail > button {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  padding: 13px 20px;
+  border: 0;
+  border-bottom: 1px solid #2a2325;
+  color: #c9bfc2;
+  background: transparent;
+  text-align: left;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    padding 0.2s ease;
+}
+.platformRail > button:last-child {
+  border-bottom: 0;
+}
+.platformRail > button span {
+  color: #6f6266;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.platformRail > button b {
+  font-size: 12px;
+  font-weight: 600;
+}
+.platformRail > button i {
+  color: #6f6266;
+  font-style: normal;
+}
+.platformRail > button:hover,
+.platformRail > button.active {
+  padding-left: 25px;
+  color: #fff;
+  background: linear-gradient(
+    90deg,
+    rgba(120, 22, 41, 0.35),
+    rgba(120, 22, 41, 0.04)
+  );
+}
+.platformRail > button.active {
+  box-shadow: inset 3px 0 #c42f49;
+}
+.platformRail > button.active span,
+.platformRail > button.active i {
+  color: #dc5068;
+}
+.platformCanvas {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(32px, 5vw, 72px);
+  isolation: isolate;
+  background:
+    radial-gradient(
+      circle at 86% 16%,
+      rgba(134, 25, 47, 0.26),
+      transparent 35%
+    ),
+    linear-gradient(145deg, #181315, #0e0c0d 68%);
+}
+.platformCanvas::before {
+  content: "CORE";
+  position: absolute;
+  z-index: -1;
+  right: -8px;
+  bottom: -35px;
+  color: transparent;
+  font-family: "Cinzel", serif;
+  font-size: clamp(110px, 16vw, 250px);
+  line-height: 1;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.035);
+  letter-spacing: -0.08em;
+}
+.platformCanvasTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #3c2c30;
+}
+.platformCanvasTop small {
+  color: #db5369;
+  letter-spacing: 0.15em;
+}
+.platformCanvasTop span {
+  color: #7bd7a4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.platformCanvas h3 {
+  max-width: 770px;
+  margin: 38px 0 20px;
+  font-family: "Cinzel", serif;
+  font-size: clamp(30px, 3.4vw, 52px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+.platformCanvas > p {
+  max-width: 740px;
+  color: #d4cbcd;
+  font-size: 13px !important;
+  line-height: 1.8;
+}
+.platformCapabilityList {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 30px 0;
+  border: 1px solid #382b2e;
+  background: #382b2e;
+}
+.platformCapabilityList span {
+  min-height: 80px;
+  padding: 20px;
+  color: #e4dddf;
+  background: #141112;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.platformCapabilityList span::first-letter {
+  color: #65cf95;
+}
+.platformOutcome {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  align-items: end;
+  gap: 30px;
+  margin-top: auto;
+  padding: 24px 0;
+  border-top: 1px solid #3a2b2f;
+}
+.platformOutcome > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+.platformOutcome small {
+  color: #9f8f93;
+  letter-spacing: 0.12em;
+}
+.platformOutcome strong {
+  color: #d8415a;
+  font-family: "Cinzel", serif;
+  font-size: 36px;
+  font-weight: 400;
+}
+.platformOutcome span {
+  color: #c6babe;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.platformSignalMap {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 7px;
+  height: 70px;
+}
+.platformSignalMap i {
+  width: 13%;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(#c8344d, #5c1725);
+}
+.platformSignalMap i:nth-child(1) {
+  height: 30%;
+}
+.platformSignalMap i:nth-child(2) {
+  height: 48%;
+}
+.platformSignalMap i:nth-child(3) {
+  height: 43%;
+}
+.platformSignalMap i:nth-child(4) {
+  height: 72%;
+}
+.platformSignalMap i:nth-child(5) {
+  height: 94%;
+}
+.platformCanvas > button {
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 0 19px;
+  border: 1px solid #a92a40;
+  border-radius: 6px;
+  color: #fff;
+  background: #8f1c31;
+  font-size: 11px;
+  font-weight: 700;
+}
+.platformCanvas > button span {
+  margin-left: 24px;
+  color: #fff;
+}
+.platformConnection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 15px 18px;
+  border: 1px solid #2e2729;
+  color: #bfb5b8;
+  background: #0d0b0c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.platformConnection i {
+  color: #8f2638;
+  font-style: normal;
+}
+.themeLight .platformShowcase,
+.themeLight .platformRail,
+.themeLight .platformConnection {
+  border-color: #d8ceca;
+  color: #2a2224;
+  background: #fff;
+}
+.themeLight .platformRail > button {
+  border-color: #e4dcd8;
+  color: #504548;
+}
+.themeLight .platformRail > button.active {
+  color: #1c1718;
+  background: #f7e9ec;
+}
+.themeLight .platformCanvas {
+  color: #1d1719;
+  background: linear-gradient(145deg, #fff, #f4efec);
+}
+.themeLight .platformCanvas > p,
+.themeLight .platformCapabilityList span,
+.themeLight .platformOutcome span {
+  color: #4b4144;
+}
+.themeLight .platformCapabilityList,
+.themeLight .platformCapabilityList span {
+  border-color: #ddd3cf;
+  background: #fff;
+}
+@media (max-width: 1000px) {
+  .platformLead,
+  .platformShowcase {
+    grid-template-columns: 1fr;
+  }
+  .platformLead h2 {
+    margin-bottom: 22px;
+  }
+  .platformRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(170px, 1fr));
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid #33282b;
+  }
+  .platformRail > button {
+    min-height: 78px;
+    border-right: 1px solid #2a2325;
+    border-bottom: 0;
+  }
+  .platformRail > button:hover,
+  .platformRail > button.active {
+    padding-left: 20px;
+    box-shadow: inset 0 -3px #c42f49;
+  }
+}
+@media (max-width: 650px) {
+  .platformUniverse {
+    padding: 85px 14px 70px;
+  }
+  .platformLead {
+    display: block;
+  }
+  .platformLead h2 {
+    font-size: 38px;
+  }
+  .platformRail {
+    grid-template-columns: repeat(8, 190px);
+  }
+  .platformCanvas {
+    padding: 28px 20px;
+  }
+  .platformCanvasTop {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .platformCanvas h3 {
+    font-size: 34px;
+  }
+  .platformCapabilityList {
+    grid-template-columns: 1fr;
+  }
+  .platformCapabilityList span {
+    min-height: auto;
+  }
+  .platformOutcome {
+    grid-template-columns: 1fr;
+  }
+  .platformSignalMap {
+    justify-content: flex-start;
+  }
+  .platformConnection {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .platformConnection span,
+  .platformConnection i {
+    flex: 0 0 auto;
+  }
+}
+
 /* Dimensional launch-page treatment */
 .frontHero {
   overflow: hidden;
@@ -13763,5 +14224,50 @@ label {
   }
   .salesScoreboard > button span {
     display: none;
+  }
+}
+
+/* Final homepage reset: refined depth, never dimensional text */
+.heroCopy h1 {
+  display: block;
+  transform: none;
+  text-shadow: none;
+}
+.readable .heroCopy h1 em,
+.heroCopy h1 em {
+  color: #c72b45;
+  font-size: inherit !important;
+  font-weight: 400 !important;
+  line-height: inherit;
+  text-shadow: none;
+}
+.frontHero {
+  background-image: none;
+}
+.frontHero .heroProduct {
+  transform: perspective(1300px) rotateY(-3deg) rotateX(1deg);
+  box-shadow:
+    0 45px 100px rgba(0, 0, 0, 0.76),
+    0 0 65px rgba(117, 22, 43, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.11);
+  animation: none;
+}
+.frontHero .heroProduct::after {
+  display: none;
+}
+.heroActions .frontPrimary,
+.heroActions .frontSecondary {
+  border-radius: 6px;
+  box-shadow: none;
+}
+.sectionLead h2,
+.capabilityStatement h2,
+.frontFinal h2,
+.frontCapabilities .capabilityStatement h2 span {
+  text-shadow: none;
+}
+@media (max-width: 1080px) {
+  .frontHero .heroProduct {
+    transform: none;
   }
 }

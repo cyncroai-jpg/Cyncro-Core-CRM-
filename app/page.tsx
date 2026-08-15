@@ -73,6 +73,7 @@ export default function Home() {
           onExperience={() => setTab("book")}
           onPlatform={() => setTab("studio")}
           onOperations={() => setTab("admin")}
+          onNavigate={(destination) => setTab(destination)}
         />
       ) : tab === "studio" ? (
         <Studio onPreview={() => setTab("book")} />
@@ -277,10 +278,12 @@ function FrontExperience({
   onExperience,
   onPlatform,
   onOperations,
+  onNavigate,
 }: {
   onExperience: () => void;
   onPlatform: () => void;
   onOperations: () => void;
+  onNavigate: (destination: Tab) => void;
 }) {
   const journeys = {
     "Sales & consulting": {
@@ -315,6 +318,133 @@ function FrontExperience({
   } as const;
   const [journey, setJourney] =
     useState<keyof typeof journeys>("Sales & consulting");
+  const platformModules = [
+    {
+      name: "Universal Calendar",
+      label: "SELL + SCHEDULE",
+      headline: "Turn availability into revenue—not administrative work.",
+      copy: "Create branded booking links, control capacity, collect payments, route hosts and resources, manage waitlists, and protect every calendar from conflicts.",
+      capabilities: [
+        "Month + week command views",
+        "Capacity, deposits + waitlists",
+        "Smart routing + conflict protection",
+      ],
+      proof: "96%",
+      proofLabel: "confirmation rate",
+      route: "book" as Tab,
+      action: "Experience the calendar",
+    },
+    {
+      name: "Cyncro CRM",
+      label: "KNOW + CONVERT",
+      headline:
+        "One living customer record from first signal to lifetime value.",
+      copy: "Unify contacts, pipelines, conversations, lead scoring, attribution, journeys, tasks, and revenue intelligence without stitching together five disconnected tools.",
+      capabilities: [
+        "Contact + opportunity graph",
+        "Pipeline and lifecycle automation",
+        "Instagram, Facebook, SMS + email",
+      ],
+      proof: "360°",
+      proofLabel: "customer context",
+      route: "crm" as Tab,
+      action: "Open Cyncro CRM",
+    },
+    {
+      name: "Cyncro Prime AI",
+      label: "COMMAND + ORCHESTRATE",
+      headline: "Give one instruction. Move the entire company.",
+      copy: "A coordinated operating layer of 12 specialist agents for sales, marketing, analytics, scheduling, operations, customer success, revenue, and brand execution.",
+      capabilities: [
+        "12 governed specialist agents",
+        "Cross-module decision briefs",
+        "Human approvals + audit trails",
+      ],
+      proof: "12",
+      proofLabel: "agents aligned",
+      route: "prime" as Tab,
+      action: "Meet Cyncro Prime",
+    },
+    {
+      name: "Cyncro Dispatch",
+      label: "ROUTE + DELIVER",
+      headline: "Run every field operation from booking to paid invoice.",
+      copy: "Assign jobs, optimize routes, track technicians, manage work orders, capture photos and signatures, clock labor, collect payments, and understand profitability.",
+      capabilities: [
+        "Live GPS + route optimization",
+        "Tech mobile workflow + offline sync",
+        "Work orders, inventory + QuickBooks",
+      ],
+      proof: "LIVE",
+      proofLabel: "field visibility",
+      route: "dispatch" as Tab,
+      action: "Enter Dispatch",
+    },
+    {
+      name: "Cyncro Finance",
+      label: "STRUCTURE + FUND",
+      headline: "Give every automotive deal a faster, cleaner path to funding.",
+      copy: "Track finance and sales performance, lender points, inventory, taxes, leases, deal jackets, stipulations, scanned documents, and profitability in one workspace.",
+      capabilities: [
+        "Lender + manager performance",
+        "50-state tax and lease lab",
+        "Digital deal jackets + scanning",
+      ],
+      proof: "$2.8M",
+      proofLabel: "tracked deal value",
+      route: "finance" as Tab,
+      action: "Explore Finance",
+    },
+    {
+      name: "Cyncro Dispute",
+      label: "MANAGE + DOCUMENT",
+      headline: "Operate a modern dispute business with control built in.",
+      copy: "Manage clients, reports, disputes, templates, mail, billing, tasks, teams, and compliance workflows from a premium end-to-end command center.",
+      capabilities: [
+        "Case and bureau workflows",
+        "Template + mail operations",
+        "Compliance review + client portal",
+      ],
+      proof: "100%",
+      proofLabel: "case visibility",
+      route: "dispute" as Tab,
+      action: "Open Dispute",
+    },
+    {
+      name: "Social Automation",
+      label: "LISTEN + RESPOND",
+      headline:
+        "Turn every comment, keyword, and DM into a managed opportunity.",
+      copy: "Connect Instagram and Facebook, trigger intelligent keyword flows, qualify conversations, route leads, book appointments, and write every interaction back to CRM.",
+      capabilities: [
+        "Keyword + comment triggers",
+        "AI qualification and handoff",
+        "Unified social inbox + attribution",
+      ],
+      proof: "24/7",
+      proofLabel: "conversation capture",
+      route: "crm" as Tab,
+      action: "See social automation",
+    },
+    {
+      name: "Cyncro Sports AI",
+      label: "ANALYZE + CONTROL",
+      headline:
+        "Make sharper sports decisions with disciplined exposure controls.",
+      copy: "Compare markets, study line movement, evaluate injuries and travel, test model signals, size units, set alerts, and measure every decision in a responsible journal.",
+      capabilities: [
+        "Market + line intelligence",
+        "Bankroll guardrails + unit sizing",
+        "Decision journal, ROI + CLV",
+      ],
+      proof: "+2.7%",
+      proofLabel: "tracked CLV",
+      route: "sports" as Tab,
+      action: "Open Sports AI",
+    },
+  ];
+  const [platformModule, setPlatformModule] = useState(0);
+  const selectedModule = platformModules[platformModule];
   const active = journeys[journey];
   return (
     <div className="frontExperience">
@@ -322,24 +452,20 @@ function FrontExperience({
         <div className="frontGlow" />
         <div className="heroCopy">
           <div className="heroKicker">
-            <span>●</span> THE BUSINESS OPERATING SYSTEM THAT STARTS WITH A
-            BOOKING
+            <span>●</span> ONE INTELLIGENT CORE FOR THE ENTIRE CUSTOMER
+            LIFECYCLE
           </div>
-          <h1
-            className="hero3DTitle"
-            aria-label="Turn every booking into business"
-          >
-            <span className="hero3DLine" data-text="Turn every booking">
-              Turn every booking
-            </span>
-            <em className="hero3DLine hero3DRed" data-text="into business.">
-              into business.
-            </em>
+          <h1>
+            Every customer.
+            <br />
+            <em>Every workflow.</em>
+            <br />
+            One intelligent core.
           </h1>
           <p className="heroSalesCopy">
-            Cyncro does more than fill your calendar. It qualifies the customer,
-            protects capacity, routes the right team, collects revenue, and
-            moves every opportunity forward—automatically.
+            Cyncro unifies scheduling, CRM, AI agents, field service, automotive
+            finance, dispute operations, social conversations, and business
+            intelligence—so nothing gets lost between the lead and the outcome.
           </p>
           <div className="heroActions">
             <button className="frontPrimary" onClick={onExperience}>
@@ -356,19 +482,19 @@ function FrontExperience({
           </div>
           <div
             className="heroImpactRail"
-            aria-label="Cyncro performance highlights"
+            aria-label="Cyncro platform highlights"
           >
             <div>
-              <b>24/7</b>
-              <span>Revenue capture</span>
+              <b>8</b>
+              <span>Connected systems</span>
             </div>
             <div>
-              <b>ZERO</b>
-              <span>Manual handoffs</span>
+              <b>12</b>
+              <span>Specialist AI agents</span>
             </div>
             <div>
               <b>ONE</b>
-              <span>Command center</span>
+              <span>Customer truth</span>
             </div>
           </div>
         </div>
@@ -450,6 +576,85 @@ function FrontExperience({
             <p>{item[2]}</p>
           </article>
         ))}
+      </section>
+
+      <section className="platformUniverse">
+        <div className="sectionLead platformLead">
+          <label>THE FULL CYNCRO PLATFORM</label>
+          <h2>
+            Stop buying disconnected software.
+            <br />
+            <span>Run the operation as one.</span>
+          </h2>
+          <p>
+            Every module is powerful alone. Together, they share the same
+            customer, the same history, and the same intelligence.
+          </p>
+        </div>
+        <div className="platformShowcase">
+          <div
+            className="platformRail"
+            role="tablist"
+            aria-label="Cyncro modules"
+          >
+            {platformModules.map((module, index) => (
+              <button
+                role="tab"
+                aria-selected={platformModule === index}
+                className={platformModule === index ? "active" : ""}
+                onClick={() => setPlatformModule(index)}
+                key={module.name}
+              >
+                <span>0{index + 1}</span>
+                <b>{module.name}</b>
+                <i>→</i>
+              </button>
+            ))}
+          </div>
+          <article className="platformCanvas" role="tabpanel">
+            <div className="platformCanvasTop">
+              <small>{selectedModule.label}</small>
+              <span>CONNECTED TO CYNCRO CORE</span>
+            </div>
+            <h3>{selectedModule.headline}</h3>
+            <p>{selectedModule.copy}</p>
+            <div className="platformCapabilityList">
+              {selectedModule.capabilities.map((capability) => (
+                <span key={capability}>✓ {capability}</span>
+              ))}
+            </div>
+            <div className="platformOutcome">
+              <div>
+                <small>LIVE PLATFORM SIGNAL</small>
+                <strong>{selectedModule.proof}</strong>
+                <span>{selectedModule.proofLabel}</span>
+              </div>
+              <div className="platformSignalMap" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
+            </div>
+            <button onClick={() => onNavigate(selectedModule.route)}>
+              {selectedModule.action} <span>↗</span>
+            </button>
+          </article>
+        </div>
+        <div className="platformConnection">
+          <span>LEAD CAPTURE</span>
+          <i>→</i>
+          <span>CALENDAR</span>
+          <i>→</i>
+          <span>CRM</span>
+          <i>→</i>
+          <span>OPERATIONS</span>
+          <i>→</i>
+          <span>REVENUE</span>
+          <i>→</i>
+          <span>RETENTION</span>
+        </div>
       </section>
 
       <section className="journeySection">
