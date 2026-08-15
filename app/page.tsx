@@ -443,8 +443,6 @@ function FrontExperience({
       action: "Open Sports AI",
     },
   ];
-  const [platformModule, setPlatformModule] = useState(0);
-  const selectedModule = platformModules[platformModule];
   const active = journeys[journey];
   return (
     <div className="frontExperience">
@@ -591,56 +589,37 @@ function FrontExperience({
             customer, the same history, and the same intelligence.
           </p>
         </div>
-        <div className="platformShowcase">
-          <div
-            className="platformRail"
-            role="tablist"
-            aria-label="Cyncro modules"
-          >
-            {platformModules.map((module, index) => (
-              <button
-                role="tab"
-                aria-selected={platformModule === index}
-                className={platformModule === index ? "active" : ""}
-                onClick={() => setPlatformModule(index)}
-                key={module.name}
-              >
+        <div className="platformModuleGrid">
+          {platformModules.map((module, index) => (
+            <article
+              className={`platformModuleCard moduleCard${index + 1}`}
+              key={module.name}
+            >
+              <div className="moduleCardHead">
                 <span>0{index + 1}</span>
-                <b>{module.name}</b>
-                <i>→</i>
-              </button>
-            ))}
-          </div>
-          <article className="platformCanvas" role="tabpanel">
-            <div className="platformCanvasTop">
-              <small>{selectedModule.label}</small>
-              <span>CONNECTED TO CYNCRO CORE</span>
-            </div>
-            <h3>{selectedModule.headline}</h3>
-            <p>{selectedModule.copy}</p>
-            <div className="platformCapabilityList">
-              {selectedModule.capabilities.map((capability) => (
-                <span key={capability}>✓ {capability}</span>
-              ))}
-            </div>
-            <div className="platformOutcome">
-              <div>
-                <small>LIVE PLATFORM SIGNAL</small>
-                <strong>{selectedModule.proof}</strong>
-                <span>{selectedModule.proofLabel}</span>
+                <small>{module.label}</small>
+                <i>CONNECTED</i>
               </div>
-              <div className="platformSignalMap" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
+              <h3>{module.name}</h3>
+              <h4>{module.headline}</h4>
+              <p>{module.copy}</p>
+              <div className="moduleCapabilities">
+                {module.capabilities.map((capability) => (
+                  <span key={capability}>✓ {capability}</span>
+                ))}
               </div>
-            </div>
-            <button onClick={() => onNavigate(selectedModule.route)}>
-              {selectedModule.action} <span>↗</span>
-            </button>
-          </article>
+              <div className="moduleCardFooter">
+                <div>
+                  <small>PLATFORM SIGNAL</small>
+                  <strong>{module.proof}</strong>
+                  <span>{module.proofLabel}</span>
+                </div>
+                <button onClick={() => onNavigate(module.route)}>
+                  {module.action} <span>↗</span>
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
         <div className="platformConnection">
           <span>LEAD CAPTURE</span>
