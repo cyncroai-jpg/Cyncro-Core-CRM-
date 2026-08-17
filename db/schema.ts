@@ -1,4 +1,48 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
-export {};
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+
+export const prospects = sqliteTable(
+  "prospects",
+  {
+    id: text("id").primaryKey(),
+    googlePlaceId: text("google_place_id"),
+    businessName: text("business_name").notNull(),
+    category: text("category").notNull().default("Business"),
+    address: text("address").notNull(),
+    phone: text("phone"),
+    normalizedPhone: text("normalized_phone"),
+    website: text("website"),
+    domain: text("domain"),
+    rating: integer("rating_x10"),
+    reviewCount: integer("review_count").notNull().default(0),
+    nameAddressKey: text("name_address_key").notNull(),
+    opportunityScore: integer("opportunity_score"),
+    rankLabel: text("rank_label"),
+    signalsJson: text("signals_json"),
+    reasonsJson: text("reasons_json"),
+    whyCall: text("why_call"),
+    whatFound: text("what_found"),
+    recommendedSolution: text("recommended_solution"),
+    callOpener: text("call_opener"),
+    nextAction: text("next_action"),
+    assignedRep: text("assigned_rep"),
+    notes: text("notes"),
+    status: text("status").notNull().default("NEW"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    analyzedAt: text("analyzed_at"),
+  },
+  (table) => [
+    uniqueIndex("prospects_google_place_id_unique").on(table.googlePlaceId),
+    uniqueIndex("prospects_domain_unique").on(table.domain),
+    uniqueIndex("prospects_phone_unique").on(table.normalizedPhone),
+    uniqueIndex("prospects_name_address_unique").on(table.nameAddressKey),
+    index("prospects_score_idx").on(table.opportunityScore),
+    index("prospects_status_idx").on(table.status),
+  ],
+);

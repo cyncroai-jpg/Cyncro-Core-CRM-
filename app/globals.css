@@ -6,6 +6,886 @@
   position: relative;
 }
 
+/* Cyncro Prospecting */
+.prospectingShell {
+  display: grid;
+  grid-template-columns: 238px minmax(0, 1fr);
+  min-height: calc(100vh - 74px);
+  background: #080808;
+  color: #fff;
+}
+.prospectingSidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 74px);
+  overflow-y: auto;
+  border-right: 1px solid #2b2325;
+  background: #0c0b0b;
+  padding: 18px 12px 14px;
+}
+.prospectingSidebar nav {
+  display: grid;
+  gap: 3px;
+  margin-top: 18px;
+}
+.prospectingSidebar nav > small {
+  margin: 16px 10px 7px;
+  color: #75696c;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+}
+.prospectingSidebar nav button {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #b5abad;
+  padding: 0 10px;
+  text-align: left;
+  font-size: 10px;
+}
+.prospectingSidebar nav button:hover,
+.prospectingSidebar nav button.active {
+  border-color: #3a282c;
+  background: #1c1114;
+  color: #fff;
+}
+.prospectingSidebar nav button.active {
+  box-shadow: inset 2px 0 #bb2942;
+}
+.prospectingSidebar nav i {
+  color: #c13b52;
+  font-style: normal;
+}
+.prospectingSidebar nav em {
+  color: #80c99f;
+  font-size: 8px;
+  font-style: normal;
+}
+.prospectingEngine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  border: 1px solid #5e2430;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #271217, #121011);
+  padding: 12px;
+}
+.prospectingEngine > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #a82239;
+  box-shadow: 0 0 20px #a8223970;
+}
+.prospectingEngine small,
+.prospectingEngine b {
+  display: block;
+}
+.prospectingEngine small {
+  color: #c38e98;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+.prospectingEngine b {
+  margin-top: 4px;
+  font-size: 9px;
+}
+.prospectingMain {
+  min-width: 0;
+  background:
+    radial-gradient(circle at 90% 0, #55101d20, transparent 25%), #080808;
+}
+.prospectingTopbar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  border-bottom: 1px solid #2a2224;
+  background: #0b0a0aed;
+  backdrop-filter: blur(16px);
+  padding: 0 30px;
+}
+.prospectingTopbar small,
+.prospectingTopbar b {
+  display: block;
+}
+.prospectingTopbar small {
+  color: #c22e47;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+}
+.prospectingTopbar b {
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.prospectingTopbar button {
+  border: 1px solid #3e3033;
+  border-radius: 7px;
+  background: #151213;
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 9px;
+}
+.prospectingContent {
+  max-width: 1600px;
+  margin: auto;
+  padding: 34px clamp(20px, 3vw, 46px) 80px;
+}
+.prospectingHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+}
+.prospectingHead label {
+  color: #cb304b;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+}
+.prospectingHead h1 {
+  max-width: 760px;
+  margin: 12px 0 9px;
+  font-size: clamp(32px, 4vw, 58px);
+  font-weight: 400 !important;
+  letter-spacing: -0.05em;
+}
+.prospectingHead p {
+  color: #c7babe;
+  font-size: 11px;
+}
+.prospectingStats {
+  display: flex;
+  gap: 8px;
+}
+.prospectingStats span {
+  min-width: 86px;
+  border: 1px solid #30272a;
+  border-radius: 8px;
+  background: #111011;
+  padding: 12px;
+  text-align: center;
+}
+.prospectingStats b,
+.prospectingStats small {
+  display: block;
+}
+.prospectingStats b {
+  color: #f0e9eb;
+  font-size: 19px;
+}
+.prospectingStats small {
+  margin-top: 4px;
+  color: #8d7f83;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+.prospectingSearchPanel,
+.callFirstSection,
+.searchResultsSection,
+.prospectDatabase {
+  margin-top: 24px;
+  border: 1px solid #30272a;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #111011, #0b0a0a);
+  padding: 22px;
+}
+.prospectingSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #292123;
+}
+.prospectingSectionHead small,
+.prospectingSectionHead h2 {
+  display: block;
+}
+.prospectingSectionHead small {
+  color: #c12d46;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+}
+.prospectingSectionHead h2 {
+  margin: 5px 0 0;
+  font-size: 21px;
+  font-weight: 500 !important;
+}
+.prospectingSectionHead > span {
+  color: #8c7e82;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+.prospectingSectionHead > button {
+  border: 1px solid #b62942;
+  border-radius: 7px;
+  background: #991d33;
+  color: #fff;
+  padding: 10px 15px;
+  font-size: 9px;
+}
+.prospectingSearchGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.65fr 0.8fr 0.8fr 0.8fr;
+  gap: 10px;
+  padding-top: 19px;
+}
+.prospectingSearchGrid label,
+.drawerManagement label {
+  color: #afa2a5;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+.prospectingSearchGrid label em {
+  color: #695e61;
+  font-size: 6px;
+  font-style: normal;
+}
+.prospectingSearchGrid input,
+.prospectingSearchGrid select,
+.drawerManagement input,
+.drawerManagement select,
+.drawerManagement textarea {
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid #3a3032;
+  border-radius: 7px;
+  outline: 0;
+  background: #090909;
+  color: #fff;
+  padding: 12px;
+  font:
+    10px Montserrat,
+    sans-serif;
+}
+.prospectingSearchActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.prospectingSearchActions button {
+  min-height: 43px;
+  border-radius: 7px;
+  padding: 0 18px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.findBusinesses {
+  border: 1px solid #d33a55;
+  background: linear-gradient(135deg, #bd2943, #7f1528);
+  box-shadow: 0 10px 28px #9f1e3530;
+  color: #fff;
+}
+.findBusinesses span {
+  margin-left: 14px;
+}
+.analyzeAll {
+  border: 1px solid #4f3a3f;
+  background: #171214;
+  color: #fff;
+}
+.prospectingSearchActions p {
+  margin-left: auto;
+  color: #817478;
+  font-size: 8px;
+}
+.prospectingConfig,
+.prospectingAlert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  border-radius: 7px;
+  padding: 11px 13px;
+  font-size: 9px;
+}
+.prospectingConfig {
+  border: 1px solid #765720;
+  background: #211a0d;
+  color: #efd79a;
+}
+.prospectingConfig span {
+  color: #bda973;
+}
+.prospectingConfig code {
+  color: #fff0b4;
+}
+.prospectingAlert.error {
+  border: 1px solid #6d2632;
+  background: #240f13;
+  color: #f1a1ae;
+}
+.prospectingAlert.success {
+  border: 1px solid #23543a;
+  background: #0e2117;
+  color: #91d2ab;
+}
+.callFirstGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 17px;
+}
+.callFirstGrid article {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #3b2d30;
+  border-radius: 10px;
+  background: #0a0909;
+  padding: 18px;
+}
+.callFirstGrid article.lead {
+  border-color: #9f2740;
+  background: linear-gradient(145deg, #240f14, #0b090a 65%);
+  box-shadow: 0 18px 44px #8d1c3030;
+}
+.priorityScore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.priorityScore b {
+  color: #ee4c68;
+  font-size: 30px;
+}
+.priorityScore span {
+  border: 1px solid #762a38;
+  border-radius: 20px;
+  background: #291016;
+  color: #ff9aab;
+  padding: 5px 9px;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+.callFirstGrid article > small,
+.callFirstGrid article > em {
+  display: block;
+  color: #927f84;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+}
+.callFirstGrid h3 {
+  margin: 7px 0;
+  font-size: 18px;
+  font-weight: 500 !important;
+}
+.callFirstGrid p,
+.callFirstGrid strong {
+  display: block;
+  color: #b6aaad;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.callFirstGrid strong {
+  min-height: 42px;
+  margin: 11px 0;
+  color: #e5dcde;
+  font-weight: 500;
+}
+.callFirstGrid .recommended {
+  display: block;
+  min-height: 34px;
+  margin: 6px 0 14px;
+  color: #e9dfe2;
+  font-size: 9px;
+}
+.callFirstGrid article > div:last-child {
+  display: flex;
+  gap: 7px;
+}
+.callFirstGrid button,
+.callFirstGrid a {
+  display: grid;
+  min-height: 36px;
+  flex: 1;
+  place-items: center;
+  border: 1px solid #3f3436;
+  border-radius: 6px;
+  background: #151213;
+  color: #fff;
+  font-size: 8px;
+  text-decoration: none;
+}
+.callFirstGrid a {
+  border-color: #b62a43;
+  background: #a52038;
+}
+.emptyQueue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 128px;
+  color: #d3c8ca;
+}
+.emptyQueue > span {
+  color: #d33853;
+  font-size: 26px;
+}
+.emptyQueue p {
+  margin-top: 5px;
+  color: #807478;
+  font-size: 9px;
+}
+.prospectTable {
+  margin-top: 12px;
+}
+.prospectTableHead,
+.prospectResultRow {
+  display: grid;
+  grid-template-columns: 2fr 1.05fr 0.65fr 0.75fr;
+  align-items: center;
+  gap: 14px;
+}
+.prospectTableHead {
+  color: #75696c;
+  padding: 7px 11px 10px;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+.prospectResultRow {
+  min-height: 73px;
+  border-top: 1px solid #2b2325;
+  padding: 10px 11px;
+}
+.prospectResultRow > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.prospectResultRow > div:first-child > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 7px;
+  background: #251116;
+  color: #dd4963;
+  font-size: 9px;
+}
+.prospectResultRow b,
+.prospectResultRow small,
+.prospectResultRow a {
+  display: block;
+}
+.prospectResultRow b {
+  font-size: 9px;
+}
+.prospectResultRow small,
+.prospectResultRow a {
+  margin-top: 5px;
+  color: #93868a;
+  font-size: 8px;
+}
+.prospectResultRow a {
+  color: #d7556b;
+  text-decoration: none;
+}
+.prospectResultRow button {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #8f2338;
+  border-radius: 6px;
+  background: #7f192c;
+  color: #fff;
+  font-size: 7px;
+}
+.prospectResultRow button.saved {
+  border-color: #315a43;
+  background: #122219;
+  color: #8bd0a6;
+}
+.rankedProspectList {
+  margin-top: 12px;
+}
+.rankedProspectHead,
+.rankedProspectList > button {
+  display: grid;
+  grid-template-columns: 95px 1.3fr 0.7fr 0.7fr 1.6fr;
+  align-items: center;
+  gap: 13px;
+}
+.rankedProspectHead {
+  color: #75696c;
+  padding: 7px 10px 10px;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+.rankedProspectList > button {
+  width: 100%;
+  min-height: 72px;
+  border: 0;
+  border-top: 1px solid #2b2325;
+  background: transparent;
+  color: #fff;
+  padding: 9px 10px;
+  text-align: left;
+}
+.rankedProspectList > button:hover,
+.rankedProspectList > button.active {
+  background: #171012;
+}
+.rankedProspectList > button > span {
+  color: #bbb0b2;
+  font-size: 9px;
+}
+.rankedProspectList b,
+.rankedProspectList small {
+  display: block;
+}
+.rankedProspectList small {
+  margin-top: 5px;
+  color: #817579;
+  font-size: 7px;
+}
+.rankedProspectList .rankScore {
+  color: #d9ced1;
+  font-size: 22px;
+}
+.rankedProspectList .rankScore.first {
+  color: #f04d69;
+}
+.rankedProspectList .rankScore small {
+  font-size: 6px;
+}
+.rankedProspectList i {
+  border-radius: 20px;
+  background: #251217;
+  color: #d96b7e;
+  padding: 5px 8px;
+  font-size: 7px;
+  font-style: normal;
+}
+.rankedProspectList em {
+  float: right;
+  color: #d7435d;
+  font-style: normal;
+}
+.noProspects {
+  display: grid;
+  min-height: 100px;
+  place-items: center;
+  border-top: 1px solid #2b2325;
+  color: #7f7376;
+  font-size: 9px;
+}
+.prospectDrawerBack {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: #000b;
+  backdrop-filter: blur(6px);
+}
+.prospectDrawer {
+  width: min(560px, 96vw);
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid #54313a;
+  background: #0b0a0a;
+  box-shadow: -30px 0 80px #000a;
+  padding: 24px;
+}
+.prospectDrawer > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.prospectDrawer > header small {
+  color: #d23a55;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+}
+.prospectDrawer h2 {
+  margin: 8px 0;
+  font-size: 28px;
+  font-weight: 500 !important;
+}
+.prospectDrawer > header p {
+  color: #9f9296;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.prospectDrawer > header button {
+  border: 0;
+  background: transparent;
+  color: #a99da0;
+  font-size: 24px;
+}
+.drawerScore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  border: 1px solid #552532;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #241015, #100d0e);
+  padding: 17px;
+}
+.drawerScore div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drawerScore b {
+  color: #ee4b67;
+  font-size: 35px;
+}
+.drawerScore span {
+  max-width: 110px;
+  color: #9b898e;
+  font-size: 7px;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+}
+.drawerScore strong {
+  border: 1px solid #7c2a3a;
+  border-radius: 20px;
+  color: #ff91a4;
+  padding: 7px 10px;
+  font-size: 7px;
+}
+.drawerAnalyze {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid #c6344f;
+  border-radius: 7px;
+  background: #9c1e35;
+  color: #fff;
+  padding: 12px;
+  font-size: 9px;
+}
+.drawerContact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.drawerContact a {
+  display: grid;
+  min-height: 40px;
+  place-items: center;
+  border: 1px solid #3e3335;
+  border-radius: 7px;
+  background: #151213;
+  color: #fff;
+  font-size: 8px;
+  text-decoration: none;
+}
+.drawerContact a.primary {
+  border-color: #b12a43;
+  background: #931d32;
+}
+.drawerContact a.disabled {
+  pointer-events: none;
+  color: #655b5e;
+}
+.drawerBrief {
+  display: grid;
+  gap: 8px;
+  margin-top: 15px;
+}
+.drawerBrief section,
+.scoreReasons,
+.drawerManagement {
+  border: 1px solid #2e2628;
+  border-radius: 8px;
+  background: #100e0f;
+  padding: 13px;
+}
+.drawerBrief small,
+.scoreReasons > small {
+  color: #d13a55;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+.drawerBrief p,
+.scoreReasons p {
+  margin: 7px 0 0;
+  color: #c8bec0;
+  font-size: 9px;
+  line-height: 1.65;
+}
+.signalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+}
+.signalGrid span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #30282a;
+  border-radius: 6px;
+  background: #100e0f;
+  padding: 9px;
+  color: #a99da0;
+  font-size: 8px;
+}
+.signalGrid .present i {
+  color: #75c798;
+}
+.signalGrid .missing i {
+  color: #e0556c;
+}
+.drawerManagement {
+  display: grid;
+  gap: 11px;
+  margin-top: 14px;
+}
+.drawerManagement textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.drawerManagement > button {
+  border: 1px solid #c3354f;
+  border-radius: 7px;
+  background: #9e1f36;
+  color: #fff;
+  padding: 12px;
+  font-size: 8px;
+}
+
+@media (max-width: 1050px) {
+  .prospectingSearchGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .callFirstGrid {
+    grid-template-columns: 1fr;
+  }
+  .prospectTableHead,
+  .prospectResultRow {
+    grid-template-columns: 1.6fr 1fr 0.7fr;
+  }
+  .prospectTableHead span:nth-child(2),
+  .prospectResultRow > div:nth-child(2) {
+    display: none;
+  }
+  .rankedProspectHead,
+  .rankedProspectList > button {
+    grid-template-columns: 80px 1.2fr 0.7fr 1.4fr;
+  }
+  .rankedProspectHead span:nth-child(3),
+  .rankedProspectList > button > span:nth-child(3) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .prospectingShell {
+    grid-template-columns: 1fr;
+  }
+  .prospectingSidebar {
+    position: relative;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #2b2325;
+  }
+  .prospectingSidebar nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .prospectingSidebar nav > small,
+  .prospectingEngine,
+  .prospectingSidebar .crmUser {
+    display: none;
+  }
+  .prospectingSidebar nav button {
+    grid-template-columns: 20px 1fr;
+  }
+  .prospectingSidebar nav em {
+    display: none;
+  }
+  .prospectingHead {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .prospectingStats {
+    width: 100%;
+  }
+  .prospectingStats span {
+    min-width: 0;
+    flex: 1;
+  }
+  .prospectingSearchGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .prospectingSearchActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .prospectingSearchActions p {
+    margin-left: 0;
+  }
+  .prospectingConfig {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .prospectTableHead {
+    display: none;
+  }
+  .prospectResultRow {
+    grid-template-columns: 1fr auto;
+  }
+  .prospectResultRow > div:nth-child(2),
+  .prospectResultRow > div:nth-child(3) {
+    display: none;
+  }
+  .rankedProspectHead {
+    display: none;
+  }
+  .rankedProspectList > button {
+    grid-template-columns: 65px 1fr auto;
+  }
+  .rankedProspectList > button > span:nth-child(3),
+  .rankedProspectList > button > span:nth-child(5) {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .prospectingTopbar {
+    padding: 0 16px;
+  }
+  .prospectingTopbar button {
+    display: none;
+  }
+  .prospectingContent {
+    padding: 24px 12px 60px;
+  }
+  .prospectingSearchPanel,
+  .callFirstSection,
+  .searchResultsSection,
+  .prospectDatabase {
+    padding: 15px;
+  }
+  .prospectingSearchGrid {
+    grid-template-columns: 1fr;
+  }
+  .prospectingSectionHead > span {
+    display: none;
+  }
+  .drawerContact {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Readability upgrade + reversible luxury light study */
 .readable small,
 .readable label,

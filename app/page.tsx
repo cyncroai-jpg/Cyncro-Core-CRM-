@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 const times = [
   "9:00 AM",
@@ -15,6 +15,7 @@ type Tab =
   | "admin"
   | "studio"
   | "crm"
+  | "prospecting"
   | "dispatch"
   | "dispute"
   | "finance"
@@ -42,6 +43,7 @@ export default function Home() {
             ["book", "Booking experience"],
             ["studio", "Core Studio"],
             ["crm", "Cyncro CRM"],
+            ["prospecting", "Prospecting"],
             ["dispatch", "Dispatch"],
             ["dispute", "Dispute"],
             ["finance", "Finance"],
@@ -78,7 +80,12 @@ export default function Home() {
       ) : tab === "studio" ? (
         <Studio onPreview={() => setTab("book")} />
       ) : tab === "crm" ? (
-        <UniversalCRM onOpenCalendar={() => setTab("admin")} />
+        <UniversalCRM
+          onOpenCalendar={() => setTab("admin")}
+          onOpenProspecting={() => setTab("prospecting")}
+        />
+      ) : tab === "prospecting" ? (
+        <CyncroProspecting onOpenCRM={() => setTab("crm")} />
       ) : tab === "dispatch" ? (
         <CyncroDispatch />
       ) : tab === "dispute" ? (
@@ -6777,7 +6784,7 @@ function DispatchDashboard({
         <section className="todayDispatch dispatchPanel">
           <header>
             <div>
-              <small>TODAY'S DISPATCH</small>
+              <small>TODAY&apos;S DISPATCH</small>
               <h2>Live job board</h2>
             </div>
             <button onClick={() => onView("Jobs")}>All jobs →</button>
@@ -8189,6 +8196,862 @@ function DispatchSettings({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+type ProspectSignal = {
+  websiteExists: boolean;
+  booking: boolean;
+  contactForm: boolean;
+  chat: boolean;
+  sms: boolean;
+  strongCta: boolean;
+  facebook: boolean;
+  instagram: boolean;
+};
+
+type Prospect = {
+  id?: string;
+  googlePlaceId?: string | null;
+  businessName: string;
+  category: string;
+  address: string;
+  phone: string | null;
+  website: string | null;
+  domain?: string | null;
+  rating: number | null;
+  reviewCount: number;
+  opportunityScore?: number | null;
+  rankLabel?: string | null;
+  signals?: ProspectSignal | null;
+  reasons?: string[];
+  whyCall?: string | null;
+  whatFound?: string | null;
+  recommendedSolution?: string | null;
+  callOpener?: string | null;
+  nextAction?: string | null;
+  assignedRep?: string | null;
+  notes?: string | null;
+  status?: string;
+  analyzedAt?: string | null;
+};
+
+const prospectStatuses = [
+  "NEW",
+  "ASSIGNED",
+  "CONTACTED",
+  "FOLLOW UP",
+  "INTERESTED",
+  "DEMO BOOKED",
+  "PROPOSAL SENT",
+  "WON",
+  "LOST",
+];
+
+function prospectIdentity(prospect: Prospect) {
+  return (
+    prospect.googlePlaceId ||
+    prospect.domain ||
+    `${prospect.businessName}|${prospect.address}`.toLowerCase()
+  );
+}
+
+function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
+  const [form, setForm] = useState({
+    keyword: "Med spas",
+    city: "Miami",
+    state: "FL",
+    zip: "",
+    radius: "",
+    maximum: "20",
+  });
+  const [results, setResults] = useState<Prospect[]>([]);
+  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [selected, setSelected] = useState<Prospect | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [keyMissing, setKeyMissing] = useState(false);
+
+  const loadProspects = async () => {
+    try {
+      const response = await fetch("/api/prospecting/prospects");
+      const data = (await response.json()) as {
+        prospects?: Prospect[];
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(data.error || "Unable to load prospects.");
+      const loaded = data.prospects || [];
+      setProspects(loaded);
+      setSelected((current) =>
+        current?.id
+          ? loaded.find((item) => item.id === current.id) || current
+          : current,
+      );
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load prospects.",
+      );
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadProspects(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const savedByIdentity = useMemo(
+    () =>
+      new Map(
+        prospects.map((prospect) => [prospectIdentity(prospect), prospect]),
+      ),
+    [prospects],
+  );
+  const ranked = useMemo(
+    () =>
+      [...prospects].sort(
+        (a, b) => (b.opportunityScore ?? -1) - (a.opportunityScore ?? -1),
+      ),
+    [prospects],
+  );
+  const callFirst = ranked
+    .filter((item) => (item.opportunityScore || 0) >= 80)
+    .slice(0, 3);
+
+  const setField = (field: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [field]: value }));
+
+  const search = async () => {
+    setSearching(true);
+    setError("");
+    setMessage("");
+    setKeyMissing(false);
+    try {
+      const response = await fetch("/api/prospecting/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = (await response.json()) as {
+        results?: Prospect[];
+        error?: string;
+        code?: string;
+      };
+      if (!response.ok) {
+        if (data.code === "GOOGLE_KEY_REQUIRED") setKeyMissing(true);
+        throw new Error(data.error || "Search failed.");
+      }
+      setResults(data.results || []);
+      setMessage(
+        `${data.results?.length || 0} real businesses found through Google Places.`,
+      );
+    } catch (searchError) {
+      setError(
+        searchError instanceof Error ? searchError.message : "Search failed.",
+      );
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const saveProspect = async (prospect: Prospect, quiet = false) => {
+    const alreadySaved = savedByIdentity.get(prospectIdentity(prospect));
+    if (alreadySaved) return alreadySaved;
+    const response = await fetch("/api/prospecting/prospects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prospect),
+    });
+    const data = (await response.json()) as {
+      prospect?: Prospect;
+      duplicate?: boolean;
+      error?: string;
+    };
+    if (!response.ok || !data.prospect)
+      throw new Error(data.error || "Unable to save prospect.");
+    setProspects((current) => {
+      const without = current.filter((item) => item.id !== data.prospect?.id);
+      return [data.prospect as Prospect, ...without];
+    });
+    if (!quiet)
+      setMessage(
+        data.duplicate
+          ? "Duplicate prevented—existing prospect opened."
+          : `${prospect.businessName} saved.`,
+      );
+    return data.prospect;
+  };
+
+  const analyzeProspect = async (prospect: Prospect) => {
+    const saved = prospect.id ? prospect : await saveProspect(prospect, true);
+    const response = await fetch("/api/prospecting/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(saved),
+    });
+    const analysis = (await response.json()) as Record<string, unknown> & {
+      error?: string;
+    };
+    if (!response.ok)
+      throw new Error(
+        analysis.error || `Could not analyze ${prospect.businessName}.`,
+      );
+    const updateResponse = await fetch("/api/prospecting/prospects", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: saved.id, updates: analysis }),
+    });
+    const updateData = (await updateResponse.json()) as {
+      prospect?: Prospect;
+      error?: string;
+    };
+    if (!updateResponse.ok || !updateData.prospect)
+      throw new Error(updateData.error || "Unable to save analysis.");
+    return updateData.prospect;
+  };
+
+  const analyzeAll = async () => {
+    setAnalyzing(true);
+    setError("");
+    setMessage("");
+    setAnalysisProgress(0);
+    try {
+      const savedSearchResults: Prospect[] = [];
+      for (const result of results)
+        savedSearchResults.push(await saveProspect(result, true));
+      const unique = new Map<string, Prospect>();
+      [...prospects, ...savedSearchResults].forEach((item) =>
+        unique.set(item.id || prospectIdentity(item), item),
+      );
+      const targets = [...unique.values()];
+      for (let index = 0; index < targets.length; index += 4) {
+        const batch = targets.slice(index, index + 4);
+        const analyzed = await Promise.allSettled(batch.map(analyzeProspect));
+        const successful = analyzed
+          .filter(
+            (item): item is PromiseFulfilledResult<Prospect> =>
+              item.status === "fulfilled",
+          )
+          .map((item) => item.value);
+        setProspects((current) => {
+          const map = new Map(current.map((item) => [item.id, item]));
+          successful.forEach((item) => map.set(item.id, item));
+          return [...map.values()].sort(
+            (a, b) => (b.opportunityScore ?? -1) - (a.opportunityScore ?? -1),
+          );
+        });
+        setAnalysisProgress(Math.min(index + batch.length, targets.length));
+      }
+      await loadProspects();
+      setMessage(
+        `${targets.length} prospects analyzed and ranked. Highest opportunities moved to CALL FIRST.`,
+      );
+    } catch (analysisError) {
+      setError(
+        analysisError instanceof Error
+          ? analysisError.message
+          : "Analyze All failed.",
+      );
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const updateProspect = async (
+    prospect: Prospect,
+    updates: Record<string, unknown>,
+  ) => {
+    if (!prospect.id) return;
+    setError("");
+    const response = await fetch("/api/prospecting/prospects", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: prospect.id, updates }),
+    });
+    const data = (await response.json()) as {
+      prospect?: Prospect;
+      error?: string;
+    };
+    if (!response.ok || !data.prospect) {
+      setError(data.error || "Update failed.");
+      return;
+    }
+    setProspects((current) =>
+      current
+        .map((item) =>
+          item.id === data.prospect?.id ? (data.prospect as Prospect) : item,
+        )
+        .sort(
+          (a, b) => (b.opportunityScore ?? -1) - (a.opportunityScore ?? -1),
+        ),
+    );
+    setSelected(data.prospect);
+    setMessage(`${prospect.businessName} updated.`);
+  };
+
+  return (
+    <section className="prospectingShell">
+      <aside className="prospectingSidebar">
+        <div className="crmWorkspace">
+          <span>CM</span>
+          <div>
+            <b>Cyncro Media</b>
+            <small>Internal sales workspace</small>
+          </div>
+          <i>⌄</i>
+        </div>
+        <nav aria-label="Prospecting navigation">
+          <small>CYNCRO PROSPECTING</small>
+          <button className="active">
+            <i>⌕</i>
+            <span>Find Businesses</span>
+            <em>Live</em>
+          </button>
+          <button
+            onClick={() =>
+              document
+                .getElementById("call-first")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            <i>⚡</i>
+            <span>Call First</span>
+            <em>{callFirst.length}</em>
+          </button>
+          <button
+            onClick={() =>
+              document
+                .getElementById("prospect-database")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            <i>▦</i>
+            <span>Saved Prospects</span>
+            <em>{prospects.length}</em>
+          </button>
+          <small>CONNECTED SYSTEMS</small>
+          <button onClick={onOpenCRM}>
+            <i>◎</i>
+            <span>Cyncro CRM</span>
+            <em>Open</em>
+          </button>
+        </nav>
+        <div className="prospectingEngine">
+          <span>✦</span>
+          <div>
+            <small>OPPORTUNITY ENGINE</small>
+            <b>Score · Rank · Route</b>
+          </div>
+        </div>
+        <div className="crmUser">
+          <span>YL</span>
+          <div>
+            <b>Yvette Lomeli</b>
+            <small>Founder · Admin</small>
+          </div>
+          <i>•••</i>
+        </div>
+      </aside>
+
+      <main className="prospectingMain">
+        <header className="prospectingTopbar">
+          <div>
+            <small>INTERNAL SALES INTELLIGENCE</small>
+            <b>Search → Save → Score → Rank → Assign → Call</b>
+          </div>
+          <button onClick={onOpenCRM}>Open CRM →</button>
+        </header>
+        <div className="prospectingContent">
+          <div className="prospectingHead">
+            <div>
+              <label>CYNCRO PROSPECTING</label>
+              <h1>Find the businesses worth calling first.</h1>
+              <p>
+                Real business data. Observable website signals. One ranked sales
+                queue.
+              </p>
+            </div>
+            <div className="prospectingStats">
+              <span>
+                <b>{prospects.length}</b>
+                <small>SAVED</small>
+              </span>
+              <span>
+                <b>{ranked.filter((x) => x.opportunityScore != null).length}</b>
+                <small>SCORED</small>
+              </span>
+              <span>
+                <b>{callFirst.length}</b>
+                <small>HOT NOW</small>
+              </span>
+            </div>
+          </div>
+
+          <section className="prospectingSearchPanel">
+            <div className="prospectingSectionHead">
+              <div>
+                <small>REAL BUSINESS SEARCH</small>
+                <h2>Build today&apos;s call list</h2>
+              </div>
+              <span>GOOGLE PLACES</span>
+            </div>
+            <div className="prospectingSearchGrid">
+              <label>
+                Business type / keyword
+                <input
+                  value={form.keyword}
+                  onChange={(event) => setField("keyword", event.target.value)}
+                  placeholder="Med spas"
+                />
+              </label>
+              <label>
+                City
+                <input
+                  value={form.city}
+                  onChange={(event) => setField("city", event.target.value)}
+                  placeholder="Miami"
+                />
+              </label>
+              <label>
+                State
+                <input
+                  value={form.state}
+                  onChange={(event) => setField("state", event.target.value)}
+                  placeholder="FL"
+                />
+              </label>
+              <label>
+                ZIP <em>OPTIONAL</em>
+                <input
+                  value={form.zip}
+                  onChange={(event) => setField("zip", event.target.value)}
+                  placeholder="33101"
+                />
+              </label>
+              <label>
+                Radius <em>OPTIONAL</em>
+                <select
+                  value={form.radius}
+                  onChange={(event) => setField("radius", event.target.value)}
+                >
+                  <option value="">Any</option>
+                  <option value="5">5 miles</option>
+                  <option value="10">10 miles</option>
+                  <option value="25">25 miles</option>
+                  <option value="50">50 miles</option>
+                </select>
+              </label>
+              <label>
+                Maximum results
+                <select
+                  value={form.maximum}
+                  onChange={(event) => setField("maximum", event.target.value)}
+                >
+                  <option>10</option>
+                  <option>20</option>
+                  <option>40</option>
+                  <option>60</option>
+                </select>
+              </label>
+            </div>
+            <div className="prospectingSearchActions">
+              <button
+                className="findBusinesses"
+                onClick={search}
+                disabled={searching}
+              >
+                {searching ? "SEARCHING GOOGLE…" : "FIND BUSINESSES"}{" "}
+                <span>↗</span>
+              </button>
+              {results.length > 0 && (
+                <button
+                  className="analyzeAll"
+                  onClick={analyzeAll}
+                  disabled={analyzing}
+                >
+                  {analyzing
+                    ? `ANALYZING ${analysisProgress}/${Math.max(results.length, prospects.length)}…`
+                    : "✦ ANALYZE ALL"}
+                </button>
+              )}
+              <p>
+                Any legitimate business category · Real Google business data
+                only
+              </p>
+            </div>
+            {keyMissing && (
+              <div className="prospectingConfig">
+                <b>Google Places is ready for its credential.</b>
+                <span>
+                  Add <code>GOOGLE_MAPS_API_KEY</code> in the Site&apos;s
+                  production environment variables, then search again.
+                </span>
+              </div>
+            )}
+            {error && <div className="prospectingAlert error">! {error}</div>}
+            {message && (
+              <div className="prospectingAlert success">✓ {message}</div>
+            )}
+          </section>
+
+          <section className="callFirstSection" id="call-first">
+            <div className="prospectingSectionHead">
+              <div>
+                <small>PRIORITY QUEUE</small>
+                <h2>Call First</h2>
+              </div>
+              <span>AUTO-RANKED BY OPPORTUNITY</span>
+            </div>
+            {callFirst.length ? (
+              <div className="callFirstGrid">
+                {callFirst.map((prospect, index) => (
+                  <article
+                    key={prospect.id}
+                    className={index === 0 ? "lead" : ""}
+                  >
+                    <div className="priorityScore">
+                      <b>{prospect.opportunityScore}</b>
+                      <span>{prospect.rankLabel}</span>
+                    </div>
+                    <small>{prospect.category}</small>
+                    <h3>{prospect.businessName}</h3>
+                    <p>
+                      {prospect.reviewCount.toLocaleString()} Google reviews ·{" "}
+                      {prospect.rating
+                        ? `${prospect.rating.toFixed(1)}★`
+                        : "No rating"}
+                    </p>
+                    <strong>
+                      {prospect.whatFound || prospect.reasons?.[0]}
+                    </strong>
+                    <em>RECOMMENDED</em>
+                    <b className="recommended">
+                      {prospect.recommendedSolution}
+                    </b>
+                    <div>
+                      <button onClick={() => setSelected(prospect)}>
+                        Open brief
+                      </button>
+                      {prospect.phone ? (
+                        <a href={`tel:${prospect.phone}`}>CALL NOW ↗</a>
+                      ) : (
+                        <button disabled>No phone</button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="emptyQueue">
+                <span>⚡</span>
+                <div>
+                  <b>Your highest-scoring prospects will appear here.</b>
+                  <p>Search businesses, save them, then run Analyze All.</p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {results.length > 0 && (
+            <section className="searchResultsSection">
+              <div className="prospectingSectionHead">
+                <div>
+                  <small>SEARCH RESULTS</small>
+                  <h2>{results.length} real businesses</h2>
+                </div>
+                <span>SOURCE · GOOGLE PLACES</span>
+              </div>
+              <div className="prospectTable">
+                <div className="prospectTableHead">
+                  <span>BUSINESS</span>
+                  <span>CONTACT</span>
+                  <span>REPUTATION</span>
+                  <span>ACTION</span>
+                </div>
+                {results.map((result) => {
+                  const saved = savedByIdentity.get(prospectIdentity(result));
+                  return (
+                    <div
+                      className="prospectResultRow"
+                      key={prospectIdentity(result)}
+                    >
+                      <div>
+                        <span>
+                          {result.businessName.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div>
+                          <b>{result.businessName}</b>
+                          <small>
+                            {result.category} · {result.address}
+                          </small>
+                        </div>
+                      </div>
+                      <div>
+                        <b>{result.phone || "Phone unavailable"}</b>
+                        {result.website ? (
+                          <a
+                            href={result.website}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Website ↗
+                          </a>
+                        ) : (
+                          <small>No website</small>
+                        )}
+                      </div>
+                      <div>
+                        <b>
+                          {result.rating
+                            ? `${result.rating.toFixed(1)} ★`
+                            : "—"}
+                        </b>
+                        <small>
+                          {result.reviewCount.toLocaleString()} reviews
+                        </small>
+                      </div>
+                      <div>
+                        {saved ? (
+                          <button
+                            className="saved"
+                            onClick={() => setSelected(saved)}
+                          >
+                            ✓ SAVED · OPEN
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              void saveProspect(result).catch((saveError) =>
+                                setError(saveError.message),
+                              )
+                            }
+                          >
+                            SAVE PROSPECT
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section className="prospectDatabase" id="prospect-database">
+            <div className="prospectingSectionHead">
+              <div>
+                <small>SALES DATABASE</small>
+                <h2>Ranked prospects</h2>
+              </div>
+              <button
+                onClick={analyzeAll}
+                disabled={analyzing || (!results.length && !prospects.length)}
+              >
+                ✦ ANALYZE ALL
+              </button>
+            </div>
+            <div className="rankedProspectList">
+              <div className="rankedProspectHead">
+                <span>SCORE</span>
+                <span>BUSINESS</span>
+                <span>REP</span>
+                <span>STATUS</span>
+                <span>NEXT MOVE</span>
+              </div>
+              {ranked.map((prospect) => (
+                <button
+                  key={prospect.id}
+                  onClick={() => setSelected(prospect)}
+                  className={selected?.id === prospect.id ? "active" : ""}
+                >
+                  <span
+                    className={`rankScore ${prospect.opportunityScore && prospect.opportunityScore >= 90 ? "first" : ""}`}
+                  >
+                    {prospect.opportunityScore ?? "—"}
+                    <small>{prospect.rankLabel || "NOT ANALYZED"}</small>
+                  </span>
+                  <span>
+                    <b>{prospect.businessName}</b>
+                    <small>
+                      {prospect.category} ·{" "}
+                      {prospect.reviewCount.toLocaleString()} reviews
+                    </small>
+                  </span>
+                  <span>{prospect.assignedRep || "Unassigned"}</span>
+                  <span>
+                    <i>{prospect.status || "NEW"}</i>
+                  </span>
+                  <span>
+                    {prospect.nextAction || "Analyze to generate next action"}
+                    <em>→</em>
+                  </span>
+                </button>
+              ))}
+              {!ranked.length && (
+                <div className="noProspects">No prospects saved yet.</div>
+              )}
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {selected && (
+        <div className="prospectDrawerBack" onClick={() => setSelected(null)}>
+          <aside
+            className="prospectDrawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <small>PROSPECT INTELLIGENCE</small>
+                <h2>{selected.businessName}</h2>
+                <p>
+                  {selected.category} · {selected.address}
+                </p>
+              </div>
+              <button onClick={() => setSelected(null)}>×</button>
+            </header>
+            <div className="drawerScore">
+              <div>
+                <b>{selected.opportunityScore ?? "—"}</b>
+                <span>CYNCRO OPPORTUNITY SCORE</span>
+              </div>
+              <strong>{selected.rankLabel || "NOT ANALYZED"}</strong>
+            </div>
+            {!selected.opportunityScore && (
+              <button
+                className="drawerAnalyze"
+                onClick={() =>
+                  void analyzeProspect(selected)
+                    .then((item) => {
+                      setSelected(item);
+                      void loadProspects();
+                    })
+                    .catch((analysisError) => setError(analysisError.message))
+                }
+              >
+                ✦ ANALYZE PROSPECT
+              </button>
+            )}
+            <div className="drawerContact">
+              <a
+                className={selected.phone ? "primary" : "disabled"}
+                href={selected.phone ? `tel:${selected.phone}` : undefined}
+              >
+                ☎ {selected.phone || "NO PHONE"}
+              </a>
+              {selected.website && (
+                <a href={selected.website} target="_blank" rel="noreferrer">
+                  WEBSITE ↗
+                </a>
+              )}
+            </div>
+            <div className="drawerBrief">
+              {[
+                ["WHY CALL THEM", selected.whyCall],
+                ["WHAT WE FOUND", selected.whatFound],
+                ["RECOMMENDED CYNCRO SOLUTION", selected.recommendedSolution],
+                ["CALL OPENER", selected.callOpener],
+                ["NEXT ACTION", selected.nextAction],
+              ].map(([label, value]) => (
+                <section key={label}>
+                  <small>{label}</small>
+                  <p>{value || "Run analysis to generate this sales brief."}</p>
+                </section>
+              ))}
+            </div>
+            {selected.signals && (
+              <div className="signalGrid">
+                {Object.entries({
+                  "Website exists": selected.signals.websiteExists,
+                  Booking: selected.signals.booking,
+                  "Contact form": selected.signals.contactForm,
+                  Chat: selected.signals.chat,
+                  SMS: selected.signals.sms,
+                  "Strong CTA": selected.signals.strongCta,
+                  Facebook: selected.signals.facebook,
+                  Instagram: selected.signals.instagram,
+                }).map(([label, present]) => (
+                  <span key={label} className={present ? "present" : "missing"}>
+                    <i>{present ? "✓" : "×"}</i>
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+            {selected.reasons && selected.reasons.length > 0 && (
+              <div className="scoreReasons">
+                <small>WHY THIS SCORE</small>
+                {selected.reasons.map((reason) => (
+                  <p key={reason}>• {reason}</p>
+                ))}
+              </div>
+            )}
+            <div className="drawerManagement">
+              <label>
+                Assigned rep
+                <input
+                  value={selected.assignedRep || ""}
+                  onChange={(event) =>
+                    setSelected({
+                      ...selected,
+                      assignedRep: event.target.value,
+                    })
+                  }
+                  placeholder="Enter salesperson name"
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={selected.status || "NEW"}
+                  onChange={(event) => {
+                    const updated = { ...selected, status: event.target.value };
+                    setSelected(updated);
+                    void updateProspect(updated, {
+                      status: event.target.value,
+                    });
+                  }}
+                >
+                  {prospectStatuses.map((status) => (
+                    <option key={status}>{status}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Notes
+                <textarea
+                  value={selected.notes || ""}
+                  onChange={(event) =>
+                    setSelected({ ...selected, notes: event.target.value })
+                  }
+                  placeholder="Call notes, objections, follow-up context…"
+                />
+              </label>
+              <button
+                onClick={() =>
+                  void updateProspect(selected, {
+                    assignedRep: selected.assignedRep || "",
+                    notes: selected.notes || "",
+                    status:
+                      selected.assignedRep && selected.status === "NEW"
+                        ? "ASSIGNED"
+                        : selected.status,
+                  })
+                }
+              >
+                SAVE ASSIGNMENT + NOTES
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+    </section>
+  );
+}
+
 type CRMView =
   | "Overview"
   | "Pipeline"
@@ -8260,7 +9123,13 @@ const crmContacts = [
   },
 ];
 
-function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
+function UniversalCRM({
+  onOpenCalendar,
+  onOpenProspecting,
+}: {
+  onOpenCalendar: () => void;
+  onOpenProspecting: () => void;
+}) {
   const [view, setView] = useState<CRMView>("Overview"),
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
@@ -8316,6 +9185,11 @@ function UniversalCRM({ onOpenCalendar }: { onOpenCalendar: () => void }) {
             </button>
           ))}
           <small>CONNECTED SYSTEMS</small>
+          <button onClick={onOpenProspecting}>
+            <i>⌕</i>
+            <span>Prospecting</span>
+            <em className="liveDot">New</em>
+          </button>
           <button onClick={onOpenCalendar}>
             <i>□</i>
             <span>Calendar</span>
