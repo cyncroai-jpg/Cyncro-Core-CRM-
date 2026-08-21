@@ -46,3 +46,99 @@ export const prospects = sqliteTable(
     index("prospects_status_idx").on(table.status),
   ],
 );
+
+export const crmAccounts = sqliteTable("crm_accounts", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  domain: text("domain"),
+  phone: text("phone"),
+  address: text("address"),
+  category: text("category"),
+  ownerEmail: text("owner_email"),
+  source: text("source").notNull().default("MANUAL"),
+  sourceProspectId: text("source_prospect_id"),
+  status: text("status").notNull().default("ACTIVE"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const crmContacts = sqliteTable("crm_contacts", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").references(() => crmAccounts.id),
+  fullName: text("full_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  title: text("title"),
+  lifecycle: text("lifecycle").notNull().default("LEAD"),
+  assignedRep: text("assigned_rep"),
+  source: text("source").notNull().default("MANUAL"),
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const crmOpportunities = sqliteTable("crm_opportunities", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull().references(() => crmAccounts.id),
+  primaryContactId: text("primary_contact_id").references(() => crmContacts.id),
+  name: text("name").notNull(),
+  stage: text("stage").notNull().default("NEW LEAD"),
+  valueCents: integer("value_cents").notNull().default(0),
+  probability: integer("probability").notNull().default(10),
+  assignedRep: text("assigned_rep"),
+  commissionRateBps: integer("commission_rate_bps").notNull().default(0),
+  commissionStatus: text("commission_status").notNull().default("PENDING"),
+  expectedCloseDate: text("expected_close_date"),
+  source: text("source").notNull().default("MANUAL"),
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const calendarEventTypes = sqliteTable("calendar_event_types", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  durationMinutes: integer("duration_minutes").notNull(),
+  bufferBeforeMinutes: integer("buffer_before_minutes").notNull().default(0),
+  bufferAfterMinutes: integer("buffer_after_minutes").notNull().default(0),
+  capacity: integer("capacity").notNull().default(1),
+  locationModes: text("location_modes").notNull(),
+  videoPlatforms: text("video_platforms").notNull(),
+  active: integer("active").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const calendarAvailability = sqliteTable("calendar_availability", {
+  id: text("id").primaryKey(),
+  eventTypeId: text("event_type_id").references(() => calendarEventTypes.id),
+  weekday: integer("weekday").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  timezone: text("timezone").notNull(),
+  active: integer("active").notNull().default(1),
+});
+
+export const calendarBookings = sqliteTable("calendar_bookings", {
+  id: text("id").primaryKey(),
+  eventTypeId: text("event_type_id").notNull().references(() => calendarEventTypes.id),
+  accountId: text("account_id").references(() => crmAccounts.id),
+  contactId: text("contact_id").references(() => crmContacts.id),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone"),
+  startsAt: text("starts_at").notNull(),
+  endsAt: text("ends_at").notNull(),
+  timezone: text("timezone").notNull(),
+  locationMode: text("location_mode").notNull(),
+  meetingAddress: text("meeting_address"),
+  videoPlatform: text("video_platform"),
+  videoUrl: text("video_url"),
+  status: text("status").notNull().default("CONFIRMED"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

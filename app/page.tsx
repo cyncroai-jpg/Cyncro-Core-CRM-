@@ -8491,6 +8491,31 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     setMessage(`${prospect.businessName} updated.`);
   };
 
+  const convertToCRM = async (prospect: Prospect) => {
+    if (!prospect.id) return;
+    setError("");
+    const response = await fetch("/api/crm/convert-prospect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prospectId: prospect.id }),
+    });
+    const data = (await response.json()) as {
+      accountId?: string;
+      duplicate?: boolean;
+      error?: string;
+    };
+    if (!response.ok || !data.accountId) {
+      setError(data.error || "Unable to convert prospect to CRM.");
+      return;
+    }
+    await loadProspects();
+    setMessage(
+      data.duplicate
+        ? `${prospect.businessName} is already connected to CRM.`
+        : `${prospect.businessName} is now a CRM account with an opportunity.`,
+    );
+  };
+
   return (
     <section className="prospectingShell">
       <aside className="prospectingSidebar">
@@ -8990,6 +9015,12 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               </div>
             )}
             <div className="drawerManagement">
+              <button
+                className="drawerAnalyze"
+                onClick={() => void convertToCRM(selected)}
+              >
+                CONVERT TO CRM ACCOUNT + OPPORTUNITY →
+              </button>
               <label>
                 Assigned rep
                 <input
