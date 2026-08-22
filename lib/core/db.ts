@@ -203,8 +203,9 @@ export function requestUser(request: Request) {
 }
 
 export async function hasModuleAccess(request: Request, module: "crm" | "calendar" | "prospecting") {
-  // Calendar is temporarily open while the live role matrix is being finalized.
-  if (module === "calendar") return true;
+  // CRM and Calendar are temporarily open while the live role matrix is being finalized.
+  // Sensitive compensation remains protected separately by isWorkspaceOwner().
+  if (module === "calendar" || module === "crm") return true;
   const email = requestUser(request); if (email === "platform-owner") return true;
   const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
   if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }
@@ -216,7 +217,8 @@ export async function isWorkspaceOwner(request: Request) {
   if (email === "platform-owner") return true;
   const member = await coreDb().prepare("SELECT role,active,display_name FROM workspace_members WHERE email=?").bind(email).first<{ role: string; active: number; display_name: string }>();
   const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
-  return Boolean(member?.active && (member.role === "OWNER" || protectedOwners.has(String(member.display_name || "").trim().toLowerCase())));
+  const protectedOwnerEmails = new Set(["vividpyvette@gmail.com"]);
+  return Boolean(protectedOwnerEmails.has(email) || (member?.active && (member.role === "OWNER" || protectedOwners.has(String(member.display_name || "").trim().toLowerCase()))));
 }
 
 export function cleanText(value: unknown, max = 500) {

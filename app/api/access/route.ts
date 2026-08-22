@@ -6,7 +6,8 @@ async function currentMember(request: Request) {
   const count = await db.prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>();
   if (!member && Number(count?.total || 0) === 0) { await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?)`).bind(email, email === "platform-owner" ? "Platform Owner" : email.split("@")[0], now, now).run(); member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>(); }
   const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
-  if (member && protectedOwners.has(String(member.display_name || "").trim().toLowerCase()) && member.role !== "OWNER") {
+  const protectedOwnerEmails = new Set(["vividpyvette@gmail.com"]);
+  if (member && (protectedOwners.has(String(member.display_name || "").trim().toLowerCase()) || protectedOwnerEmails.has(email)) && (member.role !== "OWNER" || !member.active)) {
     await db.prepare("UPDATE workspace_members SET role='OWNER',manage_users=1,crm_access=1,calendar_access=1,prospecting_access=1,active=1,updated_at=? WHERE email=?").bind(now,email).run();
     member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
   }
