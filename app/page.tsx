@@ -29,12 +29,23 @@ export default function Home() {
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
+  const navigate = (destination: Tab) => {
+    setTab(destination);
+    window.history.pushState(null, "", destination === "home" ? window.location.pathname : `#${destination}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  useEffect(() => {
+    const validTabs: Tab[] = ["home", "book", "admin", "studio", "crm", "prospecting", "dispatch", "dispute", "finance", "prime", "sports"];
+    const syncRoute = () => { const route = window.location.hash.slice(1) as Tab; setTab(validTabs.includes(route) ? route : "home"); };
+    syncRoute(); window.addEventListener("hashchange", syncRoute); window.addEventListener("popstate", syncRoute);
+    return () => { window.removeEventListener("hashchange", syncRoute); window.removeEventListener("popstate", syncRoute); };
+  }, []);
   return (
     <main
       className={`cyncroApp readable ${lightMode ? "themeLight" : "themeDark"}`}
     >
       <header className={tab === "home" ? "frontHeader" : ""}>
-        <button className="logo logoButton" onClick={() => setTab("home")}>
+        <button className="logo logoButton" onClick={() => navigate("home")}>
           <i>Cyncro</i> Core
         </button>
         <nav>
@@ -53,7 +64,7 @@ export default function Home() {
           ].map((x) => (
             <button
               className={tab === x[0] ? "navon" : ""}
-              onClick={() => setTab(x[0] as Tab)}
+              onClick={() => navigate(x[0] as Tab)}
               key={x[0]}
             >
               {x[1]}
@@ -72,20 +83,20 @@ export default function Home() {
       </header>
       {tab === "home" ? (
         <FrontExperience
-          onExperience={() => setTab("book")}
-          onPlatform={() => setTab("studio")}
-          onOperations={() => setTab("admin")}
-          onNavigate={(destination) => setTab(destination)}
+          onExperience={() => navigate("book")}
+          onPlatform={() => navigate("studio")}
+          onOperations={() => navigate("admin")}
+          onNavigate={navigate}
         />
       ) : tab === "studio" ? (
-        <Studio onPreview={() => setTab("book")} />
+        <Studio onPreview={() => navigate("book")} />
       ) : tab === "crm" ? (
         <UniversalCRM
-          onOpenCalendar={() => setTab("admin")}
-          onOpenProspecting={() => setTab("prospecting")}
+          onOpenCalendar={() => navigate("admin")}
+          onOpenProspecting={() => navigate("prospecting")}
         />
       ) : tab === "prospecting" ? (
-        <CyncroProspecting onOpenCRM={() => setTab("crm")} />
+        <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
         <CyncroDispatch />
       ) : tab === "dispute" ? (
@@ -97,7 +108,7 @@ export default function Home() {
       ) : tab === "sports" ? (
         <CyncroSports />
       ) : tab === "admin" ? (
-        <Admin onCreate={() => setTab("studio")} />
+        <Admin onCreate={() => navigate("studio")} />
       ) : (
         <section className="wrap">
           <p className="eyebrow">CYNCRO MEDIA • PRIVATE BOOKING</p>
@@ -1744,7 +1755,6 @@ function Studio({ onPreview }: { onPreview: () => void }) {
 function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
   const [area, setArea] = useState("Control center"),
     [notice, setNotice] = useState(""),
-    [crmUserName, setCrmUserName] = useState("Yvette Lomeli"),
     [guard, setGuard] = useState(true),
     [routing, setRouting] = useState("Smart load balance"),
     [range, setRange] = useState("30 days");
@@ -9184,6 +9194,7 @@ function UniversalCRM({
     [creating, setCreating] = useState(false),
     [aiOpen, setAiOpen] = useState(false),
     [notice, setNotice] = useState(""),
+    [crmUserName, setCrmUserName] = useState("Yvette Lomeli"),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
     [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
     [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>([]),
