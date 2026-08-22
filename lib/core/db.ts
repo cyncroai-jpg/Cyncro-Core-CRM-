@@ -23,6 +23,11 @@ export async function ensureCoreSchema() {
   if (initialized) return;
   const db = coreDb();
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS workspace_members (
+      email TEXT PRIMARY KEY, display_name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'MEMBER', crm_access INTEGER NOT NULL DEFAULT 1,
+      calendar_access INTEGER NOT NULL DEFAULT 0, prospecting_access INTEGER NOT NULL DEFAULT 0, manage_users INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_accounts (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -175,6 +180,13 @@ export async function ensureCoreSchema() {
 export function requestUser(request: Request) {
   const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
   return email || "platform-owner";
+}
+
+export async function hasModuleAccess(request: Request, module: "crm" | "calendar" | "prospecting") {
+  const email = requestUser(request); if (email === "platform-owner") return true;
+  const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
+  if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }
+  return Boolean(member?.active && (member.role === "OWNER" || member.allowed));
 }
 
 export function cleanText(value: unknown, max = 500) {

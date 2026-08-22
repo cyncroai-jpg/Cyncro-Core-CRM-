@@ -23,13 +23,16 @@ type Tab =
   | "sports";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
+    [permissions, setPermissions] = useState<{ role: string; crm_access: number; calendar_access: number; prospecting_access: number } | null>(null),
     [lightMode, setLightMode] = useState(false),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
+  const canAccess = (destination: Tab) => destination === "home" || !permissions || permissions.role === "OWNER" || (destination === "crm" && Boolean(permissions.crm_access)) || (["book","admin","studio"].includes(destination) && Boolean(permissions.calendar_access)) || (destination === "prospecting" && Boolean(permissions.prospecting_access));
   const navigate = (destination: Tab) => {
+    if (!canAccess(destination)) { setTab("crm"); window.history.pushState(null, "", "#crm"); return; }
     setTab(destination);
     window.history.pushState(null, "", destination === "home" ? window.location.pathname : `#${destination}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -40,6 +43,7 @@ export default function Home() {
     syncRoute(); window.addEventListener("hashchange", syncRoute); window.addEventListener("popstate", syncRoute);
     return () => { window.removeEventListener("hashchange", syncRoute); window.removeEventListener("popstate", syncRoute); };
   }, []);
+  useEffect(() => { void fetch("/api/access").then(async (response) => { const data = await response.json() as { member?: { role: string; crm_access: number; calendar_access: number; prospecting_access: number } }; if (response.ok && data.member) setPermissions(data.member); }); }, []);
   return (
     <main
       className={`cyncroApp readable ${lightMode ? "themeLight" : "themeDark"}`}
@@ -61,7 +65,7 @@ export default function Home() {
             ["prime", "Prime AI"],
             ["sports", "Sports AI"],
             ["admin", "Operations"],
-          ].map((x) => (
+          ].filter((x) => canAccess(x[0] as Tab)).map((x) => (
             <button
               className={tab === x[0] ? "navon" : ""}
               onClick={() => navigate(x[0] as Tab)}
@@ -9166,6 +9170,7 @@ type CRMView =
   | "Automations"
   | "Data Graph"
   | "Agent Team"
+  | "Team Access"
   | "Intelligence";
 
 type CRMContactCard = {
@@ -9252,6 +9257,7 @@ function UniversalCRM({
     { name: "Automations", icon: "⌁", count: "18" },
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧", count: "5" },
+    { name: "Team Access", icon: "♙" },
     { name: "Intelligence", icon: "✦" },
   ];
   return (
@@ -9570,7 +9576,7 @@ function UniversalCRM({
                   <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
                 )}
               </div>
-              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onBook={openCRMCalendar} /> : (
+              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onDeleted={() => { setSelected(0); void loadCRMContacts(); }} onBook={openCRMCalendar} /> : (
                 <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
               )}
             </div>
@@ -9584,6 +9590,7 @@ function UniversalCRM({
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
+          {view === "Team Access" && <CRMTeamAccess onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
       </main>
@@ -9891,11 +9898,13 @@ function CRMContactDetail({
   contact,
   onFlash,
   onUpdated,
+  onDeleted,
   onBook,
 }: {
   contact: CRMContactCard;
   onFlash: (message: string) => void;
   onUpdated: () => void;
+  onDeleted: () => void;
   onBook: () => void;
 }) {
   type Activity = { id: string; activity_type: string; title: string; details?: string; due_at?: string; status: string; created_at: string };
@@ -9920,6 +9929,7 @@ function CRMContactDetail({
     await logActivity("CONTACT", "CRM contact updated", `Lifecycle: ${draft.lifecycle}`);
     setEditing(false); onUpdated(); onFlash("Contact updated");
   };
+  const deleteContact = async () => { if (!contact.id || !window.confirm(`Delete ${contact.name}? This removes the contact and its notes.`)) return; const response = await fetch(`/api/crm/contacts?id=${encodeURIComponent(contact.id)}`, { method: "DELETE" }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Contact could not be deleted"); return; } onDeleted(); onFlash("Contact deleted"); };
   return (
     <aside className="contactDetail crmPanel">
       <div className="contactHero">
@@ -9936,6 +9946,7 @@ function CRMContactDetail({
         </div>
         <span>{contact.intent} intent</span>
         <button onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit contact"}</button>
+        <button className="dangerText" onClick={() => void deleteContact()}>Delete</button>
       </div>
       {editing && <div className="crmForm">
         <label>Full name<input value={draft.fullName} onChange={(event) => setDraft({ ...draft, fullName: event.target.value })} /></label>
@@ -11298,6 +11309,16 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
+  type Member = { email: string; display_name: string; role: string; crm_access: number; calendar_access: number; prospecting_access: number; manage_users: number; active: number };
+  const [members,setMembers]=useState<Member[]>([]); const [allowed,setAllowed]=useState(false); const [form,setForm]=useState({email:"",displayName:"",role:"MEMBER",crmAccess:true,calendarAccess:false,prospectingAccess:false,manageUsers:false,active:true});
+  const load=async()=>{const response=await fetch("/api/access");const data=await response.json() as {members?:Member[];member?:Member;error?:string};if(!response.ok){onFlash(data.error||"Permissions could not be loaded");return;}setAllowed(Boolean(data.member?.manage_users));setMembers(data.members||[]);};
+  useEffect(()=>{const timer=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(timer);},[]);
+  const save=async(next= form)=>{const response=await fetch("/api/access",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)});const data=await response.json() as {error?:string};if(!response.ok){onFlash(data.error||"Access could not be saved");return;}setForm({email:"",displayName:"",role:"MEMBER",crmAccess:true,calendarAccess:false,prospectingAccess:false,manageUsers:false,active:true});await load();onFlash("Team access updated");};
+  if(!allowed)return <div className="crmPanel teamAccess"><h2>Team access</h2><p>Only the workspace owner can manage user permissions.</p></div>;
+  return <div className="teamAccess"><section className="crmPanel"><div className="crmPanelHead"><div><small>OWNER CONTROLS</small><h2>Add a team member</h2></div></div><div className="crmForm"><label>Name<input value={form.displayName} onChange={(e)=>setForm({...form,displayName:e.target.value})}/></label><label>Login email<input type="email" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})}/></label><label>Role<select value={form.role} onChange={(e)=>setForm({...form,role:e.target.value})}><option>MEMBER</option><option>MANAGER</option><option>ADMIN</option></select></label></div><div className="permissionChecks">{[["crmAccess","CRM"],["calendarAccess","Calendar"],["prospectingAccess","Prospecting"],["manageUsers","Manage users"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={(e)=>setForm({...form,[key]:e.target.checked})}/>{label}</label>)}</div><button className="crmCreate" onClick={()=>void save()}>Save team access</button></section><section className="crmPanel"><div className="crmPanelHead"><div><small>ACTIVE USERS</small><h2>Who can access what</h2></div></div>{members.map(member=><div className="memberAccessRow" key={member.email}><span><b>{member.display_name}</b><small>{member.email} · {member.role}</small></span><span>{member.crm_access?"CRM ":""}{member.calendar_access?"Calendar ":""}{member.prospecting_access?"Prospecting":""}</span><button className="dangerText" disabled={member.role==="OWNER"} onClick={()=>void save({email:member.email,displayName:member.display_name,role:member.role,crmAccess:Boolean(member.crm_access),calendarAccess:Boolean(member.calendar_access),prospectingAccess:Boolean(member.prospecting_access),manageUsers:Boolean(member.manage_users),active:false})}>Remove access</button></div>)}</section></div>;
+}
+
 function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
   return (
     <div className="intelligenceWorkspace">
@@ -11890,9 +11911,23 @@ function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void 
         <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>3</i><span><b>Set availability & publish</b><small>Control time slots, reminders, routing, and booking links.</small></span></button>
       </div>
       <div id="calendar-bookings"><Admin onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} /></div>
-      <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><Studio onPreview={() => onFlash("Booking-page preview is available from the Preview button")} /></div>
+      <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><SimpleEventManager onFlash={onFlash} /></div>
     </div>
   );
+}
+
+function SimpleEventManager({ onFlash }: { onFlash: (message: string) => void }) {
+  type EventType = { id: string; name: string; slug: string; description?: string; duration_minutes: number; buffer_before_minutes: number; buffer_after_minutes: number; capacity: number; location_modes: string; video_platforms: string };
+  const empty = { id: "", name: "", slug: "", description: "", durationMinutes: 30, bufferBeforeMinutes: 0, bufferAfterMinutes: 0, capacity: 1, locationModes: ["VIDEO"], videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"], startTime: "09:00", endTime: "17:00", timezone: "America/New_York" };
+  const [events, setEvents] = useState<EventType[]>([]); const [form, setForm] = useState(empty); const [saving, setSaving] = useState(false);
+  const load = async () => { const response = await fetch("/api/calendar/event-types"); const data = await response.json() as { eventTypes?: EventType[]; error?: string }; if (!response.ok) { onFlash(data.error || "Event types could not be loaded"); return; } setEvents(data.eventTypes || []); };
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
+  const selectEvent = (item: EventType) => setForm({ id: item.id, name: item.name, slug: item.slug, description: item.description || "", durationMinutes: item.duration_minutes, bufferBeforeMinutes: item.buffer_before_minutes, bufferAfterMinutes: item.buffer_after_minutes, capacity: item.capacity, locationModes: JSON.parse(item.location_modes || "[]"), videoPlatforms: JSON.parse(item.video_platforms || "[]"), startTime: "09:00", endTime: "17:00", timezone: "America/New_York" });
+  const toggle = (key: "locationModes" | "videoPlatforms", value: string) => setForm((current) => ({ ...current, [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value] }));
+  const save = async () => { if (!form.name.trim() || !form.slug.trim()) { onFlash("Event name and booking link are required"); return; } setSaving(true); const method = form.id ? "PATCH" : "POST"; const payload = form.id ? { id: form.id, ...form } : form; const response = await fetch("/api/calendar/event-types", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const data = await response.json() as { id?: string; eventType?: EventType; error?: string }; if (!response.ok) { setSaving(false); onFlash(data.error || "Event could not be saved"); return; } const eventId = form.id || data.id || ""; const availability = await fetch("/api/calendar/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventTypeId: eventId, timezone: form.timezone, rules: [1,2,3,4,5].map((weekday) => ({ weekday, startTime: form.startTime, endTime: form.endTime })) }) }); setSaving(false); if (!availability.ok) { const result = await availability.json() as { error?: string }; onFlash(result.error || "Availability could not be saved"); return; } await load(); setForm((current) => ({ ...current, id: eventId })); onFlash("Event, availability, and booking link saved"); };
+  const archive = async () => { if (!form.id) return; const response = await fetch("/api/calendar/event-types", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: form.id, active: false }) }); if (response.ok) { setForm(empty); await load(); onFlash("Event type archived"); } };
+  const bookingUrl = typeof window === "undefined" ? "/#book" : `${window.location.origin}/#book`;
+  return <div className="simpleEventManager"><aside><div><b>EVENT TYPES</b><button onClick={() => setForm(empty)}>＋ New</button></div>{events.map((item) => <button className={form.id === item.id ? "active" : ""} onClick={() => selectEvent(item)} key={item.id}><b>{item.name}</b><small>{item.duration_minutes} min · Capacity {item.capacity}</small></button>)}{!events.length && <p>No event types yet.</p>}</aside><section><div className="simpleEventHead"><div><small>{form.id ? "EDIT EVENT" : "NEW EVENT"}</small><h3>{form.name || "Create an event type"}</h3></div><div>{form.id && <button className="danger" onClick={() => void archive()}>Archive</button>}<button className="crmCreate" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save & publish"}</button></div></div><div className="simpleEventGrid"><label>Event name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value, slug: form.id ? form.slug : event.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") })} /></label><label>Booking link name<input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"") })} /></label><label className="wide">Description<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><label>Duration (minutes)<input type="number" min="5" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label><label>Capacity<input type="number" min="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} /></label><label>Buffer before<input type="number" min="0" value={form.bufferBeforeMinutes} onChange={(event) => setForm({ ...form, bufferBeforeMinutes: Number(event.target.value) })} /></label><label>Buffer after<input type="number" min="0" value={form.bufferAfterMinutes} onChange={(event) => setForm({ ...form, bufferAfterMinutes: Number(event.target.value) })} /></label><label>Available from<input type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} /></label><label>Available until<input type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} /></label><label className="wide">Meeting options<div className="simpleChecks">{[["VIDEO","Video"],["PHONE","Phone"],["IN_PERSON","In person"]].map(([value,label]) => <button className={form.locationModes.includes(value) ? "active" : ""} onClick={() => toggle("locationModes",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Video platforms<div className="simpleChecks">{[["GOOGLE_MEET","Google Meet"],["ZOOM","Zoom"],["FACETIME","FaceTime"]].map(([value,label]) => <button className={form.videoPlatforms.includes(value) ? "active" : ""} onClick={() => toggle("videoPlatforms",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Published booking page<div className="bookingLinkBox"><input readOnly value={bookingUrl} /><button onClick={() => { void navigator.clipboard?.writeText(bookingUrl); onFlash("Booking link copied"); }}>Copy link</button></div></label></div></section></div>;
 }
 
 function Admin({ onCreate }: { onCreate: () => void }) {

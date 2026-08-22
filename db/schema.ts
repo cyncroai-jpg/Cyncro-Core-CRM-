@@ -99,6 +99,13 @@ export const crmActivities = sqliteTable("crm_activities", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const workspaceMembers = sqliteTable("workspace_members", {
+  email: text("email").primaryKey(), displayName: text("display_name").notNull(), role: text("role").notNull().default("MEMBER"),
+  crmAccess: integer("crm_access").notNull().default(1), calendarAccess: integer("calendar_access").notNull().default(0),
+  prospectingAccess: integer("prospecting_access").notNull().default(0), manageUsers: integer("manage_users").notNull().default(0),
+  active: integer("active").notNull().default(1), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
 export const crmPipelines = sqliteTable("crm_pipelines", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

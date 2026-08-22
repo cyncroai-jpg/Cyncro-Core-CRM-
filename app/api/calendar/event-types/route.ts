@@ -1,6 +1,6 @@
-import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
     const { results } = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE active = 1 ORDER BY name").all();
@@ -14,6 +14,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     const slug = cleanText(body.slug, 120).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Event type id is required." }, { status: 400 });

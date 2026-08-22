@@ -7,6 +7,7 @@ import {
   normalizePhone,
   type ProspectRecord,
 } from "@/lib/prospecting/db";
+import { ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
 
 const statuses = new Set([
   "NEW",
@@ -43,8 +44,9 @@ function clean(value: unknown, max = 5000) {
   return typeof value === "string" ? value.trim().slice(0, max) : null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
     await ensureProspectingSchema();
     const { results } = await getProspectingDb()
       .prepare(
@@ -63,6 +65,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
     await ensureProspectingSchema();
     const body = (await request.json()) as Record<string, unknown>;
     const businessName = clean(body.businessName, 160);
@@ -148,6 +151,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
     await ensureProspectingSchema();
     const body = (await request.json()) as Record<string, unknown>;
     const id = clean(body.id, 80);
@@ -218,4 +222,9 @@ export async function PATCH(request: Request) {
       { status: 500 },
     );
   }
+}
+
+export async function DELETE(request: Request) {
+  try { await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 }); await ensureProspectingSchema(); const id = clean(new URL(request.url).searchParams.get("id"), 80); if (!id) return Response.json({ error: "Prospect id is required." }, { status: 400 }); await getProspectingDb().prepare("DELETE FROM prospects WHERE id=?").bind(id).run(); return Response.json({ deleted: true }); }
+  catch (error) { console.error("prospect.delete.failed", error); return Response.json({ error: "Unable to delete prospect." }, { status: 500 }); }
 }

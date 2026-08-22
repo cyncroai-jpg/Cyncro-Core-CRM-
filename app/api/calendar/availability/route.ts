@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const eventTypeId = cleanText(body.eventTypeId, 80) || null;
     const timezone = cleanText(body.timezone, 80);

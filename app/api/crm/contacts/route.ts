@@ -1,8 +1,9 @@
-import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
     const url = new URL(request.url);
     const query = cleanText(url.searchParams.get("q"), 100);
     const db = coreDb();
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const fullName = cleanText(body.fullName, 160);
     const email = normalizeEmail(body.email);
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
@@ -84,4 +87,15 @@ export async function PATCH(request: Request) {
     console.error("crm.contacts.update_failed", error);
     return Response.json({ error: "Unable to update CRM contact." }, { status: 500 });
   }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 }); const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
+    const db = coreDb(); const contact = await db.prepare("SELECT id FROM crm_contacts WHERE id=?").bind(id).first();
+    if (!contact) return Response.json({ error: "Contact not found." }, { status: 404 });
+    await db.batch([db.prepare("DELETE FROM crm_activities WHERE contact_id=?").bind(id), db.prepare("UPDATE calendar_bookings SET contact_id=NULL WHERE contact_id=?").bind(id), db.prepare("UPDATE crm_opportunities SET primary_contact_id=NULL WHERE primary_contact_id=?").bind(id), db.prepare("DELETE FROM crm_contacts WHERE id=?").bind(id)]);
+    return Response.json({ deleted: true });
+  } catch (error) { console.error("crm.contacts.delete_failed", error); return Response.json({ error: "Unable to delete contact." }, { status: 500 }); }
 }

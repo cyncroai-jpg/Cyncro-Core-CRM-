@@ -1,8 +1,9 @@
-import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
     const url = new URL(request.url);
     const from = cleanText(url.searchParams.get("from"), 40) || new Date(0).toISOString();
     const to = cleanText(url.searchParams.get("to"), 40) || new Date("2100-01-01").toISOString();
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     const action = cleanText(body.action, 30).toUpperCase();
