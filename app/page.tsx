@@ -8567,6 +8567,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
       return;
     }
     await loadProspects();
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "converted" } }));
     setMessage(
       data.duplicate
         ? `${prospect.businessName} is already connected to CRM.`
@@ -9232,6 +9233,7 @@ function UniversalCRM({
   };
   useEffect(() => { const timer = window.setTimeout(() => void loadCRMContacts(), 0); return () => window.clearTimeout(timer); }, []);
   useEffect(() => { const timer = window.setTimeout(() => void loadCRMOverview(), 0); return () => window.clearTimeout(timer); }, [view]);
+  useEffect(() => { const refresh = () => { void loadCRMContacts(); void loadCRMOverview(); }; window.addEventListener("cyncro:data-changed", refresh); window.addEventListener("focus", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.removeEventListener("focus", refresh); window.clearInterval(timer); }; }, []);
   const filteredContacts = liveContacts.filter((contact) =>
     `${contact.name} ${contact.company} ${contact.email}`
       .toLowerCase()
@@ -9243,7 +9245,7 @@ function UniversalCRM({
     const data = await response.json() as { error?: string };
     if (!response.ok) { flash(data.error || "Contact could not be created"); return; }
     setCreating(false); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
-    await Promise.all([loadCRMContacts(), loadCRMOverview()]); window.dispatchEvent(new Event("cyncro:data-changed")); flash("Contact created and synced across CRM");
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "created" } })); flash("Contact created and synced everywhere");
   };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
@@ -9739,6 +9741,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
     if (chosen) { setSelectedPipelineId(chosen.id); setPipelineDraft(structuredClone(chosen)); await loadDeals(chosen.id); }
   };
   useEffect(() => { const timer = window.setTimeout(() => void loadPipelines(), 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => { const refresh = () => void loadPipelines(); window.addEventListener("cyncro:data-changed", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.clearInterval(timer); }; }, []);
   const activePipeline = pipelines.find((item) => item.id === selectedPipelineId);
   const stageSettings = [...(activePipeline?.stages || [])].sort((a, b) => a.position - b.position);
   const stages = stageSettings.map((item) => item.name);
@@ -9927,9 +9930,9 @@ function CRMContactDetail({
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Contact update failed"); return; }
     await logActivity("CONTACT", "CRM contact updated", `Lifecycle: ${draft.lifecycle}`);
-    setEditing(false); onUpdated(); onFlash("Contact updated");
+    setEditing(false); onUpdated(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "updated" } })); onFlash("Contact updated everywhere");
   };
-  const deleteContact = async () => { if (!contact.id || !window.confirm(`Delete ${contact.name}? This removes the contact and its notes.`)) return; const response = await fetch(`/api/crm/contacts?id=${encodeURIComponent(contact.id)}`, { method: "DELETE" }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Contact could not be deleted"); return; } onDeleted(); onFlash("Contact deleted"); };
+  const deleteContact = async () => { if (!contact.id || !window.confirm(`Delete ${contact.name}? This removes the contact and its notes.`)) return; const response = await fetch(`/api/crm/contacts?id=${encodeURIComponent(contact.id)}`, { method: "DELETE" }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Contact could not be deleted"); return; } onDeleted(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "deleted" } })); onFlash("Contact deleted everywhere"); };
   return (
     <aside className="contactDetail crmPanel">
       <div className="contactHero">
@@ -10730,6 +10733,7 @@ function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) 
   const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", notes: "", status: "ACTIVE" });
   const load = async () => { const [a, d] = await Promise.all([fetch("/api/crm/accounts"), fetch("/api/crm/opportunities")]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => { const refresh = () => void load(); window.addEventListener("cyncro:data-changed", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.clearInterval(timer); }; }, []);
   const active = accounts.find((item) => item.id === selectedId); const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
   const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", notes: active.notes || "", status: active.status }); setEditing(true); };
   const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); await load(); onFlash("Account and sales hierarchy saved"); };
@@ -11952,17 +11956,19 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
     setRows(data.bookings || []); setLoaded(true);
   };
   useEffect(() => { const timer = window.setTimeout(() => void loadBookings(), 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(()=>{const timer=window.setTimeout(()=>void Promise.all([fetch("/api/calendar/event-types"),fetch("/api/crm/contacts"),fetch(`/api/notifications?recipient=${encodeURIComponent(currentUserName)}`)]).then(async([e,c,n])=>{if(e.ok)setEventOptions(((await e.json()) as {eventTypes?:EventOption[]}).eventTypes||[]);if(c.ok)setContactOptions(((await c.json()) as {contacts?:ContactOption[]}).contacts||[]);if(n.ok)setNotifications(((await n.json()) as {notifications?:typeof notifications}).notifications||[]);}),0);return()=>window.clearTimeout(timer);},[currentUserName]);
+  const loadCalendarData=async()=>{const[e,c,n]=await Promise.all([fetch("/api/calendar/event-types"),fetch("/api/crm/contacts"),fetch(`/api/notifications?recipient=${encodeURIComponent(currentUserName)}`)]);if(e.ok)setEventOptions(((await e.json()) as {eventTypes?:EventOption[]}).eventTypes||[]);if(c.ok)setContactOptions(((await c.json()) as {contacts?:ContactOption[]}).contacts||[]);if(n.ok)setNotifications(((await n.json()) as {notifications?:typeof notifications}).notifications||[]);};
+  useEffect(()=>{const timer=window.setTimeout(()=>void loadCalendarData(),0);return()=>window.clearTimeout(timer);},[currentUserName]);
+  useEffect(()=>{const refresh=()=>{void loadBookings();void loadCalendarData();};window.addEventListener("cyncro:data-changed",refresh);window.addEventListener("focus",refresh);const timer=window.setInterval(refresh,15000);return()=>{window.removeEventListener("cyncro:data-changed",refresh);window.removeEventListener("focus",refresh);window.clearInterval(timer);};},[currentUserName]);
   const updateBooking = async (booking: Booking, action: string, extra: Record<string, unknown> = {}) => {
     const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: booking.id, action, ...extra }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { setNotice(data.error || "Booking update failed"); return; }
-    setSelectedBooking(null); setRescheduleAt(""); await loadBookings(); setNotice(`Booking ${action.toLowerCase()} successful`);
+    setSelectedBooking(null); setRescheduleAt(""); await loadBookings(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "booking", action: action.toLowerCase() } })); setNotice(`Booking ${action.toLowerCase()} successful`);
   };
   const upcoming = rows.filter((booking) => booking.status !== "CANCELLED" && new Date(booking.starts_at) >= new Date());
   const confirmed = rows.filter((booking) => booking.status === "CONFIRMED" || booking.status === "RESCHEDULED").length;
   const visibleRows = rows.filter((booking)=>!showMine || !booking.assigned_to || booking.assigned_to===currentUserName);
-  const createManualBooking=async()=>{const response=await fetch("/api/calendar/bookings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...manual,startsAt:new Date(manual.startsAt).toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});const data=await response.json() as {error?:string};if(!response.ok){setNotice(data.error||"Booking could not be created");return;}setManualOpen(false);setManual({...manual,eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",notes:""});await loadBookings();setNotice("Appointment created and assigned");};
+  const createManualBooking=async()=>{const response=await fetch("/api/calendar/bookings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...manual,startsAt:new Date(manual.startsAt).toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});const data=await response.json() as {error?:string};if(!response.ok){setNotice(data.error||"Booking could not be created");return;}setManualOpen(false);setManual({...manual,eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",notes:""});await loadBookings();window.dispatchEvent(new CustomEvent("cyncro:data-changed",{detail:{entity:"booking",action:"created"}}));setNotice("Appointment created and synced everywhere");};
   const chooseContact=(id:string)=>{const contact=contactOptions.find(item=>item.id===id);setManual({...manual,contactId:id,customerName:contact?.full_name||"",customerEmail:contact?.email||"",customerPhone:contact?.phone||""});};
   return (
     <section className="admin">
