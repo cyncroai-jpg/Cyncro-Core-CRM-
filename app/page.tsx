@@ -9185,6 +9185,7 @@ type CRMContactCard = {
   source: string;
   intent: number;
   last: string;
+  notes: string;
 };
 
 function UniversalCRM({
@@ -9222,6 +9223,7 @@ function UniversalCRM({
         id: String(item.id || ""), name: String(item.full_name || "Unnamed contact"), company: String(item.company_name || "No account"),
         email: String(item.email || "No email"), phone: String(item.phone || "No phone"), value: "$0", stage: String(item.lifecycle || "Lead"),
         source: String(item.source || "Manual"), intent: 50, last: "CRM record updated",
+        notes: String(item.notes || ""),
       })));
     } catch (error) { flash(error instanceof Error ? error.message : "Unable to load contacts."); }
     finally { setContactsLoaded(true); }
@@ -9914,16 +9916,32 @@ function CRMContactDetail({
   const [editing, setEditing] = useState(false);
   const [composer, setComposer] = useState<"NOTE" | "TASK" | null>(null);
   const [activityDraft, setActivityDraft] = useState({ title: "", details: "", dueAt: "" });
+  const [savingActivity, setSavingActivity] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [draft, setDraft] = useState({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" });
-  useEffect(() => setDraft({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" }), [contact]);
+  const [draft, setDraft] = useState({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: contact.notes || "" });
+  useEffect(() => setDraft({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: contact.notes || "" }), [contact]);
   const loadActivities = async () => { if (!contact.id) return; const response = await fetch(`/api/crm/activities?contactId=${encodeURIComponent(contact.id)}`); const data = await response.json() as { activities?: Activity[] }; if (response.ok) setActivities(data.activities || []); };
   useEffect(() => { const timer = window.setTimeout(() => void loadActivities(), 0); return () => window.clearTimeout(timer); }, [contact.id]);
   const logActivity = async (activityType: string, title: string, details = "", dueAt = "") => {
     if (!contact.id) return false; const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id, activityType, title, details, dueAt }) });
     const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Activity could not be saved"); return false; } await loadActivities(); return true;
   };
-  const saveActivity = async () => { if (!composer || !activityDraft.title.trim()) { onFlash("Add a title first"); return; } if (await logActivity(composer, activityDraft.title, activityDraft.details, activityDraft.dueAt)) { setComposer(null); setActivityDraft({ title: "", details: "", dueAt: "" }); onFlash(composer === "TASK" ? "Task added to overview" : "Note added to contact"); } };
+  const saveActivity = async () => {
+    if (!composer) return;
+    const details = activityDraft.details.trim();
+    const title = activityDraft.title.trim() || (composer === "NOTE" ? details.slice(0, 80) : "");
+    if (!title) { onFlash(composer === "TASK" ? "Add a task title" : "Type your note first"); return; }
+    setSavingActivity(true);
+    try {
+      if (await logActivity(composer, title, details, activityDraft.dueAt)) {
+        setComposer(null);
+        setActivityDraft({ title: "", details: "", dueAt: "" });
+        window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created", contactId: contact.id } }));
+        onUpdated();
+        onFlash(composer === "TASK" ? "Task saved and added to overview" : "Note saved to this contact and overview");
+      }
+    } finally { setSavingActivity(false); }
+  };
   const saveContact = async () => {
     if (!contact.id) return;
     const response = await fetch("/api/crm/contacts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: contact.id, updates: draft }) });
@@ -9966,7 +9984,7 @@ function CRMContactDetail({
         <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { void logActivity("SMS", `SMS opened for ${contact.name}`); window.location.href = `sms:${contact.phone}`; }}>SMS</button>
         <button onClick={() => { void logActivity("BOOKING", `Booking started for ${contact.name}`); onBook(); }}>Book appointment</button>
       </div>
-      {composer && <div className="contactComposer"><b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b><input placeholder={composer === "TASK" ? "Task title" : "Note title"} value={activityDraft.title} onChange={(event) => setActivityDraft({ ...activityDraft, title: event.target.value })} /><textarea placeholder="Details" value={activityDraft.details} onChange={(event) => setActivityDraft({ ...activityDraft, details: event.target.value })} />{composer === "TASK" && <input type="datetime-local" value={activityDraft.dueAt} onChange={(event) => setActivityDraft({ ...activityDraft, dueAt: event.target.value })} />}<div><button onClick={() => setComposer(null)}>Cancel</button><button className="crmCreate" onClick={() => void saveActivity()}>Save</button></div></div>}
+      {composer && <div className="contactComposer"><b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b>{composer === "TASK" && <input placeholder="Task title" value={activityDraft.title} onChange={(event) => setActivityDraft({ ...activityDraft, title: event.target.value })} />}<textarea autoFocus placeholder={composer === "TASK" ? "Task details" : "Type your note here…"} value={activityDraft.details} onChange={(event) => setActivityDraft({ ...activityDraft, details: event.target.value })} />{composer === "TASK" && <input type="datetime-local" value={activityDraft.dueAt} onChange={(event) => setActivityDraft({ ...activityDraft, dueAt: event.target.value })} />}<div><button disabled={savingActivity} onClick={() => setComposer(null)}>Cancel</button><button disabled={savingActivity || (composer === "NOTE" ? !activityDraft.details.trim() : !activityDraft.title.trim())} className="crmCreate" onClick={() => void saveActivity()}>{savingActivity ? "Saving…" : composer === "TASK" ? "Save task" : "Save note"}</button></div></div>}
       <div className="contactFacts">
         {[
           ["EMAIL", contact.email],
@@ -9999,6 +10017,7 @@ function CRMContactDetail({
             <i />
             <span>
               <b>{item.title}</b>
+              {item.details && item.details !== item.title && <p>{item.details}</p>}
               <small>{item.activity_type}{item.due_at ? ` · Due ${new Date(item.due_at).toLocaleString()}` : ""} · {item.status}</small>
             </span>
           </div>
