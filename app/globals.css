@@ -15553,6 +15553,11 @@ label {
   border-color: #d8ceca;
   box-shadow: 0 18px 40px rgba(56, 32, 38, 0.12);
 }
+.accountNoteComposer { margin: 12px 0 16px; padding: 12px; border: 1px solid #49363b; border-radius: 8px; background: #100d0e; }
+.accountNoteComposer textarea { width: 100%; min-height: 100px; resize: vertical; padding: 12px; color: #fff; background: #171214; border: 1px solid #5b4349; border-radius: 6px; font: 600 13px/1.55 Montserrat, sans-serif; }
+.accountNoteComposer > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+.calendarDatePicker { display: flex; align-items: center; gap: 8px; color: #fff; font-size: 11px; font-weight: 700; }
+.calendarDatePicker input { min-width: 145px; padding: 8px 10px; color: #fff; color-scheme: dark; background: #171214; border: 1px solid #4a373c; border-radius: 6px; }
 @media (max-width: 650px) {
   .moduleVisual,
   .platformModuleCard.moduleCard1 .moduleVisual,

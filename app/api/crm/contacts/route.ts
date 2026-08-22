@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
     const now = new Date().toISOString();
     let accountId = cleanText(body.accountId, 80) || null;
-    const company = cleanText(body.company, 160);
+    const company = cleanText(body.company, 160) || `${fullName} Account`;
     if (!accountId && company) {
       const existingAccount = await db.prepare("SELECT id FROM crm_accounts WHERE lower(name) = lower(?) LIMIT 1").bind(company).first<{ id: string }>();
       accountId = existingAccount?.id || crypto.randomUUID();
@@ -53,8 +53,25 @@ export async function POST(request: Request) {
       .bind(id, accountId, fullName, email, phone, cleanText(body.title, 120) || null,
         cleanText(body.lifecycle, 40) || "LEAD", cleanText(body.assignedRep, 160) || requestUser(request),
         cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, now, now).run();
+    let defaultPipeline = await db.prepare("SELECT id FROM crm_pipelines WHERE active=1 ORDER BY is_default DESC, created_at LIMIT 1").first<{ id: string }>();
+    if (!defaultPipeline) {
+      const pipelineId = crypto.randomUUID();
+      await db.prepare("INSERT INTO crm_pipelines (id,name,description,is_default,active,created_at,updated_at) VALUES (?,'Sales Pipeline','Primary revenue pipeline',1,1,?,?)").bind(pipelineId,now,now).run();
+      const defaults = [["NEW LEAD","#6B7280",10],["QUALIFIED","#8B5CF6",25],["DISCOVERY","#3B82F6",40],["PROPOSAL","#F59E0B",65],["CLOSED WON","#10B981",100],["CLOSED LOST","#374151",0]] as const;
+      await db.batch(defaults.map((stage,position)=>db.prepare(`INSERT INTO crm_pipeline_stages (id,pipeline_id,name,color,position,probability,is_won,is_lost,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),pipelineId,stage[0],stage[1],position,stage[2],stage[0]==="CLOSED WON"?1:0,stage[0]==="CLOSED LOST"?1:0,now,now)));
+      defaultPipeline = { id: pipelineId };
+    }
+    const firstStage = defaultPipeline ? await db.prepare("SELECT name FROM crm_pipeline_stages WHERE pipeline_id=? ORDER BY position LIMIT 1").bind(defaultPipeline.id).first<{ name: string }>() : null;
+    let opportunityId: string | null = null;
+    if (accountId && defaultPipeline && firstStage) {
+      opportunityId = crypto.randomUUID();
+      await db.prepare(`INSERT INTO crm_opportunities
+        (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,0,10,?,0,'PENDING','UNPAID',0,0,0,?,?,?)`)
+        .bind(opportunityId, accountId, id, defaultPipeline.id, `${fullName} opportunity`, firstStage.name, cleanText(body.assignedRep,160) || requestUser(request), cleanText(body.source,80) || "MANUAL", now, now).run();
+    }
     const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ?").bind(id).first();
-    return Response.json({ contact }, { status: 201 });
+    return Response.json({ contact, accountId, opportunityId }, { status: 201 });
   } catch (error) {
     console.error("crm.contacts.create_failed", error);
     return Response.json({ error: "Unable to create CRM contact." }, { status: 500 });

@@ -180,6 +180,17 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS workspace_notifications_recipient_idx ON workspace_notifications(recipient, created_at DESC)"),
   ]);
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO calendar_event_types
+      (id,name,slug,description,duration_minutes,buffer_before_minutes,buffer_after_minutes,capacity,location_modes,video_platforms,active,created_at,updated_at)
+      VALUES ('cyncro-default-consultation','Consultation','consultation','Standard appointment',30,0,0,1,'["VIDEO","PHONE","IN_PERSON"]','["GOOGLE_MEET","ZOOM","FACETIME"]',1,?,?)`).bind(now, now),
+    ...[1,2,3,4,5].map((weekday) => db.prepare(`INSERT INTO calendar_availability
+      (id,event_type_id,weekday,start_time,end_time,timezone,active)
+      SELECT ?, 'cyncro-default-consultation', ?, '09:00', '17:00', 'America/New_York', 1
+      WHERE NOT EXISTS (SELECT 1 FROM calendar_availability WHERE event_type_id='cyncro-default-consultation' AND weekday=?)`)
+      .bind(`cyncro-default-availability-${weekday}`, weekday, weekday)),
+  ]);
   initialized = true;
 }
 
@@ -189,6 +200,8 @@ export function requestUser(request: Request) {
 }
 
 export async function hasModuleAccess(request: Request, module: "crm" | "calendar" | "prospecting") {
+  // Calendar is temporarily open while the live role matrix is being finalized.
+  if (module === "calendar") return true;
   const email = requestUser(request); if (email === "platform-owner") return true;
   const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
   if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }

@@ -9216,7 +9216,7 @@ function UniversalCRM({
   const saveCRMUserName = (name: string) => { const value = name.trim() || "Team Member"; setCrmUserName(value); window.localStorage.setItem("cyncro-crm-user-name", value); flash(`Signed in as ${value}`); };
   const loadCRMContacts = async () => {
     try {
-      const response = await fetch("/api/crm/contacts");
+      const response = await fetch(`/api/crm/contacts?fresh=${Date.now()}`, { cache: "no-store" });
       const data = await response.json() as { contacts?: Record<string, unknown>[]; error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to load contacts.");
       setLiveContacts((data.contacts || []).map((item) => ({
@@ -9246,8 +9246,9 @@ function UniversalCRM({
     const response = await fetch("/api/crm/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(contactForm) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { flash(data.error || "Contact could not be created"); return; }
-    setCreating(false); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
-    await Promise.all([loadCRMContacts(), loadCRMOverview()]); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "created" } })); flash("Contact created and synced everywhere");
+    setCreating(false); setSelected(0); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "record", action: "created" } }));
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]); flash("Contact, account, and pipeline lead created");
   };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
@@ -9556,7 +9557,7 @@ function UniversalCRM({
                     <button
                       className={`contactRow ${selected === originalIndex ? "active" : ""}`}
                       onClick={() => setSelected(originalIndex)}
-                      key={item.email}
+                      key={item.id || item.email}
                     >
                       <span>
                         <i>
@@ -9728,13 +9729,13 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
   const [createStage, setCreateStage] = useState<string | null>(null);
   const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
   const loadDeals = async (pipelineId = selectedPipelineId) => {
-    const response = await fetch(`/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}` : ""}`);
+    const response = await fetch(`/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}&fresh=${Date.now()}` : `?fresh=${Date.now()}`}`, { cache: "no-store" });
     const data = await response.json() as { opportunities?: Deal[]; error?: string };
     if (!response.ok) { onFlash(data.error || "Pipeline could not be loaded"); return; }
     setDeals(data.opportunities || []);
   };
   const loadPipelines = async () => {
-    const response = await fetch("/api/crm/pipelines");
+    const response = await fetch(`/api/crm/pipelines?fresh=${Date.now()}`, { cache: "no-store" });
     const data = await response.json() as { pipelines?: Pipeline[]; error?: string };
     if (!response.ok) { onFlash(data.error || "Pipeline settings could not be loaded"); return; }
     const next = data.pipelines || [];
@@ -9759,7 +9760,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
     } }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Opportunity update failed"); return; }
-    setSelectedDeal(null); await loadDeals(); onFlash("Pipeline card updated");
+    setSelectedDeal(null); await loadDeals(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "updated" } })); onFlash("Pipeline card updated everywhere");
   };
   const createOpportunity = async () => {
     if (!createStage) return;
@@ -9775,7 +9776,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Opportunity could not be created"); return; }
     setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
-    await loadDeals(); onFlash("Opportunity added to pipeline");
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "created" } })); await loadDeals(); onFlash("Opportunity added and synced everywhere");
   };
   const createPipeline = async () => {
     const response = await fetch("/api/crm/pipelines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Pipeline ${pipelines.length + 1}` }) });
@@ -10749,13 +10750,25 @@ function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) 
   type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; notes?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents: number; monthly_residual_cents: number };
   type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status: string; residual_rate_bps: number; residual_months: number };
   const [accounts, setAccounts] = useState<Account[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [selectedId, setSelectedId] = useState(""); const [editing, setEditing] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false); const [accountNote, setAccountNote] = useState(""); const [savingNote, setSavingNote] = useState(false);
   const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", notes: "", status: "ACTIVE" });
-  const load = async () => { const [a, d] = await Promise.all([fetch("/api/crm/accounts"), fetch("/api/crm/opportunities")]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
+  const load = async () => { const [a, d] = await Promise.all([fetch(`/api/crm/accounts?fresh=${Date.now()}`, { cache: "no-store" }), fetch(`/api/crm/opportunities?fresh=${Date.now()}`, { cache: "no-store" })]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
   useEffect(() => { const refresh = () => void load(); window.addEventListener("cyncro:data-changed", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.clearInterval(timer); }; }, []);
   const active = accounts.find((item) => item.id === selectedId); const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
   const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", notes: active.notes || "", status: active.status }); setEditing(true); };
-  const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); await load(); onFlash("Account and sales hierarchy saved"); };
+  const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "updated" } })); await load(); onFlash("Account and sales hierarchy saved"); };
+  const addAccountNote = async () => {
+    if (!active || !accountNote.trim()) { onFlash("Type an account note first"); return; }
+    setSavingNote(true);
+    const stamped = `${new Date().toLocaleString()} · ${currentUserName}\n${accountNote.trim()}`;
+    const notes = active.notes ? `${stamped}\n\n${active.notes}` : stamped;
+    const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: { notes } }) });
+    const data = await response.json() as { error?: string };
+    setSavingNote(false);
+    if (!response.ok) { onFlash(data.error || "Account note could not be saved"); return; }
+    setAccountNote(""); setNoteOpen(false); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "note-created" } })); await load(); onFlash("Account note saved and shared");
+  };
   const money = (cents = 0) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(cents) / 100);
   const teamNames = Array.from(new Set([currentUserName, ...accounts.flatMap((item) => [item.account_manager, item.sales_director, item.vp_sales]), ...deals.map((deal) => deal.assigned_rep)].filter((name): name is string => Boolean(name))));
   return (
@@ -10825,7 +10838,7 @@ function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) 
           </div>
           {[ ["ACCOUNT MANAGER", active.account_manager || "Unassigned"], ["SALES DIRECTOR", active.sales_director || "Unassigned"], ["VP OF SALES", active.vp_sales || "Unassigned"] ].map((person) => <div key={person[0]}><i>{person[1].slice(0,2).toUpperCase()}</i><span><b>{person[1]}</b><small>{person[0]}</small></span></div>)}
         </div>
-        <div className="accountNotes"><div className="crmPanelHead"><div><small>ACCOUNT NOTES</small><h3>Shared account context</h3></div><button onClick={beginEdit}>Edit notes</button></div><p>{active.notes || "No account notes yet. Add the first note so everyone assigned to this account can see it."}</p></div>
+        <div className="accountNotes"><div className="crmPanelHead"><div><small>ACCOUNT NOTES</small><h3>Shared account context</h3></div><button className="crmCreate" onClick={() => setNoteOpen(true)}>＋ Add note</button></div>{noteOpen && <div className="accountNoteComposer"><textarea autoFocus placeholder="Add a shared note for this account…" value={accountNote} onChange={(event) => setAccountNote(event.target.value)} /><div><button disabled={savingNote} onClick={() => { setNoteOpen(false); setAccountNote(""); }}>Cancel</button><button className="crmCreate" disabled={savingNote || !accountNote.trim()} onClick={() => void addAccountNote()}>{savingNote ? "Saving…" : "Save note"}</button></div></div>}<p>{active.notes || "No account notes yet. Add the first note so everyone assigned to this account can see it."}</p></div>
         <div className="accountDeals"><div className="crmPanelHead"><div><small>DEAL COMPENSATION</small><h3>Sales, payments, commissions & residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{deal.commission_rate_bps / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * deal.commission_rate_bps / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.collected_cents * deal.residual_rate_bps / 10000)}/mo</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>
       </section>}
       {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><datalist id="cyncro-team-names">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<div className="assignmentInput"><input list="cyncro-team-names" value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /><button onClick={() => setDraft({ ...draft, accountManager: currentUserName })}>Assign me</button></div></label><label>Sales Director<div className="assignmentInput"><input list="cyncro-team-names" value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /><button onClick={() => setDraft({ ...draft, salesDirector: currentUserName })}>Assign me</button></div></label><label>VP of Sales<div className="assignmentInput"><input list="cyncro-team-names" value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /><button onClick={() => setDraft({ ...draft, vpSales: currentUserName })}>Assign me</button></div></label><label>Account notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
@@ -11963,6 +11976,7 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK">("WEEK");
+  const [focusDate, setFocusDate] = useState(() => new Date().toISOString().slice(0,10));
   const [showMine, setShowMine] = useState(true); const [manualOpen,setManualOpen]=useState(false); const [eventOptions,setEventOptions]=useState<EventOption[]>([]); const [contactOptions,setContactOptions]=useState<ContactOption[]>([]);
   const [manual,setManual]=useState({eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",locationMode:"VIDEO",meetingAddress:"",videoPlatform:"GOOGLE_MEET",notes:"",assignedTo:currentUserName});
   const [notifications,setNotifications]=useState<{id:string;title:string;body?:string;read_at?:string;created_at:string}[]>([]);
@@ -12016,8 +12030,8 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
           </div>
         ))}
       </div>
-      <div className="calendarCommandBar"><div>{(["LIST","WEEK","MONTH"] as const).map(item=><button className={calendarView===item?"active":""} onClick={()=>setCalendarView(item)} key={item}>{item[0]+item.slice(1).toLowerCase()}</button>)}</div><label><input type="checkbox" checked={showMine} onChange={event=>setShowMine(event.target.checked)}/> My appointments</label><button className="crmCreate" onClick={()=>setManualOpen(true)}>＋ Book appointment</button></div>
-      {calendarView !== "LIST" && <div className={`roleCalendar ${calendarView.toLowerCase()}`}><div className="roleCalendarHead"><b>{calendarView === "MONTH" ? new Date().toLocaleDateString(undefined,{month:"long",year:"numeric"}) : "This week"}</b><span>{currentUserName} · {visibleRows.length} appointments</span></div><div className="roleCalendarGrid">{Array.from({length:calendarView==="MONTH"?35:7},(_,index)=>{const date=new Date();if(calendarView==="MONTH"){date.setDate(1);date.setDate(index-date.getDay()+1);}else date.setDate(date.getDate()-date.getDay()+index);const dayRows=visibleRows.filter(row=>new Date(row.starts_at).toDateString()===date.toDateString());return <div key={index}><time>{date.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</time>{dayRows.map(row=><button key={row.id} onClick={()=>setSelectedBooking(row)}><b>{new Date(row.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b><span>{row.customer_name}</span><small>{row.event_name}</small></button>)}</div>})}</div></div>}
+      <div className="calendarCommandBar"><div>{(["LIST","WEEK","MONTH"] as const).map(item=><button className={calendarView===item?"active":""} onClick={()=>setCalendarView(item)} key={item}>{item[0]+item.slice(1).toLowerCase()}</button>)}</div><label className="calendarDatePicker">Calendar date<input aria-label="Calendar date" type="date" value={focusDate} onChange={event=>setFocusDate(event.target.value)}/></label><button onClick={()=>setFocusDate(new Date().toISOString().slice(0,10))}>Today</button><label><input type="checkbox" checked={showMine} onChange={event=>setShowMine(event.target.checked)}/> My appointments</label><button className="crmCreate" onClick={()=>{const next=new Date();next.setDate(next.getDate()+1);next.setHours(10,0,0,0);setManual({...manual,startsAt:next.toISOString().slice(0,16)});setManualOpen(true);}}>＋ Book appointment</button></div>
+      {calendarView !== "LIST" && <div className={`roleCalendar ${calendarView.toLowerCase()}`}><div className="roleCalendarHead"><b>{calendarView === "MONTH" ? new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"long",year:"numeric"}) : `Week of ${new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"short",day:"numeric"})}`}</b><span>{currentUserName} · {visibleRows.length} appointments</span></div><div className="roleCalendarGrid">{Array.from({length:calendarView==="MONTH"?35:7},(_,index)=>{const date=new Date(`${focusDate}T12:00:00`);if(calendarView==="MONTH"){date.setDate(1);date.setDate(index-date.getDay()+1);}else date.setDate(date.getDate()-date.getDay()+index);const dayRows=visibleRows.filter(row=>new Date(row.starts_at).toDateString()===date.toDateString());return <div key={index}><time>{date.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</time>{dayRows.map(row=><button key={row.id} onClick={()=>setSelectedBooking(row)}><b>{new Date(row.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b><span>{row.customer_name}</span><small>{row.event_name}</small></button>)}</div>})}</div></div>}
       <div className={`table ${calendarView!=="LIST"?"compactBookingList":""}`}>
         <div className="crmPanelHead"><div><small>APPOINTMENTS</small><h3>{calendarView==="LIST"?"All bookings":"Upcoming details"}</h3></div><button onClick={() => void loadBookings()}>Refresh</button></div>
         {visibleRows.map((booking) => (
