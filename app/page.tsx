@@ -98,6 +98,7 @@ export default function Home() {
         <UniversalCRM
           onOpenCalendar={() => navigate("admin")}
           onOpenProspecting={() => navigate("prospecting")}
+          isOwner={permissions?.role === "OWNER"}
         />
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
@@ -9191,9 +9192,11 @@ type CRMContactCard = {
 function UniversalCRM({
   onOpenCalendar,
   onOpenProspecting,
+  isOwner,
 }: {
   onOpenCalendar: () => void;
   onOpenProspecting: () => void;
+  isOwner: boolean;
 }) {
   const [view, setView] = useState<CRMView>("Overview"),
     [query, setQuery] = useState(""),
@@ -9529,8 +9532,8 @@ function UniversalCRM({
             </>
           )}
 
-          {view === "Pipeline" && <CRMPipeline onFlash={flash} />}
-          {view === "Accounts" && <CRMAccounts onFlash={flash} currentUserName={crmUserName} />}
+          {view === "Pipeline" && <CRMPipeline onFlash={flash} isOwner={isOwner} />}
+          {view === "Accounts" && <CRMAccounts onFlash={flash} currentUserName={crmUserName} isOwner={isOwner} />}
           {view === "Contacts" && (
             <div className="contactWorkspace">
               <div className="contactList crmPanel">
@@ -9716,8 +9719,8 @@ function UniversalCRM({
   );
 }
 
-function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
-  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status?: string; collected_cents?: number; residual_rate_bps?: number; residual_months?: number; notes?: string };
+function CRMPipeline({ onFlash, isOwner }: { onFlash: (message: string) => void; isOwner: boolean }) {
+  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps?: number; commission_status?: string; payment_status?: string; collected_cents?: number; residual_rate_bps?: number; residual_months?: number; residual_flat_cents?: number; notes?: string };
   type PipelineStage = { id: string; name: string; color: string; position: number; probability: number; is_won: number; is_lost: number };
   type Pipeline = { id: string; name: string; description?: string; is_default: number; stages: PipelineStage[] };
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -9727,7 +9730,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
-  const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
+  const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "20", residualFlat: "25" });
   const loadDeals = async (pipelineId = selectedPipelineId) => {
     const response = await fetch(`/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}&fresh=${Date.now()}` : `?fresh=${Date.now()}`}`, { cache: "no-store" });
     const data = await response.json() as { opportunities?: Deal[]; error?: string };
@@ -9750,14 +9753,15 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
   const stages = stageSettings.map((item) => item.name);
   const saveDeal = async () => {
     if (!selectedDeal) return;
-    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedDeal.id, updates: {
+    const updates: Record<string, unknown> = {
       name: selectedDeal.name, stage: selectedDeal.stage, value: selectedDeal.value_cents / 100, probability: selectedDeal.probability,
       pipelineId: selectedPipelineId,
-      assignedRep: selectedDeal.assigned_rep || "", commissionRate: selectedDeal.commission_rate_bps / 100,
-      commissionStatus: selectedDeal.commission_status, notes: selectedDeal.notes || "",
-      paymentStatus: selectedDeal.payment_status || "UNPAID", collected: Number(selectedDeal.collected_cents || 0) / 100,
-      residualRate: Number(selectedDeal.residual_rate_bps || 0) / 100, residualMonths: Number(selectedDeal.residual_months || 0),
-    } }) });
+      assignedRep: selectedDeal.assigned_rep || "", notes: selectedDeal.notes || "",
+    };
+    if (isOwner) Object.assign(updates, { commissionRate: Number(selectedDeal.commission_rate_bps || 2000) / 100,
+      commissionStatus: selectedDeal.commission_status || "PENDING", paymentStatus: selectedDeal.payment_status || "UNPAID",
+      collected: Number(selectedDeal.collected_cents || 0) / 100, residualFlat: Number(selectedDeal.residual_flat_cents || 2500) / 100 });
+    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedDeal.id, updates }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Opportunity update failed"); return; }
     setSelectedDeal(null); await loadDeals(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "updated" } })); onFlash("Pipeline card updated everywhere");
@@ -9771,11 +9775,11 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
       accountId: accountData.account.id, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
       pipelineId: selectedPipelineId,
       value: Number(newDeal.value || 0), probability: Number(newDeal.probability || 10), assignedRep: newDeal.assignedRep,
-      commissionRate: Number(newDeal.commissionRate || 0), source: "CRM",
+      commissionRate: Number(newDeal.commissionRate || 20), residualFlat: Number(newDeal.residualFlat || 25), source: "CRM",
     }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Opportunity could not be created"); return; }
-    setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
+    setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "20", residualFlat: "25" });
     window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "created" } })); await loadDeals(); onFlash("Opportunity added and synced everywhere");
   };
   const createPipeline = async () => {
@@ -9873,13 +9877,12 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
           <label>Deal value<input type="number" value={selectedDeal.value_cents / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, value_cents: Number(event.target.value) * 100 })} /></label>
           <label>Probability<input type="number" min="0" max="100" value={selectedDeal.probability} onChange={(event) => setSelectedDeal({ ...selectedDeal, probability: Number(event.target.value) })} /></label>
           <label>Assigned rep<input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} /></label>
-          <label>Commission %<input type="number" min="0" max="100" value={selectedDeal.commission_rate_bps / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Number(event.target.value) * 100 })} /></label>
+          {isOwner && <><label>Commission % (20–30)<input type="number" min="20" max="30" value={Number(selectedDeal.commission_rate_bps || 2000) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Number(event.target.value) * 100 })} /></label>
           <label>Commission status<select value={selectedDeal.commission_status} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_status: event.target.value })}><option>PENDING</option><option>APPROVED</option><option>PAID</option><option>CLAWBACK</option></select></label>
           <label>Payment status<select value={selectedDeal.payment_status || "UNPAID"} onChange={(event) => setSelectedDeal({ ...selectedDeal, payment_status: event.target.value })}><option>UNPAID</option><option>PARTIAL</option><option>PAID</option><option>REFUNDED</option></select></label>
           <label>Amount collected<input type="number" min="0" value={Number(selectedDeal.collected_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, collected_cents: Number(event.target.value) * 100 })} /></label>
-          <label>Residual % per month<input type="number" min="0" max="100" value={Number(selectedDeal.residual_rate_bps || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_rate_bps: Number(event.target.value) * 100 })} /></label>
-          <label>Residual months<input type="number" min="0" value={Number(selectedDeal.residual_months || 0)} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_months: Number(event.target.value) })} /></label>
-          <label>Estimated payout<input disabled value={new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((Number(selectedDeal.collected_cents || 0) / 100) * (selectedDeal.commission_rate_bps / 10000))} /></label>
+          <label>Monthly residual ($25–$50)<input type="number" min="25" max="50" value={Number(selectedDeal.residual_flat_cents || 2500) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_flat_cents: Number(event.target.value) * 100 })} /></label>
+          <label>Estimated payout<input disabled value={new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((Number(selectedDeal.collected_cents || 0) / 100) * (Number(selectedDeal.commission_rate_bps || 2000) / 10000))} /></label></>}
           <label>Notes<textarea value={selectedDeal.notes || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, notes: event.target.value })} /></label>
         </div>
         <div className="modalactions"><button onClick={() => setSelectedDeal(null)}>Cancel</button><button onClick={() => void saveDeal()}>Save changes</button></div>
@@ -9892,7 +9895,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
           <label>Deal value<input type="number" value={newDeal.value} onChange={(event) => setNewDeal({ ...newDeal, value: event.target.value })} /></label>
           <label>Probability %<input type="number" value={newDeal.probability} onChange={(event) => setNewDeal({ ...newDeal, probability: event.target.value })} /></label>
           <label>Assigned rep<input value={newDeal.assignedRep} onChange={(event) => setNewDeal({ ...newDeal, assignedRep: event.target.value })} /></label>
-          <label>Commission %<input type="number" value={newDeal.commissionRate} onChange={(event) => setNewDeal({ ...newDeal, commissionRate: event.target.value })} /></label>
+          {isOwner && <><label>Commission % (20–30)<input type="number" min="20" max="30" value={newDeal.commissionRate} onChange={(event) => setNewDeal({ ...newDeal, commissionRate: event.target.value })} /></label><label>Monthly residual ($25–$50)<input type="number" min="25" max="50" value={newDeal.residualFlat} onChange={(event) => setNewDeal({ ...newDeal, residualFlat: event.target.value })} /></label></>}
         </div>
         <div className="modalactions"><button onClick={() => setCreateStage(null)}>Cancel</button><button disabled={!newDeal.company} onClick={() => void createOpportunity()}>Create opportunity</button></div>
       </div></div>}
@@ -10746,9 +10749,9 @@ function CRMSocialAutomations({
   );
 }
 
-function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) => void; currentUserName: string }) {
-  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; notes?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents: number; monthly_residual_cents: number };
-  type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status: string; residual_rate_bps: number; residual_months: number };
+function CRMAccounts({ onFlash, currentUserName, isOwner }: { onFlash: (message: string) => void; currentUserName: string; isOwner: boolean }) {
+  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; notes?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents?: number; monthly_residual_cents?: number };
+  type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps?: number; commission_status?: string; payment_status: string; residual_flat_cents?: number };
   const [accounts, setAccounts] = useState<Account[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [selectedId, setSelectedId] = useState(""); const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false); const [accountNote, setAccountNote] = useState(""); const [savingNote, setSavingNote] = useState(false);
   const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", notes: "", status: "ACTIVE" });
@@ -10823,8 +10826,7 @@ function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) 
           {[
             ["SALES SOLD", money(active.pipeline_cents)],
             ["PAYMENTS COLLECTED", money(active.collected_cents)],
-            ["ESTIMATED PAYOUT", money(active.estimated_payout_cents)],
-            ["MONTHLY RESIDUAL", money(active.monthly_residual_cents)],
+            ...(isOwner ? [["ESTIMATED PAYOUT", money(active.estimated_payout_cents)], ["MONTHLY RESIDUAL", money(accountDeals.reduce((sum,deal)=>sum+Number(deal.residual_flat_cents||0),0))]] : []),
           ].map((item) => (
             <div key={item[0]}>
               <small>{item[0]}</small>
@@ -10839,7 +10841,7 @@ function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) 
           {[ ["ACCOUNT MANAGER", active.account_manager || "Unassigned"], ["SALES DIRECTOR", active.sales_director || "Unassigned"], ["VP OF SALES", active.vp_sales || "Unassigned"] ].map((person) => <div key={person[0]}><i>{person[1].slice(0,2).toUpperCase()}</i><span><b>{person[1]}</b><small>{person[0]}</small></span></div>)}
         </div>
         <div className="accountNotes"><div className="crmPanelHead"><div><small>ACCOUNT NOTES</small><h3>Shared account context</h3></div><button className="crmCreate" onClick={() => setNoteOpen(true)}>＋ Add note</button></div>{noteOpen && <div className="accountNoteComposer"><textarea autoFocus placeholder="Add a shared note for this account…" value={accountNote} onChange={(event) => setAccountNote(event.target.value)} /><div><button disabled={savingNote} onClick={() => { setNoteOpen(false); setAccountNote(""); }}>Cancel</button><button className="crmCreate" disabled={savingNote || !accountNote.trim()} onClick={() => void addAccountNote()}>{savingNote ? "Saving…" : "Save note"}</button></div></div>}<p>{active.notes || "No account notes yet. Add the first note so everyone assigned to this account can see it."}</p></div>
-        <div className="accountDeals"><div className="crmPanelHead"><div><small>DEAL COMPENSATION</small><h3>Sales, payments, commissions & residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{deal.commission_rate_bps / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * deal.commission_rate_bps / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.collected_cents * deal.residual_rate_bps / 10000)}/mo</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>
+        {isOwner && <div className="accountDeals"><div className="crmPanelHead"><div><small>OWNER ONLY · DEAL COMPENSATION</small><h3>Sales, payments, commissions & lifetime residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{Number(deal.commission_rate_bps || 2000) / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * Number(deal.commission_rate_bps || 2000) / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.residual_flat_cents || 2500)}/mo while active</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>}
       </section>}
       {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><datalist id="cyncro-team-names">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<div className="assignmentInput"><input list="cyncro-team-names" value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /><button onClick={() => setDraft({ ...draft, accountManager: currentUserName })}>Assign me</button></div></label><label>Sales Director<div className="assignmentInput"><input list="cyncro-team-names" value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /><button onClick={() => setDraft({ ...draft, salesDirector: currentUserName })}>Assign me</button></div></label><label>VP of Sales<div className="assignmentInput"><input list="cyncro-team-names" value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /><button onClick={() => setDraft({ ...draft, vpSales: currentUserName })}>Assign me</button></div></label><label>Account notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
     </div>

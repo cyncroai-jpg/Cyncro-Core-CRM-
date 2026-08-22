@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, isWorkspaceOwner, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
@@ -19,7 +19,9 @@ export async function GET(request: Request) {
           COALESCE(SUM(CAST(o.collected_cents * o.residual_rate_bps AS INTEGER) / 10000),0) AS monthly_residual_cents FROM crm_accounts a
           LEFT JOIN crm_contacts c ON c.account_id = a.id LEFT JOIN crm_opportunities o ON o.account_id = a.id
           GROUP BY a.id ORDER BY a.updated_at DESC LIMIT 250`);
-    return Response.json({ accounts: (await statement.all()).results });
+    const results = (await statement.all()).results as Record<string, unknown>[];
+    if (!(await isWorkspaceOwner(request))) for (const row of results) { delete row.estimated_payout_cents; delete row.monthly_residual_cents; }
+    return Response.json({ accounts: results });
   } catch (error) {
     console.error("crm.accounts.list_failed", error);
     return Response.json({ error: "Unable to load CRM accounts." }, { status: 500 });

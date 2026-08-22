@@ -180,6 +180,9 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS workspace_notifications_recipient_idx ON workspace_notifications(recipient, created_at DESC)"),
   ]);
+  try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN residual_flat_cents INTEGER NOT NULL DEFAULT 2500").run(); } catch { /* already migrated */ }
+  await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=2000 WHERE commission_rate_bps<2000").run();
+  await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=3000 WHERE commission_rate_bps>3000").run();
   const now = new Date().toISOString();
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO calendar_event_types
@@ -206,6 +209,14 @@ export async function hasModuleAccess(request: Request, module: "crm" | "calenda
   const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
   if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }
   return Boolean(member?.active && (member.role === "OWNER" || member.allowed));
+}
+
+export async function isWorkspaceOwner(request: Request) {
+  const email = requestUser(request);
+  if (email === "platform-owner") return true;
+  const member = await coreDb().prepare("SELECT role,active,display_name FROM workspace_members WHERE email=?").bind(email).first<{ role: string; active: number; display_name: string }>();
+  const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
+  return Boolean(member?.active && (member.role === "OWNER" || protectedOwners.has(String(member.display_name || "").trim().toLowerCase())));
 }
 
 export function cleanText(value: unknown, max = 500) {

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       opportunityId = crypto.randomUUID();
       await db.prepare(`INSERT INTO crm_opportunities
         (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,0,10,?,0,'PENDING','UNPAID',0,0,0,?,?,?)`)
+        VALUES (?,?,?,?,?,?,0,10,?,2000,'PENDING','UNPAID',0,0,0,?,?,?)`)
         .bind(opportunityId, accountId, id, defaultPipeline.id, `${fullName} opportunity`, firstStage.name, cleanText(body.assignedRep,160) || requestUser(request), cleanText(body.source,80) || "MANUAL", now, now).run();
     }
     const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ?").bind(id).first();
