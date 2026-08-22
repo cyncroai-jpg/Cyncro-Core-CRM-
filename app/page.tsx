@@ -9669,7 +9669,7 @@ function UniversalCRM({
 }
 
 function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
-  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; notes?: string };
+  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status?: string; collected_cents?: number; residual_rate_bps?: number; residual_months?: number; notes?: string };
   type PipelineStage = { id: string; name: string; color: string; position: number; probability: number; is_won: number; is_lost: number };
   type Pipeline = { id: string; name: string; description?: string; is_default: number; stages: PipelineStage[] };
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -9706,6 +9706,8 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
       pipelineId: selectedPipelineId,
       assignedRep: selectedDeal.assigned_rep || "", commissionRate: selectedDeal.commission_rate_bps / 100,
       commissionStatus: selectedDeal.commission_status, notes: selectedDeal.notes || "",
+      paymentStatus: selectedDeal.payment_status || "UNPAID", collected: Number(selectedDeal.collected_cents || 0) / 100,
+      residualRate: Number(selectedDeal.residual_rate_bps || 0) / 100, residualMonths: Number(selectedDeal.residual_months || 0),
     } }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Opportunity update failed"); return; }
@@ -9824,6 +9826,11 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
           <label>Assigned rep<input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} /></label>
           <label>Commission %<input type="number" min="0" max="100" value={selectedDeal.commission_rate_bps / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Number(event.target.value) * 100 })} /></label>
           <label>Commission status<select value={selectedDeal.commission_status} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_status: event.target.value })}><option>PENDING</option><option>APPROVED</option><option>PAID</option><option>CLAWBACK</option></select></label>
+          <label>Payment status<select value={selectedDeal.payment_status || "UNPAID"} onChange={(event) => setSelectedDeal({ ...selectedDeal, payment_status: event.target.value })}><option>UNPAID</option><option>PARTIAL</option><option>PAID</option><option>REFUNDED</option></select></label>
+          <label>Amount collected<input type="number" min="0" value={Number(selectedDeal.collected_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, collected_cents: Number(event.target.value) * 100 })} /></label>
+          <label>Residual % per month<input type="number" min="0" max="100" value={Number(selectedDeal.residual_rate_bps || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_rate_bps: Number(event.target.value) * 100 })} /></label>
+          <label>Residual months<input type="number" min="0" value={Number(selectedDeal.residual_months || 0)} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_months: Number(event.target.value) })} /></label>
+          <label>Estimated payout<input disabled value={new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((Number(selectedDeal.collected_cents || 0) / 100) * (selectedDeal.commission_rate_bps / 10000))} /></label>
           <label>Notes<textarea value={selectedDeal.notes || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, notes: event.target.value })} /></label>
         </div>
         <div className="modalactions"><button onClick={() => setSelectedDeal(null)}>Cancel</button><button onClick={() => void saveDeal()}>Save changes</button></div>
@@ -10670,46 +10677,16 @@ function CRMSocialAutomations({
 }
 
 function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
-  const [account, setAccount] = useState(0);
-  const accounts = [
-    [
-      "Axis Systems",
-      "$32,000",
-      "Expansion",
-      "92",
-      "Strong",
-      "Daniel Kim",
-      "3 stakeholders",
-    ],
-    [
-      "Northstar Advisory",
-      "$18,500",
-      "Proposal",
-      "88",
-      "Strong",
-      "Alexandra Lewis",
-      "2 stakeholders",
-    ],
-    [
-      "Reed Development",
-      "$12,000",
-      "Qualified",
-      "81",
-      "Growing",
-      "Marcus Reed",
-      "4 stakeholders",
-    ],
-    [
-      "Atelier House",
-      "$7,500",
-      "Discovery",
-      "67",
-      "Watch",
-      "Sophia Bennett",
-      "2 stakeholders",
-    ],
-  ];
-  const active = accounts[account];
+  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents: number; monthly_residual_cents: number };
+  type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status: string; residual_rate_bps: number; residual_months: number };
+  const [accounts, setAccounts] = useState<Account[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [selectedId, setSelectedId] = useState(""); const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", status: "ACTIVE" });
+  const load = async () => { const [a, d] = await Promise.all([fetch("/api/crm/accounts"), fetch("/api/crm/opportunities")]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
+  const active = accounts.find((item) => item.id === selectedId); const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
+  const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", status: active.status }); setEditing(true); };
+  const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); await load(); onFlash("Account and sales hierarchy saved"); };
+  const money = (cents = 0) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(cents) / 100);
   return (
     <div className="accountWorkspace">
       <section className="accountPortfolio crmPanel">
@@ -10718,9 +10695,7 @@ function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
             <small>ACCOUNT PORTFOLIO</small>
             <h2>Revenue relationships</h2>
           </div>
-          <button onClick={() => onFlash("Portfolio filters opened")}>
-            Segment accounts
-          </button>
+          <button onClick={() => void load()}>Refresh</button>
         </div>
         <div className="accountPortfolioHead">
           <span>ACCOUNT</span>
@@ -10728,45 +10703,44 @@ function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
           <span>STAGE</span>
           <span>HEALTH</span>
         </div>
-        {accounts.map((item, index) => (
+        {accounts.map((item) => (
           <button
-            className={account === index ? "active" : ""}
-            onClick={() => setAccount(index)}
-            key={item[0]}
+            className={selectedId === item.id ? "active" : ""}
+            onClick={() => setSelectedId(item.id)}
+            key={item.id}
           >
             <span>
-              <i>{item[0].slice(0, 2).toUpperCase()}</i>
+              <i>{item.name.slice(0, 2).toUpperCase()}</i>
               <div>
-                <b>{item[0]}</b>
-                <small>{item[5]}</small>
+                <b>{item.name}</b>
+                <small>{item.account_manager || "Unassigned manager"}</small>
               </div>
             </span>
-            <strong>{item[1]}</strong>
-            <em>{item[2]}</em>
-            <span className={`accountHealth ${item[4].toLowerCase()}`}>
-              {item[3]} · {item[4]}
-            </span>
+            <strong>{money(item.pipeline_cents)}</strong>
+            <em>{item.status}</em>
+            <span className="accountHealth strong">{item.opportunity_count} deals</span>
           </button>
         ))}
+        {!accounts.length && <div className="noProspects">No accounts yet. Create a CRM record or convert a prospect.</div>}
       </section>
-      <section className="accountCommand crmPanel">
+      {active && <section className="accountCommand crmPanel">
         <div className="accountCommandHead">
           <div>
             <small>ACCOUNT COMMAND</small>
-            <h2>{active[0]}</h2>
+            <h2>{active.name}</h2>
             <p>
               Unified relationship, revenue, engagement, and delivery
               intelligence.
             </p>
           </div>
-          <span>{active[3]} health</span>
+          <button className="crmCreate" onClick={beginEdit}>Customize account</button>
         </div>
         <div className="accountValueGrid">
           {[
-            ["OPEN VALUE", active[1]],
-            ["LIFETIME VALUE", "$84,500"],
-            ["ENGAGEMENT", "High"],
-            ["NEXT RENEWAL", "Oct 18"],
+            ["SALES SOLD", money(active.pipeline_cents)],
+            ["PAYMENTS COLLECTED", money(active.collected_cents)],
+            ["ESTIMATED PAYOUT", money(active.estimated_payout_cents)],
+            ["MONTHLY RESIDUAL", money(active.monthly_residual_cents)],
           ].map((item) => (
             <div key={item[0]}>
               <small>{item[0]}</small>
@@ -10774,63 +10748,15 @@ function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
             </div>
           ))}
         </div>
-        <div className="buyingCommittee">
+        <div className="salesHierarchy">
           <div className="crmPanelHead">
-            <div>
-              <small>RELATIONSHIP MAP</small>
-              <h3>Buying committee</h3>
-            </div>
-            <button onClick={() => onFlash("Stakeholder added")}>
-              ＋ Stakeholder
-            </button>
+            <div><small>SALES OWNERSHIP</small><h3>Account hierarchy</h3></div><button onClick={beginEdit}>Edit assignments</button>
           </div>
-          {[
-            [active[5], "Decision maker", "Champion", "94"],
-            ["Mia Thompson", "Finance lead", "Supportive", "79"],
-            ["Jordan Ellis", "Operations", "Evaluator", "72"],
-          ].map((person) => (
-            <div key={person[0]}>
-              <i>
-                {person[0]
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </i>
-              <span>
-                <b>{person[0]}</b>
-                <small>
-                  {person[1]} · {person[2]}
-                </small>
-              </span>
-              <em>{person[3]} influence</em>
-            </div>
-          ))}
+          {[ ["ACCOUNT MANAGER", active.account_manager || "Unassigned"], ["SALES DIRECTOR", active.sales_director || "Unassigned"], ["VP OF SALES", active.vp_sales || "Unassigned"] ].map((person) => <div key={person[0]}><i>{person[1].slice(0,2).toUpperCase()}</i><span><b>{person[1]}</b><small>{person[0]}</small></span></div>)}
         </div>
-        <div className="accountSignals">
-          <small>PREDICTIVE SIGNALS</small>
-          {[
-            [
-              "Payment activity",
-              "Proposal and payment link opened twice today",
-              "+18",
-            ],
-            ["Stakeholder coverage", active[6] + " identified", "+12"],
-            [
-              "Engagement risk",
-              "No response from finance lead in 6 days",
-              "−7",
-            ],
-          ].map((signal) => (
-            <button onClick={() => onFlash("Signal explained")} key={signal[0]}>
-              <span>
-                <b>{signal[0]}</b>
-                <small>{signal[1]}</small>
-              </span>
-              <em>{signal[2]}</em>
-            </button>
-          ))}
-        </div>
-      </section>
+        <div className="accountDeals"><div className="crmPanelHead"><div><small>DEAL COMPENSATION</small><h3>Sales, payments, commissions & residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{deal.commission_rate_bps / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * deal.commission_rate_bps / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.collected_cents * deal.residual_rate_bps / 10000)}/mo</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>
+      </section>}
+      {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<input value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /></label><label>Sales Director<input value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /></label><label>VP of Sales<input value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
     </div>
   );
 }
@@ -11917,20 +11843,17 @@ function CyncroSports() {
 }
 
 function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void }) {
-  const [section, setSection] = useState<"BOOKINGS" | "SETUP">("BOOKINGS");
   return (
     <div className="crmEmbeddedCalendar">
       <div className="calendarAccessBar">
         <div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Everything accessible in one workspace</h2></div>
-        <div role="tablist" aria-label="Calendar workspace">
-          <button className={section === "BOOKINGS" ? "active" : ""} onClick={() => setSection("BOOKINGS")}>Bookings & schedule</button>
-          <button className={section === "SETUP" ? "active" : ""} onClick={() => setSection("SETUP")}>Event types & settings</button>
-        </div>
+        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}>Jump to event settings ↓</button>
       </div>
       <div className="calendarCapabilityStrip">
         {["Bookings", "Month + week views", "Event types", "Availability", "Time slots", "Booking links", "Locations + video", "Capacity", "Reminders", "Reschedule + cancel"].map((item) => <span key={item}>✓ {item}</span>)}
       </div>
-      {section === "BOOKINGS" ? <Admin onCreate={() => setSection("SETUP")} /> : <Studio onPreview={() => onFlash("Booking-page preview is available from the Preview button")} />}
+      <Admin onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} />
+      <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><Studio onPreview={() => onFlash("Booking-page preview is available from the Preview button")} /></div>
     </div>
   );
 }

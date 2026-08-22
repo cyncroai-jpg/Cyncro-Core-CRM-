@@ -9293,6 +9293,20 @@ label {
 .calendarCapabilityStrip { display: flex; gap: 7px; margin: 10px 0 18px; overflow-x: auto; padding-bottom: 4px; }
 .calendarCapabilityStrip span { flex: 0 0 auto; border: 1px solid #34282b; border-radius: 999px; background: #100d0e; color: #d9cccf; padding: 7px 10px; font-size: 8px; }
 .crmEmbeddedCalendar .studio { min-height: auto; margin-top: 0; }
+.calendarSettingsSection { margin-top: 34px; border-top: 1px solid #3b2b30; padding-top: 24px; }
+.calendarSectionTitle { margin-bottom: 16px; }
+.calendarSectionTitle small { color: #d9cccf; font-size: 8px; letter-spacing: .14em; }
+.calendarSectionTitle h2 { margin: 6px 0; color: #fff; font-size: 24px; font-weight: 500; }
+.calendarSectionTitle p { margin: 0; color: #c2b5b8; font-size: 10px; }
+.salesHierarchy { margin-top: 18px; border: 1px solid #30272a; border-radius: 8px; padding: 14px; }
+.salesHierarchy > div:not(.crmPanelHead) { display: flex; align-items: center; gap: 10px; border-top: 1px solid #2d2527; padding: 11px 4px; }
+.salesHierarchy i { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #2d1c21; color: #fff; font-size: 7px; font-style: normal; }
+.salesHierarchy b, .salesHierarchy small { display: block; }
+.salesHierarchy b { color: #fff; font-size: 10px; }.salesHierarchy small { margin-top: 3px; color: #b7aaad; font-size: 7px; }
+.accountDeals { margin-top: 18px; }
+.accountDealRow { display: grid; grid-template-columns: minmax(150px,1.5fr) repeat(5,minmax(78px,1fr)) 70px; gap: 9px; align-items: center; border-top: 1px solid #30272a; padding: 12px 4px; }
+.accountDealRow b, .accountDealRow small { display: block; }.accountDealRow b { color: #fff; font-size: 9px; }.accountDealRow small { margin-bottom: 4px; color: #aa9da0; font-size: 7px; }.accountDealRow em { color: #ff9cac; font-size: 7px; font-style: normal; }
+@media (max-width: 1000px) { .accountDealRow { grid-template-columns: 1fr 1fr 1fr; } }
 @media (max-width: 760px) { .calendarAccessBar { align-items: stretch; flex-direction: column; } .calendarAccessBar > div:last-child { flex-direction: column; } }
 .pipelineToolbar small { color: #d9c9cc; font-size: 8px; letter-spacing: .14em; }
 .pipelineToolbar h2 { margin: 6px 0 3px; color: #fff; font-size: 20px; font-weight: 500; }

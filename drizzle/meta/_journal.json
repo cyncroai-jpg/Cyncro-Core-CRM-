@@ -43,6 +43,13 @@
       "when": 1787424107211,
       "tag": "0005_nostalgic_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787429456546,
+      "tag": "0006_furry_betty_ross",
+      "breakpoints": true
     }
   ]
 }

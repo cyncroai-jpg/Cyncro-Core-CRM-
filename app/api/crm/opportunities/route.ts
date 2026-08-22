@@ -35,10 +35,11 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO crm_opportunities
       (id, account_id, primary_contact_id, pipeline_id, name, stage, value_cents, probability, assigned_rep, commission_rate_bps,
-       commission_status, expected_close_date, source, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)`)
+       commission_status, payment_status, collected_cents, residual_rate_bps, residual_months, expected_close_date, source, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(id, accountId, cleanText(body.primaryContactId, 80) || null, pipelineId, name, stage, valueCents, probability,
-        cleanText(body.assignedRep, 160) || requestUser(request), commissionRateBps, cleanText(body.expectedCloseDate, 20) || null,
+        cleanText(body.assignedRep, 160) || requestUser(request), commissionRateBps, cleanText(body.paymentStatus, 30).toUpperCase() || "UNPAID",
+        Math.max(0, Math.round(Number(body.collected || 0) * 100)), Math.min(10000, Math.max(0, Math.round(Number(body.residualRate || 0) * 100))), Math.max(0, Math.round(Number(body.residualMonths || 0))), cleanText(body.expectedCloseDate, 20) || null,
         cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, now, now).run();
     return Response.json({ opportunity: await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ?").bind(id).first() }, { status: 201 });
   } catch (error) {
@@ -63,6 +64,10 @@ export async function PATCH(request: Request) {
     if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
     if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(10000, Math.max(0, Math.round(Number(updates.commissionRate) * 100))));
     if (updates.commissionStatus !== undefined) add("commission_status", cleanText(updates.commissionStatus, 30).toUpperCase());
+    if (updates.paymentStatus !== undefined) { const status = cleanText(updates.paymentStatus, 30).toUpperCase(); add("payment_status", status); if (status === "PAID") add("paid_at", new Date().toISOString()); }
+    if (updates.collected !== undefined) add("collected_cents", Math.max(0, Math.round(Number(updates.collected) * 100)));
+    if (updates.residualRate !== undefined) add("residual_rate_bps", Math.min(10000, Math.max(0, Math.round(Number(updates.residualRate) * 100))));
+    if (updates.residualMonths !== undefined) add("residual_months", Math.max(0, Math.round(Number(updates.residualMonths))));
     if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString()); values.push(id);
