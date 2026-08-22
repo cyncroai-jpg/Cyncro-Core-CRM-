@@ -53,6 +53,7 @@ export async function PATCH(request: Request) {
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
     const fields: string[] = []; const values: unknown[] = [];
     const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
+    if (updates.name !== undefined) { const name = cleanText(updates.name, 180); if (!name) return Response.json({ error: "Opportunity name is required." }, { status: 400 }); add("name", name); }
     if (updates.stage !== undefined) { const stage = cleanText(updates.stage, 40).toUpperCase(); if (!stages.has(stage)) return Response.json({ error: "Invalid pipeline stage." }, { status: 400 }); add("stage", stage); }
     if (updates.value !== undefined) add("value_cents", Math.max(0, Math.round(Number(updates.value) * 100)));
     if (updates.probability !== undefined) add("probability", Math.min(100, Math.max(0, Math.round(Number(updates.probability)))));

@@ -9555,7 +9555,7 @@ function UniversalCRM({
                   <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
                 )}
               </div>
-              {contact ? <CRMContactDetail contact={contact} onFlash={flash} /> : (
+              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} /> : (
                 <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
               )}
             </div>
@@ -9689,104 +9689,139 @@ function UniversalCRM({
 }
 
 function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
-  const columns = [
-    [
-      "NEW LEAD",
-      "$8,000",
-      [
-        ["Nia Carter", "Carter Collective", "$5,000", "68"],
-        ["Elena Torres", "Torres Studio", "$3,000", "61"],
-      ],
-    ],
-    [
-      "QUALIFIED",
-      "$15,000",
-      [
-        ["Marcus Reed", "Reed Development", "$12,000", "87"],
-        ["Owen Hart", "Hart & Co.", "$3,000", "72"],
-      ],
-    ],
-    [
-      "PROPOSAL",
-      "$20,500",
-      [
-        ["Alexandra Lewis", "Northstar Advisory", "$18,500", "94"],
-        ["Sophia Bennett", "Atelier House", "$2,000", "76"],
-      ],
-    ],
-    [
-      "NEGOTIATION",
-      "$32,000",
-      [["Daniel Kim", "Axis Systems", "$32,000", "91"]],
-    ],
-    [
-      "CLOSED WON",
-      "$24,000",
-      [
-        ["Maya Brooks", "Studio M", "$14,000", "100"],
-        ["Leo Grant", "Grant Capital", "$10,000", "100"],
-      ],
-    ],
-  ] as const;
+  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; notes?: string };
+  const stages = ["NEW LEAD", "QUALIFIED", "DISCOVERY", "PROPOSAL", "NEGOTIATION", "CLOSED WON", "CLOSED LOST"];
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [createStage, setCreateStage] = useState<string | null>(null);
+  const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
+  const loadDeals = async () => {
+    const response = await fetch("/api/crm/opportunities");
+    const data = await response.json() as { opportunities?: Deal[]; error?: string };
+    if (!response.ok) { onFlash(data.error || "Pipeline could not be loaded"); return; }
+    setDeals(data.opportunities || []);
+  };
+  useEffect(() => { const timer = window.setTimeout(() => void loadDeals(), 0); return () => window.clearTimeout(timer); }, []);
+  const saveDeal = async () => {
+    if (!selectedDeal) return;
+    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedDeal.id, updates: {
+      name: selectedDeal.name, stage: selectedDeal.stage, value: selectedDeal.value_cents / 100, probability: selectedDeal.probability,
+      assignedRep: selectedDeal.assigned_rep || "", commissionRate: selectedDeal.commission_rate_bps / 100,
+      commissionStatus: selectedDeal.commission_status, notes: selectedDeal.notes || "",
+    } }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Opportunity update failed"); return; }
+    setSelectedDeal(null); await loadDeals(); onFlash("Pipeline card updated");
+  };
+  const createOpportunity = async () => {
+    if (!createStage) return;
+    const accountResponse = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newDeal.company, source: "CRM" }) });
+    const accountData = await accountResponse.json() as { account?: { id: string }; error?: string };
+    if (!accountResponse.ok || !accountData.account) { onFlash(accountData.error || "Account could not be created"); return; }
+    const response = await fetch("/api/crm/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      accountId: accountData.account.id, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
+      value: Number(newDeal.value || 0), probability: Number(newDeal.probability || 10), assignedRep: newDeal.assignedRep,
+      commissionRate: Number(newDeal.commissionRate || 0), source: "CRM",
+    }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Opportunity could not be created"); return; }
+    setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
+    await loadDeals(); onFlash("Opportunity added to pipeline");
+  };
+  const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
   return (
-    <div className="pipelineBoard">
-      {columns.map((column) => (
-        <section key={column[0]}>
+    <>
+      <div className="pipelineBoard">
+      {stages.map((stage) => {
+        const columnDeals = deals.filter((deal) => deal.stage === stage);
+        return <section key={stage}>
           <header>
             <div>
-              <small>{column[0]}</small>
-              <b>{column[1]}</b>
+              <small>{stage}</small>
+              <b>{money(columnDeals.reduce((sum, deal) => sum + Number(deal.value_cents || 0), 0))}</b>
             </div>
-            <span>{column[2].length}</span>
+            <span>{columnDeals.length}</span>
           </header>
           <div>
-            {column[2].map((deal) => (
+            {columnDeals.map((deal) => (
               <button
                 className="dealCard"
-                onClick={() => onFlash(`${deal[0]} opened`)}
-                key={deal[0]}
+                onClick={() => setSelectedDeal({ ...deal })}
+                key={deal.id}
               >
                 <div>
-                  <i>
-                    {deal[0]
-                      .split(" ")
-                      .map((part) => part[0])
-                      .join("")}
-                  </i>
+                  <i>{deal.account_name.slice(0, 2).toUpperCase()}</i>
                   <span>
-                    <b>{deal[0]}</b>
-                    <small>{deal[1]}</small>
+                    <b>{deal.name}</b>
+                    <small>{deal.account_name}</small>
                   </span>
                 </div>
-                <strong>{deal[2]}</strong>
+                <strong>{money(deal.value_cents)}</strong>
                 <footer>
-                  <span>Intent {deal[3]}</span>
-                  <em>•••</em>
+                  <span>{deal.probability}% probability</span>
+                  <em>EDIT</em>
                 </footer>
               </button>
             ))}
           </div>
           <button
             className="addDeal"
-            onClick={() =>
-              onFlash(`New ${column[0].toLowerCase()} opportunity`)
-            }
+            onClick={() => setCreateStage(stage)}
           >
             ＋ Add opportunity
           </button>
-        </section>
-      ))}
-    </div>
+        </section>;
+      })}
+      </div>
+      {selectedDeal && <div className="modalback" onClick={() => setSelectedDeal(null)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
+        <div className="modalhead"><div><label>EDIT PIPELINE CARD</label><h2>{selectedDeal.name}</h2></div><button onClick={() => setSelectedDeal(null)}>×</button></div>
+        <div className="crmForm">
+          <label>Opportunity name<input value={selectedDeal.name} onChange={(event) => setSelectedDeal({ ...selectedDeal, name: event.target.value })} /></label>
+          <label>Stage<select value={selectedDeal.stage} onChange={(event) => setSelectedDeal({ ...selectedDeal, stage: event.target.value })}>{stages.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Deal value<input type="number" value={selectedDeal.value_cents / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, value_cents: Number(event.target.value) * 100 })} /></label>
+          <label>Probability<input type="number" min="0" max="100" value={selectedDeal.probability} onChange={(event) => setSelectedDeal({ ...selectedDeal, probability: Number(event.target.value) })} /></label>
+          <label>Assigned rep<input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} /></label>
+          <label>Commission %<input type="number" min="0" max="100" value={selectedDeal.commission_rate_bps / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Number(event.target.value) * 100 })} /></label>
+          <label>Commission status<select value={selectedDeal.commission_status} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_status: event.target.value })}><option>PENDING</option><option>APPROVED</option><option>PAID</option><option>CLAWBACK</option></select></label>
+          <label>Notes<textarea value={selectedDeal.notes || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, notes: event.target.value })} /></label>
+        </div>
+        <div className="modalactions"><button onClick={() => setSelectedDeal(null)}>Cancel</button><button onClick={() => void saveDeal()}>Save changes</button></div>
+      </div></div>}
+      {createStage && <div className="modalback" onClick={() => setCreateStage(null)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
+        <div className="modalhead"><div><label>NEW OPPORTUNITY · {createStage}</label><h2>Add pipeline card</h2></div><button onClick={() => setCreateStage(null)}>×</button></div>
+        <div className="crmForm">
+          <label>Company<input value={newDeal.company} onChange={(event) => setNewDeal({ ...newDeal, company: event.target.value })} /></label>
+          <label>Opportunity name<input value={newDeal.name} onChange={(event) => setNewDeal({ ...newDeal, name: event.target.value })} /></label>
+          <label>Deal value<input type="number" value={newDeal.value} onChange={(event) => setNewDeal({ ...newDeal, value: event.target.value })} /></label>
+          <label>Probability %<input type="number" value={newDeal.probability} onChange={(event) => setNewDeal({ ...newDeal, probability: event.target.value })} /></label>
+          <label>Assigned rep<input value={newDeal.assignedRep} onChange={(event) => setNewDeal({ ...newDeal, assignedRep: event.target.value })} /></label>
+          <label>Commission %<input type="number" value={newDeal.commissionRate} onChange={(event) => setNewDeal({ ...newDeal, commissionRate: event.target.value })} /></label>
+        </div>
+        <div className="modalactions"><button onClick={() => setCreateStage(null)}>Cancel</button><button disabled={!newDeal.company} onClick={() => void createOpportunity()}>Create opportunity</button></div>
+      </div></div>}
+    </>
   );
 }
 
 function CRMContactDetail({
   contact,
   onFlash,
+  onUpdated,
 }: {
   contact: CRMContactCard;
   onFlash: (message: string) => void;
+  onUpdated: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" });
+  useEffect(() => setDraft({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" }), [contact]);
+  const saveContact = async () => {
+    if (!contact.id) return;
+    const response = await fetch("/api/crm/contacts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: contact.id, updates: draft }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Contact update failed"); return; }
+    setEditing(false); onUpdated(); onFlash("Contact updated");
+  };
   return (
     <aside className="contactDetail crmPanel">
       <div className="contactHero">
@@ -9802,12 +9837,21 @@ function CRMContactDetail({
           <p>{contact.company}</p>
         </div>
         <span>{contact.intent} intent</span>
+        <button onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit"}</button>
       </div>
+      {editing && <div className="crmForm">
+        <label>Full name<input value={draft.fullName} onChange={(event) => setDraft({ ...draft, fullName: event.target.value })} /></label>
+        <label>Email<input value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></label>
+        <label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label>
+        <label>Lifecycle<select value={draft.lifecycle} onChange={(event) => setDraft({ ...draft, lifecycle: event.target.value })}><option>LEAD</option><option>QUALIFIED</option><option>CUSTOMER</option><option>INACTIVE</option></select></label>
+        <label>Notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
+        <button className="crmCreate" onClick={() => void saveContact()}>Save contact</button>
+      </div>}
       <div className="contactActions">
-        <button onClick={() => onFlash("Call started")}>Call</button>
-        <button onClick={() => onFlash("Email composer opened")}>Email</button>
-        <button onClick={() => onFlash("SMS composer opened")}>SMS</button>
-        <button onClick={() => onFlash("Meeting link opened")}>Book</button>
+        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { window.location.href = `tel:${contact.phone}`; }}>Call</button>
+        <button disabled={!contact.email || contact.email === "No email"} onClick={() => { window.location.href = `mailto:${contact.email}`; }}>Email</button>
+        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { window.location.href = `sms:${contact.phone}`; }}>SMS</button>
+        <button onClick={() => onFlash("Open Calendar from the left navigation to create this booking")}>Book</button>
       </div>
       <div className="contactFacts">
         {[
@@ -9830,7 +9874,7 @@ function CRMContactDetail({
             <small>COMPLETE TIMELINE</small>
             <h3>Every interaction</h3>
           </div>
-          <button onClick={() => onFlash("Note composer opened")}>
+          <button onClick={() => setEditing(true)}>
             ＋ Note
           </button>
         </div>
@@ -11820,45 +11864,29 @@ function CyncroSports() {
 }
 
 function Admin({ onCreate }: { onCreate: () => void }) {
-  const [selectedBooking, setSelectedBooking] = useState<number | null>(null);
-  const [rows, setRows] = useState([
-    [
-      "Aug 18 · 9:00 AM",
-      "Avery Morgan",
-      "Executive Strategy",
-      "Google Meet",
-      "Confirmed",
-    ],
-    [
-      "Aug 18 · 11:30 AM",
-      "Jordan Blake",
-      "Private Consultation",
-      "In person",
-      "Confirmed",
-    ],
-    [
-      "Aug 19 · 1:00 PM",
-      "Taylor Brooks",
-      "Executive Strategy",
-      "Phone",
-      "Pending",
-    ],
-    [
-      "Aug 21 · 3:30 PM",
-      "Morgan Reed",
-      "Systems Intensive",
-      "Zoom",
-      "Confirmed",
-    ],
-  ]);
-  const updateBooking = (index: number, field: number, value: string) =>
-    setRows(
-      rows.map((row, rowIndex) =>
-        rowIndex === index
-          ? row.map((item, itemIndex) => (itemIndex === field ? value : item))
-          : row,
-      ),
-    );
+  type Booking = { id: string; customer_name: string; customer_email: string; customer_phone?: string; starts_at: string; ends_at: string; event_name: string; location_mode: string; meeting_address?: string; video_platform?: string; status: string; notes?: string };
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [rows, setRows] = useState<Booking[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [rescheduleAt, setRescheduleAt] = useState("");
+  const loadBookings = async () => {
+    const from = new Date(); from.setMonth(from.getMonth() - 1);
+    const to = new Date(); to.setFullYear(to.getFullYear() + 1);
+    const response = await fetch(`/api/calendar/bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+    const data = await response.json() as { bookings?: Booking[]; error?: string };
+    if (!response.ok) { setNotice(data.error || "Bookings could not be loaded"); return; }
+    setRows(data.bookings || []); setLoaded(true);
+  };
+  useEffect(() => { const timer = window.setTimeout(() => void loadBookings(), 0); return () => window.clearTimeout(timer); }, []);
+  const updateBooking = async (booking: Booking, action: string, extra: Record<string, unknown> = {}) => {
+    const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: booking.id, action, ...extra }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { setNotice(data.error || "Booking update failed"); return; }
+    setSelectedBooking(null); setRescheduleAt(""); await loadBookings(); setNotice(`Booking ${action.toLowerCase()} successful`);
+  };
+  const upcoming = rows.filter((booking) => booking.status !== "CANCELLED" && new Date(booking.starts_at) >= new Date());
+  const confirmed = rows.filter((booking) => booking.status === "CONFIRMED" || booking.status === "RESCHEDULED").length;
   return (
     <section className="admin">
       <div className="adminhead">
@@ -11874,10 +11902,10 @@ function Admin({ onCreate }: { onCreate: () => void }) {
       </div>
       <div className="stats">
         {[
-          ["BOOKINGS THIS WEEK", "24"],
-          ["CONFIRMATION RATE", "96%"],
-          ["HOST UTILIZATION", "78%"],
-          ["WAITLIST", "6"],
+          ["UPCOMING BOOKINGS", String(upcoming.length)],
+          ["CONFIRMED", String(confirmed)],
+          ["COMPLETED", String(rows.filter((booking) => booking.status === "COMPLETED").length)],
+          ["CANCELLED", String(rows.filter((booking) => booking.status === "CANCELLED").length)],
         ].map((x) => (
           <div key={x[0]}>
             <small>{x[0]}</small>
@@ -11887,30 +11915,25 @@ function Admin({ onCreate }: { onCreate: () => void }) {
         ))}
       </div>
       <div className="table">
-        <h3>Upcoming bookings</h3>
-        {rows.map((r, i) => (
-          <div className="tr" key={i}>
-            {r.map((x, j) => (
-              <span key={j}>
-                <b>{x}</b>
-                {j === 1 && (
-                  <small>
-                    {x.toLowerCase().replace(" ", ".")}@email.com
-                    <br />
-                    (561) 555-01{i + 20}
-                  </small>
-                )}
-              </span>
-            ))}
-            <button onClick={() => setSelectedBooking(i)}>•••</button>
+        <div className="crmPanelHead"><h3>Live bookings</h3><button onClick={() => void loadBookings()}>Refresh</button></div>
+        {rows.map((booking) => (
+          <div className="tr" key={booking.id}>
+            <span><b>{new Date(booking.starts_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</b></span>
+            <span><b>{booking.customer_name}</b><small>{booking.customer_email}<br />{booking.customer_phone || "No phone"}</small></span>
+            <span><b>{booking.event_name}</b></span>
+            <span><b>{booking.location_mode.replace("_", " ")}</b><small>{booking.video_platform || booking.meeting_address || ""}</small></span>
+            <span><b>{booking.status}</b></span>
+            <button onClick={() => setSelectedBooking(booking)}>•••</button>
           </div>
         ))}
+        {loaded && !rows.length && <div className="noProspects">No live bookings yet. Create an event, publish its link, or manually book a customer.</div>}
       </div>
+      {notice && <div className="prospectingAlert success">{notice}</div>}
       <footer className="features">
         ◆ Double-booking protection　◆ Weighted host routing　◆ Resource
         locking　◆ Automated reminders　◆ Calendar sync ready
       </footer>
-      {selectedBooking !== null && (
+      {selectedBooking && (
         <div className="modalback" onClick={() => setSelectedBooking(null)}>
           <div
             className="bookingmodal"
@@ -11919,51 +11942,45 @@ function Admin({ onCreate }: { onCreate: () => void }) {
             <div className="modalhead">
               <div>
                 <label>BOOKING CONTROL</label>
-                <h2>{rows[selectedBooking][1]}</h2>
+                <h2>{selectedBooking.customer_name}</h2>
               </div>
               <button onClick={() => setSelectedBooking(null)}>×</button>
             </div>
             <div className="bookingfacts">
               <div>
                 <small>DATE & TIME</small>
-                <b>{rows[selectedBooking][0]}</b>
+                <b>{new Date(selectedBooking.starts_at).toLocaleString()}</b>
               </div>
               <div>
                 <small>EVENT</small>
-                <b>{rows[selectedBooking][2]}</b>
+                <b>{selectedBooking.event_name}</b>
               </div>
               <div>
                 <small>LOCATION</small>
-                <b>{rows[selectedBooking][3]}</b>
+                <b>{selectedBooking.location_mode.replace("_", " ")} {selectedBooking.video_platform || selectedBooking.meeting_address || ""}</b>
               </div>
               <div>
                 <small>STATUS</small>
-                <b>{rows[selectedBooking][4]}</b>
+                <b>{selectedBooking.status}</b>
               </div>
             </div>
+            <label>New date and time<input type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} /></label>
             <div className="modalactions">
               <button
-                onClick={() => {
-                  updateBooking(selectedBooking, 0, "Aug 20 · 2:30 PM");
-                  setSelectedBooking(null);
-                }}
+                disabled={!rescheduleAt}
+                onClick={() => void updateBooking(selectedBooking, "RESCHEDULE", { startsAt: new Date(rescheduleAt).toISOString() })}
               >
                 Reschedule
               </button>
               <button
-                onClick={() => {
-                  updateBooking(selectedBooking, 4, "Confirmed");
-                  setSelectedBooking(null);
-                }}
+                onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "CONFIRMED" })}
               >
                 Confirm
               </button>
+              <button onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "COMPLETED" })}>Mark completed</button>
               <button
                 className="danger"
-                onClick={() => {
-                  updateBooking(selectedBooking, 4, "Cancelled");
-                  setSelectedBooking(null);
-                }}
+                onClick={() => void updateBooking(selectedBooking, "CANCEL")}
               >
                 Cancel booking
               </button>

@@ -58,3 +58,30 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unable to create CRM contact." }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const body = (await request.json()) as Record<string, unknown>;
+    const id = cleanText(body.id, 80);
+    if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
+    const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
+    const fields: string[] = []; const values: unknown[] = [];
+    const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
+    if (updates.fullName !== undefined) { const value = cleanText(updates.fullName, 160); if (!value) return Response.json({ error: "Full name is required." }, { status: 400 }); add("full_name", value); }
+    if (updates.email !== undefined) { const value = normalizeEmail(updates.email); if (updates.email && !value) return Response.json({ error: "Enter a valid email." }, { status: 400 }); add("email", value); }
+    if (updates.phone !== undefined) add("phone", cleanText(updates.phone, 40) || null);
+    if (updates.title !== undefined) add("title", cleanText(updates.title, 120) || null);
+    if (updates.lifecycle !== undefined) add("lifecycle", cleanText(updates.lifecycle, 40).toUpperCase());
+    if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
+    if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
+    if (!fields.length) return Response.json({ error: "No valid contact changes supplied." }, { status: 400 });
+    add("updated_at", new Date().toISOString()); values.push(id);
+    await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+    const contact = await coreDb().prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id WHERE c.id = ?`).bind(id).first();
+    return contact ? Response.json({ contact }) : Response.json({ error: "Contact not found." }, { status: 404 });
+  } catch (error) {
+    console.error("crm.contacts.update_failed", error);
+    return Response.json({ error: "Unable to update CRM contact." }, { status: 500 });
+  }
+}
