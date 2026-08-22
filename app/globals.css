@@ -9284,6 +9284,16 @@ label {
 .crmEmbeddedCalendar .admin { min-height: auto; padding: 0; background: transparent; }
 .crmEmbeddedCalendar .adminhead { margin-top: 0; }
 .crmEmbeddedCalendar .adminhead h1 { font-size: clamp(24px, 3vw, 38px); }
+.calendarAccessBar { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #3b2b30; border-radius: 10px; background: linear-gradient(145deg, #171214, #0c0a0b); padding: 16px; }
+.calendarAccessBar small { color: #ded1d4; font-size: 8px; letter-spacing: .14em; }
+.calendarAccessBar h2 { margin: 5px 0 0; color: #fff; font-size: 18px; font-weight: 500; }
+.calendarAccessBar > div:last-child { display: flex; gap: 7px; }
+.calendarAccessBar button { min-height: 38px; border: 1px solid #50333a; border-radius: 6px; background: #120f10; color: #fff; padding: 0 14px; font-size: 9px; }
+.calendarAccessBar button.active { border-color: #b51f38; background: #8f1327; box-shadow: 0 8px 24px rgba(181,31,56,.2); }
+.calendarCapabilityStrip { display: flex; gap: 7px; margin: 10px 0 18px; overflow-x: auto; padding-bottom: 4px; }
+.calendarCapabilityStrip span { flex: 0 0 auto; border: 1px solid #34282b; border-radius: 999px; background: #100d0e; color: #d9cccf; padding: 7px 10px; font-size: 8px; }
+.crmEmbeddedCalendar .studio { min-height: auto; margin-top: 0; }
+@media (max-width: 760px) { .calendarAccessBar { align-items: stretch; flex-direction: column; } .calendarAccessBar > div:last-child { flex-direction: column; } }
 .pipelineToolbar small { color: #d9c9cc; font-size: 8px; letter-spacing: .14em; }
 .pipelineToolbar h2 { margin: 6px 0 3px; color: #fff; font-size: 20px; font-weight: 500; }
 .pipelineToolbar p { margin: 0; color: #d2c7c9; font-size: 10px; }

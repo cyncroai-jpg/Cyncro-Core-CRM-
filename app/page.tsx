@@ -9539,7 +9539,7 @@ function UniversalCRM({
               )}
             </div>
           )}
-          {view === "Calendar" && <div className="crmEmbeddedCalendar"><Admin onCreate={() => flash("Create and manage event types from Calendar settings")} /></div>}
+          {view === "Calendar" && <CRMCalendarWorkspace onFlash={flash} />}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
@@ -11913,6 +11913,25 @@ function CyncroSports() {
         </p>
       </div>
     </section>
+  );
+}
+
+function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void }) {
+  const [section, setSection] = useState<"BOOKINGS" | "SETUP">("BOOKINGS");
+  return (
+    <div className="crmEmbeddedCalendar">
+      <div className="calendarAccessBar">
+        <div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Everything accessible in one workspace</h2></div>
+        <div role="tablist" aria-label="Calendar workspace">
+          <button className={section === "BOOKINGS" ? "active" : ""} onClick={() => setSection("BOOKINGS")}>Bookings & schedule</button>
+          <button className={section === "SETUP" ? "active" : ""} onClick={() => setSection("SETUP")}>Event types & settings</button>
+        </div>
+      </div>
+      <div className="calendarCapabilityStrip">
+        {["Bookings", "Month + week views", "Event types", "Availability", "Time slots", "Booking links", "Locations + video", "Capacity", "Reminders", "Reschedule + cancel"].map((item) => <span key={item}>✓ {item}</span>)}
+      </div>
+      {section === "BOOKINGS" ? <Admin onCreate={() => setSection("SETUP")} /> : <Studio onPreview={() => onFlash("Booking-page preview is available from the Preview button")} />}
+    </div>
   );
 }
 
