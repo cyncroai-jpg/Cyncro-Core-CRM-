@@ -51,12 +51,15 @@ export async function POST(request: Request) {
     const bookingId = crypto.randomUUID();
     await db.prepare(`INSERT INTO calendar_bookings
       (id, event_type_id, account_id, contact_id, customer_name, customer_email, customer_phone, starts_at, ends_at, timezone,
-       location_mode, meeting_address, video_platform, video_url, status, notes, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?)`)
+       location_mode, meeting_address, video_platform, video_url, status, notes, created_by, assigned_to, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)`) 
       .bind(bookingId, eventTypeId, cleanText(body.accountId, 80) || null, cleanText(body.contactId, 80) || null,
         customerName, customerEmail, cleanText(body.customerPhone, 40) || null, starts.toISOString(), ends.toISOString(), timezone,
         locationMode, meetingAddress, videoPlatform, cleanText(body.videoUrl, 500) || null, cleanText(body.notes, 5000) || null,
-        requestUser(request), now, now).run();
+        requestUser(request), cleanText(body.assignedTo, 160) || requestUser(request), now, now).run();
+    const assignedTo = cleanText(body.assignedTo, 160) || requestUser(request);
+    await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     return Response.json({ booking: { id: bookingId, startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED" } }, { status: 201 });
   } catch (error) {
     console.error("calendar.bookings.create_failed", error);
@@ -95,9 +98,12 @@ export async function PATCH(request: Request) {
       const status = cleanText(body.status, 30).toUpperCase();
       const allowed = new Set(["CONFIRMED", "COMPLETED", "NO_SHOW"]);
       if (!allowed.has(status)) return Response.json({ error: "Choose a valid booking action." }, { status: 400 });
-      await db.prepare("UPDATE calendar_bookings SET status = ?, notes = COALESCE(?, notes), updated_at = ? WHERE id = ?")
-        .bind(status, cleanText(body.notes, 5000) || null, now, id).run();
+      await db.prepare("UPDATE calendar_bookings SET status = ?, notes = COALESCE(?, notes), assigned_to = COALESCE(?, assigned_to), updated_at = ? WHERE id = ?")
+        .bind(status, cleanText(body.notes, 5000) || null, cleanText(body.assignedTo, 160) || null, now, id).run();
     }
+    const recipient = cleanText(body.assignedTo,160) || String(booking.assigned_to || booking.created_by || requestUser(request));
+    await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
     const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first();
     return Response.json({ booking: updated });
   } catch (error) {

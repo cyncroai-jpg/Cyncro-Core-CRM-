@@ -165,6 +165,7 @@ export async function ensureCoreSchema() {
       status TEXT NOT NULL DEFAULT 'CONFIRMED',
       notes TEXT,
       created_by TEXT,
+      assigned_to TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(event_type_id) REFERENCES calendar_event_types(id),
@@ -173,6 +174,11 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS calendar_bookings_time_idx ON calendar_bookings(starts_at, ends_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS calendar_bookings_contact_idx ON calendar_bookings(contact_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS calendar_bookings_assigned_idx ON calendar_bookings(assigned_to, starts_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS workspace_notifications (
+      id TEXT PRIMARY KEY, recipient TEXT NOT NULL, title TEXT NOT NULL, body TEXT, entity_type TEXT, entity_id TEXT, read_at TEXT, created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS workspace_notifications_recipient_idx ON workspace_notifications(recipient, created_at DESC)"),
   ]);
   initialized = true;
 }

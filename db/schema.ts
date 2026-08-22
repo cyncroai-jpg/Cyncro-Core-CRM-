@@ -99,6 +99,11 @@ export const crmActivities = sqliteTable("crm_activities", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const workspaceNotifications = sqliteTable("workspace_notifications", {
+  id: text("id").primaryKey(), recipient: text("recipient").notNull(), title: text("title").notNull(), body: text("body"),
+  entityType: text("entity_type"), entityId: text("entity_id"), readAt: text("read_at"), createdAt: text("created_at").notNull(),
+});
+
 export const workspaceMembers = sqliteTable("workspace_members", {
   email: text("email").primaryKey(), displayName: text("display_name").notNull(), role: text("role").notNull().default("MEMBER"),
   crmAccess: integer("crm_access").notNull().default(1), calendarAccess: integer("calendar_access").notNull().default(0),
@@ -197,6 +202,7 @@ export const calendarBookings = sqliteTable("calendar_bookings", {
   status: text("status").notNull().default("CONFIRMED"),
   notes: text("notes"),
   createdBy: text("created_by"),
+  assignedTo: text("assigned_to"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

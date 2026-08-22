@@ -9243,7 +9243,7 @@ function UniversalCRM({
     const data = await response.json() as { error?: string };
     if (!response.ok) { flash(data.error || "Contact could not be created"); return; }
     setCreating(false); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
-    await loadCRMContacts(); flash("Contact created in the live CRM");
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]); window.dispatchEvent(new Event("cyncro:data-changed")); flash("Contact created and synced across CRM");
   };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
@@ -9581,7 +9581,7 @@ function UniversalCRM({
               )}
             </div>
           )}
-          {view === "Calendar" && <CRMCalendarWorkspace onFlash={flash} />}
+          {view === "Calendar" && <CRMCalendarWorkspace onFlash={flash} currentUserName={crmUserName} />}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
@@ -11901,7 +11901,7 @@ function CyncroSports() {
   );
 }
 
-function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void }) {
+function CRMCalendarWorkspace({ onFlash, currentUserName }: { onFlash: (message: string) => void; currentUserName: string }) {
   return (
     <div className="crmEmbeddedCalendar">
       <div className="calendarAccessBar"><div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Schedule, configure, publish.</h2><p>Three simple steps. Advanced controls only appear when you need them.</p></div></div>
@@ -11910,7 +11910,7 @@ function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void 
         <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>2</i><span><b>Create event types</b><small>Choose duration, location, capacity, and price.</small></span></button>
         <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>3</i><span><b>Set availability & publish</b><small>Control time slots, reminders, routing, and booking links.</small></span></button>
       </div>
-      <div id="calendar-bookings"><Admin onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} /></div>
+      <div id="calendar-bookings"><Admin currentUserName={currentUserName} onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} /></div>
       <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><SimpleEventManager onFlash={onFlash} /></div>
     </div>
   );
@@ -11930,13 +11930,19 @@ function SimpleEventManager({ onFlash }: { onFlash: (message: string) => void })
   return <div className="simpleEventManager"><aside><div><b>EVENT TYPES</b><button onClick={() => setForm(empty)}>＋ New</button></div>{events.map((item) => <button className={form.id === item.id ? "active" : ""} onClick={() => selectEvent(item)} key={item.id}><b>{item.name}</b><small>{item.duration_minutes} min · Capacity {item.capacity}</small></button>)}{!events.length && <p>No event types yet.</p>}</aside><section><div className="simpleEventHead"><div><small>{form.id ? "EDIT EVENT" : "NEW EVENT"}</small><h3>{form.name || "Create an event type"}</h3></div><div>{form.id && <button className="danger" onClick={() => void archive()}>Archive</button>}<button className="crmCreate" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save & publish"}</button></div></div><div className="simpleEventGrid"><label>Event name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value, slug: form.id ? form.slug : event.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") })} /></label><label>Booking link name<input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"") })} /></label><label className="wide">Description<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><label>Duration (minutes)<input type="number" min="5" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label><label>Capacity<input type="number" min="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} /></label><label>Buffer before<input type="number" min="0" value={form.bufferBeforeMinutes} onChange={(event) => setForm({ ...form, bufferBeforeMinutes: Number(event.target.value) })} /></label><label>Buffer after<input type="number" min="0" value={form.bufferAfterMinutes} onChange={(event) => setForm({ ...form, bufferAfterMinutes: Number(event.target.value) })} /></label><label>Available from<input type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} /></label><label>Available until<input type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} /></label><label className="wide">Meeting options<div className="simpleChecks">{[["VIDEO","Video"],["PHONE","Phone"],["IN_PERSON","In person"]].map(([value,label]) => <button className={form.locationModes.includes(value) ? "active" : ""} onClick={() => toggle("locationModes",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Video platforms<div className="simpleChecks">{[["GOOGLE_MEET","Google Meet"],["ZOOM","Zoom"],["FACETIME","FaceTime"]].map(([value,label]) => <button className={form.videoPlatforms.includes(value) ? "active" : ""} onClick={() => toggle("videoPlatforms",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Published booking page<div className="bookingLinkBox"><input readOnly value={bookingUrl} /><button onClick={() => { void navigator.clipboard?.writeText(bookingUrl); onFlash("Booking link copied"); }}>Copy link</button></div></label></div></section></div>;
 }
 
-function Admin({ onCreate }: { onCreate: () => void }) {
-  type Booking = { id: string; customer_name: string; customer_email: string; customer_phone?: string; starts_at: string; ends_at: string; event_name: string; location_mode: string; meeting_address?: string; video_platform?: string; status: string; notes?: string };
+function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () => void; currentUserName?: string }) {
+  type Booking = { id: string; customer_name: string; customer_email: string; customer_phone?: string; starts_at: string; ends_at: string; event_name: string; event_type_id: string; contact_id?: string; assigned_to?: string; location_mode: string; meeting_address?: string; video_platform?: string; status: string; notes?: string };
+  type EventOption = { id: string; name: string; duration_minutes: number };
+  type ContactOption = { id: string; full_name: string; email?: string; phone?: string };
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rows, setRows] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK">("WEEK");
+  const [showMine, setShowMine] = useState(true); const [manualOpen,setManualOpen]=useState(false); const [eventOptions,setEventOptions]=useState<EventOption[]>([]); const [contactOptions,setContactOptions]=useState<ContactOption[]>([]);
+  const [manual,setManual]=useState({eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",locationMode:"VIDEO",meetingAddress:"",videoPlatform:"GOOGLE_MEET",notes:"",assignedTo:currentUserName});
+  const [notifications,setNotifications]=useState<{id:string;title:string;body?:string;read_at?:string;created_at:string}[]>([]);
   const loadBookings = async () => {
     const from = new Date(); from.setMonth(from.getMonth() - 1);
     const to = new Date(); to.setFullYear(to.getFullYear() + 1);
@@ -11946,6 +11952,7 @@ function Admin({ onCreate }: { onCreate: () => void }) {
     setRows(data.bookings || []); setLoaded(true);
   };
   useEffect(() => { const timer = window.setTimeout(() => void loadBookings(), 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(()=>{const timer=window.setTimeout(()=>void Promise.all([fetch("/api/calendar/event-types"),fetch("/api/crm/contacts"),fetch(`/api/notifications?recipient=${encodeURIComponent(currentUserName)}`)]).then(async([e,c,n])=>{if(e.ok)setEventOptions(((await e.json()) as {eventTypes?:EventOption[]}).eventTypes||[]);if(c.ok)setContactOptions(((await c.json()) as {contacts?:ContactOption[]}).contacts||[]);if(n.ok)setNotifications(((await n.json()) as {notifications?:typeof notifications}).notifications||[]);}),0);return()=>window.clearTimeout(timer);},[currentUserName]);
   const updateBooking = async (booking: Booking, action: string, extra: Record<string, unknown> = {}) => {
     const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: booking.id, action, ...extra }) });
     const data = await response.json() as { error?: string };
@@ -11954,6 +11961,9 @@ function Admin({ onCreate }: { onCreate: () => void }) {
   };
   const upcoming = rows.filter((booking) => booking.status !== "CANCELLED" && new Date(booking.starts_at) >= new Date());
   const confirmed = rows.filter((booking) => booking.status === "CONFIRMED" || booking.status === "RESCHEDULED").length;
+  const visibleRows = rows.filter((booking)=>!showMine || !booking.assigned_to || booking.assigned_to===currentUserName);
+  const createManualBooking=async()=>{const response=await fetch("/api/calendar/bookings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...manual,startsAt:new Date(manual.startsAt).toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});const data=await response.json() as {error?:string};if(!response.ok){setNotice(data.error||"Booking could not be created");return;}setManualOpen(false);setManual({...manual,eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",notes:""});await loadBookings();setNotice("Appointment created and assigned");};
+  const chooseContact=(id:string)=>{const contact=contactOptions.find(item=>item.id===id);setManual({...manual,contactId:id,customerName:contact?.full_name||"",customerEmail:contact?.email||"",customerPhone:contact?.phone||""});};
   return (
     <section className="admin">
       <div className="adminhead">
@@ -11981,9 +11991,11 @@ function Admin({ onCreate }: { onCreate: () => void }) {
           </div>
         ))}
       </div>
-      <div className="table">
-        <div className="crmPanelHead"><h3>Live bookings</h3><button onClick={() => void loadBookings()}>Refresh</button></div>
-        {rows.map((booking) => (
+      <div className="calendarCommandBar"><div>{(["LIST","WEEK","MONTH"] as const).map(item=><button className={calendarView===item?"active":""} onClick={()=>setCalendarView(item)} key={item}>{item[0]+item.slice(1).toLowerCase()}</button>)}</div><label><input type="checkbox" checked={showMine} onChange={event=>setShowMine(event.target.checked)}/> My appointments</label><button className="crmCreate" onClick={()=>setManualOpen(true)}>＋ Book appointment</button></div>
+      {calendarView !== "LIST" && <div className={`roleCalendar ${calendarView.toLowerCase()}`}><div className="roleCalendarHead"><b>{calendarView === "MONTH" ? new Date().toLocaleDateString(undefined,{month:"long",year:"numeric"}) : "This week"}</b><span>{currentUserName} · {visibleRows.length} appointments</span></div><div className="roleCalendarGrid">{Array.from({length:calendarView==="MONTH"?35:7},(_,index)=>{const date=new Date();if(calendarView==="MONTH"){date.setDate(1);date.setDate(index-date.getDay()+1);}else date.setDate(date.getDate()-date.getDay()+index);const dayRows=visibleRows.filter(row=>new Date(row.starts_at).toDateString()===date.toDateString());return <div key={index}><time>{date.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</time>{dayRows.map(row=><button key={row.id} onClick={()=>setSelectedBooking(row)}><b>{new Date(row.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b><span>{row.customer_name}</span><small>{row.event_name}</small></button>)}</div>})}</div></div>}
+      <div className={`table ${calendarView!=="LIST"?"compactBookingList":""}`}>
+        <div className="crmPanelHead"><div><small>APPOINTMENTS</small><h3>{calendarView==="LIST"?"All bookings":"Upcoming details"}</h3></div><button onClick={() => void loadBookings()}>Refresh</button></div>
+        {visibleRows.map((booking) => (
           <div className="tr" key={booking.id}>
             <span><b>{new Date(booking.starts_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</b></span>
             <span><b>{booking.customer_name}</b><small>{booking.customer_email}<br />{booking.customer_phone || "No phone"}</small></span>
@@ -11993,8 +12005,9 @@ function Admin({ onCreate }: { onCreate: () => void }) {
             <button onClick={() => setSelectedBooking(booking)}>•••</button>
           </div>
         ))}
-        {loaded && !rows.length && <div className="noProspects">No live bookings yet. Create an event, publish its link, or manually book a customer.</div>}
+        {loaded && !visibleRows.length && <div className="noProspects">No appointments in this view. Create one manually or publish a booking link.</div>}
       </div>
+      {notifications.some(item=>!item.read_at)&&<div className="calendarNotifications"><b>NOTIFICATIONS</b>{notifications.filter(item=>!item.read_at).slice(0,3).map(item=><button key={item.id} onClick={async()=>{await fetch("/api/notifications",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:item.id})});setNotifications(current=>current.map(note=>note.id===item.id?{...note,read_at:new Date().toISOString()}:note));}}><span><strong>{item.title}</strong><small>{item.body}</small></span><em>Mark read</em></button>)}</div>}
       {notice && <div className="prospectingAlert success">{notice}</div>}
       <footer className="features">
         ◆ Double-booking protection　◆ Weighted host routing　◆ Resource
@@ -12030,8 +12043,10 @@ function Admin({ onCreate }: { onCreate: () => void }) {
                 <small>STATUS</small>
                 <b>{selectedBooking.status}</b>
               </div>
+              <div><small>ASSIGNED TO</small><b>{selectedBooking.assigned_to || "Unassigned"}</b></div>
             </div>
             <label>New date and time<input type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} /></label>
+            <label>Assign appointment<input value={selectedBooking.assigned_to || ""} onChange={(event)=>setSelectedBooking({...selectedBooking,assigned_to:event.target.value})}/></label>
             <div className="modalactions">
               <button
                 disabled={!rescheduleAt}
@@ -12040,7 +12055,7 @@ function Admin({ onCreate }: { onCreate: () => void }) {
                 Reschedule
               </button>
               <button
-                onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "CONFIRMED" })}
+                onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "CONFIRMED", assignedTo:selectedBooking.assigned_to })}
               >
                 Confirm
               </button>
@@ -12055,6 +12070,7 @@ function Admin({ onCreate }: { onCreate: () => void }) {
           </div>
         </div>
       )}
+      {manualOpen&&<div className="modalback" onClick={()=>setManualOpen(false)}><div className="bookingmodal" onClick={event=>event.stopPropagation()}><div className="modalhead"><div><label>MANUAL BOOKING</label><h2>Create appointment</h2></div><button onClick={()=>setManualOpen(false)}>×</button></div><div className="crmForm"><label>Event type<select value={manual.eventTypeId} onChange={event=>setManual({...manual,eventTypeId:event.target.value})}><option value="">Select event</option>{eventOptions.map(item=><option value={item.id} key={item.id}>{item.name} · {item.duration_minutes} min</option>)}</select></label><label>CRM contact<select value={manual.contactId} onChange={event=>chooseContact(event.target.value)}><option value="">Select or enter manually</option>{contactOptions.map(item=><option value={item.id} key={item.id}>{item.full_name}</option>)}</select></label><label>Customer name<input value={manual.customerName} onChange={event=>setManual({...manual,customerName:event.target.value})}/></label><label>Email<input value={manual.customerEmail} onChange={event=>setManual({...manual,customerEmail:event.target.value})}/></label><label>Phone<input value={manual.customerPhone} onChange={event=>setManual({...manual,customerPhone:event.target.value})}/></label><label>Date and time<input type="datetime-local" value={manual.startsAt} onChange={event=>setManual({...manual,startsAt:event.target.value})}/></label><label>Assigned to<input value={manual.assignedTo} onChange={event=>setManual({...manual,assignedTo:event.target.value})}/></label><label>Meeting type<select value={manual.locationMode} onChange={event=>setManual({...manual,locationMode:event.target.value})}><option value="VIDEO">Video</option><option value="PHONE">Phone</option><option value="IN_PERSON">In person</option></select></label>{manual.locationMode==="VIDEO"&&<label>Video platform<select value={manual.videoPlatform} onChange={event=>setManual({...manual,videoPlatform:event.target.value})}><option value="GOOGLE_MEET">Google Meet</option><option value="ZOOM">Zoom</option><option value="FACETIME">FaceTime</option></select></label>}{manual.locationMode==="IN_PERSON"&&<label>Meeting address<input value={manual.meetingAddress} onChange={event=>setManual({...manual,meetingAddress:event.target.value})}/></label>}<label>Notes<textarea value={manual.notes} onChange={event=>setManual({...manual,notes:event.target.value})}/></label></div><div className="modalactions"><button onClick={()=>setManualOpen(false)}>Cancel</button><button disabled={!manual.eventTypeId||!manual.customerName||!manual.customerEmail||!manual.startsAt} onClick={()=>void createManualBooking()}>Create appointment</button></div></div></div>}
     </section>
   );
 }
