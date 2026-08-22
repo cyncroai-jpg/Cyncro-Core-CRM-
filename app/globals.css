@@ -9609,19 +9609,19 @@ label {
   text-overflow: ellipsis;
 }
 .contactTimeline {
-  padding: 17px;
+  padding: 12px 17px;
   border-top: 1px solid #2b2325;
 }
 .contactTimeline > div:not(.crmPanelHead) {
   display: grid;
   grid-template-columns: 55px 8px 1fr;
   gap: 8px;
-  min-height: 53px;
+  min-height: 42px;
   align-items: start;
 }
 .contactTimeline time {
-  color: #8d8083;
-  font-size: 6px;
+  color: #c6b9bc;
+  font-size: 8px;
 }
 .contactTimeline > div > i {
   width: 6px;
@@ -9634,14 +9634,23 @@ label {
   display: block;
 }
 .contactTimeline b {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 500;
 }
 .contactTimeline small {
   margin-top: 4px;
-  color: #887b7e;
-  font-size: 7px;
+  color: #c2b5b8;
+  font-size: 8px;
 }
+.contactActions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.contactActions button { min-height: 38px; font-size: 8px; }
+.contactComposer { margin: 0 14px 12px; border: 1px solid #3a2c30; border-radius: 8px; background: #100d0e; padding: 12px; }
+.contactComposer > b { display: block; margin-bottom: 8px; color: #fff; font-size: 9px; letter-spacing: .1em; }
+.contactComposer input, .contactComposer textarea { width: 100%; margin-top: 7px; border: 1px solid #3b2f32; border-radius: 5px; background: #090808; color: #fff; padding: 9px; font-size: 9px; }
+.contactComposer textarea { min-height: 70px; resize: vertical; }
+.contactComposer > div { display: flex; justify-content: flex-end; gap: 7px; margin-top: 8px; }
+.contactComposer button { min-height: 34px; border: 1px solid #53323a; border-radius: 5px; background: #171214; color: #fff; padding: 0 14px; font-size: 8px; }
+.emptyTimeline { color: #bcaeb1; font-size: 9px; padding: 12px 0; }
 .conversationWorkspace {
   display: grid;
   grid-template-columns: 265px 1fr 245px;

@@ -9161,6 +9161,8 @@ function UniversalCRM({
     [aiOpen, setAiOpen] = useState(false),
     [notice, setNotice] = useState(""),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
+    [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
+    [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>([]),
     [contactsLoaded, setContactsLoaded] = useState(false),
     [contactForm, setContactForm] = useState({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
   const flash = (message: string) => {
@@ -9180,7 +9182,13 @@ function UniversalCRM({
     } catch (error) { flash(error instanceof Error ? error.message : "Unable to load contacts."); }
     finally { setContactsLoaded(true); }
   };
+  const loadCRMOverview = async () => {
+    const [statsResponse, activityResponse] = await Promise.all([fetch("/api/crm/stats"), fetch("/api/crm/activities?limit=20")]);
+    if (statsResponse.ok) { const data = await statsResponse.json() as { summary?: Record<string, number> }; setCrmSummary(data.summary || {}); }
+    if (activityResponse.ok) { const data = await activityResponse.json() as { activities?: Record<string, unknown>[] }; setRecentActivity(data.activities || []); }
+  };
   useEffect(() => { const timer = window.setTimeout(() => void loadCRMContacts(), 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => { const timer = window.setTimeout(() => void loadCRMOverview(), 0); return () => window.clearTimeout(timer); }, [view]);
   const filteredContacts = liveContacts.filter((contact) =>
     `${contact.name} ${contact.company} ${contact.email}`
       .toLowerCase()
@@ -9317,13 +9325,13 @@ function UniversalCRM({
                 {[
                   [
                     "OPEN PIPELINE",
-                    "$75,000",
-                    "+18.4%",
-                    "Across 14 opportunities",
+                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(crmSummary.pipeline_cents || 0) / 100),
+                    "LIVE",
+                    `Across ${crmSummary.opportunities || 0} opportunities`,
                   ],
-                  ["WEIGHTED FORECAST", "$48,250", "+$7.8K", "This quarter"],
-                  ["ACTIVE CONTACTS", "2,418", "+126", "Last 30 days"],
-                  ["CONVERSION", "31.8%", "+4.2%", "Qualified to closed"],
+                  ["CLOSED WON", new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(crmSummary.won_cents || 0) / 100), "LIVE", "Recorded revenue"],
+                  ["ACTIVE CONTACTS", String(crmSummary.contacts || 0), "LIVE", "Database contacts"],
+                  ["ACCOUNTS", String(crmSummary.accounts || 0), "LIVE", "Active CRM records"],
                 ].map((metric) => (
                   <article key={metric[0]}>
                     <small>{metric[0]}</small>
@@ -9430,39 +9438,15 @@ function UniversalCRM({
                       All activity →
                     </button>
                   </div>
-                  {[
-                    [
-                      "BK",
-                      "Alexandra booked a strategy session",
-                      "Calendar · 4 min ago",
-                      "+ Opportunity updated",
-                    ],
-                    [
-                      "$",
-                      "Daniel opened the $32K payment link",
-                      "Payments · 18 min ago",
-                      "High intent",
-                    ],
-                    [
-                      "✉",
-                      "Marcus replied: “Let’s move forward”",
-                      "SMS · 32 min ago",
-                      "Reply needed",
-                    ],
-                    [
-                      "◎",
-                      "Sophia viewed the proposal again",
-                      "Tracking · 1 hr ago",
-                      "3 total views",
-                    ],
-                  ].map((item) => (
-                    <div className="activityRow" key={item[1]}>
-                      <i>{item[0]}</i>
+                  {!recentActivity.length && <div className="noProspects">No customer activity yet.</div>}
+                  {recentActivity.filter((item) => item.activity_type !== "TASK").slice(0, 4).map((item) => (
+                    <div className="activityRow" key={String(item.id)}>
+                      <i>{String(item.activity_type || "•").slice(0, 2)}</i>
                       <div>
-                        <b>{item[1]}</b>
-                        <small>{item[2]}</small>
+                        <b>{String(item.title || "Customer activity")}</b>
+                        <small>{String(item.contact_name || "Contact")} · {new Date(String(item.created_at)).toLocaleString()}</small>
                       </div>
-                      <span>{item[3]}</span>
+                      <span>{String(item.status || "COMPLETED")}</span>
                     </div>
                   ))}
                 </article>
@@ -9474,24 +9458,16 @@ function UniversalCRM({
                     </div>
                     <button onClick={onOpenCalendar}>Open calendar →</button>
                   </div>
-                  {[
-                    [
-                      "1:00",
-                      "Executive Strategy Session",
-                      "Alexandra Lewis · Video",
-                    ],
-                    ["2:30", "Proposal follow-up", "Marcus Reed · Task"],
-                    ["4:00", "AI Systems Intensive", "9 attendees · Studio A"],
-                  ].map((item) => (
-                    <div className="agendaRow" key={item[0]}>
+                  {!recentActivity.some((item) => item.activity_type === "TASK" && item.status !== "COMPLETED") && <div className="noProspects">No open tasks.</div>}
+                  {recentActivity.filter((item) => item.activity_type === "TASK" && item.status !== "COMPLETED").slice(0, 4).map((item) => (
+                    <div className="agendaRow" key={String(item.id)}>
                       <time>
-                        {item[0]}
-                        <small>PM</small>
+                        {item.due_at ? new Date(String(item.due_at)).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "OPEN"}
                       </time>
                       <i />
                       <div>
-                        <b>{item[1]}</b>
-                        <small>{item[2]}</small>
+                        <b>{String(item.title)}</b>
+                        <small>{String(item.contact_name || "Contact")} · Task</small>
                       </div>
                       <button onClick={() => flash("Record opened")}>
                         •••
@@ -9555,7 +9531,7 @@ function UniversalCRM({
                   <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
                 )}
               </div>
-              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} /> : (
+              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onBook={onOpenCalendar} /> : (
                 <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
               )}
             </div>
@@ -9868,19 +9844,33 @@ function CRMContactDetail({
   contact,
   onFlash,
   onUpdated,
+  onBook,
 }: {
   contact: CRMContactCard;
   onFlash: (message: string) => void;
   onUpdated: () => void;
+  onBook: () => void;
 }) {
+  type Activity = { id: string; activity_type: string; title: string; details?: string; due_at?: string; status: string; created_at: string };
   const [editing, setEditing] = useState(false);
+  const [composer, setComposer] = useState<"NOTE" | "TASK" | null>(null);
+  const [activityDraft, setActivityDraft] = useState({ title: "", details: "", dueAt: "" });
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [draft, setDraft] = useState({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" });
   useEffect(() => setDraft({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: "" }), [contact]);
+  const loadActivities = async () => { if (!contact.id) return; const response = await fetch(`/api/crm/activities?contactId=${encodeURIComponent(contact.id)}`); const data = await response.json() as { activities?: Activity[] }; if (response.ok) setActivities(data.activities || []); };
+  useEffect(() => { const timer = window.setTimeout(() => void loadActivities(), 0); return () => window.clearTimeout(timer); }, [contact.id]);
+  const logActivity = async (activityType: string, title: string, details = "", dueAt = "") => {
+    if (!contact.id) return false; const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id, activityType, title, details, dueAt }) });
+    const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Activity could not be saved"); return false; } await loadActivities(); return true;
+  };
+  const saveActivity = async () => { if (!composer || !activityDraft.title.trim()) { onFlash("Add a title first"); return; } if (await logActivity(composer, activityDraft.title, activityDraft.details, activityDraft.dueAt)) { setComposer(null); setActivityDraft({ title: "", details: "", dueAt: "" }); onFlash(composer === "TASK" ? "Task added to overview" : "Note added to contact"); } };
   const saveContact = async () => {
     if (!contact.id) return;
     const response = await fetch("/api/crm/contacts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: contact.id, updates: draft }) });
     const data = await response.json() as { error?: string };
     if (!response.ok) { onFlash(data.error || "Contact update failed"); return; }
+    await logActivity("CONTACT", "CRM contact updated", `Lifecycle: ${draft.lifecycle}`);
     setEditing(false); onUpdated(); onFlash("Contact updated");
   };
   return (
@@ -9898,7 +9888,7 @@ function CRMContactDetail({
           <p>{contact.company}</p>
         </div>
         <span>{contact.intent} intent</span>
-        <button onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit"}</button>
+        <button onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit contact"}</button>
       </div>
       {editing && <div className="crmForm">
         <label>Full name<input value={draft.fullName} onChange={(event) => setDraft({ ...draft, fullName: event.target.value })} /></label>
@@ -9909,11 +9899,13 @@ function CRMContactDetail({
         <button className="crmCreate" onClick={() => void saveContact()}>Save contact</button>
       </div>}
       <div className="contactActions">
-        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { window.location.href = `tel:${contact.phone}`; }}>Call</button>
-        <button disabled={!contact.email || contact.email === "No email"} onClick={() => { window.location.href = `mailto:${contact.email}`; }}>Email</button>
-        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { window.location.href = `sms:${contact.phone}`; }}>SMS</button>
-        <button onClick={() => onFlash("Open Calendar from the left navigation to create this booking")}>Book</button>
+        <button onClick={() => setComposer("NOTE")}>＋ Note</button>
+        <button onClick={() => setComposer("TASK")}>＋ Task</button>
+        <button disabled={!contact.email || contact.email === "No email"} onClick={() => { void logActivity("EMAIL", `Email opened for ${contact.name}`); window.location.href = `mailto:${contact.email}`; }}>Email</button>
+        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { void logActivity("SMS", `SMS opened for ${contact.name}`); window.location.href = `sms:${contact.phone}`; }}>SMS</button>
+        <button onClick={() => { void logActivity("BOOKING", `Booking started for ${contact.name}`); onBook(); }}>Book appointment</button>
       </div>
+      {composer && <div className="contactComposer"><b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b><input placeholder={composer === "TASK" ? "Task title" : "Note title"} value={activityDraft.title} onChange={(event) => setActivityDraft({ ...activityDraft, title: event.target.value })} /><textarea placeholder="Details" value={activityDraft.details} onChange={(event) => setActivityDraft({ ...activityDraft, details: event.target.value })} />{composer === "TASK" && <input type="datetime-local" value={activityDraft.dueAt} onChange={(event) => setActivityDraft({ ...activityDraft, dueAt: event.target.value })} />}<div><button onClick={() => setComposer(null)}>Cancel</button><button className="crmCreate" onClick={() => void saveActivity()}>Save</button></div></div>}
       <div className="contactFacts">
         {[
           ["EMAIL", contact.email],
@@ -9935,22 +9927,18 @@ function CRMContactDetail({
             <small>COMPLETE TIMELINE</small>
             <h3>Every interaction</h3>
           </div>
-          <button onClick={() => setEditing(true)}>
+          <button onClick={() => setComposer("NOTE")}>
             ＋ Note
           </button>
         </div>
-        {[
-          ["NOW", contact.last, "Customer signal"],
-          ["YESTERDAY", "Confirmation email delivered", "Automation"],
-          ["AUG 11", "Executive Strategy Session booked", "Calendar"],
-          ["AUG 10", `Entered from ${contact.source}`, "Attribution"],
-        ].map((item) => (
-          <div key={item[0] + item[1]}>
-            <time>{item[0]}</time>
+        {!activities.length && <div className="emptyTimeline">No activity yet. Add a note, task, email, SMS, or booking.</div>}
+        {activities.map((item) => (
+          <div key={item.id}>
+            <time>{new Date(item.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time>
             <i />
             <span>
-              <b>{item[1]}</b>
-              <small>{item[2]}</small>
+              <b>{item.title}</b>
+              <small>{item.activity_type}{item.due_at ? ` · Due ${new Date(item.due_at).toLocaleString()}` : ""} · {item.status}</small>
             </span>
           </div>
         ))}

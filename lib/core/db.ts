@@ -56,6 +56,14 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS crm_contacts_email_unique ON crm_contacts(lower(email)) WHERE email IS NOT NULL"),
     db.prepare("CREATE INDEX IF NOT EXISTS crm_contacts_account_idx ON crm_contacts(account_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_activities (
+      id TEXT PRIMARY KEY, contact_id TEXT NOT NULL, activity_type TEXT NOT NULL, title TEXT NOT NULL,
+      details TEXT, due_at TEXT, status TEXT NOT NULL DEFAULT 'COMPLETED', created_by TEXT,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      FOREIGN KEY(contact_id) REFERENCES crm_contacts(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_activities_contact_idx ON crm_activities(contact_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_activities_due_idx ON crm_activities(status, due_at)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_opportunities (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,

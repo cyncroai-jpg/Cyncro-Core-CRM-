@@ -82,6 +82,19 @@ export const crmContacts = sqliteTable("crm_contacts", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const crmActivities = sqliteTable("crm_activities", {
+  id: text("id").primaryKey(),
+  contactId: text("contact_id").notNull().references(() => crmContacts.id),
+  activityType: text("activity_type").notNull(),
+  title: text("title").notNull(),
+  details: text("details"),
+  dueAt: text("due_at"),
+  status: text("status").notNull().default("COMPLETED"),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const crmPipelines = sqliteTable("crm_pipelines", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
