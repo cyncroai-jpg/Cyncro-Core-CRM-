@@ -9215,6 +9215,10 @@ function UniversalCRM({
     window.setTimeout(() => setNotice(""), 1800);
   };
   const openCRMCalendar = () => setView("Calendar");
+  const openNewAppointment = () => {
+    setView("Calendar");
+    window.setTimeout(() => window.dispatchEvent(new Event("cyncro:open-new-appointment")), 80);
+  };
   useEffect(() => { const saved = window.localStorage.getItem("cyncro-crm-user-name"); if (saved) setCrmUserName(saved); }, []);
   const saveCRMUserName = (name: string) => { const value = name.trim() || "Team Member"; setCrmUserName(value); window.localStorage.setItem("cyncro-crm-user-name", value); flash(`Signed in as ${value}`); };
   const loadCRMContacts = async () => {
@@ -9349,8 +9353,11 @@ function UniversalCRM({
           >
             ◌<i />
           </button>
+          <button onClick={openNewAppointment}>
+            ＋ New appointment
+          </button>
           <button className="crmCreate" onClick={() => setCreating(true)}>
-            ＋ New record
+            ＋ New contact
           </button>
         </header>
 
@@ -11993,6 +12000,7 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
   useEffect(() => { const timer = window.setTimeout(() => void loadBookings(), 0); return () => window.clearTimeout(timer); }, []);
   const loadCalendarData=async()=>{const[e,c,n]=await Promise.all([fetch("/api/calendar/event-types"),fetch("/api/crm/contacts"),fetch(`/api/notifications?recipient=${encodeURIComponent(currentUserName)}`)]);if(e.ok)setEventOptions(((await e.json()) as {eventTypes?:EventOption[]}).eventTypes||[]);if(c.ok)setContactOptions(((await c.json()) as {contacts?:ContactOption[]}).contacts||[]);if(n.ok)setNotifications(((await n.json()) as {notifications?:typeof notifications}).notifications||[]);};
   useEffect(()=>{const timer=window.setTimeout(()=>void loadCalendarData(),0);return()=>window.clearTimeout(timer);},[currentUserName]);
+  useEffect(()=>{const open=()=>{const next=new Date();next.setDate(next.getDate()+1);next.setHours(10,0,0,0);setManual(current=>({...current,eventTypeId:current.eventTypeId||eventOptions[0]?.id||"",startsAt:next.toISOString().slice(0,16),assignedTo:currentUserName}));setManualOpen(true);};window.addEventListener("cyncro:open-new-appointment",open);return()=>window.removeEventListener("cyncro:open-new-appointment",open);},[eventOptions,currentUserName]);
   useEffect(()=>{const refresh=()=>{void loadBookings();void loadCalendarData();};window.addEventListener("cyncro:data-changed",refresh);window.addEventListener("focus",refresh);const timer=window.setInterval(refresh,15000);return()=>{window.removeEventListener("cyncro:data-changed",refresh);window.removeEventListener("focus",refresh);window.clearInterval(timer);};},[currentUserName]);
   const updateBooking = async (booking: Booking, action: string, extra: Record<string, unknown> = {}) => {
     const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: booking.id, action, ...extra }) });
