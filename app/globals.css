@@ -9287,12 +9287,21 @@ label {
 .calendarAccessBar { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #3b2b30; border-radius: 10px; background: linear-gradient(145deg, #171214, #0c0a0b); padding: 16px; }
 .calendarAccessBar small { color: #ded1d4; font-size: 8px; letter-spacing: .14em; }
 .calendarAccessBar h2 { margin: 5px 0 0; color: #fff; font-size: 18px; font-weight: 500; }
+.calendarAccessBar p { margin: 6px 0 0; color: #c8babe; font-size: 10px; }
 .calendarAccessBar > div:last-child { display: flex; gap: 7px; }
 .calendarAccessBar button { min-height: 38px; border: 1px solid #50333a; border-radius: 6px; background: #120f10; color: #fff; padding: 0 14px; font-size: 9px; }
 .calendarAccessBar button.active { border-color: #b51f38; background: #8f1327; box-shadow: 0 8px 24px rgba(181,31,56,.2); }
 .calendarCapabilityStrip { display: flex; gap: 7px; margin: 10px 0 18px; overflow-x: auto; padding-bottom: 4px; }
 .calendarCapabilityStrip span { flex: 0 0 auto; border: 1px solid #34282b; border-radius: 999px; background: #100d0e; color: #d9cccf; padding: 7px 10px; font-size: 8px; }
+.calendarSimpleSteps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 10px 0 24px; }
+.calendarSimpleSteps button { display: flex; align-items: center; gap: 11px; border: 1px solid #372a2e; border-radius: 9px; background: #100d0e; color: #fff; padding: 13px; text-align: left; }
+.calendarSimpleSteps button:hover { border-color: #8e1b30; background: #171013; }
+.calendarSimpleSteps i { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #8f1327; font-size: 10px; font-style: normal; }
+.calendarSimpleSteps b, .calendarSimpleSteps small { display: block; }.calendarSimpleSteps b { font-size: 10px; }.calendarSimpleSteps small { margin-top: 4px; color: #c0b3b6; font-size: 8px; line-height: 1.4; }
 .crmEmbeddedCalendar .studio { min-height: auto; margin-top: 0; }
+.crmEmbeddedCalendar .studiohead { padding: 18px; border: 1px solid #35292c; border-radius: 9px; background: #100d0e; }
+.crmEmbeddedCalendar .studiohead h1 { font-size: clamp(22px, 3vw, 34px); }
+.crmEmbeddedCalendar .eventgrid { gap: 10px; }
 .calendarSettingsSection { margin-top: 34px; border-top: 1px solid #3b2b30; padding-top: 24px; }
 .calendarSectionTitle { margin-bottom: 16px; }
 .calendarSectionTitle small { color: #d9cccf; font-size: 8px; letter-spacing: .14em; }
@@ -9313,7 +9322,12 @@ label {
 .accountDealRow { display: grid; grid-template-columns: minmax(150px,1.5fr) repeat(5,minmax(78px,1fr)) 70px; gap: 9px; align-items: center; border-top: 1px solid #30272a; padding: 12px 4px; }
 .accountDealRow b, .accountDealRow small { display: block; }.accountDealRow b { color: #fff; font-size: 9px; }.accountDealRow small { margin-bottom: 4px; color: #aa9da0; font-size: 7px; }.accountDealRow em { color: #ff9cac; font-size: 7px; font-style: normal; }
 @media (max-width: 1000px) { .accountDealRow { grid-template-columns: 1fr 1fr 1fr; } }
-@media (max-width: 760px) { .calendarAccessBar { align-items: stretch; flex-direction: column; } .calendarAccessBar > div:last-child { flex-direction: column; } }
+@media (max-width: 760px) { .calendarAccessBar { align-items: stretch; flex-direction: column; } .calendarAccessBar > div:last-child { flex-direction: column; } .calendarSimpleSteps { grid-template-columns: 1fr; } }
+.prospectingFrontSpotlight { display: grid; grid-template-columns: 1.15fr .85fr; gap: 34px; width: min(1180px, calc(100% - 40px)); margin: 80px auto 0; border: 1px solid #3a292e; border-radius: 18px; background: radial-gradient(circle at 80% 20%, rgba(164,20,43,.18), transparent 35%), linear-gradient(145deg,#130e10,#080707); padding: clamp(26px,5vw,58px); box-shadow: 0 35px 90px rgba(0,0,0,.45); }
+.prospectingFrontCopy label { color: #f2a3b0; font-size: 9px; letter-spacing: .18em; }.prospectingFrontCopy h2 { max-width: 680px; margin: 12px 0; color: #fff; font-size: clamp(34px,5vw,64px); font-weight: 400; line-height: .98; }.prospectingFrontCopy > p { max-width: 680px; color: #d0c4c6; font-size: 13px; line-height: 1.75; }
+.prospectingFrontFlow { display: flex; flex-wrap: wrap; gap: 7px; margin: 22px 0; }.prospectingFrontFlow span { display: flex; align-items: center; gap: 6px; border: 1px solid #422d33; border-radius: 999px; color: #fff; padding: 7px 9px; font-size: 8px; }.prospectingFrontFlow i { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; background: #8f1327; font-style: normal; }
+.prospectingFrontPanel { align-self: center; border: 1px solid #55323a; border-radius: 14px; background: rgba(18,13,15,.9); padding: 24px; box-shadow: 0 24px 60px #000; }.prospectingFrontPanel > small { color: #d9c9cc; font-size: 8px; letter-spacing: .14em; }.prospectingScore { display: flex; align-items: end; gap: 10px; margin: 18px 0 8px; }.prospectingScore b { color: #fff; font-size: 58px; line-height: .8; }.prospectingScore span { color: #ff8da0; font-size: 10px; font-weight: 700; letter-spacing: .1em; }.prospectingFrontPanel h3 { margin: 16px 0 7px; color: #fff; font-size: 21px; }.prospectingFrontPanel p { color: #cbbdc0; font-size: 10px; line-height: 1.6; }.prospectingFrontPanel > div:last-of-type { border-top: 1px solid #382a2e; margin-top: 18px; padding-top: 15px; }.prospectingFrontPanel > div:last-of-type span,.prospectingFrontPanel > div:last-of-type b { display: block; }.prospectingFrontPanel > div:last-of-type span { color: #a99ca0; font-size: 7px; text-transform: uppercase; letter-spacing: .1em; }.prospectingFrontPanel > div:last-of-type b { margin-top: 6px; color: #fff; font-size: 10px; line-height: 1.5; }.prospectingFrontPanel > button { margin-top: 18px; border: 0; background: transparent; color: #ff9bad; font-size: 9px; }
+@media (max-width: 820px) { .prospectingFrontSpotlight { grid-template-columns: 1fr; width: min(94%, 700px); margin-top: 50px; } }
 .pipelineToolbar small { color: #d9c9cc; font-size: 8px; letter-spacing: .14em; }
 .pipelineToolbar h2 { margin: 6px 0 3px; color: #fff; font-size: 20px; font-weight: 500; }
 .pipelineToolbar p { margin: 0; color: #d2c7c9; font-size: 10px; }

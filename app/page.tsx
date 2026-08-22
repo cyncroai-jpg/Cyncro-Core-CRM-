@@ -364,6 +364,23 @@ function FrontExperience({
       action: "Open Cyncro CRM",
     },
     {
+      name: "Cyncro Prospecting AI",
+      label: "FIND + PRIORITIZE",
+      headline: "Turn an entire market into a ranked call list.",
+      copy: "Search real businesses in any legitimate industry, capture public business data, analyze each website, identify conversion gaps, score the opportunity, assign ownership, and give every salesperson a concise reason to call.",
+      capabilities: [
+        "Real-business search across any category",
+        "Public website, email + phone intelligence",
+        "AI opportunity scoring + CALL FIRST queue",
+      ],
+      proof: "0–100",
+      proofLabel: "opportunity score",
+      image: "/module-images/cyncro-crm.webp",
+      imageAlt: "Cyncro Prospecting AI showing ranked businesses, website signals, and call priorities",
+      route: "prospecting" as Tab,
+      action: "Open Prospecting AI",
+    },
+    {
       name: "Cyncro Prime AI",
       label: "COMMAND + ORCHESTRATE",
       headline: "Give one instruction. Move the entire company.",
@@ -514,7 +531,7 @@ function FrontExperience({
             aria-label="Cyncro platform highlights"
           >
             <div>
-              <b>8</b>
+              <b>9</b>
               <span>Connected systems</span>
             </div>
             <div>
@@ -605,6 +622,11 @@ function FrontExperience({
             <p>{item[2]}</p>
           </article>
         ))}
+      </section>
+
+      <section className="prospectingFrontSpotlight">
+        <div className="prospectingFrontCopy"><label>CYNCRO PROSPECTING AI</label><h2>Know exactly who to call—and why.</h2><p>Search real businesses in any industry. Cyncro collects available public business information, reviews each company’s website, detects missing conversion systems, ranks the opportunity, and prepares the salesperson’s next move.</p><div className="prospectingFrontFlow">{["SEARCH", "REAL BUSINESSES", "ANALYZE", "SCORE", "CALL FIRST"].map((item, index) => <span key={item}><i>{index + 1}</i>{item}</span>)}</div><button className="frontPrimary" onClick={() => onNavigate("prospecting")}>Open Prospecting AI <span>↗</span></button></div>
+        <div className="prospectingFrontPanel"><small>LIVE OPPORTUNITY BRIEF</small><div className="prospectingScore"><b>96</b><span>CALL FIRST</span></div><h3>ABC Med Spa</h3><p>Strong market demand. High review volume. Website has no visible automated qualification or SMS follow-up path.</p><div><span>Recommended Cyncro solution</span><b>AI Receptionist + Appointment Setter + SMS Follow-Up + CRM</b></div><button onClick={() => onNavigate("prospecting")}>View ranked prospects →</button></div>
       </section>
 
       <section className="platformUniverse">
@@ -11850,14 +11872,13 @@ function CyncroSports() {
 function CRMCalendarWorkspace({ onFlash }: { onFlash: (message: string) => void }) {
   return (
     <div className="crmEmbeddedCalendar">
-      <div className="calendarAccessBar">
-        <div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Everything accessible in one workspace</h2></div>
-        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}>Jump to event settings ↓</button>
+      <div className="calendarAccessBar"><div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Schedule, configure, publish.</h2><p>Three simple steps. Advanced controls only appear when you need them.</p></div></div>
+      <div className="calendarSimpleSteps">
+        <button onClick={() => document.getElementById("calendar-bookings")?.scrollIntoView({ behavior: "smooth" })}><i>1</i><span><b>Manage schedule</b><small>View, reschedule, confirm, or cancel bookings.</small></span></button>
+        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>2</i><span><b>Create event types</b><small>Choose duration, location, capacity, and price.</small></span></button>
+        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>3</i><span><b>Set availability & publish</b><small>Control time slots, reminders, routing, and booking links.</small></span></button>
       </div>
-      <div className="calendarCapabilityStrip">
-        {["Bookings", "Month + week views", "Event types", "Availability", "Time slots", "Booking links", "Locations + video", "Capacity", "Reminders", "Reschedule + cancel"].map((item) => <span key={item}>✓ {item}</span>)}
-      </div>
-      <Admin onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} />
+      <div id="calendar-bookings"><Admin onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} /></div>
       <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><Studio onPreview={() => onFlash("Booking-page preview is available from the Preview button")} /></div>
     </div>
   );
