@@ -9690,22 +9690,40 @@ function UniversalCRM({
 
 function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
   type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; notes?: string };
-  const stages = ["NEW LEAD", "QUALIFIED", "DISCOVERY", "PROPOSAL", "NEGOTIATION", "CLOSED WON", "CLOSED LOST"];
+  type PipelineStage = { id: string; name: string; color: string; position: number; probability: number; is_won: number; is_lost: number };
+  type Pipeline = { id: string; name: string; description?: string; is_default: number; stages: PipelineStage[] };
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState("");
+  const [pipelineDraft, setPipelineDraft] = useState<Pipeline | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
   const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
-  const loadDeals = async () => {
-    const response = await fetch("/api/crm/opportunities");
+  const loadDeals = async (pipelineId = selectedPipelineId) => {
+    const response = await fetch(`/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}` : ""}`);
     const data = await response.json() as { opportunities?: Deal[]; error?: string };
     if (!response.ok) { onFlash(data.error || "Pipeline could not be loaded"); return; }
     setDeals(data.opportunities || []);
   };
-  useEffect(() => { const timer = window.setTimeout(() => void loadDeals(), 0); return () => window.clearTimeout(timer); }, []);
+  const loadPipelines = async () => {
+    const response = await fetch("/api/crm/pipelines");
+    const data = await response.json() as { pipelines?: Pipeline[]; error?: string };
+    if (!response.ok) { onFlash(data.error || "Pipeline settings could not be loaded"); return; }
+    const next = data.pipelines || [];
+    setPipelines(next);
+    const chosen = next.find((item) => item.id === selectedPipelineId) || next.find((item) => item.is_default) || next[0];
+    if (chosen) { setSelectedPipelineId(chosen.id); setPipelineDraft(structuredClone(chosen)); await loadDeals(chosen.id); }
+  };
+  useEffect(() => { const timer = window.setTimeout(() => void loadPipelines(), 0); return () => window.clearTimeout(timer); }, []);
+  const activePipeline = pipelines.find((item) => item.id === selectedPipelineId);
+  const stageSettings = [...(activePipeline?.stages || [])].sort((a, b) => a.position - b.position);
+  const stages = stageSettings.map((item) => item.name);
   const saveDeal = async () => {
     if (!selectedDeal) return;
     const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedDeal.id, updates: {
       name: selectedDeal.name, stage: selectedDeal.stage, value: selectedDeal.value_cents / 100, probability: selectedDeal.probability,
+      pipelineId: selectedPipelineId,
       assignedRep: selectedDeal.assigned_rep || "", commissionRate: selectedDeal.commission_rate_bps / 100,
       commissionStatus: selectedDeal.commission_status, notes: selectedDeal.notes || "",
     } }) });
@@ -9720,6 +9738,7 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
     if (!accountResponse.ok || !accountData.account) { onFlash(accountData.error || "Account could not be created"); return; }
     const response = await fetch("/api/crm/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       accountId: accountData.account.id, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
+      pipelineId: selectedPipelineId,
       value: Number(newDeal.value || 0), probability: Number(newDeal.probability || 10), assignedRep: newDeal.assignedRep,
       commissionRate: Number(newDeal.commissionRate || 0), source: "CRM",
     }) });
@@ -9728,17 +9747,42 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
     setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "10" });
     await loadDeals(); onFlash("Opportunity added to pipeline");
   };
+  const createPipeline = async () => {
+    const response = await fetch("/api/crm/pipelines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Pipeline ${pipelines.length + 1}` }) });
+    const data = await response.json() as { pipeline?: Pipeline; error?: string };
+    if (!response.ok || !data.pipeline) { onFlash(data.error || "Pipeline could not be created"); return; }
+    setSelectedPipelineId(data.pipeline.id); await loadPipelines(); setSettingsOpen(true); onFlash("New pipeline created — customize it now");
+  };
+  const savePipeline = async () => {
+    if (!pipelineDraft || !pipelineDraft.name.trim() || !pipelineDraft.stages.length) { onFlash("A pipeline name and at least one stage are required"); return; }
+    const response = await fetch("/api/crm/pipelines", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: pipelineDraft.id, name: pipelineDraft.name, description: pipelineDraft.description || "", stages: pipelineDraft.stages.map((stage, position) => ({ ...stage, position })) }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Pipeline customization failed"); return; }
+    setSettingsOpen(false); await loadPipelines(); onFlash("Pipeline customization saved");
+  };
+  const editStage = (index: number, updates: Partial<PipelineStage>) => setPipelineDraft((current) => current ? ({ ...current, stages: current.stages.map((stage, stageIndex) => stageIndex === index ? { ...stage, ...updates } : stage) }) : current);
+  const moveStage = (index: number, direction: -1 | 1) => setPipelineDraft((current) => { if (!current) return current; const target = index + direction; if (target < 0 || target >= current.stages.length) return current; const stages = [...current.stages]; [stages[index], stages[target]] = [stages[target], stages[index]]; return { ...current, stages }; });
   const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
   return (
     <>
+      <div className="pipelineToolbar">
+        <div><small>ACTIVE PIPELINE</small><h2>{activePipeline?.name || "Loading pipeline…"}</h2><p>{activePipeline?.description || "Customize every stage to match your sales process."}</p></div>
+        <div>
+          {pipelines.length > 1 && <select value={selectedPipelineId} onChange={(event) => { const id = event.target.value; setSelectedPipelineId(id); const pipeline = pipelines.find((item) => item.id === id); if (pipeline) setPipelineDraft(structuredClone(pipeline)); void loadDeals(id); }}>{pipelines.map((pipeline) => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}</select>}
+          <button onClick={() => void createPipeline()}>＋ New pipeline</button>
+          <button className="crmCreate" onClick={() => { if (activePipeline) setPipelineDraft(structuredClone(activePipeline)); setSettingsOpen(true); }}>Customize pipeline</button>
+        </div>
+      </div>
       <div className="pipelineBoard">
       {stages.map((stage) => {
         const columnDeals = deals.filter((deal) => deal.stage === stage);
-        return <section key={stage}>
+        const stageSetting = stageSettings.find((item) => item.name === stage);
+        return <section key={stage} style={{ borderTopColor: stageSetting?.color || "#a30e18" }}>
           <header>
             <div>
               <small>{stage}</small>
               <b>{money(columnDeals.reduce((sum, deal) => sum + Number(deal.value_cents || 0), 0))}</b>
+              <em>{stageSetting?.probability ?? 0}% default</em>
             </div>
             <span>{columnDeals.length}</span>
           </header>
@@ -9773,6 +9817,23 @@ function CRMPipeline({ onFlash }: { onFlash: (message: string) => void }) {
         </section>;
       })}
       </div>
+      {settingsOpen && pipelineDraft && <div className="modalback" onClick={() => setSettingsOpen(false)}><div className="bookingmodal pipelineSettings" onClick={(event) => event.stopPropagation()}>
+        <div className="modalhead"><div><label>OWNER PIPELINE CONTROLS</label><h2>Customize pipeline</h2></div><button onClick={() => setSettingsOpen(false)}>×</button></div>
+        <div className="crmForm">
+          <label>Pipeline name<input value={pipelineDraft.name} onChange={(event) => setPipelineDraft({ ...pipelineDraft, name: event.target.value })} /></label>
+          <label>Description<input value={pipelineDraft.description || ""} onChange={(event) => setPipelineDraft({ ...pipelineDraft, description: event.target.value })} /></label>
+        </div>
+        <div className="stageEditor"><div className="stageEditorHead"><b>STAGES</b><button onClick={() => setPipelineDraft({ ...pipelineDraft, stages: [...pipelineDraft.stages, { id: `new-${crypto.randomUUID()}`, name: "NEW STAGE", color: "#a30e18", position: pipelineDraft.stages.length, probability: 25, is_won: 0, is_lost: 0 }] })}>＋ Add stage</button></div>
+          {pipelineDraft.stages.map((stage, index) => <div className="stageEditorRow" key={stage.id}>
+            <input aria-label="Stage color" type="color" value={stage.color} onChange={(event) => editStage(index, { color: event.target.value })} />
+            <label>Stage name<input value={stage.name} onChange={(event) => editStage(index, { name: event.target.value.toUpperCase() })} /></label>
+            <label>Probability<input type="number" min="0" max="100" value={stage.probability} onChange={(event) => editStage(index, { probability: Math.max(0, Math.min(100, Number(event.target.value))) })} /></label>
+            <button disabled={index === 0} onClick={() => moveStage(index, -1)}>↑</button><button disabled={index === pipelineDraft.stages.length - 1} onClick={() => moveStage(index, 1)}>↓</button>
+            <button className="dangerText" disabled={pipelineDraft.stages.length === 1} onClick={() => setPipelineDraft({ ...pipelineDraft, stages: pipelineDraft.stages.filter((_, stageIndex) => stageIndex !== index) })}>Remove</button>
+          </div>)}
+        </div>
+        <div className="modalactions"><button onClick={() => setSettingsOpen(false)}>Cancel</button><button onClick={() => void savePipeline()}>Save pipeline</button></div>
+      </div></div>}
       {selectedDeal && <div className="modalback" onClick={() => setSelectedDeal(null)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
         <div className="modalhead"><div><label>EDIT PIPELINE CARD</label><h2>{selectedDeal.name}</h2></div><button onClick={() => setSelectedDeal(null)}>×</button></div>
         <div className="crmForm">

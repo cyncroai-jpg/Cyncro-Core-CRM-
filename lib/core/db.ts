@@ -60,6 +60,7 @@ export async function ensureCoreSchema() {
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
       primary_contact_id TEXT,
+      pipeline_id TEXT,
       name TEXT NOT NULL,
       stage TEXT NOT NULL DEFAULT 'NEW LEAD',
       value_cents INTEGER NOT NULL DEFAULT 0,
@@ -74,6 +75,28 @@ export async function ensureCoreSchema() {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(account_id) REFERENCES crm_accounts(id),
       FOREIGN KEY(primary_contact_id) REFERENCES crm_contacts(id)
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_pipelines (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_pipeline_stages (
+      id TEXT PRIMARY KEY,
+      pipeline_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#B51F38',
+      position INTEGER NOT NULL,
+      probability INTEGER NOT NULL DEFAULT 10,
+      is_won INTEGER NOT NULL DEFAULT 0,
+      is_lost INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(pipeline_id) REFERENCES crm_pipelines(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS crm_opportunities_stage_idx ON crm_opportunities(stage)"),
     db.prepare("CREATE INDEX IF NOT EXISTS crm_opportunities_rep_idx ON crm_opportunities(assigned_rep)"),

@@ -82,10 +82,34 @@ export const crmContacts = sqliteTable("crm_contacts", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const crmPipelines = sqliteTable("crm_pipelines", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isDefault: integer("is_default").notNull().default(0),
+  active: integer("active").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const crmPipelineStages = sqliteTable("crm_pipeline_stages", {
+  id: text("id").primaryKey(),
+  pipelineId: text("pipeline_id").notNull().references(() => crmPipelines.id),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#B51F38"),
+  position: integer("position").notNull(),
+  probability: integer("probability").notNull().default(10),
+  isWon: integer("is_won").notNull().default(0),
+  isLost: integer("is_lost").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const crmOpportunities = sqliteTable("crm_opportunities", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull().references(() => crmAccounts.id),
   primaryContactId: text("primary_contact_id").references(() => crmContacts.id),
+  pipelineId: text("pipeline_id").references(() => crmPipelines.id),
   name: text("name").notNull(),
   stage: text("stage").notNull().default("NEW LEAD"),
   valueCents: integer("value_cents").notNull().default(0),
