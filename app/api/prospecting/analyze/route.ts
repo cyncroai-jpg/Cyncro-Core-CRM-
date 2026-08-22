@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     const reviewCount = Math.max(Number(body.reviewCount) || 0, 0);
     const website = safeWebsite(body.website);
     let html = "";
+    let sourceUrl = website?.toString() || "";
     let websiteReachable = false;
 
     if (website) {
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
         if (response.ok && contentType.includes("text/html")) {
           html = (await response.text()).slice(0, 500_000).toLowerCase();
           websiteReachable = true;
+          sourceUrl = response.url || sourceUrl;
         }
       } finally {
         clearTimeout(timer);
@@ -74,6 +76,13 @@ export async function POST(request: Request) {
     }
 
     const has = (pattern: RegExp) => pattern.test(html);
+    const emails = [...new Set((html.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [])
+      .filter((email) => !/example\.|sentry\.|wixpress\.|cloudflare\.|domain\.com/.test(email))
+      .slice(0, 12))];
+    const extractedPhones = [...new Set((html.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/g) || [])
+      .map((phone) => phone.trim()).slice(0, 12))];
+    const socialUrls = [...new Set((html.match(/https?:\/\/(?:www\.)?(?:facebook|instagram|linkedin)\.com\/[^\s"'<>]+/gi) || [])
+      .map((url) => url.replace(/&amp;.*/, "").replace(/[),.;]+$/, "")).slice(0, 12))];
     const signals: Signals = {
       websiteExists: Boolean(website && websiteReachable),
       booking: has(
@@ -179,6 +188,11 @@ export async function POST(request: Request) {
       recommendedSolution: solutions.join(" + "),
       callOpener: `Hi, I was reviewing ${businessName}'s customer journey. You have a strong ${category.toLowerCase()} presence, and I spotted a few places Cyncro could help convert more inquiries without adding front-desk workload.`,
       nextAction: `Call ${businessName}, confirm the current lead-response process, then offer a 15-minute conversion demo.`,
+      emails,
+      extractedPhones,
+      leadership: [],
+      sourceUrls: [sourceUrl, ...socialUrls].filter(Boolean),
+      lastExtractedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error("prospecting.analyze.failed", error);

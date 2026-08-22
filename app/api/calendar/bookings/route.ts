@@ -62,3 +62,44 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unable to create booking." }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const body = (await request.json()) as Record<string, unknown>;
+    const id = cleanText(body.id, 80);
+    const action = cleanText(body.action, 30).toUpperCase();
+    if (!id) return Response.json({ error: "Booking id is required." }, { status: 400 });
+    const db = coreDb();
+    const booking = await db.prepare(`SELECT b.*, e.duration_minutes, e.capacity FROM calendar_bookings b
+      JOIN calendar_event_types e ON e.id = b.event_type_id WHERE b.id = ?`).bind(id).first<Record<string, unknown>>();
+    if (!booking) return Response.json({ error: "Booking not found." }, { status: 404 });
+    const now = new Date().toISOString();
+    if (action === "CANCEL") {
+      await db.prepare("UPDATE calendar_bookings SET status = 'CANCELLED', updated_at = ? WHERE id = ?")
+        .bind(now, id).run();
+    } else if (action === "RESCHEDULE") {
+      const starts = new Date(String(body.startsAt || ""));
+      if (Number.isNaN(starts.valueOf())) return Response.json({ error: "A valid new start time is required." }, { status: 400 });
+      const ends = new Date(starts.getTime() + Number(booking.duration_minutes) * 60_000);
+      const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
+        WHERE id <> ? AND event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
+        .bind(id, booking.event_type_id, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
+      if (Number(conflict?.total || 0) >= Number(booking.capacity || 1))
+        return Response.json({ error: "That time is no longer available." }, { status: 409 });
+      await db.prepare("UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, status = 'RESCHEDULED', updated_at = ? WHERE id = ?")
+        .bind(starts.toISOString(), ends.toISOString(), now, id).run();
+    } else {
+      const status = cleanText(body.status, 30).toUpperCase();
+      const allowed = new Set(["CONFIRMED", "COMPLETED", "NO_SHOW"]);
+      if (!allowed.has(status)) return Response.json({ error: "Choose a valid booking action." }, { status: 400 });
+      await db.prepare("UPDATE calendar_bookings SET status = ?, notes = COALESCE(?, notes), updated_at = ? WHERE id = ?")
+        .bind(status, cleanText(body.notes, 5000) || null, now, id).run();
+    }
+    const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first();
+    return Response.json({ booking: updated });
+  } catch (error) {
+    console.error("calendar.bookings.update_failed", error);
+    return Response.json({ error: "Unable to update booking." }, { status: 500 });
+  }
+}

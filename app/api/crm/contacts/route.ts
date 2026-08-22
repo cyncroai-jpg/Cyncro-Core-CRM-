@@ -35,7 +35,15 @@ export async function POST(request: Request) {
       if (duplicate) return Response.json({ error: "A CRM contact already uses this email.", duplicateId: duplicate.id }, { status: 409 });
     }
     const now = new Date().toISOString();
-    const accountId = cleanText(body.accountId, 80) || null;
+    let accountId = cleanText(body.accountId, 80) || null;
+    const company = cleanText(body.company, 160);
+    if (!accountId && company) {
+      const existingAccount = await db.prepare("SELECT id FROM crm_accounts WHERE lower(name) = lower(?) LIMIT 1").bind(company).first<{ id: string }>();
+      accountId = existingAccount?.id || crypto.randomUUID();
+      if (!existingAccount) await db.prepare(`INSERT INTO crm_accounts
+        (id, name, owner_email, source, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?)`)
+        .bind(accountId, company, requestUser(request), cleanText(body.source, 80) || "MANUAL", now, now).run();
+    }
     const id = crypto.randomUUID();
     await db.prepare(`INSERT INTO crm_contacts
       (id, account_id, full_name, email, phone, title, lifecycle, assigned_rep, source, notes, created_at, updated_at)

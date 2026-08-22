@@ -29,6 +29,11 @@ const editable = new Set([
   "recommendedSolution",
   "callOpener",
   "nextAction",
+  "emails",
+  "extractedPhones",
+  "leadership",
+  "sourceUrls",
+  "lastExtractedAt",
   "assignedRep",
   "notes",
   "status",
@@ -167,6 +172,11 @@ export async function PATCH(request: Request) {
       recommendedSolution: "recommended_solution",
       callOpener: "call_opener",
       nextAction: "next_action",
+      emails: "emails_json",
+      extractedPhones: "phones_json",
+      leadership: "leadership_json",
+      sourceUrls: "source_urls_json",
+      lastExtractedAt: "last_extracted_at",
       assignedRep: "assigned_rep",
       notes: "notes",
       status: "status",
@@ -176,7 +186,7 @@ export async function PATCH(request: Request) {
       if (key === "status" && !statuses.has(String(value))) continue;
       sets.push(`${columns[key]} = ?`);
       values.push(
-        key === "signals" || key === "reasons" ? JSON.stringify(value) : value,
+        ["signals", "reasons", "emails", "extractedPhones", "leadership", "sourceUrls"].includes(key) ? JSON.stringify(value) : value,
       );
     }
     if ("opportunityScore" in updates) {

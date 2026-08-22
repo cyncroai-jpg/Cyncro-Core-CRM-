@@ -38,3 +38,38 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unable to create event type. The booking-link slug may already exist." }, { status: 409 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const body = (await request.json()) as Record<string, unknown>;
+    const id = cleanText(body.id, 80);
+    if (!id) return Response.json({ error: "Event type id is required." }, { status: 400 });
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
+    if (body.name !== undefined) add("name", cleanText(body.name, 160));
+    if (body.description !== undefined) add("description", cleanText(body.description, 1000) || null);
+    for (const [key, column, min, max] of [
+      ["durationMinutes", "duration_minutes", 5, 1440], ["bufferBeforeMinutes", "buffer_before_minutes", 0, 1440],
+      ["bufferAfterMinutes", "buffer_after_minutes", 0, 1440], ["capacity", "capacity", 1, 500],
+    ] as const) if (body[key] !== undefined) {
+      const value = Number(body[key]);
+      if (!Number.isInteger(value) || value < min || value > max)
+        return Response.json({ error: `${key} is outside the allowed range.` }, { status: 400 });
+      add(column, value);
+    }
+    if (Array.isArray(body.locationModes)) add("location_modes", JSON.stringify(body.locationModes));
+    if (Array.isArray(body.videoPlatforms)) add("video_platforms", JSON.stringify(body.videoPlatforms));
+    if (body.active !== undefined) add("active", body.active ? 1 : 0);
+    if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
+    add("updated_at", new Date().toISOString());
+    values.push(id);
+    await coreDb().prepare(`UPDATE calendar_event_types SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+    const eventType = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE id = ?").bind(id).first();
+    return eventType ? Response.json({ eventType }) : Response.json({ error: "Event type not found." }, { status: 404 });
+  } catch (error) {
+    console.error("calendar.event_types.update_failed", error);
+    return Response.json({ error: "Unable to update event type." }, { status: 500 });
+  }
+}

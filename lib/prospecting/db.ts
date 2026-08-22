@@ -33,6 +33,11 @@ export type ProspectRecord = {
   recommended_solution: string | null;
   call_opener: string | null;
   next_action: string | null;
+  emails_json: string | null;
+  phones_json: string | null;
+  leadership_json: string | null;
+  source_urls_json: string | null;
+  last_extracted_at: string | null;
   assigned_rep: string | null;
   notes: string | null;
   status: string;
@@ -74,6 +79,11 @@ export async function ensureProspectingSchema() {
       recommended_solution TEXT,
       call_opener TEXT,
       next_action TEXT,
+      emails_json TEXT,
+      phones_json TEXT,
+      leadership_json TEXT,
+      source_urls_json TEXT,
+      last_extracted_at TEXT,
       assigned_rep TEXT,
       notes TEXT,
       status TEXT NOT NULL DEFAULT 'NEW',
@@ -149,6 +159,11 @@ export function hydrateProspect(row: ProspectRecord) {
     recommendedSolution: row.recommended_solution,
     callOpener: row.call_opener,
     nextAction: row.next_action,
+    emails: row.emails_json ? JSON.parse(row.emails_json) : [],
+    extractedPhones: row.phones_json ? JSON.parse(row.phones_json) : [],
+    leadership: row.leadership_json ? JSON.parse(row.leadership_json) : [],
+    sourceUrls: row.source_urls_json ? JSON.parse(row.source_urls_json) : [],
+    lastExtractedAt: row.last_extracted_at,
     assignedRep: row.assigned_rep,
     notes: row.notes,
     status: row.status,

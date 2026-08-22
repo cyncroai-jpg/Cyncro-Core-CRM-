@@ -902,7 +902,12 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     [accentColor, setAccentColor] = useState("#b51f38"),
     [pageStyle, setPageStyle] = useState("Editorial"),
     [industry, setIndustry] = useState("Consulting & professional services"),
-    [intakeDepth, setIntakeDepth] = useState("Guided");
+    [intakeDepth, setIntakeDepth] = useState("Guided"),
+    [eventName, setEventName] = useState("AI Systems Intensive"),
+    [eventSlug, setEventSlug] = useState("ai-systems-intensive"),
+    [eventDescription, setEventDescription] = useState("A high-impact group intensive to build and deploy your AI systems."),
+    [durationMinutes, setDurationMinutes] = useState(120),
+    [saveError, setSaveError] = useState("");
   const toggleChoice = (
     value: string,
     current: string[],
@@ -915,6 +920,22 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     );
   const copyLink = (slug = "ai-systems-intensive") =>
     navigator.clipboard?.writeText(`https://cyncro.ai/book/demo/${slug}`);
+  const saveEventType = async () => {
+    setSaveError("");
+    const response = await fetch("/api/calendar/event-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      name: eventName, slug: eventSlug, description: eventDescription, durationMinutes, capacity,
+      bufferBeforeMinutes: 15, bufferAfterMinutes: 15, locationModes: ["VIDEO", "PHONE", "IN_PERSON"],
+      videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"],
+    }) });
+    const data = await response.json() as { id?: string; error?: string };
+    if (!response.ok || !data.id) { setSaveError(data.error || "Event type could not be saved."); return; }
+    const availability = await fetch("/api/calendar/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      eventTypeId: data.id, timezone: "America/New_York", rules: [1,2,3,4,5].map((weekday) => ({ weekday, startTime: "09:00", endTime: "17:00" })),
+    }) });
+    if (!availability.ok) { const result = await availability.json() as { error?: string }; setSaveError(result.error || "Availability could not be saved."); return; }
+    setEvents((current) => [{ name: eventName, type: capacity > 1 ? "Group" : "1-on-1", duration: `${durationMinutes} min`, capacity, price: "Free", bookings: 0, status: "Published", slug: eventSlug }, ...current]);
+    setSaved(true); setTimeout(() => setSaved(false), 2200); setEditing(false);
+  };
   if (editing)
     return (
       <section className="studio">
@@ -932,10 +953,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
             </button>
             <button
               className="primary"
-              onClick={() => {
-                setSaved(true);
-                setTimeout(() => setSaved(false), 2200);
-              }}
+              onClick={() => void saveEventType()}
             >
               {saved ? "✓ Saved" : "Save & publish"}
             </button>
@@ -963,6 +981,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
             ))}
           </div>
           <div className="editbody">
+            {saveError && <div className="prospectingAlert error">! {saveError}</div>}
             {section === "Basics" && (
               <Panel
                 title="Event basics"
@@ -970,19 +989,16 @@ function Studio({ onPreview }: { onPreview: () => void }) {
               >
                 <div className="fields">
                   <Field label="Event name">
-                    <input defaultValue="AI Systems Intensive" />
+                    <input value={eventName} onChange={(event) => setEventName(event.target.value)} />
                   </Field>
                   <Field label="Booking link">
                     <div className="prefix">
                       cyncro.ai/book/
-                      <input defaultValue="ai-systems-intensive" />
+                      <input value={eventSlug} onChange={(event) => setEventSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} />
                     </div>
                   </Field>
                   <Field wide label="Description">
-                    <textarea
-                      rows={4}
-                      defaultValue="A high-impact group intensive to build and deploy your AI systems."
-                    />
+                    <textarea rows={4} value={eventDescription} onChange={(event) => setEventDescription(event.target.value)} />
                   </Field>
                   <Field label="Booking experience">
                     <select>
@@ -1282,10 +1298,10 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                 )}
                 <div className="fields compact">
                   <Field label="Duration">
-                    <select>
-                      <option>2 hours</option>
-                      <option>30 minutes</option>
-                      <option>60 minutes</option>
+                    <select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>
+                      <option value={120}>2 hours</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>60 minutes</option>
                     </select>
                   </Field>
                   <Field label="Slot interval">
@@ -8227,6 +8243,11 @@ type Prospect = {
   recommendedSolution?: string | null;
   callOpener?: string | null;
   nextAction?: string | null;
+  emails?: string[];
+  extractedPhones?: string[];
+  leadership?: string[];
+  sourceUrls?: string[];
+  lastExtractedAt?: string | null;
   assignedRep?: string | null;
   notes?: string | null;
   status?: string;
@@ -8973,6 +8994,23 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </a>
               )}
             </div>
+            {(selected.emails?.length || selected.extractedPhones?.length) ? (
+              <div className="drawerBrief">
+                <section>
+                  <small>PUBLIC CONTACTS EXTRACTED</small>
+                  {selected.emails?.map((email) => (
+                    <p key={email}><a href={`mailto:${email}`}>{email}</a></p>
+                  ))}
+                  {selected.extractedPhones?.map((phone) => (
+                    <p key={phone}><a href={`tel:${phone}`}>{phone}</a></p>
+                  ))}
+                </section>
+                <section>
+                  <small>VERIFICATION</small>
+                  <p>Public website extraction · source retained · {selected.lastExtractedAt ? "recently checked" : "not checked"}</p>
+                </section>
+              </div>
+            ) : null}
             <div className="drawerBrief">
               {[
                 ["WHY CALL THEM", selected.whyCall],
@@ -9096,63 +9134,18 @@ type CRMView =
   | "Agent Team"
   | "Intelligence";
 
-const crmContacts = [
-  {
-    name: "Alexandra Lewis",
-    company: "Northstar Advisory",
-    email: "alexandra@northstar.co",
-    phone: "+1 (561) 555-0121",
-    value: "$18,500",
-    stage: "Proposal",
-    source: "Private booking link",
-    intent: 94,
-    last: "Booked strategy session",
-  },
-  {
-    name: "Marcus Reed",
-    company: "Reed Development",
-    email: "marcus@reeddev.com",
-    phone: "+1 (305) 555-0184",
-    value: "$12,000",
-    stage: "Qualified",
-    source: "Partner referral",
-    intent: 87,
-    last: "Replied to SMS",
-  },
-  {
-    name: "Sophia Bennett",
-    company: "Atelier House",
-    email: "sophia@atelierhouse.com",
-    phone: "+1 (786) 555-0148",
-    value: "$7,500",
-    stage: "Discovery",
-    source: "Instagram",
-    intent: 76,
-    last: "Viewed proposal",
-  },
-  {
-    name: "Daniel Kim",
-    company: "Axis Systems",
-    email: "daniel@axissystems.ai",
-    phone: "+1 (646) 555-0199",
-    value: "$32,000",
-    stage: "Negotiation",
-    source: "Website",
-    intent: 91,
-    last: "Payment link opened",
-  },
-  {
-    name: "Nia Carter",
-    company: "Carter Collective",
-    email: "nia@cartercollective.com",
-    phone: "+1 (954) 555-0163",
-    value: "$5,000",
-    stage: "New lead",
-    source: "Event registration",
-    intent: 68,
-    last: "Joined waitlist",
-  },
-];
+type CRMContactCard = {
+  id?: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  value: string;
+  stage: string;
+  source: string;
+  intent: number;
+  last: string;
+};
 
 function UniversalCRM({
   onOpenCalendar,
@@ -9166,17 +9159,41 @@ function UniversalCRM({
     [selected, setSelected] = useState(0),
     [creating, setCreating] = useState(false),
     [aiOpen, setAiOpen] = useState(false),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
+    [contactsLoaded, setContactsLoaded] = useState(false),
+    [contactForm, setContactForm] = useState({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
   };
-  const filteredContacts = crmContacts.filter((contact) =>
+  const loadCRMContacts = async () => {
+    try {
+      const response = await fetch("/api/crm/contacts");
+      const data = await response.json() as { contacts?: Record<string, unknown>[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to load contacts.");
+      setLiveContacts((data.contacts || []).map((item) => ({
+        id: String(item.id || ""), name: String(item.full_name || "Unnamed contact"), company: String(item.company_name || "No account"),
+        email: String(item.email || "No email"), phone: String(item.phone || "No phone"), value: "$0", stage: String(item.lifecycle || "Lead"),
+        source: String(item.source || "Manual"), intent: 50, last: "CRM record updated",
+      })));
+    } catch (error) { flash(error instanceof Error ? error.message : "Unable to load contacts."); }
+    finally { setContactsLoaded(true); }
+  };
+  useEffect(() => { const timer = window.setTimeout(() => void loadCRMContacts(), 0); return () => window.clearTimeout(timer); }, []);
+  const filteredContacts = liveContacts.filter((contact) =>
     `${contact.name} ${contact.company} ${contact.email}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
-  const contact = crmContacts[selected];
+  const contact = liveContacts[selected];
+  const createContact = async () => {
+    const response = await fetch("/api/crm/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(contactForm) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { flash(data.error || "Contact could not be created"); return; }
+    setCreating(false); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
+    await loadCRMContacts(); flash("Contact created in the live CRM");
+  };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
     { name: "Pipeline", icon: "◫", count: "$75K" },
@@ -9509,7 +9526,7 @@ function UniversalCRM({
                   <span>INTENT</span>
                 </div>
                 {filteredContacts.map((item) => {
-                  const originalIndex = crmContacts.indexOf(item);
+                  const originalIndex = liveContacts.indexOf(item);
                   return (
                     <button
                       className={`contactRow ${selected === originalIndex ? "active" : ""}`}
@@ -9534,8 +9551,13 @@ function UniversalCRM({
                     </button>
                   );
                 })}
+                {contactsLoaded && !filteredContacts.length && (
+                  <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
+                )}
               </div>
-              <CRMContactDetail contact={contact} onFlash={flash} />
+              {contact ? <CRMContactDetail contact={contact} onFlash={flash} /> : (
+                <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
+              )}
             </div>
           )}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
@@ -9575,23 +9597,23 @@ function UniversalCRM({
             <div className="crmForm">
               <label>
                 Full name
-                <input placeholder="Enter contact name" />
+                <input value={contactForm.fullName} onChange={(event) => setContactForm({ ...contactForm, fullName: event.target.value })} placeholder="Enter contact name" />
               </label>
               <label>
                 Company
-                <input placeholder="Company or organization" />
+                <input value={contactForm.company} onChange={(event) => setContactForm({ ...contactForm, company: event.target.value })} placeholder="Company or organization" />
               </label>
               <label>
                 Email
-                <input placeholder="name@company.com" />
+                <input value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} placeholder="name@company.com" />
               </label>
               <label>
                 Phone
-                <input placeholder="(000) 000-0000" />
+                <input value={contactForm.phone} onChange={(event) => setContactForm({ ...contactForm, phone: event.target.value })} placeholder="(000) 000-0000" />
               </label>
               <label>
                 Source
-                <select>
+                <select value={contactForm.source} onChange={(event) => setContactForm({ ...contactForm, source: event.target.value })}>
                   <option>Booking link</option>
                   <option>Website</option>
                   <option>Referral</option>
@@ -9600,7 +9622,7 @@ function UniversalCRM({
               </label>
               <label>
                 Lifecycle
-                <select>
+                <select value={contactForm.lifecycle} onChange={(event) => setContactForm({ ...contactForm, lifecycle: event.target.value })}>
                   <option>Lead</option>
                   <option>Qualified</option>
                   <option>Customer</option>
@@ -9610,10 +9632,7 @@ function UniversalCRM({
             <div className="crmModalActions">
               <button onClick={() => setCreating(false)}>Cancel</button>
               <button
-                onClick={() => {
-                  setCreating(false);
-                  flash("Contact created and enriched");
-                }}
+                onClick={() => void createContact()}
               >
                 Create + enrich record
               </button>
@@ -9765,7 +9784,7 @@ function CRMContactDetail({
   contact,
   onFlash,
 }: {
-  contact: (typeof crmContacts)[number];
+  contact: CRMContactCard;
   onFlash: (message: string) => void;
 }) {
   return (
