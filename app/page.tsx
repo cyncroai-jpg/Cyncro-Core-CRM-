@@ -9126,6 +9126,7 @@ type CRMView =
   | "Pipeline"
   | "Accounts"
   | "Contacts"
+  | "Calendar"
   | "Conversations"
   | "Social Automations"
   | "Journeys"
@@ -9169,6 +9170,7 @@ function UniversalCRM({
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
   };
+  const openCRMCalendar = () => setView("Calendar");
   const loadCRMContacts = async () => {
     try {
       const response = await fetch("/api/crm/contacts");
@@ -9207,6 +9209,7 @@ function UniversalCRM({
     { name: "Pipeline", icon: "◫", count: "$75K" },
     { name: "Accounts", icon: "▦", count: "386" },
     { name: "Contacts", icon: "◎", count: "2.4K" },
+    { name: "Calendar", icon: "□", count: "Live" },
     { name: "Conversations", icon: "◇", count: "12" },
     { name: "Social Automations", icon: "⚡", count: "8" },
     { name: "Journeys", icon: "↝", count: "6" },
@@ -9246,7 +9249,7 @@ function UniversalCRM({
             <span>Prospecting</span>
             <em className="liveDot">New</em>
           </button>
-          <button onClick={onOpenCalendar}>
+          <button onClick={openCRMCalendar}>
             <i>□</i>
             <span>Calendar</span>
             <em className="liveDot">Live</em>
@@ -9456,7 +9459,7 @@ function UniversalCRM({
                       <small>CALENDAR + TASKS</small>
                       <h2>Next on your desk</h2>
                     </div>
-                    <button onClick={onOpenCalendar}>Open calendar →</button>
+                    <button onClick={openCRMCalendar}>Open calendar →</button>
                   </div>
                   {!recentActivity.some((item) => item.activity_type === "TASK" && item.status !== "COMPLETED") && <div className="noProspects">No open tasks.</div>}
                   {recentActivity.filter((item) => item.activity_type === "TASK" && item.status !== "COMPLETED").slice(0, 4).map((item) => (
@@ -9531,11 +9534,12 @@ function UniversalCRM({
                   <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
                 )}
               </div>
-              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onBook={onOpenCalendar} /> : (
+              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onBook={openCRMCalendar} /> : (
                 <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
               )}
             </div>
           )}
+          {view === "Calendar" && <div className="crmEmbeddedCalendar"><Admin onCreate={() => flash("Create and manage event types from Calendar settings")} /></div>}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
