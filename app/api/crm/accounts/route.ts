@@ -34,12 +34,12 @@ export async function POST(request: Request) {
     if (!name) return Response.json({ error: "Account name is required." }, { status: 400 });
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO crm_accounts
-      (id, name, domain, phone, address, category, owner_email, account_manager, sales_director, vp_sales, source, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`)
+      (id, name, domain, phone, address, category, owner_email, account_manager, sales_director, vp_sales, notes, source, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`)
       .bind(id, name, cleanText(body.domain, 240) || null, cleanText(body.phone, 40) || null,
         cleanText(body.address, 300) || null, cleanText(body.category, 100) || null,
         cleanText(body.ownerEmail, 254) || requestUser(request), cleanText(body.accountManager, 160) || null,
-        cleanText(body.salesDirector, 160) || null, cleanText(body.vpSales, 160) || null, cleanText(body.source, 80) || "MANUAL", now, now).run();
+        cleanText(body.salesDirector, 160) || null, cleanText(body.vpSales, 160) || null, cleanText(body.notes, 5000) || null, cleanText(body.source, 80) || "MANUAL", now, now).run();
     return Response.json({ account: await coreDb().prepare("SELECT * FROM crm_accounts WHERE id = ?").bind(id).first() }, { status: 201 });
   } catch (error) {
     console.error("crm.accounts.create_failed", error);
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
     await ensureCoreSchema(); const body = await request.json() as Record<string, unknown>; const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Account id is required." }, { status: 400 });
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
-    const allowed: Record<string, [string, number]> = { name: ["name",160], domain:["domain",240], phone:["phone",40], address:["address",300], category:["category",100], accountManager:["account_manager",160], salesDirector:["sales_director",160], vpSales:["vp_sales",160], status:["status",30] };
+    const allowed: Record<string, [string, number]> = { name: ["name",160], domain:["domain",240], phone:["phone",40], address:["address",300], category:["category",100], accountManager:["account_manager",160], salesDirector:["sales_director",160], vpSales:["vp_sales",160], notes:["notes",5000], status:["status",30] };
     const fields: string[] = []; const values: unknown[] = [];
     for (const [key, [column, max]] of Object.entries(allowed)) if (updates[key] !== undefined) { fields.push(`${column}=?`); values.push(cleanText(updates[key], max) || null); }
     if (!fields.length) return Response.json({ error: "No account changes supplied." }, { status: 400 });

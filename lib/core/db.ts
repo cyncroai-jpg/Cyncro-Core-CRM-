@@ -34,6 +34,7 @@ export async function ensureCoreSchema() {
       account_manager TEXT,
       sales_director TEXT,
       vp_sales TEXT,
+      notes TEXT,
       source TEXT NOT NULL DEFAULT 'MANUAL',
       source_prospect_id TEXT,
       status TEXT NOT NULL DEFAULT 'ACTIVE',

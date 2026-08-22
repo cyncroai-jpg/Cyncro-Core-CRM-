@@ -63,6 +63,7 @@ export const crmAccounts = sqliteTable("crm_accounts", {
   accountManager: text("account_manager"),
   salesDirector: text("sales_director"),
   vpSales: text("vp_sales"),
+  notes: text("notes"),
   source: text("source").notNull().default("MANUAL"),
   sourceProspectId: text("source_prospect_id"),
   status: text("status").notNull().default("ACTIVE"),

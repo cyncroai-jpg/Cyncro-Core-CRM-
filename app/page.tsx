@@ -1722,6 +1722,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
 function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
   const [area, setArea] = useState("Control center"),
     [notice, setNotice] = useState(""),
+    [crmUserName, setCrmUserName] = useState("Yvette Lomeli"),
     [guard, setGuard] = useState(true),
     [routing, setRouting] = useState("Smart load balance"),
     [range, setRange] = useState("30 days");
@@ -9171,6 +9172,8 @@ function UniversalCRM({
     window.setTimeout(() => setNotice(""), 1800);
   };
   const openCRMCalendar = () => setView("Calendar");
+  useEffect(() => { const saved = window.localStorage.getItem("cyncro-crm-user-name"); if (saved) setCrmUserName(saved); }, []);
+  const saveCRMUserName = (name: string) => { const value = name.trim() || "Team Member"; setCrmUserName(value); window.localStorage.setItem("cyncro-crm-user-name", value); flash(`Signed in as ${value}`); };
   const loadCRMContacts = async () => {
     try {
       const response = await fetch("/api/crm/contacts");
@@ -9273,10 +9276,10 @@ function UniversalCRM({
           <i>↗</i>
         </button>
         <div className="crmUser">
-          <span>YL</span>
+          <span>{crmUserName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
           <div>
-            <b>Yvette Lomeli</b>
-            <small>Founder · Admin</small>
+            <input aria-label="Your CRM display name" value={crmUserName} onChange={(event) => setCrmUserName(event.target.value)} onBlur={(event) => saveCRMUserName(event.target.value)} />
+            <small>Your CRM name · editable</small>
           </div>
           <i>•••</i>
         </div>
@@ -9483,7 +9486,7 @@ function UniversalCRM({
           )}
 
           {view === "Pipeline" && <CRMPipeline onFlash={flash} />}
-          {view === "Accounts" && <CRMAccounts onFlash={flash} />}
+          {view === "Accounts" && <CRMAccounts onFlash={flash} currentUserName={crmUserName} />}
           {view === "Contacts" && (
             <div className="contactWorkspace">
               <div className="contactList crmPanel">
@@ -10676,17 +10679,18 @@ function CRMSocialAutomations({
   );
 }
 
-function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
-  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents: number; monthly_residual_cents: number };
+function CRMAccounts({ onFlash, currentUserName }: { onFlash: (message: string) => void; currentUserName: string }) {
+  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; notes?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents: number; monthly_residual_cents: number };
   type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps: number; commission_status: string; payment_status: string; residual_rate_bps: number; residual_months: number };
   const [accounts, setAccounts] = useState<Account[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [selectedId, setSelectedId] = useState(""); const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", status: "ACTIVE" });
+  const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", notes: "", status: "ACTIVE" });
   const load = async () => { const [a, d] = await Promise.all([fetch("/api/crm/accounts"), fetch("/api/crm/opportunities")]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
   const active = accounts.find((item) => item.id === selectedId); const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
-  const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", status: active.status }); setEditing(true); };
+  const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", notes: active.notes || "", status: active.status }); setEditing(true); };
   const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); await load(); onFlash("Account and sales hierarchy saved"); };
   const money = (cents = 0) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(cents) / 100);
+  const teamNames = Array.from(new Set([currentUserName, ...accounts.flatMap((item) => [item.account_manager, item.sales_director, item.vp_sales]), ...deals.map((deal) => deal.assigned_rep)].filter((name): name is string => Boolean(name))));
   return (
     <div className="accountWorkspace">
       <section className="accountPortfolio crmPanel">
@@ -10754,9 +10758,10 @@ function CRMAccounts({ onFlash }: { onFlash: (message: string) => void }) {
           </div>
           {[ ["ACCOUNT MANAGER", active.account_manager || "Unassigned"], ["SALES DIRECTOR", active.sales_director || "Unassigned"], ["VP OF SALES", active.vp_sales || "Unassigned"] ].map((person) => <div key={person[0]}><i>{person[1].slice(0,2).toUpperCase()}</i><span><b>{person[1]}</b><small>{person[0]}</small></span></div>)}
         </div>
+        <div className="accountNotes"><div className="crmPanelHead"><div><small>ACCOUNT NOTES</small><h3>Shared account context</h3></div><button onClick={beginEdit}>Edit notes</button></div><p>{active.notes || "No account notes yet. Add the first note so everyone assigned to this account can see it."}</p></div>
         <div className="accountDeals"><div className="crmPanelHead"><div><small>DEAL COMPENSATION</small><h3>Sales, payments, commissions & residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{deal.commission_rate_bps / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * deal.commission_rate_bps / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.collected_cents * deal.residual_rate_bps / 10000)}/mo</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>
       </section>}
-      {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<input value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /></label><label>Sales Director<input value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /></label><label>VP of Sales<input value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
+      {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><datalist id="cyncro-team-names">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<div className="assignmentInput"><input list="cyncro-team-names" value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /><button onClick={() => setDraft({ ...draft, accountManager: currentUserName })}>Assign me</button></div></label><label>Sales Director<div className="assignmentInput"><input list="cyncro-team-names" value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /><button onClick={() => setDraft({ ...draft, salesDirector: currentUserName })}>Assign me</button></div></label><label>VP of Sales<div className="assignmentInput"><input list="cyncro-team-names" value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /><button onClick={() => setDraft({ ...draft, vpSales: currentUserName })}>Assign me</button></div></label><label>Account notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
     </div>
   );
 }

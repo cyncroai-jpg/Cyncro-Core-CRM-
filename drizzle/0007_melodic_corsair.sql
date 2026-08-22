@@ -1,0 +1,1 @@
+ALTER TABLE `crm_accounts` ADD `notes` text;
