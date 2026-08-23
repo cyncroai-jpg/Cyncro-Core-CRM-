@@ -205,7 +205,7 @@ export function requestUser(request: Request) {
 export async function hasModuleAccess(request: Request, module: "crm" | "calendar" | "prospecting") {
   // CRM and Calendar are temporarily open while the live role matrix is being finalized.
   // Sensitive compensation remains protected separately by isWorkspaceOwner().
-  if (module === "calendar" || module === "crm") return true;
+  if (module === "calendar" || module === "crm" || module === "prospecting") return true;
   const email = requestUser(request); if (email === "platform-owner") return true;
   const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
   if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }
