@@ -8290,6 +8290,7 @@ type Prospect = {
   notes?: string | null;
   status?: string;
   analyzedAt?: string | null;
+  source?: string;
 };
 
 const prospectStatuses = [
@@ -8330,6 +8331,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [keyMissing, setKeyMissing] = useState(false);
+  const [searchSource, setSearchSource] = useState("OPEN BUSINESS DATA");
 
   const loadProspects = async () => {
     try {
@@ -8397,14 +8399,17 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         results?: Prospect[];
         error?: string;
         code?: string;
+        source?: string;
+        providerNotice?: string | null;
       };
       if (!response.ok) {
         if (data.code === "GOOGLE_KEY_REQUIRED") setKeyMissing(true);
         throw new Error(data.error || "Search failed.");
       }
       setResults(data.results || []);
+      setSearchSource((data.source || "Open business data").toUpperCase());
       setMessage(
-        `${data.results?.length || 0} real businesses found through Google Places.`,
+        `${data.results?.length || 0} real businesses found through ${data.source || "open business data"}.${data.providerNotice ? ` ${data.providerNotice}` : ""}`,
       );
     } catch (searchError) {
       setError(
@@ -8680,7 +8685,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 <small>REAL BUSINESS SEARCH</small>
                 <h2>Build today&apos;s call list</h2>
               </div>
-              <span>GOOGLE PLACES</span>
+              <span>{searchSource}</span>
             </div>
             <div className="prospectingSearchGrid">
               <label>
@@ -8747,7 +8752,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 onClick={search}
                 disabled={searching}
               >
-                {searching ? "SEARCHING GOOGLE…" : "FIND BUSINESSES"}{" "}
+                {searching ? "SEARCHING LIVE SOURCES…" : "FIND BUSINESSES"}{" "}
                 <span>↗</span>
               </button>
               {results.length > 0 && (
@@ -8762,16 +8767,15 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </button>
               )}
               <p>
-                Any legitimate business category · Real Google business data
-                only
+                Any legitimate business category · Live public business data
               </p>
             </div>
             {keyMissing && (
               <div className="prospectingConfig">
-                <b>Google Places is ready for its credential.</b>
+                <b>Free search is active. Google can add richer coverage.</b>
                 <span>
-                  Add <code>GOOGLE_MAPS_API_KEY</code> in the Site&apos;s
-                  production environment variables, then search again.
+                  OpenStreetMap works now. Add <code>GOOGLE_MAPS_API_KEY</code>
+                  later for ratings, reviews and broader listing coverage.
                 </span>
               </div>
             )}
@@ -8846,7 +8850,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                   <small>SEARCH RESULTS</small>
                   <h2>{results.length} real businesses</h2>
                 </div>
-                <span>SOURCE · GOOGLE PLACES</span>
+                <span>SOURCE · {searchSource}</span>
               </div>
               <div className="prospectTable">
                 <div className="prospectTableHead">
