@@ -8327,6 +8327,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [selected, setSelected] = useState<Prospect | null>(null);
   const [searching, setSearching] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -8411,9 +8412,12 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     }
   };
 
-  const saveProspect = async (prospect: Prospect, quiet = false) => {
+  const saveProspect = async (prospect: Prospect, quiet = false, syncCRM = true) => {
     const alreadySaved = savedByIdentity.get(prospectIdentity(prospect));
-    if (alreadySaved) return alreadySaved;
+    if (alreadySaved) {
+      if (syncCRM && alreadySaved.id) await fetch("/api/crm/convert-prospect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prospectId: alreadySaved.id }) });
+      return alreadySaved;
+    }
     const response = await fetch("/api/prospecting/prospects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -8430,11 +8434,21 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
       const without = current.filter((item) => item.id !== data.prospect?.id);
       return [data.prospect as Prospect, ...without];
     });
+    if (syncCRM && data.prospect.id) {
+      const crmResponse = await fetch("/api/crm/convert-prospect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prospectId: data.prospect.id }),
+      });
+      const crmData = await crmResponse.json() as { error?: string };
+      if (!crmResponse.ok) throw new Error(crmData.error || "Saved, but CRM import failed.");
+      window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "imported" } }));
+    }
     if (!quiet)
       setMessage(
         data.duplicate
           ? "Duplicate prevented—existing prospect opened."
-          : `${prospect.businessName} saved.`,
+          : `${prospect.businessName} saved to Contacts and Pipeline.`,
       );
     return data.prospect;
   };
@@ -8498,6 +8512,15 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
           );
         });
         setAnalysisProgress(Math.min(index + batch.length, targets.length));
+      }
+      const analyzedIds = targets.map((item) => item.id).filter((id): id is string => Boolean(id));
+      if (analyzedIds.length) {
+        await fetch("/api/crm/convert-prospect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prospectIds: analyzedIds }),
+        });
+        window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "analysis-synced" } }));
       }
       await loadProspects();
       setMessage(
@@ -8570,6 +8593,50 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         ? `${prospect.businessName} is already connected to CRM.`
         : `${prospect.businessName} is now a CRM account with an opportunity.`,
     );
+  };
+
+  const saveAllToCRM = async () => {
+    if (!results.length) return;
+    setImporting(true);
+    setError("");
+    setMessage("");
+    try {
+      const saved: Prospect[] = [];
+      for (const result of results) saved.push(await saveProspect(result, true, false));
+      const prospectIds = saved.map((item) => item.id).filter((id): id is string => Boolean(id));
+      const response = await fetch("/api/crm/convert-prospect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prospectIds }),
+      });
+      const data = (await response.json()) as { imported?: number; failed?: number; error?: string };
+      if (!response.ok) throw new Error(data.error || "CRM import failed.");
+      await loadProspects();
+      window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "bulk-imported" } }));
+      setMessage(`${data.imported || 0} businesses saved and imported into Contacts and Pipeline${data.failed ? ` · ${data.failed} need attention` : ""}.`);
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "CRM import failed.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const exportProspects = (records: Prospect[]) => {
+    if (!records.length) { setError("There is no prospect data to export yet."); return; }
+    const safeCell = (value: unknown) => {
+      let output = Array.isArray(value) ? value.join(" | ") : String(value ?? "");
+      if (/^[=+\-@]/.test(output)) output = `'${output}`;
+      return `"${output.replace(/"/g, '""')}"`;
+    };
+    const headers = ["Business Name", "Category", "Address", "Phone", "Website", "Email", "Rating", "Review Count", "Opportunity Score", "Priority", "Assigned Rep", "Status", "Why Call", "What We Found", "Recommended Solution", "Call Opener", "Next Action", "Notes"];
+    const rows = records.map((item) => [item.businessName, item.category, item.address, item.phone, item.website, item.emails || [], item.rating, item.reviewCount, item.opportunityScore, item.rankLabel, item.assignedRep, item.status, item.whyCall, item.whatFound, item.recommendedSolution, item.callOpener, item.nextAction, item.notes]);
+    const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(safeCell).join(",")).join("\r\n")}`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `cyncro-prospects-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setMessage(`${records.length} prospects exported for Excel.`);
   };
 
   return (
@@ -8757,6 +8824,16 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                     : "✦ ANALYZE ALL"}
                 </button>
               )}
+              {results.length > 0 && (
+                <button className="analyzeAll" onClick={saveAllToCRM} disabled={importing || analyzing}>
+                  {importing ? "SAVING + IMPORTING…" : "SAVE ALL + IMPORT TO CRM"}
+                </button>
+              )}
+              {(results.length > 0 || prospects.length > 0) && (
+                <button className="analyzeAll" onClick={() => exportProspects(results.length ? results : prospects)}>
+                  EXPORT CSV
+                </button>
+              )}
               <p>
                 Any legitimate business category · Live public business data
               </p>
@@ -8921,6 +8998,9 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 disabled={analyzing || (!results.length && !prospects.length)}
               >
                 ✦ ANALYZE ALL
+              </button>
+              <button onClick={() => exportProspects(ranked)} disabled={!ranked.length}>
+                EXPORT SAVED CSV
               </button>
             </div>
             <div className="rankedProspectList">
