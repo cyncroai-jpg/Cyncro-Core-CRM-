@@ -24,6 +24,11 @@ export type ProspectRecord = {
   domain: string | null;
   rating_x10: number | null;
   review_count: number;
+  self_reported_revenue_cents: number | null;
+  estimated_revenue_low_cents: number | null;
+  estimated_revenue_high_cents: number | null;
+  revenue_confidence: string | null;
+  revenue_methodology: string | null;
   opportunity_score: number | null;
   rank_label: string | null;
   signals_json: string | null;
@@ -69,6 +74,11 @@ export async function ensureProspectingSchema() {
       domain TEXT,
       rating_x10 INTEGER,
       review_count INTEGER NOT NULL DEFAULT 0,
+      self_reported_revenue_cents INTEGER,
+      estimated_revenue_low_cents INTEGER,
+      estimated_revenue_high_cents INTEGER,
+      revenue_confidence TEXT,
+      revenue_methodology TEXT,
       name_address_key TEXT NOT NULL,
       opportunity_score INTEGER,
       rank_label TEXT,
@@ -110,6 +120,18 @@ export async function ensureProspectingSchema() {
       "CREATE INDEX IF NOT EXISTS prospects_status_idx ON prospects (status)",
     ),
   ]);
+  for (const statement of [
+    "ALTER TABLE prospects ADD COLUMN self_reported_revenue_cents INTEGER",
+    "ALTER TABLE prospects ADD COLUMN estimated_revenue_low_cents INTEGER",
+    "ALTER TABLE prospects ADD COLUMN estimated_revenue_high_cents INTEGER",
+    "ALTER TABLE prospects ADD COLUMN revenue_confidence TEXT",
+    "ALTER TABLE prospects ADD COLUMN revenue_methodology TEXT",
+  ]) try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  await db.prepare(`UPDATE prospects SET
+    estimated_revenue_low_cents=CASE WHEN lower(category) LIKE '%dealership%' OR lower(category) LIKE '%hotel%' OR lower(category) LIKE '%manufactur%' THEN 275000000 ELSE 27500000 END,
+    estimated_revenue_high_cents=CASE WHEN lower(category) LIKE '%dealership%' OR lower(category) LIKE '%hotel%' OR lower(category) LIKE '%manufactur%' THEN 825000000 ELSE 82500000 END,
+    revenue_confidence='LOW', revenue_methodology='Directional estimate from industry benchmark band and observable public signals; not verified financial data.'
+    WHERE estimated_revenue_low_cents IS NULL`).run();
   initialized = true;
 }
 
@@ -150,6 +172,11 @@ export function hydrateProspect(row: ProspectRecord) {
     domain: row.domain,
     rating: row.rating_x10 == null ? null : row.rating_x10 / 10,
     reviewCount: row.review_count,
+    selfReportedRevenue: row.self_reported_revenue_cents == null ? null : row.self_reported_revenue_cents / 100,
+    estimatedRevenueLow: row.estimated_revenue_low_cents == null ? null : row.estimated_revenue_low_cents / 100,
+    estimatedRevenueHigh: row.estimated_revenue_high_cents == null ? null : row.estimated_revenue_high_cents / 100,
+    revenueConfidence: row.revenue_confidence,
+    revenueMethodology: row.revenue_methodology,
     opportunityScore: row.opportunity_score,
     rankLabel: row.rank_label,
     signals: row.signals_json ? JSON.parse(row.signals_json) : null,

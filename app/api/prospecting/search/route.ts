@@ -116,7 +116,7 @@ async function searchOpenData(keyword: string, area: string, maximum: number): P
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("countrycodes", "us");
   url.searchParams.set("limit", "1");
-  const response = await fetch(url, { headers: { "Accept-Language": "en-US,en;q=0.8", "User-Agent": "CyncroProspecting/1.0 (business discovery; cyncromedia.ai)" } });
+  const response = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { "Accept-Language": "en-US,en;q=0.8", "User-Agent": "CyncroProspecting/1.0 (business discovery; cyncromedia.ai)" } });
   if (!response.ok) throw new Error("Open business search is temporarily unavailable.");
   const locations = (await response.json()) as NominatimResult[];
   const bounds = locations[0]?.boundingbox;
@@ -130,13 +130,16 @@ async function searchOpenData(keyword: string, area: string, maximum: number): P
     `relation${selector}(${bbox});`,
   ]).join("\n");
   const overpassQuery = `[out:json][timeout:25];(${statements});out tags center ${Math.max(maximum * 3, 100)};`;
-  const overpassResponse = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "CyncroProspecting/1.0 (business discovery; cyncromedia.ai)" },
-    body: new URLSearchParams({ data: overpassQuery }),
-  });
-  if (!overpassResponse.ok) throw new Error("The business index is busy. Please try the search again.");
-  const overpassData = (await overpassResponse.json()) as { elements?: OverpassElement[] };
+  let overpassData: { elements?: OverpassElement[] } | null = null;
+  for (const endpoint of ["https://overpass.kumi.systems/api/interpreter","https://overpass-api.de/api/interpreter","https://overpass.nchc.org.tw/api/interpreter"]) {
+    try {
+      const overpassResponse = await fetch(endpoint, { method: "POST", signal: AbortSignal.timeout(12_000), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "CyncroProspecting/1.0 (business discovery; cyncromedia.ai)" }, body: new URLSearchParams({ data: overpassQuery }) });
+      if (!overpassResponse.ok) continue;
+      const candidate = (await overpassResponse.json()) as { elements?: OverpassElement[] };
+      if (candidate.elements?.length) { overpassData = candidate; break; }
+    } catch (error) { console.warn("prospecting.open_index_retry", endpoint, error); }
+  }
+  if (!overpassData) throw new Error("The live business indexes are busy. Add a premium business-data key for dependable searches, or try again shortly.");
   return (overpassData.elements || []).filter((item) => item.tags?.name).map((item) => {
     const tags = item.tags || {};
     const category = tags.amenity || tags.shop || tags.office || tags.craft || tags.tourism || tags.industrial || "Business";

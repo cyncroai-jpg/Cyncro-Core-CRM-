@@ -38,7 +38,23 @@ const editable = new Set([
   "assignedRep",
   "notes",
   "status",
+  "selfReportedRevenue",
+  "estimatedRevenueLow",
+  "estimatedRevenueHigh",
+  "revenueConfidence",
+  "revenueMethodology",
 ]);
+
+function revenueEstimate(category: string, reviewCount: number) {
+  const value = category.toLowerCase();
+  let base = 500_000;
+  if (/dealership|manufactur|hotel/.test(value)) base = 5_000_000;
+  else if (/law|medical|dent|hvac|contract|real estate/.test(value)) base = 1_200_000;
+  else if (/restaurant|gym|salon|spa|beauty/.test(value)) base = 650_000;
+  const demand = Math.min(4, 1 + Math.log10(Math.max(1, reviewCount)) * 0.7);
+  const midpoint = Math.round(base * demand);
+  return { low: Math.round(midpoint * .55), high: Math.round(midpoint * 1.65), confidence: reviewCount >= 250 ? "MEDIUM" : "LOW", methodology: "Directional estimate from industry benchmark band and observable review demand; not verified financial data." };
+}
 
 function clean(value: unknown, max = 5000) {
   return typeof value === "string" ? value.trim().slice(0, max) : null;
@@ -108,12 +124,14 @@ export async function POST(request: Request) {
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const estimate = revenueEstimate(clean(body.category, 120) || "Business", Math.max(Number(body.reviewCount) || 0, 0));
     await getProspectingDb()
       .prepare(
         `INSERT INTO prospects (
       id, google_place_id, business_name, category, address, phone, normalized_phone,
-      website, domain, rating_x10, review_count, name_address_key, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?)`,
+      website, domain, rating_x10, review_count, name_address_key, estimated_revenue_low_cents,
+      estimated_revenue_high_cents, revenue_confidence, revenue_methodology, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?)`,
       )
       .bind(
         id,
@@ -128,6 +146,10 @@ export async function POST(request: Request) {
         typeof body.rating === "number" ? Math.round(body.rating * 10) : null,
         Math.max(Number(body.reviewCount) || 0, 0),
         nameAddressKey(businessName, address),
+        estimate.low * 100,
+        estimate.high * 100,
+        estimate.confidence,
+        estimate.methodology,
         now,
         now,
       )
@@ -184,14 +206,17 @@ export async function PATCH(request: Request) {
       assignedRep: "assigned_rep",
       notes: "notes",
       status: "status",
+      selfReportedRevenue: "self_reported_revenue_cents",
+      estimatedRevenueLow: "estimated_revenue_low_cents",
+      estimatedRevenueHigh: "estimated_revenue_high_cents",
+      revenueConfidence: "revenue_confidence",
+      revenueMethodology: "revenue_methodology",
     };
     for (const [key, value] of Object.entries(updates)) {
       if (!editable.has(key)) continue;
       if (key === "status" && !statuses.has(String(value))) continue;
       sets.push(`${columns[key]} = ?`);
-      values.push(
-        ["signals", "reasons", "emails", "extractedPhones", "leadership", "sourceUrls"].includes(key) ? JSON.stringify(value) : value,
-      );
+      values.push(["signals", "reasons", "emails", "extractedPhones", "leadership", "sourceUrls"].includes(key) ? JSON.stringify(value) : ["selfReportedRevenue","estimatedRevenueLow","estimatedRevenueHigh"].includes(key) ? Math.max(0,Math.round(Number(value||0)*100)) : value);
     }
     if ("opportunityScore" in updates) {
       sets.push("analyzed_at = ?");

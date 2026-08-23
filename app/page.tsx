@@ -8780,6 +8780,11 @@ type Prospect = {
   domain?: string | null;
   rating: number | null;
   reviewCount: number;
+  selfReportedRevenue?: number | null;
+  estimatedRevenueLow?: number | null;
+  estimatedRevenueHigh?: number | null;
+  revenueConfidence?: string | null;
+  revenueMethodology?: string | null;
   opportunityScore?: number | null;
   rankLabel?: string | null;
   signals?: ProspectSignal | null;
@@ -9191,6 +9196,10 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
       "Email",
       "Rating",
       "Review Count",
+      "Self Reported Annual Revenue",
+      "Estimated Annual Revenue Low",
+      "Estimated Annual Revenue High",
+      "Revenue Confidence",
       "Opportunity Score",
       "Priority",
       "Assigned Rep",
@@ -9211,6 +9220,10 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
       item.emails || [],
       item.rating,
       item.reviewCount,
+      item.selfReportedRevenue,
+      item.estimatedRevenueLow,
+      item.estimatedRevenueHigh,
+      item.revenueConfidence,
       item.opportunityScore,
       item.rankLabel,
       item.assignedRep,
@@ -9682,6 +9695,11 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               </div>
               <strong>{selected.rankLabel || "NOT ANALYZED"}</strong>
             </div>
+            <div className="prospectRevenueCard">
+              <section><small>SELF-REPORTED ANNUAL REVENUE</small><b>{selected.selfReportedRevenue ? `$${selected.selfReportedRevenue.toLocaleString()}` : "Not provided"}</b><span>Entered by your team or confirmed by the business</span></section>
+              <section><small>ESTIMATED ANNUAL REVENUE</small><b>{selected.estimatedRevenueLow != null && selected.estimatedRevenueHigh != null ? `$${selected.estimatedRevenueLow.toLocaleString()}–$${selected.estimatedRevenueHigh.toLocaleString()}` : "Not estimated"}</b><span>{selected.revenueConfidence || "LOW"} confidence · Directional, not verified</span></section>
+              <p>{selected.revenueMethodology || "Estimate uses public business signals and industry benchmark bands."}</p>
+            </div>
             {!selected.opportunityScore && (
               <button
                 className="drawerAnalyze"
@@ -9785,6 +9803,10 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 CONVERT TO CRM ACCOUNT + OPPORTUNITY →
               </button>
               <label>
+                Self-reported annual revenue
+                <input type="number" min="0" value={selected.selfReportedRevenue || ""} onChange={(event)=>setSelected({...selected,selfReportedRevenue:event.target.value ? Number(event.target.value) : null})} placeholder="Example: 1500000" />
+              </label>
+              <label>
                 Assigned rep
                 <input
                   value={selected.assignedRep || ""}
@@ -9828,6 +9850,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 onClick={() =>
                   void updateProspect(selected, {
                     assignedRep: selected.assignedRep || "",
+                    selfReportedRevenue: selected.selfReportedRevenue || 0,
                     notes: selected.notes || "",
                     status:
                       selected.assignedRep && selected.status === "NEW"
