@@ -8965,6 +8965,9 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               )}
             </div>
           </section>
+          <p className="prospectingAttribution">
+            Data attribution: © OpenStreetMap contributors
+          </p>
         </div>
       </main>
 
