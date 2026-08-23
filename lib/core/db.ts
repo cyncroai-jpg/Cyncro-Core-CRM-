@@ -133,6 +133,7 @@ export async function ensureCoreSchema() {
       capacity INTEGER NOT NULL DEFAULT 1,
       location_modes TEXT NOT NULL DEFAULT '["VIDEO"]',
       video_platforms TEXT NOT NULL DEFAULT '["GOOGLE_MEET","ZOOM","FACETIME"]',
+      host_name TEXT,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -179,7 +180,11 @@ export async function ensureCoreSchema() {
       id TEXT PRIMARY KEY, recipient TEXT NOT NULL, title TEXT NOT NULL, body TEXT, entity_type TEXT, entity_id TEXT, read_at TEXT, created_at TEXT NOT NULL
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS workspace_notifications_recipient_idx ON workspace_notifications(recipient, created_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_feeds (
+      id TEXT PRIMARY KEY, owner TEXT NOT NULL UNIQUE, token TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
   ]);
+  try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN host_name TEXT").run(); } catch { /* already migrated */ }
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN residual_flat_cents INTEGER NOT NULL DEFAULT 2500").run(); } catch { /* already migrated */ }
   await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=2000 WHERE commission_rate_bps<2000").run();
   await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=3000 WHERE commission_rate_bps>3000").run();

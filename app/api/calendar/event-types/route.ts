@@ -33,6 +33,7 @@ export async function POST(request: Request) {
         Math.max(0, Number(body.bufferBeforeMinutes || 0)), Math.max(0, Number(body.bufferAfterMinutes || 0)), capacity,
         JSON.stringify(Array.isArray(body.locationModes) ? body.locationModes : ["VIDEO"]),
         JSON.stringify(Array.isArray(body.videoPlatforms) ? body.videoPlatforms : ["GOOGLE_MEET", "ZOOM", "FACETIME"]), now, now).run();
+    if (cleanText(body.hostName, 160)) await coreDb().prepare("UPDATE calendar_event_types SET host_name=? WHERE id=?").bind(cleanText(body.hostName,160),id).run();
     return Response.json({ id, slug }, { status: 201 });
   } catch (error) {
     console.error("calendar.event_types.create_failed", error);
@@ -63,6 +64,7 @@ export async function PATCH(request: Request) {
     }
     if (Array.isArray(body.locationModes)) add("location_modes", JSON.stringify(body.locationModes));
     if (Array.isArray(body.videoPlatforms)) add("video_platforms", JSON.stringify(body.videoPlatforms));
+    if (body.hostName !== undefined) add("host_name", cleanText(body.hostName, 160) || null);
     if (body.active !== undefined) add("active", body.active ? 1 : 0);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString());

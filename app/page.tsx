@@ -23,27 +23,79 @@ type Tab =
   | "sports";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
-    [permissions, setPermissions] = useState<{ role: string; crm_access: number; calendar_access: number; prospecting_access: number } | null>(null),
+    [permissions, setPermissions] = useState<{
+      role: string;
+      crm_access: number;
+      calendar_access: number;
+      prospecting_access: number;
+    } | null>(null),
     [lightMode, setLightMode] = useState(false),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
-  const canAccess = (destination: Tab) => destination === "home" || !permissions || permissions.role === "OWNER" || (destination === "crm" && Boolean(permissions.crm_access)) || (["book","admin","studio"].includes(destination) && Boolean(permissions.calendar_access)) || (destination === "prospecting" && Boolean(permissions.prospecting_access));
+  const canAccess = (destination: Tab) =>
+    destination === "home" ||
+    !permissions ||
+    permissions.role === "OWNER" ||
+    (destination === "crm" && Boolean(permissions.crm_access)) ||
+    (["book", "admin", "studio"].includes(destination) &&
+      Boolean(permissions.calendar_access)) ||
+    (destination === "prospecting" && Boolean(permissions.prospecting_access));
   const navigate = (destination: Tab) => {
-    if (!canAccess(destination)) { setTab("crm"); window.history.pushState(null, "", "#crm"); return; }
+    if (!canAccess(destination)) {
+      setTab("crm");
+      window.history.pushState(null, "", "#crm");
+      return;
+    }
     setTab(destination);
-    window.history.pushState(null, "", destination === "home" ? window.location.pathname : `#${destination}`);
+    window.history.pushState(
+      null,
+      "",
+      destination === "home" ? window.location.pathname : `#${destination}`,
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   useEffect(() => {
-    const validTabs: Tab[] = ["home", "book", "admin", "studio", "crm", "prospecting", "dispatch", "dispute", "finance", "prime", "sports"];
-    const syncRoute = () => { const route = window.location.hash.slice(1) as Tab; setTab(validTabs.includes(route) ? route : "home"); };
-    syncRoute(); window.addEventListener("hashchange", syncRoute); window.addEventListener("popstate", syncRoute);
-    return () => { window.removeEventListener("hashchange", syncRoute); window.removeEventListener("popstate", syncRoute); };
+    const validTabs: Tab[] = [
+      "home",
+      "book",
+      "admin",
+      "studio",
+      "crm",
+      "prospecting",
+      "dispatch",
+      "dispute",
+      "finance",
+      "prime",
+      "sports",
+    ];
+    const syncRoute = () => {
+      const route = window.location.hash.slice(1) as Tab;
+      setTab(validTabs.includes(route) ? route : "home");
+    };
+    syncRoute();
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("popstate", syncRoute);
+    return () => {
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("popstate", syncRoute);
+    };
   }, []);
-  useEffect(() => { void fetch("/api/access").then(async (response) => { const data = await response.json() as { member?: { role: string; crm_access: number; calendar_access: number; prospecting_access: number } }; if (response.ok && data.member) setPermissions(data.member); }); }, []);
+  useEffect(() => {
+    void fetch("/api/access").then(async (response) => {
+      const data = (await response.json()) as {
+        member?: {
+          role: string;
+          crm_access: number;
+          calendar_access: number;
+          prospecting_access: number;
+        };
+      };
+      if (response.ok && data.member) setPermissions(data.member);
+    });
+  }, []);
   return (
     <main
       className={`cyncroApp readable ${lightMode ? "themeLight" : "themeDark"}`}
@@ -65,15 +117,17 @@ export default function Home() {
             ["prime", "Prime AI"],
             ["sports", "Sports AI"],
             ["admin", "Operations"],
-          ].filter((x) => canAccess(x[0] as Tab)).map((x) => (
-            <button
-              className={tab === x[0] ? "navon" : ""}
-              onClick={() => navigate(x[0] as Tab)}
-              key={x[0]}
-            >
-              {x[1]}
-            </button>
-          ))}
+          ]
+            .filter((x) => canAccess(x[0] as Tab))
+            .map((x) => (
+              <button
+                className={tab === x[0] ? "navon" : ""}
+                onClick={() => navigate(x[0] as Tab)}
+                key={x[0]}
+              >
+                {x[1]}
+              </button>
+            ))}
           <span>● DEMO LIVE</span>
           <button
             className="themeSwitch"
@@ -92,6 +146,8 @@ export default function Home() {
           onOperations={() => navigate("admin")}
           onNavigate={navigate}
         />
+      ) : tab === "book" ? (
+        <PublicBookingExperience />
       ) : tab === "studio" ? (
         <Studio onPreview={() => navigate("book")} />
       ) : tab === "crm" ? (
@@ -297,6 +353,345 @@ export default function Home() {
   );
 }
 
+function PublicBookingExperience() {
+  type EventType = {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    duration_minutes: number;
+    location_modes: string;
+    video_platforms: string;
+    host_name?: string;
+  };
+  type Slot = { startsAt: string; endsAt: string; remaining: number };
+  const [events, setEvents] = useState<EventType[]>([]);
+  const [eventId, setEventId] = useState("");
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [locationMode, setLocationMode] = useState("VIDEO");
+  const [videoPlatform, setVideoPlatform] = useState("GOOGLE_MEET");
+  const [startsAt, setStartsAt] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    notes: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const selected = events.find((item) => item.id === eventId);
+  const modes: string[] = selected
+    ? JSON.parse(selected.location_modes || "[]")
+    : [];
+  const platforms: string[] = selected
+    ? JSON.parse(selected.video_platforms || "[]")
+    : [];
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/calendar/event-types");
+        const data = (await response.json()) as {
+          eventTypes?: EventType[];
+          error?: string;
+        };
+        if (!response.ok)
+          throw new Error(data.error || "Booking page unavailable");
+        const list = data.eventTypes || [];
+        setEvents(list);
+        const slug = new URLSearchParams(window.location.search).get("event");
+        setEventId(
+          list.find((item) => item.slug === slug)?.id || list[0]?.id || "",
+        );
+      } catch (reason) {
+        setError(
+          reason instanceof Error ? reason.message : "Booking page unavailable",
+        );
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    if (!eventId) return;
+    void (async () => {
+      setError("");
+      const from = new Date();
+      from.setHours(0, 0, 0, 0);
+      const response = await fetch(
+        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21`,
+      );
+      const data = (await response.json()) as {
+        slots?: Slot[];
+        error?: string;
+      };
+      if (!response.ok) {
+        setError(data.error || "Availability could not be loaded");
+        return;
+      }
+      setSlots(data.slots || []);
+      setStartsAt("");
+    })();
+  }, [eventId]);
+  useEffect(() => {
+    if (!selected) return;
+    const nextModes: string[] = JSON.parse(selected.location_modes || "[]");
+    const nextPlatforms: string[] = JSON.parse(
+      selected.video_platforms || "[]",
+    );
+    if (!nextModes.includes(locationMode))
+      setLocationMode(nextModes[0] || "PHONE");
+    if (!nextPlatforms.includes(videoPlatform))
+      setVideoPlatform(nextPlatforms[0] || "GOOGLE_MEET");
+  }, [selected]);
+  const book = async () => {
+    if (!selected || !startsAt || !form.name.trim() || !form.email.trim()) {
+      setError("Choose a time and enter your name and email.");
+      return;
+    }
+    if (locationMode === "IN_PERSON" && !form.address.trim()) {
+      setError("Enter the meeting address.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const response = await fetch("/api/calendar/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventTypeId: selected.id,
+        customerName: form.name,
+        customerEmail: form.email,
+        customerPhone: form.phone,
+        startsAt,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        locationMode,
+        videoPlatform: locationMode === "VIDEO" ? videoPlatform : null,
+        meetingAddress: locationMode === "IN_PERSON" ? form.address : null,
+        notes: form.notes,
+      }),
+    });
+    const data = (await response.json()) as { error?: string };
+    setSaving(false);
+    if (!response.ok) {
+      setError(data.error || "Booking could not be completed");
+      return;
+    }
+    setConfirmed(true);
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "booking", action: "created" },
+      }),
+    );
+  };
+  if (loading)
+    return (
+      <section className="liveBooking">
+        <div className="bookingState">Loading live availability…</div>
+      </section>
+    );
+  if (confirmed)
+    return (
+      <section className="liveBooking">
+        <div className="bookingSuccess">
+          <i>✓</i>
+          <small>BOOKING CONFIRMED</small>
+          <h1>You’re on the calendar.</h1>
+          <p>
+            {selected?.name} · {new Date(startsAt).toLocaleString()}
+          </p>
+          <b>
+            {locationMode === "VIDEO"
+              ? videoPlatform.replaceAll("_", " ")
+              : locationMode === "PHONE"
+                ? "Phone call"
+                : form.address}
+          </b>
+          <span>
+            Your booking is now visible in Cyncro CRM and on the assigned
+            manager’s calendar.
+          </span>
+          <button
+            onClick={() => {
+              setConfirmed(false);
+              setStartsAt("");
+            }}
+          >
+            Book another appointment
+          </button>
+        </div>
+      </section>
+    );
+  return (
+    <section className="liveBooking">
+      <aside>
+        <small>CYNCRO PRIVATE SCHEDULING</small>
+        <h1>{selected?.name || "Choose an appointment"}</h1>
+        <p>
+          {selected?.description ||
+            "Select how you want to meet, then choose a live available time."}
+        </p>
+        <div>
+          <b>{selected?.duration_minutes || 0} minutes</b>
+          <span>Live availability</span>
+          <span>Conflict protected</span>
+          {selected?.host_name && <span>With {selected.host_name}</span>}
+        </div>
+      </aside>
+      <main>
+        <div className="liveBookingTop">
+          <label>
+            Event type
+            <select
+              value={eventId}
+              onChange={(event) => setEventId(event.target.value)}
+            >
+              {events.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span>1 · Meeting　2 · Time　3 · Details</span>
+        </div>
+        {!events.length ? (
+          <div className="bookingState">No published event types yet.</div>
+        ) : (
+          <>
+            <div className="bookingBlock">
+              <small>HOW WOULD YOU LIKE TO MEET?</small>
+              <div className="meetingChoice">
+                {[
+                  ["VIDEO", "Video call", "Meet, Zoom, or FaceTime"],
+                  ["PHONE", "Phone call", "We’ll call your number"],
+                  ["IN_PERSON", "In person", "Meet at a confirmed address"],
+                ]
+                  .filter((item) => modes.includes(item[0]))
+                  .map((item) => (
+                    <button
+                      className={locationMode === item[0] ? "active" : ""}
+                      onClick={() => setLocationMode(item[0])}
+                      key={item[0]}
+                    >
+                      <b>{item[1]}</b>
+                      <span>{item[2]}</span>
+                    </button>
+                  ))}
+              </div>
+              {locationMode === "VIDEO" && (
+                <label className="bookingInput">
+                  Video platform
+                  <select
+                    value={videoPlatform}
+                    onChange={(event) => setVideoPlatform(event.target.value)}
+                  >
+                    {[
+                      ["GOOGLE_MEET", "Google Meet"],
+                      ["ZOOM", "Zoom"],
+                      ["FACETIME", "Apple FaceTime"],
+                    ]
+                      .filter((item) => platforms.includes(item[0]))
+                      .map((item) => (
+                        <option value={item[0]} key={item[0]}>
+                          {item[1]}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            <div className="bookingBlock">
+              <small>CHOOSE A LIVE AVAILABLE TIME</small>
+              <div className="liveSlots">
+                {slots.slice(0, 30).map((slot) => (
+                  <button
+                    className={startsAt === slot.startsAt ? "active" : ""}
+                    onClick={() => setStartsAt(slot.startsAt)}
+                    key={slot.startsAt}
+                  >
+                    <b>
+                      {new Date(slot.startsAt).toLocaleDateString([], {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </b>
+                    <span>
+                      {new Date(slot.startsAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {!slots.length && (
+                <p className="bookingState">
+                  No open times in the next 21 days.
+                </p>
+              )}
+            </div>
+            <div className="bookingBlock">
+              <small>YOUR DETAILS</small>
+              <div className="bookingDetails">
+                <input
+                  placeholder="Full name"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                />
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm({ ...form, email: event.target.value })
+                  }
+                />
+                <input
+                  placeholder="Phone number"
+                  value={form.phone}
+                  onChange={(event) =>
+                    setForm({ ...form, phone: event.target.value })
+                  }
+                />
+                {locationMode === "IN_PERSON" && (
+                  <input
+                    placeholder="Meeting address"
+                    value={form.address}
+                    onChange={(event) =>
+                      setForm({ ...form, address: event.target.value })
+                    }
+                  />
+                )}
+                <textarea
+                  placeholder="Anything we should know?"
+                  value={form.notes}
+                  onChange={(event) =>
+                    setForm({ ...form, notes: event.target.value })
+                  }
+                />
+              </div>
+            </div>
+            {error && <div className="bookingError">{error}</div>}
+            <button
+              className="confirmLiveBooking"
+              disabled={saving || !startsAt}
+              onClick={() => void book()}
+            >
+              {saving ? "Confirming…" : "Confirm booking →"}
+            </button>
+          </>
+        )}
+      </main>
+    </section>
+  );
+}
+
 function FrontExperience({
   onExperience,
   onPlatform,
@@ -392,7 +787,8 @@ function FrontExperience({
       proof: "0–100",
       proofLabel: "opportunity score",
       image: "/module-images/cyncro-crm.webp",
-      imageAlt: "Cyncro Prospecting AI showing ranked businesses, website signals, and call priorities",
+      imageAlt:
+        "Cyncro Prospecting AI showing ranked businesses, website signals, and call priorities",
       route: "prospecting" as Tab,
       action: "Open Prospecting AI",
     },
@@ -641,8 +1037,55 @@ function FrontExperience({
       </section>
 
       <section className="prospectingFrontSpotlight">
-        <div className="prospectingFrontCopy"><label>CYNCRO PROSPECTING AI</label><h2>Know exactly who to call—and why.</h2><p>Search real businesses in any industry. Cyncro collects available public business information, reviews each company’s website, detects missing conversion systems, ranks the opportunity, and prepares the salesperson’s next move.</p><div className="prospectingFrontFlow">{["SEARCH", "REAL BUSINESSES", "ANALYZE", "SCORE", "CALL FIRST"].map((item, index) => <span key={item}><i>{index + 1}</i>{item}</span>)}</div><button className="frontPrimary" onClick={() => onNavigate("prospecting")}>Open Prospecting AI <span>↗</span></button></div>
-        <div className="prospectingFrontPanel"><small>LIVE OPPORTUNITY BRIEF</small><div className="prospectingScore"><b>96</b><span>CALL FIRST</span></div><h3>ABC Med Spa</h3><p>Strong market demand. High review volume. Website has no visible automated qualification or SMS follow-up path.</p><div><span>Recommended Cyncro solution</span><b>AI Receptionist + Appointment Setter + SMS Follow-Up + CRM</b></div><button onClick={() => onNavigate("prospecting")}>View ranked prospects →</button></div>
+        <div className="prospectingFrontCopy">
+          <label>CYNCRO PROSPECTING AI</label>
+          <h2>Know exactly who to call—and why.</h2>
+          <p>
+            Search real businesses in any industry. Cyncro collects available
+            public business information, reviews each company’s website, detects
+            missing conversion systems, ranks the opportunity, and prepares the
+            salesperson’s next move.
+          </p>
+          <div className="prospectingFrontFlow">
+            {[
+              "SEARCH",
+              "REAL BUSINESSES",
+              "ANALYZE",
+              "SCORE",
+              "CALL FIRST",
+            ].map((item, index) => (
+              <span key={item}>
+                <i>{index + 1}</i>
+                {item}
+              </span>
+            ))}
+          </div>
+          <button
+            className="frontPrimary"
+            onClick={() => onNavigate("prospecting")}
+          >
+            Open Prospecting AI <span>↗</span>
+          </button>
+        </div>
+        <div className="prospectingFrontPanel">
+          <small>LIVE OPPORTUNITY BRIEF</small>
+          <div className="prospectingScore">
+            <b>96</b>
+            <span>CALL FIRST</span>
+          </div>
+          <h3>ABC Med Spa</h3>
+          <p>
+            Strong market demand. High review volume. Website has no visible
+            automated qualification or SMS follow-up path.
+          </p>
+          <div>
+            <span>Recommended Cyncro solution</span>
+            <b>AI Receptionist + Appointment Setter + SMS Follow-Up + CRM</b>
+          </div>
+          <button onClick={() => onNavigate("prospecting")}>
+            View ranked prospects →
+          </button>
+        </div>
       </section>
 
       <section className="platformUniverse">
@@ -943,7 +1386,9 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     [intakeDepth, setIntakeDepth] = useState("Guided"),
     [eventName, setEventName] = useState("AI Systems Intensive"),
     [eventSlug, setEventSlug] = useState("ai-systems-intensive"),
-    [eventDescription, setEventDescription] = useState("A high-impact group intensive to build and deploy your AI systems."),
+    [eventDescription, setEventDescription] = useState(
+      "A high-impact group intensive to build and deploy your AI systems.",
+    ),
     [durationMinutes, setDurationMinutes] = useState(120),
     [saveError, setSaveError] = useState("");
   const toggleChoice = (
@@ -960,19 +1405,60 @@ function Studio({ onPreview }: { onPreview: () => void }) {
     navigator.clipboard?.writeText(`https://cyncro.ai/book/demo/${slug}`);
   const saveEventType = async () => {
     setSaveError("");
-    const response = await fetch("/api/calendar/event-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      name: eventName, slug: eventSlug, description: eventDescription, durationMinutes, capacity,
-      bufferBeforeMinutes: 15, bufferAfterMinutes: 15, locationModes: ["VIDEO", "PHONE", "IN_PERSON"],
-      videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"],
-    }) });
-    const data = await response.json() as { id?: string; error?: string };
-    if (!response.ok || !data.id) { setSaveError(data.error || "Event type could not be saved."); return; }
-    const availability = await fetch("/api/calendar/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      eventTypeId: data.id, timezone: "America/New_York", rules: [1,2,3,4,5].map((weekday) => ({ weekday, startTime: "09:00", endTime: "17:00" })),
-    }) });
-    if (!availability.ok) { const result = await availability.json() as { error?: string }; setSaveError(result.error || "Availability could not be saved."); return; }
-    setEvents((current) => [{ name: eventName, type: capacity > 1 ? "Group" : "1-on-1", duration: `${durationMinutes} min`, capacity, price: "Free", bookings: 0, status: "Published", slug: eventSlug }, ...current]);
-    setSaved(true); setTimeout(() => setSaved(false), 2200); setEditing(false);
+    const response = await fetch("/api/calendar/event-types", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: eventName,
+        slug: eventSlug,
+        description: eventDescription,
+        durationMinutes,
+        capacity,
+        bufferBeforeMinutes: 15,
+        bufferAfterMinutes: 15,
+        locationModes: ["VIDEO", "PHONE", "IN_PERSON"],
+        videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"],
+      }),
+    });
+    const data = (await response.json()) as { id?: string; error?: string };
+    if (!response.ok || !data.id) {
+      setSaveError(data.error || "Event type could not be saved.");
+      return;
+    }
+    const availability = await fetch("/api/calendar/availability", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventTypeId: data.id,
+        timezone: "America/New_York",
+        rules: [1, 2, 3, 4, 5].map((weekday) => ({
+          weekday,
+          startTime: "09:00",
+          endTime: "17:00",
+        })),
+      }),
+    });
+    if (!availability.ok) {
+      const result = (await availability.json()) as { error?: string };
+      setSaveError(result.error || "Availability could not be saved.");
+      return;
+    }
+    setEvents((current) => [
+      {
+        name: eventName,
+        type: capacity > 1 ? "Group" : "1-on-1",
+        duration: `${durationMinutes} min`,
+        capacity,
+        price: "Free",
+        bookings: 0,
+        status: "Published",
+        slug: eventSlug,
+      },
+      ...current,
+    ]);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2200);
+    setEditing(false);
   };
   if (editing)
     return (
@@ -989,10 +1475,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
             <button className="secondary" onClick={() => setEditing(false)}>
               Close
             </button>
-            <button
-              className="primary"
-              onClick={() => void saveEventType()}
-            >
+            <button className="primary" onClick={() => void saveEventType()}>
               {saved ? "✓ Saved" : "Save & publish"}
             </button>
           </div>
@@ -1019,7 +1502,9 @@ function Studio({ onPreview }: { onPreview: () => void }) {
             ))}
           </div>
           <div className="editbody">
-            {saveError && <div className="prospectingAlert error">! {saveError}</div>}
+            {saveError && (
+              <div className="prospectingAlert error">! {saveError}</div>
+            )}
             {section === "Basics" && (
               <Panel
                 title="Event basics"
@@ -1027,16 +1512,34 @@ function Studio({ onPreview }: { onPreview: () => void }) {
               >
                 <div className="fields">
                   <Field label="Event name">
-                    <input value={eventName} onChange={(event) => setEventName(event.target.value)} />
+                    <input
+                      value={eventName}
+                      onChange={(event) => setEventName(event.target.value)}
+                    />
                   </Field>
                   <Field label="Booking link">
                     <div className="prefix">
                       cyncro.ai/book/
-                      <input value={eventSlug} onChange={(event) => setEventSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} />
+                      <input
+                        value={eventSlug}
+                        onChange={(event) =>
+                          setEventSlug(
+                            event.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9-]/g, "-"),
+                          )
+                        }
+                      />
                     </div>
                   </Field>
                   <Field wide label="Description">
-                    <textarea rows={4} value={eventDescription} onChange={(event) => setEventDescription(event.target.value)} />
+                    <textarea
+                      rows={4}
+                      value={eventDescription}
+                      onChange={(event) =>
+                        setEventDescription(event.target.value)
+                      }
+                    />
                   </Field>
                   <Field label="Booking experience">
                     <select>
@@ -1336,7 +1839,12 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                 )}
                 <div className="fields compact">
                   <Field label="Duration">
-                    <select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>
+                    <select
+                      value={durationMinutes}
+                      onChange={(event) =>
+                        setDurationMinutes(Number(event.target.value))
+                      }
+                    >
                       <option value={120}>2 hours</option>
                       <option value={30}>30 minutes</option>
                       <option value={60}>60 minutes</option>
@@ -8412,10 +8920,19 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     }
   };
 
-  const saveProspect = async (prospect: Prospect, quiet = false, syncCRM = true) => {
+  const saveProspect = async (
+    prospect: Prospect,
+    quiet = false,
+    syncCRM = true,
+  ) => {
     const alreadySaved = savedByIdentity.get(prospectIdentity(prospect));
     if (alreadySaved) {
-      if (syncCRM && alreadySaved.id) await fetch("/api/crm/convert-prospect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prospectId: alreadySaved.id }) });
+      if (syncCRM && alreadySaved.id)
+        await fetch("/api/crm/convert-prospect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prospectId: alreadySaved.id }),
+        });
       return alreadySaved;
     }
     const response = await fetch("/api/prospecting/prospects", {
@@ -8440,9 +8957,14 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prospectId: data.prospect.id }),
       });
-      const crmData = await crmResponse.json() as { error?: string };
-      if (!crmResponse.ok) throw new Error(crmData.error || "Saved, but CRM import failed.");
-      window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "imported" } }));
+      const crmData = (await crmResponse.json()) as { error?: string };
+      if (!crmResponse.ok)
+        throw new Error(crmData.error || "Saved, but CRM import failed.");
+      window.dispatchEvent(
+        new CustomEvent("cyncro:data-changed", {
+          detail: { entity: "contact", action: "imported" },
+        }),
+      );
     }
     if (!quiet)
       setMessage(
@@ -8513,14 +9035,20 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         });
         setAnalysisProgress(Math.min(index + batch.length, targets.length));
       }
-      const analyzedIds = targets.map((item) => item.id).filter((id): id is string => Boolean(id));
+      const analyzedIds = targets
+        .map((item) => item.id)
+        .filter((id): id is string => Boolean(id));
       if (analyzedIds.length) {
         await fetch("/api/crm/convert-prospect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prospectIds: analyzedIds }),
         });
-        window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "analysis-synced" } }));
+        window.dispatchEvent(
+          new CustomEvent("cyncro:data-changed", {
+            detail: { entity: "contact", action: "analysis-synced" },
+          }),
+        );
       }
       await loadProspects();
       setMessage(
@@ -8587,7 +9115,11 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
       return;
     }
     await loadProspects();
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "converted" } }));
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "contact", action: "converted" },
+      }),
+    );
     setMessage(
       data.duplicate
         ? `${prospect.businessName} is already connected to CRM.`
@@ -8602,37 +9134,99 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     setMessage("");
     try {
       const saved: Prospect[] = [];
-      for (const result of results) saved.push(await saveProspect(result, true, false));
-      const prospectIds = saved.map((item) => item.id).filter((id): id is string => Boolean(id));
+      for (const result of results)
+        saved.push(await saveProspect(result, true, false));
+      const prospectIds = saved
+        .map((item) => item.id)
+        .filter((id): id is string => Boolean(id));
       const response = await fetch("/api/crm/convert-prospect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prospectIds }),
       });
-      const data = (await response.json()) as { imported?: number; failed?: number; error?: string };
+      const data = (await response.json()) as {
+        imported?: number;
+        failed?: number;
+        error?: string;
+      };
       if (!response.ok) throw new Error(data.error || "CRM import failed.");
       await loadProspects();
-      window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "bulk-imported" } }));
-      setMessage(`${data.imported || 0} businesses saved and imported into Contacts and Pipeline${data.failed ? ` · ${data.failed} need attention` : ""}.`);
+      window.dispatchEvent(
+        new CustomEvent("cyncro:data-changed", {
+          detail: { entity: "contact", action: "bulk-imported" },
+        }),
+      );
+      setMessage(
+        `${data.imported || 0} businesses saved and imported into Contacts and Pipeline${data.failed ? ` · ${data.failed} need attention` : ""}.`,
+      );
     } catch (importError) {
-      setError(importError instanceof Error ? importError.message : "CRM import failed.");
+      setError(
+        importError instanceof Error
+          ? importError.message
+          : "CRM import failed.",
+      );
     } finally {
       setImporting(false);
     }
   };
 
   const exportProspects = (records: Prospect[]) => {
-    if (!records.length) { setError("There is no prospect data to export yet."); return; }
+    if (!records.length) {
+      setError("There is no prospect data to export yet.");
+      return;
+    }
     const safeCell = (value: unknown) => {
-      let output = Array.isArray(value) ? value.join(" | ") : String(value ?? "");
+      let output = Array.isArray(value)
+        ? value.join(" | ")
+        : String(value ?? "");
       if (/^[=+\-@]/.test(output)) output = `'${output}`;
       return `"${output.replace(/"/g, '""')}"`;
     };
-    const headers = ["Business Name", "Category", "Address", "Phone", "Website", "Email", "Rating", "Review Count", "Opportunity Score", "Priority", "Assigned Rep", "Status", "Why Call", "What We Found", "Recommended Solution", "Call Opener", "Next Action", "Notes"];
-    const rows = records.map((item) => [item.businessName, item.category, item.address, item.phone, item.website, item.emails || [], item.rating, item.reviewCount, item.opportunityScore, item.rankLabel, item.assignedRep, item.status, item.whyCall, item.whatFound, item.recommendedSolution, item.callOpener, item.nextAction, item.notes]);
+    const headers = [
+      "Business Name",
+      "Category",
+      "Address",
+      "Phone",
+      "Website",
+      "Email",
+      "Rating",
+      "Review Count",
+      "Opportunity Score",
+      "Priority",
+      "Assigned Rep",
+      "Status",
+      "Why Call",
+      "What We Found",
+      "Recommended Solution",
+      "Call Opener",
+      "Next Action",
+      "Notes",
+    ];
+    const rows = records.map((item) => [
+      item.businessName,
+      item.category,
+      item.address,
+      item.phone,
+      item.website,
+      item.emails || [],
+      item.rating,
+      item.reviewCount,
+      item.opportunityScore,
+      item.rankLabel,
+      item.assignedRep,
+      item.status,
+      item.whyCall,
+      item.whatFound,
+      item.recommendedSolution,
+      item.callOpener,
+      item.nextAction,
+      item.notes,
+    ]);
     const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(safeCell).join(",")).join("\r\n")}`;
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.href = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
     link.download = `cyncro-prospects-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
@@ -8825,12 +9419,23 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </button>
               )}
               {results.length > 0 && (
-                <button className="analyzeAll" onClick={saveAllToCRM} disabled={importing || analyzing}>
-                  {importing ? "SAVING + IMPORTING…" : "SAVE ALL + IMPORT TO CRM"}
+                <button
+                  className="analyzeAll"
+                  onClick={saveAllToCRM}
+                  disabled={importing || analyzing}
+                >
+                  {importing
+                    ? "SAVING + IMPORTING…"
+                    : "SAVE ALL + IMPORT TO CRM"}
                 </button>
               )}
               {(results.length > 0 || prospects.length > 0) && (
-                <button className="analyzeAll" onClick={() => exportProspects(results.length ? results : prospects)}>
+                <button
+                  className="analyzeAll"
+                  onClick={() =>
+                    exportProspects(results.length ? results : prospects)
+                  }
+                >
                   EXPORT CSV
                 </button>
               )}
@@ -8999,7 +9604,10 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               >
                 ✦ ANALYZE ALL
               </button>
-              <button onClick={() => exportProspects(ranked)} disabled={!ranked.length}>
+              <button
+                onClick={() => exportProspects(ranked)}
+                disabled={!ranked.length}
+              >
                 EXPORT SAVED CSV
               </button>
             </div>
@@ -9102,20 +9710,29 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </a>
               )}
             </div>
-            {(selected.emails?.length || selected.extractedPhones?.length) ? (
+            {selected.emails?.length || selected.extractedPhones?.length ? (
               <div className="drawerBrief">
                 <section>
                   <small>PUBLIC CONTACTS EXTRACTED</small>
                   {selected.emails?.map((email) => (
-                    <p key={email}><a href={`mailto:${email}`}>{email}</a></p>
+                    <p key={email}>
+                      <a href={`mailto:${email}`}>{email}</a>
+                    </p>
                   ))}
                   {selected.extractedPhones?.map((phone) => (
-                    <p key={phone}><a href={`tel:${phone}`}>{phone}</a></p>
+                    <p key={phone}>
+                      <a href={`tel:${phone}`}>{phone}</a>
+                    </p>
                   ))}
                 </section>
                 <section>
                   <small>VERIFICATION</small>
-                  <p>Public website extraction · source retained · {selected.lastExtractedAt ? "recently checked" : "not checked"}</p>
+                  <p>
+                    Public website extraction · source retained ·{" "}
+                    {selected.lastExtractedAt
+                      ? "recently checked"
+                      : "not checked"}
+                  </p>
                 </section>
               </div>
             ) : null}
@@ -9276,9 +9893,18 @@ function UniversalCRM({
     [crmUserName, setCrmUserName] = useState("Yvette Lomeli"),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
     [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
-    [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>([]),
+    [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>(
+      [],
+    ),
     [contactsLoaded, setContactsLoaded] = useState(false),
-    [contactForm, setContactForm] = useState({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
+    [contactForm, setContactForm] = useState({
+      fullName: "",
+      company: "",
+      email: "",
+      phone: "",
+      source: "Manual",
+      lifecycle: "Lead",
+    });
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
@@ -9286,32 +9912,95 @@ function UniversalCRM({
   const openCRMCalendar = () => setView("Calendar");
   const openNewAppointment = () => {
     setView("Calendar");
-    window.setTimeout(() => window.dispatchEvent(new Event("cyncro:open-new-appointment")), 80);
+    window.setTimeout(
+      () => window.dispatchEvent(new Event("cyncro:open-new-appointment")),
+      80,
+    );
   };
-  useEffect(() => { const saved = window.localStorage.getItem("cyncro-crm-user-name"); if (saved) setCrmUserName(saved); }, []);
-  const saveCRMUserName = (name: string) => { const value = name.trim() || "Team Member"; setCrmUserName(value); window.localStorage.setItem("cyncro-crm-user-name", value); flash(`Signed in as ${value}`); };
+  useEffect(() => {
+    const saved = window.localStorage.getItem("cyncro-crm-user-name");
+    if (saved) setCrmUserName(saved);
+  }, []);
+  const saveCRMUserName = (name: string) => {
+    const value = name.trim() || "Team Member";
+    setCrmUserName(value);
+    window.localStorage.setItem("cyncro-crm-user-name", value);
+    flash(`Signed in as ${value}`);
+  };
   const loadCRMContacts = async () => {
     try {
-      const response = await fetch(`/api/crm/contacts?fresh=${Date.now()}`, { cache: "no-store" });
-      const data = await response.json() as { contacts?: Record<string, unknown>[]; error?: string };
-      if (!response.ok) throw new Error(data.error || "Unable to load contacts.");
-      setLiveContacts((data.contacts || []).map((item) => ({
-        id: String(item.id || ""), name: String(item.full_name || "Unnamed contact"), company: String(item.company_name || "No account"),
-        email: String(item.email || "No email"), phone: String(item.phone || "No phone"), value: "$0", stage: String(item.lifecycle || "Lead"),
-        source: String(item.source || "Manual"), intent: 50, last: "CRM record updated",
-        notes: String(item.notes || ""),
-      })));
-    } catch (error) { flash(error instanceof Error ? error.message : "Unable to load contacts."); }
-    finally { setContactsLoaded(true); }
+      const response = await fetch(`/api/crm/contacts?fresh=${Date.now()}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        contacts?: Record<string, unknown>[];
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(data.error || "Unable to load contacts.");
+      setLiveContacts(
+        (data.contacts || []).map((item) => ({
+          id: String(item.id || ""),
+          name: String(item.full_name || "Unnamed contact"),
+          company: String(item.company_name || "No account"),
+          email: String(item.email || "No email"),
+          phone: String(item.phone || "No phone"),
+          value: "$0",
+          stage: String(item.lifecycle || "Lead"),
+          source: String(item.source || "Manual"),
+          intent: 50,
+          last: "CRM record updated",
+          notes: String(item.notes || ""),
+        })),
+      );
+    } catch (error) {
+      flash(
+        error instanceof Error ? error.message : "Unable to load contacts.",
+      );
+    } finally {
+      setContactsLoaded(true);
+    }
   };
   const loadCRMOverview = async () => {
-    const [statsResponse, activityResponse] = await Promise.all([fetch("/api/crm/stats"), fetch("/api/crm/activities?limit=20")]);
-    if (statsResponse.ok) { const data = await statsResponse.json() as { summary?: Record<string, number> }; setCrmSummary(data.summary || {}); }
-    if (activityResponse.ok) { const data = await activityResponse.json() as { activities?: Record<string, unknown>[] }; setRecentActivity(data.activities || []); }
+    const [statsResponse, activityResponse] = await Promise.all([
+      fetch("/api/crm/stats"),
+      fetch("/api/crm/activities?limit=20"),
+    ]);
+    if (statsResponse.ok) {
+      const data = (await statsResponse.json()) as {
+        summary?: Record<string, number>;
+      };
+      setCrmSummary(data.summary || {});
+    }
+    if (activityResponse.ok) {
+      const data = (await activityResponse.json()) as {
+        activities?: Record<string, unknown>[];
+      };
+      setRecentActivity(data.activities || []);
+    }
   };
-  useEffect(() => { const timer = window.setTimeout(() => void loadCRMContacts(), 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => { const timer = window.setTimeout(() => void loadCRMOverview(), 0); return () => window.clearTimeout(timer); }, [view]);
-  useEffect(() => { const refresh = () => { void loadCRMContacts(); void loadCRMOverview(); }; window.addEventListener("cyncro:data-changed", refresh); window.addEventListener("focus", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.removeEventListener("focus", refresh); window.clearInterval(timer); }; }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadCRMContacts(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadCRMOverview(), 0);
+    return () => window.clearTimeout(timer);
+  }, [view]);
+  useEffect(() => {
+    const refresh = () => {
+      void loadCRMContacts();
+      void loadCRMOverview();
+    };
+    window.addEventListener("cyncro:data-changed", refresh);
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 15000);
+    return () => {
+      window.removeEventListener("cyncro:data-changed", refresh);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+    };
+  }, []);
   const filteredContacts = liveContacts.filter((contact) =>
     `${contact.name} ${contact.company} ${contact.email}`
       .toLowerCase()
@@ -9319,12 +10008,33 @@ function UniversalCRM({
   );
   const contact = liveContacts[selected];
   const createContact = async () => {
-    const response = await fetch("/api/crm/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(contactForm) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { flash(data.error || "Contact could not be created"); return; }
-    setCreating(false); setSelected(0); setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "record", action: "created" } }));
-    await Promise.all([loadCRMContacts(), loadCRMOverview()]); flash("Contact, account, and pipeline lead created");
+    const response = await fetch("/api/crm/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contactForm),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      flash(data.error || "Contact could not be created");
+      return;
+    }
+    setCreating(false);
+    setSelected(0);
+    setContactForm({
+      fullName: "",
+      company: "",
+      email: "",
+      phone: "",
+      source: "Manual",
+      lifecycle: "Lead",
+    });
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "record", action: "created" },
+      }),
+    );
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]);
+    flash("Contact, account, and pipeline lead created");
   };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
@@ -9396,9 +10106,21 @@ function UniversalCRM({
           <i>↗</i>
         </button>
         <div className="crmUser">
-          <span>{crmUserName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
+          <span>
+            {crmUserName
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
           <div>
-            <input aria-label="Your CRM display name" value={crmUserName} onChange={(event) => setCrmUserName(event.target.value)} onBlur={(event) => saveCRMUserName(event.target.value)} />
+            <input
+              aria-label="Your CRM display name"
+              value={crmUserName}
+              onChange={(event) => setCrmUserName(event.target.value)}
+              onBlur={(event) => saveCRMUserName(event.target.value)}
+            />
             <small>Your CRM name · editable</small>
           </div>
           <i>•••</i>
@@ -9422,9 +10144,7 @@ function UniversalCRM({
           >
             ◌<i />
           </button>
-          <button onClick={openNewAppointment}>
-            ＋ New appointment
-          </button>
+          <button onClick={openNewAppointment}>＋ New appointment</button>
           <button className="crmCreate" onClick={() => setCreating(true)}>
             ＋ New contact
           </button>
@@ -9454,13 +10174,36 @@ function UniversalCRM({
                 {[
                   [
                     "OPEN PIPELINE",
-                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(crmSummary.pipeline_cents || 0) / 100),
+                    new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                      maximumFractionDigits: 0,
+                    }).format(Number(crmSummary.pipeline_cents || 0) / 100),
                     "LIVE",
                     `Across ${crmSummary.opportunities || 0} opportunities`,
                   ],
-                  ["CLOSED WON", new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(crmSummary.won_cents || 0) / 100), "LIVE", "Recorded revenue"],
-                  ["ACTIVE CONTACTS", String(crmSummary.contacts || 0), "LIVE", "Database contacts"],
-                  ["ACCOUNTS", String(crmSummary.accounts || 0), "LIVE", "Active CRM records"],
+                  [
+                    "CLOSED WON",
+                    new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                      maximumFractionDigits: 0,
+                    }).format(Number(crmSummary.won_cents || 0) / 100),
+                    "LIVE",
+                    "Recorded revenue",
+                  ],
+                  [
+                    "ACTIVE CONTACTS",
+                    String(crmSummary.contacts || 0),
+                    "LIVE",
+                    "Database contacts",
+                  ],
+                  [
+                    "ACCOUNTS",
+                    String(crmSummary.accounts || 0),
+                    "LIVE",
+                    "Active CRM records",
+                  ],
                 ].map((metric) => (
                   <article key={metric[0]}>
                     <small>{metric[0]}</small>
@@ -9567,17 +10310,25 @@ function UniversalCRM({
                       All activity →
                     </button>
                   </div>
-                  {!recentActivity.length && <div className="noProspects">No customer activity yet.</div>}
-                  {recentActivity.filter((item) => item.activity_type !== "TASK").slice(0, 4).map((item) => (
-                    <div className="activityRow" key={String(item.id)}>
-                      <i>{String(item.activity_type || "•").slice(0, 2)}</i>
-                      <div>
-                        <b>{String(item.title || "Customer activity")}</b>
-                        <small>{String(item.contact_name || "Contact")} · {new Date(String(item.created_at)).toLocaleString()}</small>
+                  {!recentActivity.length && (
+                    <div className="noProspects">No customer activity yet.</div>
+                  )}
+                  {recentActivity
+                    .filter((item) => item.activity_type !== "TASK")
+                    .slice(0, 4)
+                    .map((item) => (
+                      <div className="activityRow" key={String(item.id)}>
+                        <i>{String(item.activity_type || "•").slice(0, 2)}</i>
+                        <div>
+                          <b>{String(item.title || "Customer activity")}</b>
+                          <small>
+                            {String(item.contact_name || "Contact")} ·{" "}
+                            {new Date(String(item.created_at)).toLocaleString()}
+                          </small>
+                        </div>
+                        <span>{String(item.status || "COMPLETED")}</span>
                       </div>
-                      <span>{String(item.status || "COMPLETED")}</span>
-                    </div>
-                  ))}
+                    ))}
                 </article>
                 <article className="crmPanel crmAgenda">
                   <div className="crmPanelHead">
@@ -9587,29 +10338,55 @@ function UniversalCRM({
                     </div>
                     <button onClick={openCRMCalendar}>Open calendar →</button>
                   </div>
-                  {!recentActivity.some((item) => item.activity_type === "TASK" && item.status !== "COMPLETED") && <div className="noProspects">No open tasks.</div>}
-                  {recentActivity.filter((item) => item.activity_type === "TASK" && item.status !== "COMPLETED").slice(0, 4).map((item) => (
-                    <div className="agendaRow" key={String(item.id)}>
-                      <time>
-                        {item.due_at ? new Date(String(item.due_at)).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "OPEN"}
-                      </time>
-                      <i />
-                      <div>
-                        <b>{String(item.title)}</b>
-                        <small>{String(item.contact_name || "Contact")} · Task</small>
+                  {!recentActivity.some(
+                    (item) =>
+                      item.activity_type === "TASK" &&
+                      item.status !== "COMPLETED",
+                  ) && <div className="noProspects">No open tasks.</div>}
+                  {recentActivity
+                    .filter(
+                      (item) =>
+                        item.activity_type === "TASK" &&
+                        item.status !== "COMPLETED",
+                    )
+                    .slice(0, 4)
+                    .map((item) => (
+                      <div className="agendaRow" key={String(item.id)}>
+                        <time>
+                          {item.due_at
+                            ? new Date(String(item.due_at)).toLocaleTimeString(
+                                [],
+                                { hour: "numeric", minute: "2-digit" },
+                              )
+                            : "OPEN"}
+                        </time>
+                        <i />
+                        <div>
+                          <b>{String(item.title)}</b>
+                          <small>
+                            {String(item.contact_name || "Contact")} · Task
+                          </small>
+                        </div>
+                        <button onClick={() => flash("Record opened")}>
+                          •••
+                        </button>
                       </div>
-                      <button onClick={() => flash("Record opened")}>
-                        •••
-                      </button>
-                    </div>
-                  ))}
+                    ))}
                 </article>
               </div>
             </>
           )}
 
-          {view === "Pipeline" && <CRMPipeline onFlash={flash} isOwner={isOwner} />}
-          {view === "Accounts" && <CRMAccounts onFlash={flash} currentUserName={crmUserName} isOwner={isOwner} />}
+          {view === "Pipeline" && (
+            <CRMPipeline onFlash={flash} isOwner={isOwner} />
+          )}
+          {view === "Accounts" && (
+            <CRMAccounts
+              onFlash={flash}
+              currentUserName={crmUserName}
+              isOwner={isOwner}
+            />
+          )}
           {view === "Contacts" && (
             <div className="contactWorkspace">
               <div className="contactList crmPanel">
@@ -9657,15 +10434,43 @@ function UniversalCRM({
                   );
                 })}
                 {contactsLoaded && !filteredContacts.length && (
-                  <div className="noProspects">No live contacts yet. Create one or convert a prospect.</div>
+                  <div className="noProspects">
+                    No live contacts yet. Create one or convert a prospect.
+                  </div>
                 )}
               </div>
-              {contact ? <CRMContactDetail contact={contact} onFlash={flash} onUpdated={() => void loadCRMContacts()} onDeleted={() => { setSelected(0); void loadCRMContacts(); }} onBook={openCRMCalendar} /> : (
-                <aside className="contactDetail crmPanel"><div className="contactHero"><div><small>LIVE CRM</small><h2>Select or create a contact</h2><p>Prospects converted to CRM appear here automatically.</p></div></div></aside>
+              {contact ? (
+                <CRMContactDetail
+                  contact={contact}
+                  onFlash={flash}
+                  onUpdated={() => void loadCRMContacts()}
+                  onDeleted={() => {
+                    setSelected(0);
+                    void loadCRMContacts();
+                  }}
+                  onBook={openCRMCalendar}
+                />
+              ) : (
+                <aside className="contactDetail crmPanel">
+                  <div className="contactHero">
+                    <div>
+                      <small>LIVE CRM</small>
+                      <h2>Select or create a contact</h2>
+                      <p>
+                        Prospects converted to CRM appear here automatically.
+                      </p>
+                    </div>
+                  </div>
+                </aside>
               )}
             </div>
           )}
-          {view === "Calendar" && <CRMCalendarWorkspace onFlash={flash} currentUserName={crmUserName} />}
+          {view === "Calendar" && (
+            <CRMCalendarWorkspace
+              onFlash={flash}
+              currentUserName={crmUserName}
+            />
+          )}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
@@ -9704,23 +10509,67 @@ function UniversalCRM({
             <div className="crmForm">
               <label>
                 Full name
-                <input value={contactForm.fullName} onChange={(event) => setContactForm({ ...contactForm, fullName: event.target.value })} placeholder="Enter contact name" />
+                <input
+                  value={contactForm.fullName}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      fullName: event.target.value,
+                    })
+                  }
+                  placeholder="Enter contact name"
+                />
               </label>
               <label>
                 Company
-                <input value={contactForm.company} onChange={(event) => setContactForm({ ...contactForm, company: event.target.value })} placeholder="Company or organization" />
+                <input
+                  value={contactForm.company}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      company: event.target.value,
+                    })
+                  }
+                  placeholder="Company or organization"
+                />
               </label>
               <label>
                 Email
-                <input value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} placeholder="name@company.com" />
+                <input
+                  value={contactForm.email}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      email: event.target.value,
+                    })
+                  }
+                  placeholder="name@company.com"
+                />
               </label>
               <label>
                 Phone
-                <input value={contactForm.phone} onChange={(event) => setContactForm({ ...contactForm, phone: event.target.value })} placeholder="(000) 000-0000" />
+                <input
+                  value={contactForm.phone}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      phone: event.target.value,
+                    })
+                  }
+                  placeholder="(000) 000-0000"
+                />
               </label>
               <label>
                 Source
-                <select value={contactForm.source} onChange={(event) => setContactForm({ ...contactForm, source: event.target.value })}>
+                <select
+                  value={contactForm.source}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      source: event.target.value,
+                    })
+                  }
+                >
                   <option>Booking link</option>
                   <option>Website</option>
                   <option>Referral</option>
@@ -9729,7 +10578,15 @@ function UniversalCRM({
               </label>
               <label>
                 Lifecycle
-                <select value={contactForm.lifecycle} onChange={(event) => setContactForm({ ...contactForm, lifecycle: event.target.value })}>
+                <select
+                  value={contactForm.lifecycle}
+                  onChange={(event) =>
+                    setContactForm({
+                      ...contactForm,
+                      lifecycle: event.target.value,
+                    })
+                  }
+                >
                   <option>Lead</option>
                   <option>Qualified</option>
                   <option>Customer</option>
@@ -9738,9 +10595,7 @@ function UniversalCRM({
             </div>
             <div className="crmModalActions">
               <button onClick={() => setCreating(false)}>Cancel</button>
-              <button
-                onClick={() => void createContact()}
-              >
+              <button onClick={() => void createContact()}>
                 Create + enrich record
               </button>
             </div>
@@ -9795,10 +10650,48 @@ function UniversalCRM({
   );
 }
 
-function CRMPipeline({ onFlash, isOwner }: { onFlash: (message: string) => void; isOwner: boolean }) {
-  type Deal = { id: string; account_id: string; account_name: string; contact_name?: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep?: string; commission_rate_bps?: number; commission_status?: string; payment_status?: string; collected_cents?: number; residual_rate_bps?: number; residual_months?: number; residual_flat_cents?: number; notes?: string };
-  type PipelineStage = { id: string; name: string; color: string; position: number; probability: number; is_won: number; is_lost: number };
-  type Pipeline = { id: string; name: string; description?: string; is_default: number; stages: PipelineStage[] };
+function CRMPipeline({
+  onFlash,
+  isOwner,
+}: {
+  onFlash: (message: string) => void;
+  isOwner: boolean;
+}) {
+  type Deal = {
+    id: string;
+    account_id: string;
+    account_name: string;
+    contact_name?: string;
+    name: string;
+    stage: string;
+    value_cents: number;
+    probability: number;
+    assigned_rep?: string;
+    commission_rate_bps?: number;
+    commission_status?: string;
+    payment_status?: string;
+    collected_cents?: number;
+    residual_rate_bps?: number;
+    residual_months?: number;
+    residual_flat_cents?: number;
+    notes?: string;
+  };
+  type PipelineStage = {
+    id: string;
+    name: string;
+    color: string;
+    position: number;
+    probability: number;
+    is_won: number;
+    is_lost: number;
+  };
+  type Pipeline = {
+    id: string;
+    name: string;
+    description?: string;
+    is_default: number;
+    stages: PipelineStage[];
+  };
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState("");
@@ -9806,175 +10699,788 @@ function CRMPipeline({ onFlash, isOwner }: { onFlash: (message: string) => void;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
-  const [newDeal, setNewDeal] = useState({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "20", residualFlat: "25" });
+  const [newDeal, setNewDeal] = useState({
+    company: "",
+    name: "",
+    value: "",
+    probability: "25",
+    assignedRep: "",
+    commissionRate: "20",
+    residualFlat: "25",
+  });
   const loadDeals = async (pipelineId = selectedPipelineId) => {
-    const response = await fetch(`/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}&fresh=${Date.now()}` : `?fresh=${Date.now()}`}`, { cache: "no-store" });
-    const data = await response.json() as { opportunities?: Deal[]; error?: string };
-    if (!response.ok) { onFlash(data.error || "Pipeline could not be loaded"); return; }
+    const response = await fetch(
+      `/api/crm/opportunities${pipelineId ? `?pipelineId=${encodeURIComponent(pipelineId)}&fresh=${Date.now()}` : `?fresh=${Date.now()}`}`,
+      { cache: "no-store" },
+    );
+    const data = (await response.json()) as {
+      opportunities?: Deal[];
+      error?: string;
+    };
+    if (!response.ok) {
+      onFlash(data.error || "Pipeline could not be loaded");
+      return;
+    }
     setDeals(data.opportunities || []);
   };
   const loadPipelines = async () => {
-    const response = await fetch(`/api/crm/pipelines?fresh=${Date.now()}`, { cache: "no-store" });
-    const data = await response.json() as { pipelines?: Pipeline[]; error?: string };
-    if (!response.ok) { onFlash(data.error || "Pipeline settings could not be loaded"); return; }
+    const response = await fetch(`/api/crm/pipelines?fresh=${Date.now()}`, {
+      cache: "no-store",
+    });
+    const data = (await response.json()) as {
+      pipelines?: Pipeline[];
+      error?: string;
+    };
+    if (!response.ok) {
+      onFlash(data.error || "Pipeline settings could not be loaded");
+      return;
+    }
     const next = data.pipelines || [];
     setPipelines(next);
-    const chosen = next.find((item) => item.id === selectedPipelineId) || next.find((item) => item.is_default) || next[0];
-    if (chosen) { setSelectedPipelineId(chosen.id); setPipelineDraft(structuredClone(chosen)); await loadDeals(chosen.id); }
+    const chosen =
+      next.find((item) => item.id === selectedPipelineId) ||
+      next.find((item) => item.is_default) ||
+      next[0];
+    if (chosen) {
+      setSelectedPipelineId(chosen.id);
+      setPipelineDraft(structuredClone(chosen));
+      await loadDeals(chosen.id);
+    }
   };
-  useEffect(() => { const timer = window.setTimeout(() => void loadPipelines(), 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => { const refresh = () => void loadPipelines(); window.addEventListener("cyncro:data-changed", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.clearInterval(timer); }; }, []);
-  const activePipeline = pipelines.find((item) => item.id === selectedPipelineId);
-  const stageSettings = [...(activePipeline?.stages || [])].sort((a, b) => a.position - b.position);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadPipelines(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    const refresh = () => void loadPipelines();
+    window.addEventListener("cyncro:data-changed", refresh);
+    const timer = window.setInterval(refresh, 15000);
+    return () => {
+      window.removeEventListener("cyncro:data-changed", refresh);
+      window.clearInterval(timer);
+    };
+  }, []);
+  const activePipeline = pipelines.find(
+    (item) => item.id === selectedPipelineId,
+  );
+  const stageSettings = [...(activePipeline?.stages || [])].sort(
+    (a, b) => a.position - b.position,
+  );
   const stages = stageSettings.map((item) => item.name);
   const saveDeal = async () => {
     if (!selectedDeal) return;
     const updates: Record<string, unknown> = {
-      name: selectedDeal.name, stage: selectedDeal.stage, value: selectedDeal.value_cents / 100, probability: selectedDeal.probability,
+      name: selectedDeal.name,
+      stage: selectedDeal.stage,
+      value: selectedDeal.value_cents / 100,
+      probability: selectedDeal.probability,
       pipelineId: selectedPipelineId,
-      assignedRep: selectedDeal.assigned_rep || "", notes: selectedDeal.notes || "",
+      assignedRep: selectedDeal.assigned_rep || "",
+      notes: selectedDeal.notes || "",
     };
-    if (isOwner) Object.assign(updates, { commissionRate: Number(selectedDeal.commission_rate_bps || 2000) / 100,
-      commissionStatus: selectedDeal.commission_status || "PENDING", paymentStatus: selectedDeal.payment_status || "UNPAID",
-      collected: Number(selectedDeal.collected_cents || 0) / 100, residualFlat: Number(selectedDeal.residual_flat_cents || 2500) / 100 });
-    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedDeal.id, updates }) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { onFlash(data.error || "Opportunity update failed"); return; }
-    setSelectedDeal(null); await loadDeals(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "updated" } })); onFlash("Pipeline card updated everywhere");
+    if (isOwner)
+      Object.assign(updates, {
+        commissionRate: Number(selectedDeal.commission_rate_bps || 2000) / 100,
+        commissionStatus: selectedDeal.commission_status || "PENDING",
+        paymentStatus: selectedDeal.payment_status || "UNPAID",
+        collected: Number(selectedDeal.collected_cents || 0) / 100,
+        residualFlat: Number(selectedDeal.residual_flat_cents || 2500) / 100,
+      });
+    const response = await fetch("/api/crm/opportunities", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: selectedDeal.id, updates }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Opportunity update failed");
+      return;
+    }
+    setSelectedDeal(null);
+    await loadDeals();
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "opportunity", action: "updated" },
+      }),
+    );
+    onFlash("Pipeline card updated everywhere");
   };
   const createOpportunity = async () => {
     if (!createStage) return;
-    const accountResponse = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newDeal.company, source: "CRM" }) });
-    const accountData = await accountResponse.json() as { account?: { id: string }; error?: string };
-    if (!accountResponse.ok || !accountData.account) { onFlash(accountData.error || "Account could not be created"); return; }
-    const response = await fetch("/api/crm/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      accountId: accountData.account.id, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
-      pipelineId: selectedPipelineId,
-      value: Number(newDeal.value || 0), probability: Number(newDeal.probability || 10), assignedRep: newDeal.assignedRep,
-      commissionRate: Number(newDeal.commissionRate || 20), residualFlat: Number(newDeal.residualFlat || 25), source: "CRM",
-    }) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { onFlash(data.error || "Opportunity could not be created"); return; }
-    setCreateStage(null); setNewDeal({ company: "", name: "", value: "", probability: "25", assignedRep: "", commissionRate: "20", residualFlat: "25" });
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "created" } })); await loadDeals(); onFlash("Opportunity added and synced everywhere");
+    const accountResponse = await fetch("/api/crm/accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newDeal.company, source: "CRM" }),
+    });
+    const accountData = (await accountResponse.json()) as {
+      account?: { id: string };
+      error?: string;
+    };
+    if (!accountResponse.ok || !accountData.account) {
+      onFlash(accountData.error || "Account could not be created");
+      return;
+    }
+    const response = await fetch("/api/crm/opportunities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accountId: accountData.account.id,
+        name: newDeal.name || `${newDeal.company} opportunity`,
+        stage: createStage,
+        pipelineId: selectedPipelineId,
+        value: Number(newDeal.value || 0),
+        probability: Number(newDeal.probability || 10),
+        assignedRep: newDeal.assignedRep,
+        commissionRate: Number(newDeal.commissionRate || 20),
+        residualFlat: Number(newDeal.residualFlat || 25),
+        source: "CRM",
+      }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Opportunity could not be created");
+      return;
+    }
+    setCreateStage(null);
+    setNewDeal({
+      company: "",
+      name: "",
+      value: "",
+      probability: "25",
+      assignedRep: "",
+      commissionRate: "20",
+      residualFlat: "25",
+    });
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "opportunity", action: "created" },
+      }),
+    );
+    await loadDeals();
+    onFlash("Opportunity added and synced everywhere");
   };
   const createPipeline = async () => {
-    const response = await fetch("/api/crm/pipelines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Pipeline ${pipelines.length + 1}` }) });
-    const data = await response.json() as { pipeline?: Pipeline; error?: string };
-    if (!response.ok || !data.pipeline) { onFlash(data.error || "Pipeline could not be created"); return; }
-    setSelectedPipelineId(data.pipeline.id); await loadPipelines(); setSettingsOpen(true); onFlash("New pipeline created — customize it now");
+    const response = await fetch("/api/crm/pipelines", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `Pipeline ${pipelines.length + 1}` }),
+    });
+    const data = (await response.json()) as {
+      pipeline?: Pipeline;
+      error?: string;
+    };
+    if (!response.ok || !data.pipeline) {
+      onFlash(data.error || "Pipeline could not be created");
+      return;
+    }
+    setSelectedPipelineId(data.pipeline.id);
+    await loadPipelines();
+    setSettingsOpen(true);
+    onFlash("New pipeline created — customize it now");
   };
   const savePipeline = async () => {
-    if (!pipelineDraft || !pipelineDraft.name.trim() || !pipelineDraft.stages.length) { onFlash("A pipeline name and at least one stage are required"); return; }
-    const response = await fetch("/api/crm/pipelines", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: pipelineDraft.id, name: pipelineDraft.name, description: pipelineDraft.description || "", stages: pipelineDraft.stages.map((stage, position) => ({ ...stage, position })) }) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { onFlash(data.error || "Pipeline customization failed"); return; }
-    setSettingsOpen(false); await loadPipelines(); onFlash("Pipeline customization saved");
+    if (
+      !pipelineDraft ||
+      !pipelineDraft.name.trim() ||
+      !pipelineDraft.stages.length
+    ) {
+      onFlash("A pipeline name and at least one stage are required");
+      return;
+    }
+    const response = await fetch("/api/crm/pipelines", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: pipelineDraft.id,
+        name: pipelineDraft.name,
+        description: pipelineDraft.description || "",
+        stages: pipelineDraft.stages.map((stage, position) => ({
+          ...stage,
+          position,
+        })),
+      }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Pipeline customization failed");
+      return;
+    }
+    setSettingsOpen(false);
+    await loadPipelines();
+    onFlash("Pipeline customization saved");
   };
-  const editStage = (index: number, updates: Partial<PipelineStage>) => setPipelineDraft((current) => current ? ({ ...current, stages: current.stages.map((stage, stageIndex) => stageIndex === index ? { ...stage, ...updates } : stage) }) : current);
-  const moveStage = (index: number, direction: -1 | 1) => setPipelineDraft((current) => { if (!current) return current; const target = index + direction; if (target < 0 || target >= current.stages.length) return current; const stages = [...current.stages]; [stages[index], stages[target]] = [stages[target], stages[index]]; return { ...current, stages }; });
-  const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+  const editStage = (index: number, updates: Partial<PipelineStage>) =>
+    setPipelineDraft((current) =>
+      current
+        ? {
+            ...current,
+            stages: current.stages.map((stage, stageIndex) =>
+              stageIndex === index ? { ...stage, ...updates } : stage,
+            ),
+          }
+        : current,
+    );
+  const moveStage = (index: number, direction: -1 | 1) =>
+    setPipelineDraft((current) => {
+      if (!current) return current;
+      const target = index + direction;
+      if (target < 0 || target >= current.stages.length) return current;
+      const stages = [...current.stages];
+      [stages[index], stages[target]] = [stages[target], stages[index]];
+      return { ...current, stages };
+    });
+  const money = (cents: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(cents / 100);
   return (
     <>
       <div className="pipelineToolbar">
-        <div><small>ACTIVE PIPELINE</small><h2>{activePipeline?.name || "Loading pipeline…"}</h2><p>{activePipeline?.description || "Customize every stage to match your sales process."}</p></div>
         <div>
-          {pipelines.length > 1 && <select value={selectedPipelineId} onChange={(event) => { const id = event.target.value; setSelectedPipelineId(id); const pipeline = pipelines.find((item) => item.id === id); if (pipeline) setPipelineDraft(structuredClone(pipeline)); void loadDeals(id); }}>{pipelines.map((pipeline) => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}</select>}
+          <small>ACTIVE PIPELINE</small>
+          <h2>{activePipeline?.name || "Loading pipeline…"}</h2>
+          <p>
+            {activePipeline?.description ||
+              "Customize every stage to match your sales process."}
+          </p>
+        </div>
+        <div>
+          {pipelines.length > 1 && (
+            <select
+              value={selectedPipelineId}
+              onChange={(event) => {
+                const id = event.target.value;
+                setSelectedPipelineId(id);
+                const pipeline = pipelines.find((item) => item.id === id);
+                if (pipeline) setPipelineDraft(structuredClone(pipeline));
+                void loadDeals(id);
+              }}
+            >
+              {pipelines.map((pipeline) => (
+                <option key={pipeline.id} value={pipeline.id}>
+                  {pipeline.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button onClick={() => void createPipeline()}>＋ New pipeline</button>
-          <button className="crmCreate" onClick={() => { if (activePipeline) setPipelineDraft(structuredClone(activePipeline)); setSettingsOpen(true); }}>Customize pipeline</button>
+          <button
+            className="crmCreate"
+            onClick={() => {
+              if (activePipeline)
+                setPipelineDraft(structuredClone(activePipeline));
+              setSettingsOpen(true);
+            }}
+          >
+            Customize pipeline
+          </button>
         </div>
       </div>
       <div className="pipelineBoard">
-      {stages.map((stage) => {
-        const columnDeals = deals.filter((deal) => deal.stage === stage);
-        const stageSetting = stageSettings.find((item) => item.name === stage);
-        return <section key={stage} style={{ borderTopColor: stageSetting?.color || "#a30e18" }}>
-          <header>
-            <div>
-              <small>{stage}</small>
-              <b>{money(columnDeals.reduce((sum, deal) => sum + Number(deal.value_cents || 0), 0))}</b>
-              <em>{stageSetting?.probability ?? 0}% default</em>
-            </div>
-            <span>{columnDeals.length}</span>
-          </header>
-          <div>
-            {columnDeals.map((deal) => (
-              <button
-                className="dealCard"
-                onClick={() => setSelectedDeal({ ...deal })}
-                key={deal.id}
-              >
+        {stages.map((stage) => {
+          const columnDeals = deals.filter((deal) => deal.stage === stage);
+          const stageSetting = stageSettings.find(
+            (item) => item.name === stage,
+          );
+          return (
+            <section
+              key={stage}
+              style={{ borderTopColor: stageSetting?.color || "#a30e18" }}
+            >
+              <header>
                 <div>
-                  <i>{deal.account_name.slice(0, 2).toUpperCase()}</i>
-                  <span>
-                    <b>{deal.name}</b>
-                    <small>{deal.account_name}</small>
-                  </span>
+                  <small>{stage}</small>
+                  <b>
+                    {money(
+                      columnDeals.reduce(
+                        (sum, deal) => sum + Number(deal.value_cents || 0),
+                        0,
+                      ),
+                    )}
+                  </b>
+                  <em>{stageSetting?.probability ?? 0}% default</em>
                 </div>
-                <strong>{money(deal.value_cents)}</strong>
-                <footer>
-                  <span>{deal.probability}% probability</span>
-                  <em>EDIT</em>
-                </footer>
+                <span>{columnDeals.length}</span>
+              </header>
+              <div>
+                {columnDeals.map((deal) => (
+                  <button
+                    className="dealCard"
+                    onClick={() => setSelectedDeal({ ...deal })}
+                    key={deal.id}
+                  >
+                    <div>
+                      <i>{deal.account_name.slice(0, 2).toUpperCase()}</i>
+                      <span>
+                        <b>{deal.name}</b>
+                        <small>{deal.account_name}</small>
+                      </span>
+                    </div>
+                    <strong>{money(deal.value_cents)}</strong>
+                    <footer>
+                      <span>{deal.probability}% probability</span>
+                      <em>EDIT</em>
+                    </footer>
+                  </button>
+                ))}
+              </div>
+              <button className="addDeal" onClick={() => setCreateStage(stage)}>
+                ＋ Add opportunity
               </button>
-            ))}
-          </div>
-          <button
-            className="addDeal"
-            onClick={() => setCreateStage(stage)}
-          >
-            ＋ Add opportunity
-          </button>
-        </section>;
-      })}
+            </section>
+          );
+        })}
       </div>
-      {settingsOpen && pipelineDraft && <div className="modalback" onClick={() => setSettingsOpen(false)}><div className="bookingmodal pipelineSettings" onClick={(event) => event.stopPropagation()}>
-        <div className="modalhead"><div><label>OWNER PIPELINE CONTROLS</label><h2>Customize pipeline</h2></div><button onClick={() => setSettingsOpen(false)}>×</button></div>
-        <div className="crmForm">
-          <label>Pipeline name<input value={pipelineDraft.name} onChange={(event) => setPipelineDraft({ ...pipelineDraft, name: event.target.value })} /></label>
-          <label>Description<input value={pipelineDraft.description || ""} onChange={(event) => setPipelineDraft({ ...pipelineDraft, description: event.target.value })} /></label>
+      {settingsOpen && pipelineDraft && (
+        <div className="modalback" onClick={() => setSettingsOpen(false)}>
+          <div
+            className="bookingmodal pipelineSettings"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalhead">
+              <div>
+                <label>OWNER PIPELINE CONTROLS</label>
+                <h2>Customize pipeline</h2>
+              </div>
+              <button onClick={() => setSettingsOpen(false)}>×</button>
+            </div>
+            <div className="crmForm">
+              <label>
+                Pipeline name
+                <input
+                  value={pipelineDraft.name}
+                  onChange={(event) =>
+                    setPipelineDraft({
+                      ...pipelineDraft,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Description
+                <input
+                  value={pipelineDraft.description || ""}
+                  onChange={(event) =>
+                    setPipelineDraft({
+                      ...pipelineDraft,
+                      description: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <div className="stageEditor">
+              <div className="stageEditorHead">
+                <b>STAGES</b>
+                <button
+                  onClick={() =>
+                    setPipelineDraft({
+                      ...pipelineDraft,
+                      stages: [
+                        ...pipelineDraft.stages,
+                        {
+                          id: `new-${crypto.randomUUID()}`,
+                          name: "NEW STAGE",
+                          color: "#a30e18",
+                          position: pipelineDraft.stages.length,
+                          probability: 25,
+                          is_won: 0,
+                          is_lost: 0,
+                        },
+                      ],
+                    })
+                  }
+                >
+                  ＋ Add stage
+                </button>
+              </div>
+              {pipelineDraft.stages.map((stage, index) => (
+                <div className="stageEditorRow" key={stage.id}>
+                  <input
+                    aria-label="Stage color"
+                    type="color"
+                    value={stage.color}
+                    onChange={(event) =>
+                      editStage(index, { color: event.target.value })
+                    }
+                  />
+                  <label>
+                    Stage name
+                    <input
+                      value={stage.name}
+                      onChange={(event) =>
+                        editStage(index, {
+                          name: event.target.value.toUpperCase(),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Probability
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={stage.probability}
+                      onChange={(event) =>
+                        editStage(index, {
+                          probability: Math.max(
+                            0,
+                            Math.min(100, Number(event.target.value)),
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <button
+                    disabled={index === 0}
+                    onClick={() => moveStage(index, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    disabled={index === pipelineDraft.stages.length - 1}
+                    onClick={() => moveStage(index, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    className="dangerText"
+                    disabled={pipelineDraft.stages.length === 1}
+                    onClick={() =>
+                      setPipelineDraft({
+                        ...pipelineDraft,
+                        stages: pipelineDraft.stages.filter(
+                          (_, stageIndex) => stageIndex !== index,
+                        ),
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="modalactions">
+              <button onClick={() => setSettingsOpen(false)}>Cancel</button>
+              <button onClick={() => void savePipeline()}>Save pipeline</button>
+            </div>
+          </div>
         </div>
-        <div className="stageEditor"><div className="stageEditorHead"><b>STAGES</b><button onClick={() => setPipelineDraft({ ...pipelineDraft, stages: [...pipelineDraft.stages, { id: `new-${crypto.randomUUID()}`, name: "NEW STAGE", color: "#a30e18", position: pipelineDraft.stages.length, probability: 25, is_won: 0, is_lost: 0 }] })}>＋ Add stage</button></div>
-          {pipelineDraft.stages.map((stage, index) => <div className="stageEditorRow" key={stage.id}>
-            <input aria-label="Stage color" type="color" value={stage.color} onChange={(event) => editStage(index, { color: event.target.value })} />
-            <label>Stage name<input value={stage.name} onChange={(event) => editStage(index, { name: event.target.value.toUpperCase() })} /></label>
-            <label>Probability<input type="number" min="0" max="100" value={stage.probability} onChange={(event) => editStage(index, { probability: Math.max(0, Math.min(100, Number(event.target.value))) })} /></label>
-            <button disabled={index === 0} onClick={() => moveStage(index, -1)}>↑</button><button disabled={index === pipelineDraft.stages.length - 1} onClick={() => moveStage(index, 1)}>↓</button>
-            <button className="dangerText" disabled={pipelineDraft.stages.length === 1} onClick={() => setPipelineDraft({ ...pipelineDraft, stages: pipelineDraft.stages.filter((_, stageIndex) => stageIndex !== index) })}>Remove</button>
-          </div>)}
+      )}
+      {selectedDeal && (
+        <div className="modalback" onClick={() => setSelectedDeal(null)}>
+          <div
+            className="bookingmodal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalhead">
+              <div>
+                <label>EDIT PIPELINE CARD</label>
+                <h2>{selectedDeal.name}</h2>
+              </div>
+              <button onClick={() => setSelectedDeal(null)}>×</button>
+            </div>
+            <div className="crmForm">
+              <label>
+                Opportunity name
+                <input
+                  value={selectedDeal.name}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Stage
+                <select
+                  value={selectedDeal.stage}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      stage: event.target.value,
+                    })
+                  }
+                >
+                  {stages.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Deal value
+                <input
+                  type="number"
+                  value={selectedDeal.value_cents / 100}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      value_cents: Number(event.target.value) * 100,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Probability
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={selectedDeal.probability}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      probability: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Assigned rep
+                <input
+                  value={selectedDeal.assigned_rep || ""}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      assigned_rep: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              {isOwner && (
+                <>
+                  <label>
+                    Commission % (20–30)
+                    <input
+                      type="number"
+                      min="20"
+                      max="30"
+                      value={
+                        Number(selectedDeal.commission_rate_bps || 2000) / 100
+                      }
+                      onChange={(event) =>
+                        setSelectedDeal({
+                          ...selectedDeal,
+                          commission_rate_bps: Number(event.target.value) * 100,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Commission status
+                    <select
+                      value={selectedDeal.commission_status}
+                      onChange={(event) =>
+                        setSelectedDeal({
+                          ...selectedDeal,
+                          commission_status: event.target.value,
+                        })
+                      }
+                    >
+                      <option>PENDING</option>
+                      <option>APPROVED</option>
+                      <option>PAID</option>
+                      <option>CLAWBACK</option>
+                    </select>
+                  </label>
+                  <label>
+                    Payment status
+                    <select
+                      value={selectedDeal.payment_status || "UNPAID"}
+                      onChange={(event) =>
+                        setSelectedDeal({
+                          ...selectedDeal,
+                          payment_status: event.target.value,
+                        })
+                      }
+                    >
+                      <option>UNPAID</option>
+                      <option>PARTIAL</option>
+                      <option>PAID</option>
+                      <option>REFUNDED</option>
+                    </select>
+                  </label>
+                  <label>
+                    Amount collected
+                    <input
+                      type="number"
+                      min="0"
+                      value={Number(selectedDeal.collected_cents || 0) / 100}
+                      onChange={(event) =>
+                        setSelectedDeal({
+                          ...selectedDeal,
+                          collected_cents: Number(event.target.value) * 100,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Monthly residual ($25–$50)
+                    <input
+                      type="number"
+                      min="25"
+                      max="50"
+                      value={
+                        Number(selectedDeal.residual_flat_cents || 2500) / 100
+                      }
+                      onChange={(event) =>
+                        setSelectedDeal({
+                          ...selectedDeal,
+                          residual_flat_cents: Number(event.target.value) * 100,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Estimated payout
+                    <input
+                      disabled
+                      value={new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      }).format(
+                        (Number(selectedDeal.collected_cents || 0) / 100) *
+                          (Number(selectedDeal.commission_rate_bps || 2000) /
+                            10000),
+                      )}
+                    />
+                  </label>
+                </>
+              )}
+              <label>
+                Notes
+                <textarea
+                  value={selectedDeal.notes || ""}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      notes: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <div className="modalactions">
+              <button onClick={() => setSelectedDeal(null)}>Cancel</button>
+              <button onClick={() => void saveDeal()}>Save changes</button>
+            </div>
+          </div>
         </div>
-        <div className="modalactions"><button onClick={() => setSettingsOpen(false)}>Cancel</button><button onClick={() => void savePipeline()}>Save pipeline</button></div>
-      </div></div>}
-      {selectedDeal && <div className="modalback" onClick={() => setSelectedDeal(null)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
-        <div className="modalhead"><div><label>EDIT PIPELINE CARD</label><h2>{selectedDeal.name}</h2></div><button onClick={() => setSelectedDeal(null)}>×</button></div>
-        <div className="crmForm">
-          <label>Opportunity name<input value={selectedDeal.name} onChange={(event) => setSelectedDeal({ ...selectedDeal, name: event.target.value })} /></label>
-          <label>Stage<select value={selectedDeal.stage} onChange={(event) => setSelectedDeal({ ...selectedDeal, stage: event.target.value })}>{stages.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Deal value<input type="number" value={selectedDeal.value_cents / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, value_cents: Number(event.target.value) * 100 })} /></label>
-          <label>Probability<input type="number" min="0" max="100" value={selectedDeal.probability} onChange={(event) => setSelectedDeal({ ...selectedDeal, probability: Number(event.target.value) })} /></label>
-          <label>Assigned rep<input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} /></label>
-          {isOwner && <><label>Commission % (20–30)<input type="number" min="20" max="30" value={Number(selectedDeal.commission_rate_bps || 2000) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Number(event.target.value) * 100 })} /></label>
-          <label>Commission status<select value={selectedDeal.commission_status} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_status: event.target.value })}><option>PENDING</option><option>APPROVED</option><option>PAID</option><option>CLAWBACK</option></select></label>
-          <label>Payment status<select value={selectedDeal.payment_status || "UNPAID"} onChange={(event) => setSelectedDeal({ ...selectedDeal, payment_status: event.target.value })}><option>UNPAID</option><option>PARTIAL</option><option>PAID</option><option>REFUNDED</option></select></label>
-          <label>Amount collected<input type="number" min="0" value={Number(selectedDeal.collected_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, collected_cents: Number(event.target.value) * 100 })} /></label>
-          <label>Monthly residual ($25–$50)<input type="number" min="25" max="50" value={Number(selectedDeal.residual_flat_cents || 2500) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_flat_cents: Number(event.target.value) * 100 })} /></label>
-          <label>Estimated payout<input disabled value={new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((Number(selectedDeal.collected_cents || 0) / 100) * (Number(selectedDeal.commission_rate_bps || 2000) / 10000))} /></label></>}
-          <label>Notes<textarea value={selectedDeal.notes || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, notes: event.target.value })} /></label>
+      )}
+      {createStage && (
+        <div className="modalback" onClick={() => setCreateStage(null)}>
+          <div
+            className="bookingmodal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalhead">
+              <div>
+                <label>NEW OPPORTUNITY · {createStage}</label>
+                <h2>Add pipeline card</h2>
+              </div>
+              <button onClick={() => setCreateStage(null)}>×</button>
+            </div>
+            <div className="crmForm">
+              <label>
+                Company
+                <input
+                  value={newDeal.company}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, company: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Opportunity name
+                <input
+                  value={newDeal.name}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, name: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Deal value
+                <input
+                  type="number"
+                  value={newDeal.value}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, value: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Probability %
+                <input
+                  type="number"
+                  value={newDeal.probability}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, probability: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Assigned rep
+                <input
+                  value={newDeal.assignedRep}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, assignedRep: event.target.value })
+                  }
+                />
+              </label>
+              {isOwner && (
+                <>
+                  <label>
+                    Commission % (20–30)
+                    <input
+                      type="number"
+                      min="20"
+                      max="30"
+                      value={newDeal.commissionRate}
+                      onChange={(event) =>
+                        setNewDeal({
+                          ...newDeal,
+                          commissionRate: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Monthly residual ($25–$50)
+                    <input
+                      type="number"
+                      min="25"
+                      max="50"
+                      value={newDeal.residualFlat}
+                      onChange={(event) =>
+                        setNewDeal({
+                          ...newDeal,
+                          residualFlat: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+            <div className="modalactions">
+              <button onClick={() => setCreateStage(null)}>Cancel</button>
+              <button
+                disabled={!newDeal.company}
+                onClick={() => void createOpportunity()}
+              >
+                Create opportunity
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="modalactions"><button onClick={() => setSelectedDeal(null)}>Cancel</button><button onClick={() => void saveDeal()}>Save changes</button></div>
-      </div></div>}
-      {createStage && <div className="modalback" onClick={() => setCreateStage(null)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
-        <div className="modalhead"><div><label>NEW OPPORTUNITY · {createStage}</label><h2>Add pipeline card</h2></div><button onClick={() => setCreateStage(null)}>×</button></div>
-        <div className="crmForm">
-          <label>Company<input value={newDeal.company} onChange={(event) => setNewDeal({ ...newDeal, company: event.target.value })} /></label>
-          <label>Opportunity name<input value={newDeal.name} onChange={(event) => setNewDeal({ ...newDeal, name: event.target.value })} /></label>
-          <label>Deal value<input type="number" value={newDeal.value} onChange={(event) => setNewDeal({ ...newDeal, value: event.target.value })} /></label>
-          <label>Probability %<input type="number" value={newDeal.probability} onChange={(event) => setNewDeal({ ...newDeal, probability: event.target.value })} /></label>
-          <label>Assigned rep<input value={newDeal.assignedRep} onChange={(event) => setNewDeal({ ...newDeal, assignedRep: event.target.value })} /></label>
-          {isOwner && <><label>Commission % (20–30)<input type="number" min="20" max="30" value={newDeal.commissionRate} onChange={(event) => setNewDeal({ ...newDeal, commissionRate: event.target.value })} /></label><label>Monthly residual ($25–$50)<input type="number" min="25" max="50" value={newDeal.residualFlat} onChange={(event) => setNewDeal({ ...newDeal, residualFlat: event.target.value })} /></label></>}
-        </div>
-        <div className="modalactions"><button onClick={() => setCreateStage(null)}>Cancel</button><button disabled={!newDeal.company} onClick={() => void createOpportunity()}>Create opportunity</button></div>
-      </div></div>}
+      )}
     </>
   );
 }
@@ -9992,45 +11498,168 @@ function CRMContactDetail({
   onDeleted: () => void;
   onBook: () => void;
 }) {
-  type Activity = { id: string; activity_type: string; title: string; details?: string; due_at?: string; status: string; created_at: string };
+  type Activity = {
+    id: string;
+    activity_type: string;
+    title: string;
+    details?: string;
+    due_at?: string;
+    status: string;
+    created_at: string;
+  };
   const [editing, setEditing] = useState(false);
   const [composer, setComposer] = useState<"NOTE" | "TASK" | null>(null);
-  const [activityDraft, setActivityDraft] = useState({ title: "", details: "", dueAt: "" });
+  const [activityDraft, setActivityDraft] = useState({
+    title: "",
+    details: "",
+    dueAt: "",
+  });
   const [savingActivity, setSavingActivity] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [draft, setDraft] = useState({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: contact.notes || "" });
-  useEffect(() => setDraft({ fullName: contact.name, email: contact.email === "No email" ? "" : contact.email, phone: contact.phone === "No phone" ? "" : contact.phone, lifecycle: contact.stage, notes: contact.notes || "" }), [contact]);
-  const loadActivities = async () => { if (!contact.id) return; const response = await fetch(`/api/crm/activities?contactId=${encodeURIComponent(contact.id)}`); const data = await response.json() as { activities?: Activity[] }; if (response.ok) setActivities(data.activities || []); };
-  useEffect(() => { const timer = window.setTimeout(() => void loadActivities(), 0); return () => window.clearTimeout(timer); }, [contact.id]);
-  const logActivity = async (activityType: string, title: string, details = "", dueAt = "") => {
-    if (!contact.id) return false; const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id, activityType, title, details, dueAt }) });
-    const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Activity could not be saved"); return false; } await loadActivities(); return true;
+  const [draft, setDraft] = useState({
+    fullName: contact.name,
+    email: contact.email === "No email" ? "" : contact.email,
+    phone: contact.phone === "No phone" ? "" : contact.phone,
+    lifecycle: contact.stage,
+    notes: contact.notes || "",
+  });
+  useEffect(
+    () =>
+      setDraft({
+        fullName: contact.name,
+        email: contact.email === "No email" ? "" : contact.email,
+        phone: contact.phone === "No phone" ? "" : contact.phone,
+        lifecycle: contact.stage,
+        notes: contact.notes || "",
+      }),
+    [contact],
+  );
+  const loadActivities = async () => {
+    if (!contact.id) return;
+    const response = await fetch(
+      `/api/crm/activities?contactId=${encodeURIComponent(contact.id)}`,
+    );
+    const data = (await response.json()) as { activities?: Activity[] };
+    if (response.ok) setActivities(data.activities || []);
+  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadActivities(), 0);
+    return () => window.clearTimeout(timer);
+  }, [contact.id]);
+  const logActivity = async (
+    activityType: string,
+    title: string,
+    details = "",
+    dueAt = "",
+  ) => {
+    if (!contact.id) return false;
+    const response = await fetch("/api/crm/activities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contactId: contact.id,
+        activityType,
+        title,
+        details,
+        dueAt,
+      }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Activity could not be saved");
+      return false;
+    }
+    await loadActivities();
+    return true;
   };
   const saveActivity = async () => {
     if (!composer) return;
     const details = activityDraft.details.trim();
-    const title = activityDraft.title.trim() || (composer === "NOTE" ? details.slice(0, 80) : "");
-    if (!title) { onFlash(composer === "TASK" ? "Add a task title" : "Type your note first"); return; }
+    const title =
+      activityDraft.title.trim() ||
+      (composer === "NOTE" ? details.slice(0, 80) : "");
+    if (!title) {
+      onFlash(
+        composer === "TASK" ? "Add a task title" : "Type your note first",
+      );
+      return;
+    }
     setSavingActivity(true);
     try {
       if (await logActivity(composer, title, details, activityDraft.dueAt)) {
         setComposer(null);
         setActivityDraft({ title: "", details: "", dueAt: "" });
-        window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created", contactId: contact.id } }));
+        window.dispatchEvent(
+          new CustomEvent("cyncro:data-changed", {
+            detail: {
+              entity: "activity",
+              action: "created",
+              contactId: contact.id,
+            },
+          }),
+        );
         onUpdated();
-        onFlash(composer === "TASK" ? "Task saved and added to overview" : "Note saved to this contact and overview");
+        onFlash(
+          composer === "TASK"
+            ? "Task saved and added to overview"
+            : "Note saved to this contact and overview",
+        );
       }
-    } finally { setSavingActivity(false); }
+    } finally {
+      setSavingActivity(false);
+    }
   };
   const saveContact = async () => {
     if (!contact.id) return;
-    const response = await fetch("/api/crm/contacts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: contact.id, updates: draft }) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { onFlash(data.error || "Contact update failed"); return; }
-    await logActivity("CONTACT", "CRM contact updated", `Lifecycle: ${draft.lifecycle}`);
-    setEditing(false); onUpdated(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "updated" } })); onFlash("Contact updated everywhere");
+    const response = await fetch("/api/crm/contacts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: contact.id, updates: draft }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Contact update failed");
+      return;
+    }
+    await logActivity(
+      "CONTACT",
+      "CRM contact updated",
+      `Lifecycle: ${draft.lifecycle}`,
+    );
+    setEditing(false);
+    onUpdated();
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "contact", action: "updated" },
+      }),
+    );
+    onFlash("Contact updated everywhere");
   };
-  const deleteContact = async () => { if (!contact.id || !window.confirm(`Delete ${contact.name}? This removes the contact and its notes.`)) return; const response = await fetch(`/api/crm/contacts?id=${encodeURIComponent(contact.id)}`, { method: "DELETE" }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Contact could not be deleted"); return; } onDeleted(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "contact", action: "deleted" } })); onFlash("Contact deleted everywhere"); };
+  const deleteContact = async () => {
+    if (
+      !contact.id ||
+      !window.confirm(
+        `Delete ${contact.name}? This removes the contact and its notes.`,
+      )
+    )
+      return;
+    const response = await fetch(
+      `/api/crm/contacts?id=${encodeURIComponent(contact.id)}`,
+      { method: "DELETE" },
+    );
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Contact could not be deleted");
+      return;
+    }
+    onDeleted();
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "contact", action: "deleted" },
+      }),
+    );
+    onFlash("Contact deleted everywhere");
+  };
   return (
     <aside className="contactDetail crmPanel">
       <div className="contactHero">
@@ -10046,25 +11675,163 @@ function CRMContactDetail({
           <p>{contact.company}</p>
         </div>
         <span>{contact.intent} intent</span>
-        <button onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit contact"}</button>
-        <button className="dangerText" onClick={() => void deleteContact()}>Delete</button>
+        <button onClick={() => setEditing(!editing)}>
+          {editing ? "Close" : "Edit contact"}
+        </button>
+        <button className="dangerText" onClick={() => void deleteContact()}>
+          Delete
+        </button>
       </div>
-      {editing && <div className="crmForm">
-        <label>Full name<input value={draft.fullName} onChange={(event) => setDraft({ ...draft, fullName: event.target.value })} /></label>
-        <label>Email<input value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></label>
-        <label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label>
-        <label>Lifecycle<select value={draft.lifecycle} onChange={(event) => setDraft({ ...draft, lifecycle: event.target.value })}><option>LEAD</option><option>QUALIFIED</option><option>CUSTOMER</option><option>INACTIVE</option></select></label>
-        <label>Notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
-        <button className="crmCreate" onClick={() => void saveContact()}>Save contact</button>
-      </div>}
+      {editing && (
+        <div className="crmForm">
+          <label>
+            Full name
+            <input
+              value={draft.fullName}
+              onChange={(event) =>
+                setDraft({ ...draft, fullName: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Email
+            <input
+              value={draft.email}
+              onChange={(event) =>
+                setDraft({ ...draft, email: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Phone
+            <input
+              value={draft.phone}
+              onChange={(event) =>
+                setDraft({ ...draft, phone: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Lifecycle
+            <select
+              value={draft.lifecycle}
+              onChange={(event) =>
+                setDraft({ ...draft, lifecycle: event.target.value })
+              }
+            >
+              <option>LEAD</option>
+              <option>QUALIFIED</option>
+              <option>CUSTOMER</option>
+              <option>INACTIVE</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea
+              value={draft.notes}
+              onChange={(event) =>
+                setDraft({ ...draft, notes: event.target.value })
+              }
+            />
+          </label>
+          <button className="crmCreate" onClick={() => void saveContact()}>
+            Save contact
+          </button>
+        </div>
+      )}
       <div className="contactActions">
         <button onClick={() => setComposer("NOTE")}>＋ Note</button>
         <button onClick={() => setComposer("TASK")}>＋ Task</button>
-        <button disabled={!contact.email || contact.email === "No email"} onClick={() => { void logActivity("EMAIL", `Email opened for ${contact.name}`); window.location.href = `mailto:${contact.email}`; }}>Email</button>
-        <button disabled={!contact.phone || contact.phone === "No phone"} onClick={() => { void logActivity("SMS", `SMS opened for ${contact.name}`); window.location.href = `sms:${contact.phone}`; }}>SMS</button>
-        <button onClick={() => { void logActivity("BOOKING", `Booking started for ${contact.name}`); onBook(); }}>Book appointment</button>
+        <button
+          disabled={!contact.email || contact.email === "No email"}
+          onClick={() => {
+            void logActivity("EMAIL", `Email opened for ${contact.name}`);
+            window.location.href = `mailto:${contact.email}`;
+          }}
+        >
+          Email
+        </button>
+        <button
+          disabled={!contact.phone || contact.phone === "No phone"}
+          onClick={() => {
+            void logActivity("SMS", `SMS opened for ${contact.name}`);
+            window.location.href = `sms:${contact.phone}`;
+          }}
+        >
+          SMS
+        </button>
+        <button
+          onClick={() => {
+            void logActivity("BOOKING", `Booking started for ${contact.name}`);
+            onBook();
+          }}
+        >
+          Book appointment
+        </button>
       </div>
-      {composer && <div className="contactComposer"><b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b>{composer === "TASK" && <input placeholder="Task title" value={activityDraft.title} onChange={(event) => setActivityDraft({ ...activityDraft, title: event.target.value })} />}<textarea autoFocus placeholder={composer === "TASK" ? "Task details" : "Type your note here…"} value={activityDraft.details} onChange={(event) => setActivityDraft({ ...activityDraft, details: event.target.value })} />{composer === "TASK" && <input type="datetime-local" value={activityDraft.dueAt} onChange={(event) => setActivityDraft({ ...activityDraft, dueAt: event.target.value })} />}<div><button disabled={savingActivity} onClick={() => setComposer(null)}>Cancel</button><button disabled={savingActivity || (composer === "NOTE" ? !activityDraft.details.trim() : !activityDraft.title.trim())} className="crmCreate" onClick={() => void saveActivity()}>{savingActivity ? "Saving…" : composer === "TASK" ? "Save task" : "Save note"}</button></div></div>}
+      {composer && (
+        <div className="contactComposer">
+          <b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b>
+          {composer === "TASK" && (
+            <input
+              placeholder="Task title"
+              value={activityDraft.title}
+              onChange={(event) =>
+                setActivityDraft({
+                  ...activityDraft,
+                  title: event.target.value,
+                })
+              }
+            />
+          )}
+          <textarea
+            autoFocus
+            placeholder={
+              composer === "TASK" ? "Task details" : "Type your note here…"
+            }
+            value={activityDraft.details}
+            onChange={(event) =>
+              setActivityDraft({
+                ...activityDraft,
+                details: event.target.value,
+              })
+            }
+          />
+          {composer === "TASK" && (
+            <input
+              type="datetime-local"
+              value={activityDraft.dueAt}
+              onChange={(event) =>
+                setActivityDraft({
+                  ...activityDraft,
+                  dueAt: event.target.value,
+                })
+              }
+            />
+          )}
+          <div>
+            <button disabled={savingActivity} onClick={() => setComposer(null)}>
+              Cancel
+            </button>
+            <button
+              disabled={
+                savingActivity ||
+                (composer === "NOTE"
+                  ? !activityDraft.details.trim()
+                  : !activityDraft.title.trim())
+              }
+              className="crmCreate"
+              onClick={() => void saveActivity()}
+            >
+              {savingActivity
+                ? "Saving…"
+                : composer === "TASK"
+                  ? "Save task"
+                  : "Save note"}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="contactFacts">
         {[
           ["EMAIL", contact.email],
@@ -10086,19 +11853,34 @@ function CRMContactDetail({
             <small>COMPLETE TIMELINE</small>
             <h3>Every interaction</h3>
           </div>
-          <button onClick={() => setComposer("NOTE")}>
-            ＋ Note
-          </button>
+          <button onClick={() => setComposer("NOTE")}>＋ Note</button>
         </div>
-        {!activities.length && <div className="emptyTimeline">No activity yet. Add a note, task, email, SMS, or booking.</div>}
+        {!activities.length && (
+          <div className="emptyTimeline">
+            No activity yet. Add a note, task, email, SMS, or booking.
+          </div>
+        )}
         {activities.map((item) => (
           <div key={item.id}>
-            <time>{new Date(item.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time>
+            <time>
+              {new Date(item.created_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </time>
             <i />
             <span>
               <b>{item.title}</b>
-              {item.details && item.details !== item.title && <p>{item.details}</p>}
-              <small>{item.activity_type}{item.due_at ? ` · Due ${new Date(item.due_at).toLocaleString()}` : ""} · {item.status}</small>
+              {item.details && item.details !== item.title && (
+                <p>{item.details}</p>
+              )}
+              <small>
+                {item.activity_type}
+                {item.due_at
+                  ? ` · Due ${new Date(item.due_at).toLocaleString()}`
+                  : ""}{" "}
+                · {item.status}
+              </small>
             </span>
           </div>
         ))}
@@ -10825,31 +12607,183 @@ function CRMSocialAutomations({
   );
 }
 
-function CRMAccounts({ onFlash, currentUserName, isOwner }: { onFlash: (message: string) => void; currentUserName: string; isOwner: boolean }) {
-  type Account = { id: string; name: string; domain?: string; phone?: string; address?: string; category?: string; status: string; account_manager?: string; sales_director?: string; vp_sales?: string; notes?: string; contact_count: number; opportunity_count: number; pipeline_cents: number; collected_cents: number; estimated_payout_cents?: number; monthly_residual_cents?: number };
-  type Deal = { id: string; account_id: string; name: string; stage: string; value_cents: number; collected_cents: number; assigned_rep?: string; commission_rate_bps?: number; commission_status?: string; payment_status: string; residual_flat_cents?: number };
-  const [accounts, setAccounts] = useState<Account[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [selectedId, setSelectedId] = useState(""); const [editing, setEditing] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false); const [accountNote, setAccountNote] = useState(""); const [savingNote, setSavingNote] = useState(false);
-  const [draft, setDraft] = useState({ name: "", domain: "", phone: "", address: "", category: "", accountManager: "", salesDirector: "", vpSales: "", notes: "", status: "ACTIVE" });
-  const load = async () => { const [a, d] = await Promise.all([fetch(`/api/crm/accounts?fresh=${Date.now()}`, { cache: "no-store" }), fetch(`/api/crm/opportunities?fresh=${Date.now()}`, { cache: "no-store" })]); const ad = await a.json() as { accounts?: Account[]; error?: string }; const dd = await d.json() as { opportunities?: Deal[] }; if (!a.ok) { onFlash(ad.error || "Accounts could not be loaded"); return; } setAccounts(ad.accounts || []); setDeals(dd.opportunities || []); if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id); };
-  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => { const refresh = () => void load(); window.addEventListener("cyncro:data-changed", refresh); const timer = window.setInterval(refresh, 15000); return () => { window.removeEventListener("cyncro:data-changed", refresh); window.clearInterval(timer); }; }, []);
-  const active = accounts.find((item) => item.id === selectedId); const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
-  const beginEdit = () => { if (!active) return; setDraft({ name: active.name, domain: active.domain || "", phone: active.phone || "", address: active.address || "", category: active.category || "", accountManager: active.account_manager || "", salesDirector: active.sales_director || "", vpSales: active.vp_sales || "", notes: active.notes || "", status: active.status }); setEditing(true); };
-  const saveAccount = async () => { if (!active) return; const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: draft }) }); const data = await response.json() as { error?: string }; if (!response.ok) { onFlash(data.error || "Account update failed"); return; } setEditing(false); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "updated" } })); await load(); onFlash("Account and sales hierarchy saved"); };
+function CRMAccounts({
+  onFlash,
+  currentUserName,
+  isOwner,
+}: {
+  onFlash: (message: string) => void;
+  currentUserName: string;
+  isOwner: boolean;
+}) {
+  type Account = {
+    id: string;
+    name: string;
+    domain?: string;
+    phone?: string;
+    address?: string;
+    category?: string;
+    status: string;
+    account_manager?: string;
+    sales_director?: string;
+    vp_sales?: string;
+    notes?: string;
+    contact_count: number;
+    opportunity_count: number;
+    pipeline_cents: number;
+    collected_cents: number;
+    estimated_payout_cents?: number;
+    monthly_residual_cents?: number;
+  };
+  type Deal = {
+    id: string;
+    account_id: string;
+    name: string;
+    stage: string;
+    value_cents: number;
+    collected_cents: number;
+    assigned_rep?: string;
+    commission_rate_bps?: number;
+    commission_status?: string;
+    payment_status: string;
+    residual_flat_cents?: number;
+  };
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [accountNote, setAccountNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [draft, setDraft] = useState({
+    name: "",
+    domain: "",
+    phone: "",
+    address: "",
+    category: "",
+    accountManager: "",
+    salesDirector: "",
+    vpSales: "",
+    notes: "",
+    status: "ACTIVE",
+  });
+  const load = async () => {
+    const [a, d] = await Promise.all([
+      fetch(`/api/crm/accounts?fresh=${Date.now()}`, { cache: "no-store" }),
+      fetch(`/api/crm/opportunities?fresh=${Date.now()}`, {
+        cache: "no-store",
+      }),
+    ]);
+    const ad = (await a.json()) as { accounts?: Account[]; error?: string };
+    const dd = (await d.json()) as { opportunities?: Deal[] };
+    if (!a.ok) {
+      onFlash(ad.error || "Accounts could not be loaded");
+      return;
+    }
+    setAccounts(ad.accounts || []);
+    setDeals(dd.opportunities || []);
+    if (!selectedId && ad.accounts?.[0]) setSelectedId(ad.accounts[0].id);
+  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    const refresh = () => void load();
+    window.addEventListener("cyncro:data-changed", refresh);
+    const timer = window.setInterval(refresh, 15000);
+    return () => {
+      window.removeEventListener("cyncro:data-changed", refresh);
+      window.clearInterval(timer);
+    };
+  }, []);
+  const active = accounts.find((item) => item.id === selectedId);
+  const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
+  const beginEdit = () => {
+    if (!active) return;
+    setDraft({
+      name: active.name,
+      domain: active.domain || "",
+      phone: active.phone || "",
+      address: active.address || "",
+      category: active.category || "",
+      accountManager: active.account_manager || "",
+      salesDirector: active.sales_director || "",
+      vpSales: active.vp_sales || "",
+      notes: active.notes || "",
+      status: active.status,
+    });
+    setEditing(true);
+  };
+  const saveAccount = async () => {
+    if (!active) return;
+    const response = await fetch("/api/crm/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: active.id, updates: draft }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Account update failed");
+      return;
+    }
+    setEditing(false);
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "account", action: "updated" },
+      }),
+    );
+    await load();
+    onFlash("Account and sales hierarchy saved");
+  };
   const addAccountNote = async () => {
-    if (!active || !accountNote.trim()) { onFlash("Type an account note first"); return; }
+    if (!active || !accountNote.trim()) {
+      onFlash("Type an account note first");
+      return;
+    }
     setSavingNote(true);
     const stamped = `${new Date().toLocaleString()} · ${currentUserName}\n${accountNote.trim()}`;
     const notes = active.notes ? `${stamped}\n\n${active.notes}` : stamped;
-    const response = await fetch("/api/crm/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: active.id, updates: { notes } }) });
-    const data = await response.json() as { error?: string };
+    const response = await fetch("/api/crm/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: active.id, updates: { notes } }),
+    });
+    const data = (await response.json()) as { error?: string };
     setSavingNote(false);
-    if (!response.ok) { onFlash(data.error || "Account note could not be saved"); return; }
-    setAccountNote(""); setNoteOpen(false); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "note-created" } })); await load(); onFlash("Account note saved and shared");
+    if (!response.ok) {
+      onFlash(data.error || "Account note could not be saved");
+      return;
+    }
+    setAccountNote("");
+    setNoteOpen(false);
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "account", action: "note-created" },
+      }),
+    );
+    await load();
+    onFlash("Account note saved and shared");
   };
-  const money = (cents = 0) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(cents) / 100);
-  const teamNames = Array.from(new Set([currentUserName, ...accounts.flatMap((item) => [item.account_manager, item.sales_director, item.vp_sales]), ...deals.map((deal) => deal.assigned_rep)].filter((name): name is string => Boolean(name))));
+  const money = (cents = 0) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(Number(cents) / 100);
+  const teamNames = Array.from(
+    new Set(
+      [
+        currentUserName,
+        ...accounts.flatMap((item) => [
+          item.account_manager,
+          item.sales_director,
+          item.vp_sales,
+        ]),
+        ...deals.map((deal) => deal.assigned_rep),
+      ].filter((name): name is string => Boolean(name)),
+    ),
+  );
   return (
     <div className="accountWorkspace">
       <section className="accountPortfolio crmPanel">
@@ -10881,45 +12815,331 @@ function CRMAccounts({ onFlash, currentUserName, isOwner }: { onFlash: (message:
             </span>
             <strong>{money(item.pipeline_cents)}</strong>
             <em>{item.status}</em>
-            <span className="accountHealth strong">{item.opportunity_count} deals</span>
+            <span className="accountHealth strong">
+              {item.opportunity_count} deals
+            </span>
           </button>
         ))}
-        {!accounts.length && <div className="noProspects">No accounts yet. Create a CRM record or convert a prospect.</div>}
+        {!accounts.length && (
+          <div className="noProspects">
+            No accounts yet. Create a CRM record or convert a prospect.
+          </div>
+        )}
       </section>
-      {active && <section className="accountCommand crmPanel">
-        <div className="accountCommandHead">
-          <div>
-            <small>ACCOUNT COMMAND</small>
-            <h2>{active.name}</h2>
+      {active && (
+        <section className="accountCommand crmPanel">
+          <div className="accountCommandHead">
+            <div>
+              <small>ACCOUNT COMMAND</small>
+              <h2>{active.name}</h2>
+              <p>
+                Unified relationship, revenue, engagement, and delivery
+                intelligence.
+              </p>
+            </div>
+            <button className="crmCreate" onClick={beginEdit}>
+              Customize account
+            </button>
+          </div>
+          <div className="accountValueGrid">
+            {[
+              ["SALES SOLD", money(active.pipeline_cents)],
+              ["PAYMENTS COLLECTED", money(active.collected_cents)],
+              ...(isOwner
+                ? [
+                    ["ESTIMATED PAYOUT", money(active.estimated_payout_cents)],
+                    [
+                      "MONTHLY RESIDUAL",
+                      money(
+                        accountDeals.reduce(
+                          (sum, deal) =>
+                            sum + Number(deal.residual_flat_cents || 0),
+                          0,
+                        ),
+                      ),
+                    ],
+                  ]
+                : []),
+            ].map((item) => (
+              <div key={item[0]}>
+                <small>{item[0]}</small>
+                <b>{item[1]}</b>
+              </div>
+            ))}
+          </div>
+          <div className="salesHierarchy">
+            <div className="crmPanelHead">
+              <div>
+                <small>SALES OWNERSHIP</small>
+                <h3>Account hierarchy</h3>
+              </div>
+              <button onClick={beginEdit}>Edit assignments</button>
+            </div>
+            {[
+              ["ACCOUNT MANAGER", active.account_manager || "Unassigned"],
+              ["SALES DIRECTOR", active.sales_director || "Unassigned"],
+              ["VP OF SALES", active.vp_sales || "Unassigned"],
+            ].map((person) => (
+              <div key={person[0]}>
+                <i>{person[1].slice(0, 2).toUpperCase()}</i>
+                <span>
+                  <b>{person[1]}</b>
+                  <small>{person[0]}</small>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="accountNotes">
+            <div className="crmPanelHead">
+              <div>
+                <small>ACCOUNT NOTES</small>
+                <h3>Shared account context</h3>
+              </div>
+              <button className="crmCreate" onClick={() => setNoteOpen(true)}>
+                ＋ Add note
+              </button>
+            </div>
+            {noteOpen && (
+              <div className="accountNoteComposer">
+                <textarea
+                  autoFocus
+                  placeholder="Add a shared note for this account…"
+                  value={accountNote}
+                  onChange={(event) => setAccountNote(event.target.value)}
+                />
+                <div>
+                  <button
+                    disabled={savingNote}
+                    onClick={() => {
+                      setNoteOpen(false);
+                      setAccountNote("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="crmCreate"
+                    disabled={savingNote || !accountNote.trim()}
+                    onClick={() => void addAccountNote()}
+                  >
+                    {savingNote ? "Saving…" : "Save note"}
+                  </button>
+                </div>
+              </div>
+            )}
             <p>
-              Unified relationship, revenue, engagement, and delivery
-              intelligence.
+              {active.notes ||
+                "No account notes yet. Add the first note so everyone assigned to this account can see it."}
             </p>
           </div>
-          <button className="crmCreate" onClick={beginEdit}>Customize account</button>
-        </div>
-        <div className="accountValueGrid">
-          {[
-            ["SALES SOLD", money(active.pipeline_cents)],
-            ["PAYMENTS COLLECTED", money(active.collected_cents)],
-            ...(isOwner ? [["ESTIMATED PAYOUT", money(active.estimated_payout_cents)], ["MONTHLY RESIDUAL", money(accountDeals.reduce((sum,deal)=>sum+Number(deal.residual_flat_cents||0),0))]] : []),
-          ].map((item) => (
-            <div key={item[0]}>
-              <small>{item[0]}</small>
-              <b>{item[1]}</b>
+          {isOwner && (
+            <div className="accountDeals">
+              <div className="crmPanelHead">
+                <div>
+                  <small>OWNER ONLY · DEAL COMPENSATION</small>
+                  <h3>Sales, payments, commissions & lifetime residuals</h3>
+                </div>
+              </div>
+              {accountDeals.map((deal) => (
+                <div className="accountDealRow" key={deal.id}>
+                  <span>
+                    <b>{deal.name}</b>
+                    <small>
+                      {deal.stage} · {deal.assigned_rep || "Unassigned rep"}
+                    </small>
+                  </span>
+                  <span>
+                    <small>SOLD</small>
+                    <b>{money(deal.value_cents)}</b>
+                  </span>
+                  <span>
+                    <small>COLLECTED</small>
+                    <b>{money(deal.collected_cents)}</b>
+                  </span>
+                  <span>
+                    <small>COMMISSION</small>
+                    <b>{Number(deal.commission_rate_bps || 2000) / 100}%</b>
+                  </span>
+                  <span>
+                    <small>EST. PAYOUT</small>
+                    <b>
+                      {money(
+                        (deal.collected_cents *
+                          Number(deal.commission_rate_bps || 2000)) /
+                          10000,
+                      )}
+                    </b>
+                  </span>
+                  <span>
+                    <small>RESIDUAL</small>
+                    <b>
+                      {money(deal.residual_flat_cents || 2500)}/mo while active
+                    </b>
+                  </span>
+                  <em>{deal.payment_status}</em>
+                </div>
+              ))}
+              {!accountDeals.length && (
+                <div className="noProspects">
+                  No deals connected to this account yet.
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-        <div className="salesHierarchy">
-          <div className="crmPanelHead">
-            <div><small>SALES OWNERSHIP</small><h3>Account hierarchy</h3></div><button onClick={beginEdit}>Edit assignments</button>
+          )}
+        </section>
+      )}
+      {editing && active && (
+        <div className="modalback" onClick={() => setEditing(false)}>
+          <div
+            className="bookingmodal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalhead">
+              <div>
+                <label>ACCOUNT CONTROLS</label>
+                <h2>Customize {active.name}</h2>
+              </div>
+              <button onClick={() => setEditing(false)}>×</button>
+            </div>
+            <datalist id="cyncro-team-names">
+              {teamNames.map((name) => (
+                <option value={name} key={name} />
+              ))}
+            </datalist>
+            <div className="crmForm">
+              <label>
+                Account name
+                <input
+                  value={draft.name}
+                  onChange={(event) =>
+                    setDraft({ ...draft, name: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Category
+                <input
+                  value={draft.category}
+                  onChange={(event) =>
+                    setDraft({ ...draft, category: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Website
+                <input
+                  value={draft.domain}
+                  onChange={(event) =>
+                    setDraft({ ...draft, domain: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  value={draft.phone}
+                  onChange={(event) =>
+                    setDraft({ ...draft, phone: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Address
+                <input
+                  value={draft.address}
+                  onChange={(event) =>
+                    setDraft({ ...draft, address: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Account Manager
+                <div className="assignmentInput">
+                  <input
+                    list="cyncro-team-names"
+                    value={draft.accountManager}
+                    onChange={(event) =>
+                      setDraft({ ...draft, accountManager: event.target.value })
+                    }
+                  />
+                  <button
+                    onClick={() =>
+                      setDraft({ ...draft, accountManager: currentUserName })
+                    }
+                  >
+                    Assign me
+                  </button>
+                </div>
+              </label>
+              <label>
+                Sales Director
+                <div className="assignmentInput">
+                  <input
+                    list="cyncro-team-names"
+                    value={draft.salesDirector}
+                    onChange={(event) =>
+                      setDraft({ ...draft, salesDirector: event.target.value })
+                    }
+                  />
+                  <button
+                    onClick={() =>
+                      setDraft({ ...draft, salesDirector: currentUserName })
+                    }
+                  >
+                    Assign me
+                  </button>
+                </div>
+              </label>
+              <label>
+                VP of Sales
+                <div className="assignmentInput">
+                  <input
+                    list="cyncro-team-names"
+                    value={draft.vpSales}
+                    onChange={(event) =>
+                      setDraft({ ...draft, vpSales: event.target.value })
+                    }
+                  />
+                  <button
+                    onClick={() =>
+                      setDraft({ ...draft, vpSales: currentUserName })
+                    }
+                  >
+                    Assign me
+                  </button>
+                </div>
+              </label>
+              <label>
+                Account notes
+                <textarea
+                  value={draft.notes}
+                  onChange={(event) =>
+                    setDraft({ ...draft, notes: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={draft.status}
+                  onChange={(event) =>
+                    setDraft({ ...draft, status: event.target.value })
+                  }
+                >
+                  <option>ACTIVE</option>
+                  <option>ONBOARDING</option>
+                  <option>PAUSED</option>
+                  <option>CHURNED</option>
+                </select>
+              </label>
+            </div>
+            <div className="modalactions">
+              <button onClick={() => setEditing(false)}>Cancel</button>
+              <button onClick={() => void saveAccount()}>Save account</button>
+            </div>
           </div>
-          {[ ["ACCOUNT MANAGER", active.account_manager || "Unassigned"], ["SALES DIRECTOR", active.sales_director || "Unassigned"], ["VP OF SALES", active.vp_sales || "Unassigned"] ].map((person) => <div key={person[0]}><i>{person[1].slice(0,2).toUpperCase()}</i><span><b>{person[1]}</b><small>{person[0]}</small></span></div>)}
         </div>
-        <div className="accountNotes"><div className="crmPanelHead"><div><small>ACCOUNT NOTES</small><h3>Shared account context</h3></div><button className="crmCreate" onClick={() => setNoteOpen(true)}>＋ Add note</button></div>{noteOpen && <div className="accountNoteComposer"><textarea autoFocus placeholder="Add a shared note for this account…" value={accountNote} onChange={(event) => setAccountNote(event.target.value)} /><div><button disabled={savingNote} onClick={() => { setNoteOpen(false); setAccountNote(""); }}>Cancel</button><button className="crmCreate" disabled={savingNote || !accountNote.trim()} onClick={() => void addAccountNote()}>{savingNote ? "Saving…" : "Save note"}</button></div></div>}<p>{active.notes || "No account notes yet. Add the first note so everyone assigned to this account can see it."}</p></div>
-        {isOwner && <div className="accountDeals"><div className="crmPanelHead"><div><small>OWNER ONLY · DEAL COMPENSATION</small><h3>Sales, payments, commissions & lifetime residuals</h3></div></div>{accountDeals.map((deal) => <div className="accountDealRow" key={deal.id}><span><b>{deal.name}</b><small>{deal.stage} · {deal.assigned_rep || "Unassigned rep"}</small></span><span><small>SOLD</small><b>{money(deal.value_cents)}</b></span><span><small>COLLECTED</small><b>{money(deal.collected_cents)}</b></span><span><small>COMMISSION</small><b>{Number(deal.commission_rate_bps || 2000) / 100}%</b></span><span><small>EST. PAYOUT</small><b>{money(deal.collected_cents * Number(deal.commission_rate_bps || 2000) / 10000)}</b></span><span><small>RESIDUAL</small><b>{money(deal.residual_flat_cents || 2500)}/mo while active</b></span><em>{deal.payment_status}</em></div>)}{!accountDeals.length && <div className="noProspects">No deals connected to this account yet.</div>}</div>}
-      </section>}
-      {editing && active && <div className="modalback" onClick={() => setEditing(false)}><div className="bookingmodal" onClick={(event) => event.stopPropagation()}><div className="modalhead"><div><label>ACCOUNT CONTROLS</label><h2>Customize {active.name}</h2></div><button onClick={() => setEditing(false)}>×</button></div><datalist id="cyncro-team-names">{teamNames.map((name) => <option value={name} key={name} />)}</datalist><div className="crmForm"><label>Account name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Category<input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Website<input value={draft.domain} onChange={(event) => setDraft({ ...draft, domain: event.target.value })} /></label><label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>Address<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></label><label>Account Manager<div className="assignmentInput"><input list="cyncro-team-names" value={draft.accountManager} onChange={(event) => setDraft({ ...draft, accountManager: event.target.value })} /><button onClick={() => setDraft({ ...draft, accountManager: currentUserName })}>Assign me</button></div></label><label>Sales Director<div className="assignmentInput"><input list="cyncro-team-names" value={draft.salesDirector} onChange={(event) => setDraft({ ...draft, salesDirector: event.target.value })} /><button onClick={() => setDraft({ ...draft, salesDirector: currentUserName })}>Assign me</button></div></label><label>VP of Sales<div className="assignmentInput"><input list="cyncro-team-names" value={draft.vpSales} onChange={(event) => setDraft({ ...draft, vpSales: event.target.value })} /><button onClick={() => setDraft({ ...draft, vpSales: currentUserName })}>Assign me</button></div></label><label>Account notes<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label><label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>ACTIVE</option><option>ONBOARDING</option><option>PAUSED</option><option>CHURNED</option></select></label></div><div className="modalactions"><button onClick={() => setEditing(false)}>Cancel</button><button onClick={() => void saveAccount()}>Save account</button></div></div></div>}
+      )}
     </div>
   );
 }
@@ -11424,13 +13644,180 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
 }
 
 function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
-  type Member = { email: string; display_name: string; role: string; crm_access: number; calendar_access: number; prospecting_access: number; manage_users: number; active: number };
-  const [members,setMembers]=useState<Member[]>([]); const [allowed,setAllowed]=useState(false); const [form,setForm]=useState({email:"",displayName:"",role:"MEMBER",crmAccess:true,calendarAccess:false,prospectingAccess:false,manageUsers:false,active:true});
-  const load=async()=>{const response=await fetch("/api/access");const data=await response.json() as {members?:Member[];member?:Member;error?:string};if(!response.ok){onFlash(data.error||"Permissions could not be loaded");return;}setAllowed(Boolean(data.member?.manage_users));setMembers(data.members||[]);};
-  useEffect(()=>{const timer=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(timer);},[]);
-  const save=async(next= form)=>{const response=await fetch("/api/access",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)});const data=await response.json() as {error?:string};if(!response.ok){onFlash(data.error||"Access could not be saved");return;}setForm({email:"",displayName:"",role:"MEMBER",crmAccess:true,calendarAccess:false,prospectingAccess:false,manageUsers:false,active:true});await load();onFlash("Team access updated");};
-  if(!allowed)return <div className="crmPanel teamAccess"><h2>Team access</h2><p>Only the workspace owner can manage user permissions.</p></div>;
-  return <div className="teamAccess"><section className="crmPanel"><div className="crmPanelHead"><div><small>OWNER CONTROLS</small><h2>Add a team member</h2></div></div><div className="crmForm"><label>Name<input value={form.displayName} onChange={(e)=>setForm({...form,displayName:e.target.value})}/></label><label>Login email<input type="email" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})}/></label><label>Role<select value={form.role} onChange={(e)=>setForm({...form,role:e.target.value})}><option>MEMBER</option><option>MANAGER</option><option>ADMIN</option></select></label></div><div className="permissionChecks">{[["crmAccess","CRM"],["calendarAccess","Calendar"],["prospectingAccess","Prospecting"],["manageUsers","Manage users"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={(e)=>setForm({...form,[key]:e.target.checked})}/>{label}</label>)}</div><button className="crmCreate" onClick={()=>void save()}>Save team access</button></section><section className="crmPanel"><div className="crmPanelHead"><div><small>ACTIVE USERS</small><h2>Who can access what</h2></div></div>{members.map(member=><div className="memberAccessRow" key={member.email}><span><b>{member.display_name}</b><small>{member.email} · {member.role}</small></span><span>{member.crm_access?"CRM ":""}{member.calendar_access?"Calendar ":""}{member.prospecting_access?"Prospecting":""}</span><button className="dangerText" disabled={member.role==="OWNER"} onClick={()=>void save({email:member.email,displayName:member.display_name,role:member.role,crmAccess:Boolean(member.crm_access),calendarAccess:Boolean(member.calendar_access),prospectingAccess:Boolean(member.prospecting_access),manageUsers:Boolean(member.manage_users),active:false})}>Remove access</button></div>)}</section></div>;
+  type Member = {
+    email: string;
+    display_name: string;
+    role: string;
+    crm_access: number;
+    calendar_access: number;
+    prospecting_access: number;
+    manage_users: number;
+    active: number;
+  };
+  const [members, setMembers] = useState<Member[]>([]);
+  const [allowed, setAllowed] = useState(false);
+  const [form, setForm] = useState({
+    email: "",
+    displayName: "",
+    role: "MEMBER",
+    crmAccess: true,
+    calendarAccess: false,
+    prospectingAccess: false,
+    manageUsers: false,
+    active: true,
+  });
+  const load = async () => {
+    const response = await fetch("/api/access");
+    const data = (await response.json()) as {
+      members?: Member[];
+      member?: Member;
+      error?: string;
+    };
+    if (!response.ok) {
+      onFlash(data.error || "Permissions could not be loaded");
+      return;
+    }
+    setAllowed(Boolean(data.member?.manage_users));
+    setMembers(data.members || []);
+  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const save = async (next = form) => {
+    const response = await fetch("/api/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Access could not be saved");
+      return;
+    }
+    setForm({
+      email: "",
+      displayName: "",
+      role: "MEMBER",
+      crmAccess: true,
+      calendarAccess: false,
+      prospectingAccess: false,
+      manageUsers: false,
+      active: true,
+    });
+    await load();
+    onFlash("Team access updated");
+  };
+  if (!allowed)
+    return (
+      <div className="crmPanel teamAccess">
+        <h2>Team access</h2>
+        <p>Only the workspace owner can manage user permissions.</p>
+      </div>
+    );
+  return (
+    <div className="teamAccess">
+      <section className="crmPanel">
+        <div className="crmPanelHead">
+          <div>
+            <small>OWNER CONTROLS</small>
+            <h2>Add a team member</h2>
+          </div>
+        </div>
+        <div className="crmForm">
+          <label>
+            Name
+            <input
+              value={form.displayName}
+              onChange={(e) =>
+                setForm({ ...form, displayName: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Login email
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </label>
+          <label>
+            Role
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option>MEMBER</option>
+              <option>MANAGER</option>
+              <option>ADMIN</option>
+            </select>
+          </label>
+        </div>
+        <div className="permissionChecks">
+          {[
+            ["crmAccess", "CRM"],
+            ["calendarAccess", "Calendar"],
+            ["prospectingAccess", "Prospecting"],
+            ["manageUsers", "Manage users"],
+          ].map(([key, label]) => (
+            <label key={key}>
+              <input
+                type="checkbox"
+                checked={Boolean(form[key as keyof typeof form])}
+                onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <button className="crmCreate" onClick={() => void save()}>
+          Save team access
+        </button>
+      </section>
+      <section className="crmPanel">
+        <div className="crmPanelHead">
+          <div>
+            <small>ACTIVE USERS</small>
+            <h2>Who can access what</h2>
+          </div>
+        </div>
+        {members.map((member) => (
+          <div className="memberAccessRow" key={member.email}>
+            <span>
+              <b>{member.display_name}</b>
+              <small>
+                {member.email} · {member.role}
+              </small>
+            </span>
+            <span>
+              {member.crm_access ? "CRM " : ""}
+              {member.calendar_access ? "Calendar " : ""}
+              {member.prospecting_access ? "Prospecting" : ""}
+            </span>
+            <button
+              className="dangerText"
+              disabled={member.role === "OWNER"}
+              onClick={() =>
+                void save({
+                  email: member.email,
+                  displayName: member.display_name,
+                  role: member.role,
+                  crmAccess: Boolean(member.crm_access),
+                  calendarAccess: Boolean(member.calendar_access),
+                  prospectingAccess: Boolean(member.prospecting_access),
+                  manageUsers: Boolean(member.manage_users),
+                  active: false,
+                })
+              }
+            >
+              Remove access
+            </button>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
 }
 
 function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
@@ -12015,73 +14402,703 @@ function CyncroSports() {
   );
 }
 
-function CRMCalendarWorkspace({ onFlash, currentUserName }: { onFlash: (message: string) => void; currentUserName: string }) {
+function CRMCalendarWorkspace({
+  onFlash,
+  currentUserName,
+}: {
+  onFlash: (message: string) => void;
+  currentUserName: string;
+}) {
   return (
     <div className="crmEmbeddedCalendar">
-      <div className="calendarAccessBar"><div><small>CYNCRO UNIVERSAL CALENDAR</small><h2>Schedule, configure, publish.</h2><p>Three simple steps. Advanced controls only appear when you need them.</p></div></div>
-      <div className="calendarSimpleSteps">
-        <button onClick={() => document.getElementById("calendar-bookings")?.scrollIntoView({ behavior: "smooth" })}><i>1</i><span><b>Manage schedule</b><small>View, reschedule, confirm, or cancel bookings.</small></span></button>
-        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>2</i><span><b>Create event types</b><small>Choose duration, location, capacity, and price.</small></span></button>
-        <button onClick={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })}><i>3</i><span><b>Set availability & publish</b><small>Control time slots, reminders, routing, and booking links.</small></span></button>
+      <div className="calendarAccessBar">
+        <div>
+          <small>CYNCRO UNIVERSAL CALENDAR</small>
+          <h2>Schedule, configure, publish.</h2>
+          <p>
+            Three simple steps. Advanced controls only appear when you need
+            them.
+          </p>
+        </div>
       </div>
-      <div id="calendar-bookings"><Admin currentUserName={currentUserName} onCreate={() => document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" })} /></div>
-      <div id="calendar-event-settings" className="calendarSettingsSection"><div className="calendarSectionTitle"><small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small><h2>Calendar configuration</h2><p>Create and customize the booking experience without leaving this page.</p></div><SimpleEventManager onFlash={onFlash} /></div>
+      <div className="calendarSimpleSteps">
+        <button
+          onClick={() =>
+            document
+              .getElementById("calendar-bookings")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          <i>1</i>
+          <span>
+            <b>Manage schedule</b>
+            <small>View, reschedule, confirm, or cancel bookings.</small>
+          </span>
+        </button>
+        <button
+          onClick={() =>
+            document
+              .getElementById("calendar-event-settings")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          <i>2</i>
+          <span>
+            <b>Create event types</b>
+            <small>Choose duration, location, capacity, and price.</small>
+          </span>
+        </button>
+        <button
+          onClick={() =>
+            document
+              .getElementById("calendar-event-settings")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          <i>3</i>
+          <span>
+            <b>Set availability & publish</b>
+            <small>
+              Control time slots, reminders, routing, and booking links.
+            </small>
+          </span>
+        </button>
+      </div>
+      <div id="calendar-bookings">
+        <Admin
+          currentUserName={currentUserName}
+          onCreate={() =>
+            document
+              .getElementById("calendar-event-settings")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        />
+      </div>
+      <div id="calendar-event-settings" className="calendarSettingsSection">
+        <div className="calendarSectionTitle">
+          <small>EVENT TYPES · AVAILABILITY · LINKS · SETTINGS</small>
+          <h2>Calendar configuration</h2>
+          <p>
+            Create and customize the booking experience without leaving this
+            page.
+          </p>
+        </div>
+        <SimpleEventManager onFlash={onFlash} />
+      </div>
     </div>
   );
 }
 
-function SimpleEventManager({ onFlash }: { onFlash: (message: string) => void }) {
-  type EventType = { id: string; name: string; slug: string; description?: string; duration_minutes: number; buffer_before_minutes: number; buffer_after_minutes: number; capacity: number; location_modes: string; video_platforms: string };
-  const empty = { id: "", name: "", slug: "", description: "", durationMinutes: 30, bufferBeforeMinutes: 0, bufferAfterMinutes: 0, capacity: 1, locationModes: ["VIDEO"], videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"], startTime: "09:00", endTime: "17:00", timezone: "America/New_York" };
-  const [events, setEvents] = useState<EventType[]>([]); const [form, setForm] = useState(empty); const [saving, setSaving] = useState(false);
-  const load = async () => { const response = await fetch("/api/calendar/event-types"); const data = await response.json() as { eventTypes?: EventType[]; error?: string }; if (!response.ok) { onFlash(data.error || "Event types could not be loaded"); return; } setEvents(data.eventTypes || []); };
-  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, []);
-  const selectEvent = (item: EventType) => setForm({ id: item.id, name: item.name, slug: item.slug, description: item.description || "", durationMinutes: item.duration_minutes, bufferBeforeMinutes: item.buffer_before_minutes, bufferAfterMinutes: item.buffer_after_minutes, capacity: item.capacity, locationModes: JSON.parse(item.location_modes || "[]"), videoPlatforms: JSON.parse(item.video_platforms || "[]"), startTime: "09:00", endTime: "17:00", timezone: "America/New_York" });
-  const toggle = (key: "locationModes" | "videoPlatforms", value: string) => setForm((current) => ({ ...current, [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value] }));
-  const save = async () => { if (!form.name.trim() || !form.slug.trim()) { onFlash("Event name and booking link are required"); return; } setSaving(true); const method = form.id ? "PATCH" : "POST"; const payload = form.id ? { id: form.id, ...form } : form; const response = await fetch("/api/calendar/event-types", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const data = await response.json() as { id?: string; eventType?: EventType; error?: string }; if (!response.ok) { setSaving(false); onFlash(data.error || "Event could not be saved"); return; } const eventId = form.id || data.id || ""; const availability = await fetch("/api/calendar/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventTypeId: eventId, timezone: form.timezone, rules: [1,2,3,4,5].map((weekday) => ({ weekday, startTime: form.startTime, endTime: form.endTime })) }) }); setSaving(false); if (!availability.ok) { const result = await availability.json() as { error?: string }; onFlash(result.error || "Availability could not be saved"); return; } await load(); setForm((current) => ({ ...current, id: eventId })); onFlash("Event, availability, and booking link saved"); };
-  const archive = async () => { if (!form.id) return; const response = await fetch("/api/calendar/event-types", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: form.id, active: false }) }); if (response.ok) { setForm(empty); await load(); onFlash("Event type archived"); } };
-  const bookingUrl = typeof window === "undefined" ? "/#book" : `${window.location.origin}/#book`;
-  return <div className="simpleEventManager"><aside><div><b>EVENT TYPES</b><button onClick={() => setForm(empty)}>＋ New</button></div>{events.map((item) => <button className={form.id === item.id ? "active" : ""} onClick={() => selectEvent(item)} key={item.id}><b>{item.name}</b><small>{item.duration_minutes} min · Capacity {item.capacity}</small></button>)}{!events.length && <p>No event types yet.</p>}</aside><section><div className="simpleEventHead"><div><small>{form.id ? "EDIT EVENT" : "NEW EVENT"}</small><h3>{form.name || "Create an event type"}</h3></div><div>{form.id && <button className="danger" onClick={() => void archive()}>Archive</button>}<button className="crmCreate" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save & publish"}</button></div></div><div className="simpleEventGrid"><label>Event name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value, slug: form.id ? form.slug : event.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") })} /></label><label>Booking link name<input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"") })} /></label><label className="wide">Description<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><label>Duration (minutes)<input type="number" min="5" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label><label>Capacity<input type="number" min="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} /></label><label>Buffer before<input type="number" min="0" value={form.bufferBeforeMinutes} onChange={(event) => setForm({ ...form, bufferBeforeMinutes: Number(event.target.value) })} /></label><label>Buffer after<input type="number" min="0" value={form.bufferAfterMinutes} onChange={(event) => setForm({ ...form, bufferAfterMinutes: Number(event.target.value) })} /></label><label>Available from<input type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} /></label><label>Available until<input type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} /></label><label className="wide">Meeting options<div className="simpleChecks">{[["VIDEO","Video"],["PHONE","Phone"],["IN_PERSON","In person"]].map(([value,label]) => <button className={form.locationModes.includes(value) ? "active" : ""} onClick={() => toggle("locationModes",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Video platforms<div className="simpleChecks">{[["GOOGLE_MEET","Google Meet"],["ZOOM","Zoom"],["FACETIME","FaceTime"]].map(([value,label]) => <button className={form.videoPlatforms.includes(value) ? "active" : ""} onClick={() => toggle("videoPlatforms",value)} key={value}>✓ {label}</button>)}</div></label><label className="wide">Published booking page<div className="bookingLinkBox"><input readOnly value={bookingUrl} /><button onClick={() => { void navigator.clipboard?.writeText(bookingUrl); onFlash("Booking link copied"); }}>Copy link</button></div></label></div></section></div>;
+function SimpleEventManager({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  type EventType = {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    duration_minutes: number;
+    buffer_before_minutes: number;
+    buffer_after_minutes: number;
+    capacity: number;
+    location_modes: string;
+    video_platforms: string;
+    host_name?: string;
+  };
+  const empty = {
+    id: "",
+    name: "",
+    slug: "",
+    description: "",
+    hostName: "",
+    durationMinutes: 30,
+    bufferBeforeMinutes: 0,
+    bufferAfterMinutes: 0,
+    capacity: 1,
+    locationModes: ["VIDEO"],
+    videoPlatforms: ["GOOGLE_MEET", "ZOOM", "FACETIME"],
+    startTime: "09:00",
+    endTime: "17:00",
+    timezone: "America/New_York",
+  };
+  const [events, setEvents] = useState<EventType[]>([]);
+  const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const load = async () => {
+    const response = await fetch("/api/calendar/event-types");
+    const data = (await response.json()) as {
+      eventTypes?: EventType[];
+      error?: string;
+    };
+    if (!response.ok) {
+      onFlash(data.error || "Event types could not be loaded");
+      return;
+    }
+    setEvents(data.eventTypes || []);
+  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const selectEvent = (item: EventType) =>
+    setForm({
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      description: item.description || "",
+      hostName: item.host_name || "",
+      durationMinutes: item.duration_minutes,
+      bufferBeforeMinutes: item.buffer_before_minutes,
+      bufferAfterMinutes: item.buffer_after_minutes,
+      capacity: item.capacity,
+      locationModes: JSON.parse(item.location_modes || "[]"),
+      videoPlatforms: JSON.parse(item.video_platforms || "[]"),
+      startTime: "09:00",
+      endTime: "17:00",
+      timezone: "America/New_York",
+    });
+  const toggle = (key: "locationModes" | "videoPlatforms", value: string) =>
+    setForm((current) => ({
+      ...current,
+      [key]: current[key].includes(value)
+        ? current[key].filter((item) => item !== value)
+        : [...current[key], value],
+    }));
+  const save = async () => {
+    if (!form.name.trim() || !form.slug.trim()) {
+      onFlash("Event name and booking link are required");
+      return;
+    }
+    setSaving(true);
+    const method = form.id ? "PATCH" : "POST";
+    const payload = form.id ? { id: form.id, ...form } : form;
+    const response = await fetch("/api/calendar/event-types", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = (await response.json()) as {
+      id?: string;
+      eventType?: EventType;
+      error?: string;
+    };
+    if (!response.ok) {
+      setSaving(false);
+      onFlash(data.error || "Event could not be saved");
+      return;
+    }
+    const eventId = form.id || data.id || "";
+    const availability = await fetch("/api/calendar/availability", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventTypeId: eventId,
+        timezone: form.timezone,
+        rules: [1, 2, 3, 4, 5].map((weekday) => ({
+          weekday,
+          startTime: form.startTime,
+          endTime: form.endTime,
+        })),
+      }),
+    });
+    setSaving(false);
+    if (!availability.ok) {
+      const result = (await availability.json()) as { error?: string };
+      onFlash(result.error || "Availability could not be saved");
+      return;
+    }
+    await load();
+    setForm((current) => ({ ...current, id: eventId }));
+    onFlash("Event, availability, and booking link saved");
+  };
+  const archive = async () => {
+    if (!form.id) return;
+    const response = await fetch("/api/calendar/event-types", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: form.id, active: false }),
+    });
+    if (response.ok) {
+      setForm(empty);
+      await load();
+      onFlash("Event type archived");
+    }
+  };
+  const bookingUrl =
+    typeof window === "undefined"
+      ? "/#book"
+      : `${window.location.origin}/?event=${encodeURIComponent(form.slug)}#book`;
+  return (
+    <div className="simpleEventManager">
+      <aside>
+        <div>
+          <b>EVENT TYPES</b>
+          <button onClick={() => setForm(empty)}>＋ New</button>
+        </div>
+        {events.map((item) => (
+          <button
+            className={form.id === item.id ? "active" : ""}
+            onClick={() => selectEvent(item)}
+            key={item.id}
+          >
+            <b>{item.name}</b>
+            <small>
+              {item.duration_minutes} min · Capacity {item.capacity}
+            </small>
+          </button>
+        ))}
+        {!events.length && <p>No event types yet.</p>}
+      </aside>
+      <section>
+        <div className="simpleEventHead">
+          <div>
+            <small>{form.id ? "EDIT EVENT" : "NEW EVENT"}</small>
+            <h3>{form.name || "Create an event type"}</h3>
+          </div>
+          <div>
+            {form.id && (
+              <button className="danger" onClick={() => void archive()}>
+                Archive
+              </button>
+            )}
+            <button
+              className="crmCreate"
+              disabled={saving}
+              onClick={() => void save()}
+            >
+              {saving ? "Saving…" : "Save & publish"}
+            </button>
+          </div>
+        </div>
+        <div className="simpleEventGrid">
+          <label>
+            Event name
+            <input
+              value={form.name}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  name: event.target.value,
+                  slug: form.id
+                    ? form.slug
+                    : event.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-|-$/g, ""),
+                })
+              }
+            />
+          </label>
+          <label>
+            Booking link name
+            <input
+              value={form.slug}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  slug: event.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, ""),
+                })
+              }
+            />
+          </label>
+          <label>
+            Assigned manager / host
+            <input
+              value={form.hostName}
+              placeholder="Manager name or email"
+              onChange={(event) => setForm({ ...form, hostName: event.target.value })}
+            />
+          </label>
+          <label className="wide">
+            Description
+            <textarea
+              value={form.description}
+              onChange={(event) =>
+                setForm({ ...form, description: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Duration (minutes)
+            <input
+              type="number"
+              min="5"
+              value={form.durationMinutes}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  durationMinutes: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <label>
+            Capacity
+            <input
+              type="number"
+              min="1"
+              value={form.capacity}
+              onChange={(event) =>
+                setForm({ ...form, capacity: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            Buffer before
+            <input
+              type="number"
+              min="0"
+              value={form.bufferBeforeMinutes}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  bufferBeforeMinutes: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <label>
+            Buffer after
+            <input
+              type="number"
+              min="0"
+              value={form.bufferAfterMinutes}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  bufferAfterMinutes: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <label>
+            Available from
+            <input
+              type="time"
+              value={form.startTime}
+              onChange={(event) =>
+                setForm({ ...form, startTime: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Available until
+            <input
+              type="time"
+              value={form.endTime}
+              onChange={(event) =>
+                setForm({ ...form, endTime: event.target.value })
+              }
+            />
+          </label>
+          <label className="wide">
+            Meeting options
+            <div className="simpleChecks">
+              {[
+                ["VIDEO", "Video"],
+                ["PHONE", "Phone"],
+                ["IN_PERSON", "In person"],
+              ].map(([value, label]) => (
+                <button
+                  className={form.locationModes.includes(value) ? "active" : ""}
+                  onClick={() => toggle("locationModes", value)}
+                  key={value}
+                >
+                  ✓ {label}
+                </button>
+              ))}
+            </div>
+          </label>
+          <label className="wide">
+            Video platforms
+            <div className="simpleChecks">
+              {[
+                ["GOOGLE_MEET", "Google Meet"],
+                ["ZOOM", "Zoom"],
+                ["FACETIME", "FaceTime"],
+              ].map(([value, label]) => (
+                <button
+                  className={
+                    form.videoPlatforms.includes(value) ? "active" : ""
+                  }
+                  onClick={() => toggle("videoPlatforms", value)}
+                  key={value}
+                >
+                  ✓ {label}
+                </button>
+              ))}
+            </div>
+          </label>
+          <label className="wide">
+            Published booking page
+            <div className="bookingLinkBox">
+              <input readOnly value={bookingUrl} />
+              <button
+                onClick={() => {
+                  void navigator.clipboard?.writeText(bookingUrl);
+                  onFlash("Booking link copied");
+                }}
+              >
+                Copy link
+              </button>
+            </div>
+          </label>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () => void; currentUserName?: string }) {
-  type Booking = { id: string; customer_name: string; customer_email: string; customer_phone?: string; starts_at: string; ends_at: string; event_name: string; event_type_id: string; contact_id?: string; assigned_to?: string; location_mode: string; meeting_address?: string; video_platform?: string; status: string; notes?: string };
+function Admin({
+  onCreate,
+  currentUserName = "Platform Owner",
+}: {
+  onCreate: () => void;
+  currentUserName?: string;
+}) {
+  type Booking = {
+    id: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone?: string;
+    starts_at: string;
+    ends_at: string;
+    event_name: string;
+    event_type_id: string;
+    contact_id?: string;
+    assigned_to?: string;
+    location_mode: string;
+    meeting_address?: string;
+    video_platform?: string;
+    status: string;
+    notes?: string;
+  };
   type EventOption = { id: string; name: string; duration_minutes: number };
-  type ContactOption = { id: string; full_name: string; email?: string; phone?: string };
+  type ContactOption = {
+    id: string;
+    full_name: string;
+    email?: string;
+    phone?: string;
+  };
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rows, setRows] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
-  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK">("WEEK");
-  const [focusDate, setFocusDate] = useState(() => new Date().toISOString().slice(0,10));
-  const [showMine, setShowMine] = useState(true); const [manualOpen,setManualOpen]=useState(false); const [eventOptions,setEventOptions]=useState<EventOption[]>([]); const [contactOptions,setContactOptions]=useState<ContactOption[]>([]);
-  const [manual,setManual]=useState({eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",locationMode:"VIDEO",meetingAddress:"",videoPlatform:"GOOGLE_MEET",notes:"",assignedTo:currentUserName});
-  const [notifications,setNotifications]=useState<{id:string;title:string;body?:string;read_at?:string;created_at:string}[]>([]);
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK">(
+    "WEEK",
+  );
+  const [focusDate, setFocusDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [showMine, setShowMine] = useState(true);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
+  const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
+  const [manual, setManual] = useState({
+    eventTypeId: "",
+    contactId: "",
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    startsAt: "",
+    locationMode: "VIDEO",
+    meetingAddress: "",
+    videoPlatform: "GOOGLE_MEET",
+    notes: "",
+    assignedTo: currentUserName,
+  });
+  const [notifications, setNotifications] = useState<
+    {
+      id: string;
+      title: string;
+      body?: string;
+      read_at?: string;
+      created_at: string;
+    }[]
+  >([]);
+  const [calendarFeed, setCalendarFeed] = useState("");
+  useEffect(() => {
+    void fetch("/api/calendar/connections").then(async (response) => {
+      const data = (await response.json()) as { feedUrl?: string };
+      if (response.ok && data.feedUrl) setCalendarFeed(data.feedUrl);
+    });
+  }, []);
+  const connectCalendar = async () => {
+    const response = await fetch("/api/calendar/connections", { method: "POST" });
+    const data = (await response.json()) as { feedUrl?: string; error?: string };
+    if (!response.ok || !data.feedUrl) { setNotice(data.error || "Calendar connection could not be created"); return; }
+    setCalendarFeed(data.feedUrl); await navigator.clipboard?.writeText(data.feedUrl);
+    setNotice("Private calendar subscription copied. Add it to Google, Outlook, or Apple Calendar once; future bookings update automatically.");
+  };
   const loadBookings = async () => {
-    const from = new Date(); from.setMonth(from.getMonth() - 1);
-    const to = new Date(); to.setFullYear(to.getFullYear() + 1);
-    const response = await fetch(`/api/calendar/bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
-    const data = await response.json() as { bookings?: Booking[]; error?: string };
-    if (!response.ok) { setNotice(data.error || "Bookings could not be loaded"); return; }
-    setRows(data.bookings || []); setLoaded(true);
+    const from = new Date();
+    from.setMonth(from.getMonth() - 1);
+    const to = new Date();
+    to.setFullYear(to.getFullYear() + 1);
+    const response = await fetch(
+      `/api/calendar/bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
+    );
+    const data = (await response.json()) as {
+      bookings?: Booking[];
+      error?: string;
+    };
+    if (!response.ok) {
+      setNotice(data.error || "Bookings could not be loaded");
+      return;
+    }
+    setRows(data.bookings || []);
+    setLoaded(true);
   };
-  useEffect(() => { const timer = window.setTimeout(() => void loadBookings(), 0); return () => window.clearTimeout(timer); }, []);
-  const loadCalendarData=async()=>{const[e,c,n]=await Promise.all([fetch("/api/calendar/event-types"),fetch("/api/crm/contacts"),fetch(`/api/notifications?recipient=${encodeURIComponent(currentUserName)}`)]);if(e.ok)setEventOptions(((await e.json()) as {eventTypes?:EventOption[]}).eventTypes||[]);if(c.ok)setContactOptions(((await c.json()) as {contacts?:ContactOption[]}).contacts||[]);if(n.ok)setNotifications(((await n.json()) as {notifications?:typeof notifications}).notifications||[]);};
-  useEffect(()=>{const timer=window.setTimeout(()=>void loadCalendarData(),0);return()=>window.clearTimeout(timer);},[currentUserName]);
-  useEffect(()=>{const open=()=>{const next=new Date();next.setDate(next.getDate()+1);next.setHours(10,0,0,0);setManual(current=>({...current,eventTypeId:current.eventTypeId||eventOptions[0]?.id||"",startsAt:next.toISOString().slice(0,16),assignedTo:currentUserName}));setManualOpen(true);};window.addEventListener("cyncro:open-new-appointment",open);return()=>window.removeEventListener("cyncro:open-new-appointment",open);},[eventOptions,currentUserName]);
-  useEffect(()=>{const refresh=()=>{void loadBookings();void loadCalendarData();};window.addEventListener("cyncro:data-changed",refresh);window.addEventListener("focus",refresh);const timer=window.setInterval(refresh,15000);return()=>{window.removeEventListener("cyncro:data-changed",refresh);window.removeEventListener("focus",refresh);window.clearInterval(timer);};},[currentUserName]);
-  const updateBooking = async (booking: Booking, action: string, extra: Record<string, unknown> = {}) => {
-    const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: booking.id, action, ...extra }) });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) { setNotice(data.error || "Booking update failed"); return; }
-    setSelectedBooking(null); setRescheduleAt(""); await loadBookings(); window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "booking", action: action.toLowerCase() } })); setNotice(`Booking ${action.toLowerCase()} successful`);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadBookings(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const loadCalendarData = async () => {
+    const [e, c, n] = await Promise.all([
+      fetch("/api/calendar/event-types"),
+      fetch("/api/crm/contacts"),
+      fetch(
+        `/api/notifications?recipient=${encodeURIComponent(currentUserName)}`,
+      ),
+    ]);
+    if (e.ok)
+      setEventOptions(
+        ((await e.json()) as { eventTypes?: EventOption[] }).eventTypes || [],
+      );
+    if (c.ok)
+      setContactOptions(
+        ((await c.json()) as { contacts?: ContactOption[] }).contacts || [],
+      );
+    if (n.ok)
+      setNotifications(
+        ((await n.json()) as { notifications?: typeof notifications })
+          .notifications || [],
+      );
   };
-  const upcoming = rows.filter((booking) => booking.status !== "CANCELLED" && new Date(booking.starts_at) >= new Date());
-  const confirmed = rows.filter((booking) => booking.status === "CONFIRMED" || booking.status === "RESCHEDULED").length;
-  const visibleRows = rows.filter((booking)=>!showMine || !booking.assigned_to || booking.assigned_to===currentUserName);
-  const createManualBooking=async()=>{const response=await fetch("/api/calendar/bookings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...manual,startsAt:new Date(manual.startsAt).toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});const data=await response.json() as {error?:string};if(!response.ok){setNotice(data.error||"Booking could not be created");return;}setManualOpen(false);setManual({...manual,eventTypeId:"",contactId:"",customerName:"",customerEmail:"",customerPhone:"",startsAt:"",notes:""});await loadBookings();window.dispatchEvent(new CustomEvent("cyncro:data-changed",{detail:{entity:"booking",action:"created"}}));setNotice("Appointment created and synced everywhere");};
-  const chooseContact=(id:string)=>{const contact=contactOptions.find(item=>item.id===id);setManual({...manual,contactId:id,customerName:contact?.full_name||"",customerEmail:contact?.email||"",customerPhone:contact?.phone||""});};
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadCalendarData(), 0);
+    return () => window.clearTimeout(timer);
+  }, [currentUserName]);
+  useEffect(() => {
+    const open = () => {
+      const next = new Date();
+      next.setDate(next.getDate() + 1);
+      next.setHours(10, 0, 0, 0);
+      setManual((current) => ({
+        ...current,
+        eventTypeId: current.eventTypeId || eventOptions[0]?.id || "",
+        startsAt: next.toISOString().slice(0, 16),
+        assignedTo: currentUserName,
+      }));
+      setManualOpen(true);
+    };
+    window.addEventListener("cyncro:open-new-appointment", open);
+    return () =>
+      window.removeEventListener("cyncro:open-new-appointment", open);
+  }, [eventOptions, currentUserName]);
+  useEffect(() => {
+    const refresh = () => {
+      void loadBookings();
+      void loadCalendarData();
+    };
+    window.addEventListener("cyncro:data-changed", refresh);
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 15000);
+    return () => {
+      window.removeEventListener("cyncro:data-changed", refresh);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+    };
+  }, [currentUserName]);
+  const updateBooking = async (
+    booking: Booking,
+    action: string,
+    extra: Record<string, unknown> = {},
+  ) => {
+    const response = await fetch("/api/calendar/bookings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: booking.id, action, ...extra }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setNotice(data.error || "Booking update failed");
+      return;
+    }
+    setSelectedBooking(null);
+    setRescheduleAt("");
+    await loadBookings();
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "booking", action: action.toLowerCase() },
+      }),
+    );
+    setNotice(`Booking ${action.toLowerCase()} successful`);
+  };
+  const upcoming = rows.filter(
+    (booking) =>
+      booking.status !== "CANCELLED" &&
+      new Date(booking.starts_at) >= new Date(),
+  );
+  const confirmed = rows.filter(
+    (booking) =>
+      booking.status === "CONFIRMED" || booking.status === "RESCHEDULED",
+  ).length;
+  const visibleRows = rows.filter(
+    (booking) =>
+      !showMine ||
+      !booking.assigned_to ||
+      booking.assigned_to === currentUserName,
+  );
+  const createManualBooking = async () => {
+    const response = await fetch("/api/calendar/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...manual,
+        startsAt: new Date(manual.startsAt).toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setNotice(data.error || "Booking could not be created");
+      return;
+    }
+    setManualOpen(false);
+    setManual({
+      ...manual,
+      eventTypeId: "",
+      contactId: "",
+      customerName: "",
+      customerEmail: "",
+      customerPhone: "",
+      startsAt: "",
+      notes: "",
+    });
+    await loadBookings();
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "booking", action: "created" },
+      }),
+    );
+    setNotice("Appointment created and synced everywhere");
+  };
+  const chooseContact = (id: string) => {
+    const contact = contactOptions.find((item) => item.id === id);
+    setManual({
+      ...manual,
+      contactId: id,
+      customerName: contact?.full_name || "",
+      customerEmail: contact?.email || "",
+      customerPhone: contact?.phone || "",
+    });
+  };
   return (
     <section className="admin">
       <div className="adminhead">
@@ -12099,8 +15116,18 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
         {[
           ["UPCOMING BOOKINGS", String(upcoming.length)],
           ["CONFIRMED", String(confirmed)],
-          ["COMPLETED", String(rows.filter((booking) => booking.status === "COMPLETED").length)],
-          ["CANCELLED", String(rows.filter((booking) => booking.status === "CANCELLED").length)],
+          [
+            "COMPLETED",
+            String(
+              rows.filter((booking) => booking.status === "COMPLETED").length,
+            ),
+          ],
+          [
+            "CANCELLED",
+            String(
+              rows.filter((booking) => booking.status === "CANCELLED").length,
+            ),
+          ],
         ].map((x) => (
           <div key={x[0]}>
             <small>{x[0]}</small>
@@ -12109,23 +15136,204 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
           </div>
         ))}
       </div>
-      <div className="calendarCommandBar"><div>{(["LIST","WEEK","MONTH"] as const).map(item=><button className={calendarView===item?"active":""} onClick={()=>setCalendarView(item)} key={item}>{item[0]+item.slice(1).toLowerCase()}</button>)}</div><label className="calendarDatePicker">Calendar date<input aria-label="Calendar date" type="date" value={focusDate} onChange={event=>setFocusDate(event.target.value)}/></label><button onClick={()=>setFocusDate(new Date().toISOString().slice(0,10))}>Today</button><label><input type="checkbox" checked={showMine} onChange={event=>setShowMine(event.target.checked)}/> My appointments</label><button className="crmCreate" onClick={()=>{const next=new Date();next.setDate(next.getDate()+1);next.setHours(10,0,0,0);setManual({...manual,startsAt:next.toISOString().slice(0,16)});setManualOpen(true);}}>＋ Book appointment</button></div>
-      {calendarView !== "LIST" && <div className={`roleCalendar ${calendarView.toLowerCase()}`}><div className="roleCalendarHead"><b>{calendarView === "MONTH" ? new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"long",year:"numeric"}) : `Week of ${new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"short",day:"numeric"})}`}</b><span>{currentUserName} · {visibleRows.length} appointments</span></div><div className="roleCalendarGrid">{Array.from({length:calendarView==="MONTH"?35:7},(_,index)=>{const date=new Date(`${focusDate}T12:00:00`);if(calendarView==="MONTH"){date.setDate(1);date.setDate(index-date.getDay()+1);}else date.setDate(date.getDate()-date.getDay()+index);const dayRows=visibleRows.filter(row=>new Date(row.starts_at).toDateString()===date.toDateString());return <div key={index}><time>{date.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</time>{dayRows.map(row=><button key={row.id} onClick={()=>setSelectedBooking(row)}><b>{new Date(row.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b><span>{row.customer_name}</span><small>{row.event_name}</small></button>)}</div>})}</div></div>}
-      <div className={`table ${calendarView!=="LIST"?"compactBookingList":""}`}>
-        <div className="crmPanelHead"><div><small>APPOINTMENTS</small><h3>{calendarView==="LIST"?"All bookings":"Upcoming details"}</h3></div><button onClick={() => void loadBookings()}>Refresh</button></div>
+      <div className="calendarCommandBar">
+        <div>
+          {(["LIST", "WEEK", "MONTH"] as const).map((item) => (
+            <button
+              className={calendarView === item ? "active" : ""}
+              onClick={() => setCalendarView(item)}
+              key={item}
+            >
+              {item[0] + item.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+        <label className="calendarDatePicker">
+          Calendar date
+          <input
+            aria-label="Calendar date"
+            type="date"
+            value={focusDate}
+            onChange={(event) => setFocusDate(event.target.value)}
+          />
+        </label>
+        <button
+          onClick={() => setFocusDate(new Date().toISOString().slice(0, 10))}
+        >
+          Today
+        </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={showMine}
+            onChange={(event) => setShowMine(event.target.checked)}
+          />{" "}
+          My appointments
+        </label>
+        <button
+          className="crmCreate"
+          onClick={() => {
+            const next = new Date();
+            next.setDate(next.getDate() + 1);
+            next.setHours(10, 0, 0, 0);
+            setManual({ ...manual, startsAt: next.toISOString().slice(0, 16) });
+            setManualOpen(true);
+          }}
+        >
+          ＋ Book appointment
+        </button>
+      </div>
+      <div className="externalCalendarBar">
+        <div><small>MANAGER CALENDAR SYNC</small><b>{calendarFeed ? "Private live calendar ready" : "Connect your outside calendar"}</b><span>Subscribe once in Google Calendar, Outlook, or Apple Calendar. New, rescheduled, and cancelled Cyncro appointments stay synchronized.</span></div>
+        <button onClick={() => void connectCalendar()}>{calendarFeed ? "Copy private calendar link" : "Connect calendar"}</button>
+      </div>
+      {calendarView !== "LIST" && (
+        <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
+          <div className="roleCalendarHead">
+            <b>
+              {calendarView === "MONTH"
+                ? new Date(`${focusDate}T12:00:00`).toLocaleDateString(
+                    undefined,
+                    { month: "long", year: "numeric" },
+                  )
+                : `Week of ${new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+            </b>
+            <span>
+              {currentUserName} · {visibleRows.length} appointments
+            </span>
+          </div>
+          <div className="roleCalendarGrid">
+            {Array.from(
+              { length: calendarView === "MONTH" ? 35 : 7 },
+              (_, index) => {
+                const date = new Date(`${focusDate}T12:00:00`);
+                if (calendarView === "MONTH") {
+                  date.setDate(1);
+                  date.setDate(index - date.getDay() + 1);
+                } else date.setDate(date.getDate() - date.getDay() + index);
+                const dayRows = visibleRows.filter(
+                  (row) =>
+                    new Date(row.starts_at).toDateString() ===
+                    date.toDateString(),
+                );
+                return (
+                  <div key={index}>
+                    <time>
+                      {date.toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </time>
+                    {dayRows.map((row) => (
+                      <button
+                        key={row.id}
+                        onClick={() => setSelectedBooking(row)}
+                      >
+                        <b>
+                          {new Date(row.starts_at).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </b>
+                        <span>{row.customer_name}</span>
+                        <small>{row.event_name}</small>
+                      </button>
+                    ))}
+                  </div>
+                );
+              },
+            )}
+          </div>
+        </div>
+      )}
+      <div
+        className={`table ${calendarView !== "LIST" ? "compactBookingList" : ""}`}
+      >
+        <div className="crmPanelHead">
+          <div>
+            <small>APPOINTMENTS</small>
+            <h3>
+              {calendarView === "LIST" ? "All bookings" : "Upcoming details"}
+            </h3>
+          </div>
+          <button onClick={() => void loadBookings()}>Refresh</button>
+        </div>
         {visibleRows.map((booking) => (
           <div className="tr" key={booking.id}>
-            <span><b>{new Date(booking.starts_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</b></span>
-            <span><b>{booking.customer_name}</b><small>{booking.customer_email}<br />{booking.customer_phone || "No phone"}</small></span>
-            <span><b>{booking.event_name}</b></span>
-            <span><b>{booking.location_mode.replace("_", " ")}</b><small>{booking.video_platform || booking.meeting_address || ""}</small></span>
-            <span><b>{booking.status}</b></span>
+            <span>
+              <b>
+                {new Date(booking.starts_at).toLocaleString([], {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </b>
+            </span>
+            <span>
+              <b>{booking.customer_name}</b>
+              <small>
+                {booking.customer_email}
+                <br />
+                {booking.customer_phone || "No phone"}
+              </small>
+            </span>
+            <span>
+              <b>{booking.event_name}</b>
+            </span>
+            <span>
+              <b>{booking.location_mode.replace("_", " ")}</b>
+              <small>
+                {booking.video_platform || booking.meeting_address || ""}
+              </small>
+            </span>
+            <span>
+              <b>{booking.status}</b>
+            </span>
             <button onClick={() => setSelectedBooking(booking)}>•••</button>
           </div>
         ))}
-        {loaded && !visibleRows.length && <div className="noProspects">No appointments in this view. Create one manually or publish a booking link.</div>}
+        {loaded && !visibleRows.length && (
+          <div className="noProspects">
+            No appointments in this view. Create one manually or publish a
+            booking link.
+          </div>
+        )}
       </div>
-      {notifications.some(item=>!item.read_at)&&<div className="calendarNotifications"><b>NOTIFICATIONS</b>{notifications.filter(item=>!item.read_at).slice(0,3).map(item=><button key={item.id} onClick={async()=>{await fetch("/api/notifications",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:item.id})});setNotifications(current=>current.map(note=>note.id===item.id?{...note,read_at:new Date().toISOString()}:note));}}><span><strong>{item.title}</strong><small>{item.body}</small></span><em>Mark read</em></button>)}</div>}
+      {notifications.some((item) => !item.read_at) && (
+        <div className="calendarNotifications">
+          <b>NOTIFICATIONS</b>
+          {notifications
+            .filter((item) => !item.read_at)
+            .slice(0, 3)
+            .map((item) => (
+              <button
+                key={item.id}
+                onClick={async () => {
+                  await fetch("/api/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: item.id }),
+                  });
+                  setNotifications((current) =>
+                    current.map((note) =>
+                      note.id === item.id
+                        ? { ...note, read_at: new Date().toISOString() }
+                        : note,
+                    ),
+                  );
+                }}
+              >
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>{item.body}</small>
+                </span>
+                <em>Mark read</em>
+              </button>
+            ))}
+        </div>
+      )}
       {notice && <div className="prospectingAlert success">{notice}</div>}
       <footer className="features">
         ◆ Double-booking protection　◆ Weighted host routing　◆ Resource
@@ -12155,29 +15363,72 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
               </div>
               <div>
                 <small>LOCATION</small>
-                <b>{selectedBooking.location_mode.replace("_", " ")} {selectedBooking.video_platform || selectedBooking.meeting_address || ""}</b>
+                <b>
+                  {selectedBooking.location_mode.replace("_", " ")}{" "}
+                  {selectedBooking.video_platform ||
+                    selectedBooking.meeting_address ||
+                    ""}
+                </b>
               </div>
               <div>
                 <small>STATUS</small>
                 <b>{selectedBooking.status}</b>
               </div>
-              <div><small>ASSIGNED TO</small><b>{selectedBooking.assigned_to || "Unassigned"}</b></div>
+              <div>
+                <small>ASSIGNED TO</small>
+                <b>{selectedBooking.assigned_to || "Unassigned"}</b>
+              </div>
             </div>
-            <label>New date and time<input type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} /></label>
-            <label>Assign appointment<input value={selectedBooking.assigned_to || ""} onChange={(event)=>setSelectedBooking({...selectedBooking,assigned_to:event.target.value})}/></label>
+            <label>
+              New date and time
+              <input
+                type="datetime-local"
+                value={rescheduleAt}
+                onChange={(event) => setRescheduleAt(event.target.value)}
+              />
+            </label>
+            <label>
+              Assign appointment
+              <input
+                value={selectedBooking.assigned_to || ""}
+                onChange={(event) =>
+                  setSelectedBooking({
+                    ...selectedBooking,
+                    assigned_to: event.target.value,
+                  })
+                }
+              />
+            </label>
             <div className="modalactions">
               <button
                 disabled={!rescheduleAt}
-                onClick={() => void updateBooking(selectedBooking, "RESCHEDULE", { startsAt: new Date(rescheduleAt).toISOString() })}
+                onClick={() =>
+                  void updateBooking(selectedBooking, "RESCHEDULE", {
+                    startsAt: new Date(rescheduleAt).toISOString(),
+                  })
+                }
               >
                 Reschedule
               </button>
               <button
-                onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "CONFIRMED", assignedTo:selectedBooking.assigned_to })}
+                onClick={() =>
+                  void updateBooking(selectedBooking, "UPDATE", {
+                    status: "CONFIRMED",
+                    assignedTo: selectedBooking.assigned_to,
+                  })
+                }
               >
                 Confirm
               </button>
-              <button onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "COMPLETED" })}>Mark completed</button>
+              <button
+                onClick={() =>
+                  void updateBooking(selectedBooking, "UPDATE", {
+                    status: "COMPLETED",
+                  })
+                }
+              >
+                Mark completed
+              </button>
               <button
                 className="danger"
                 onClick={() => void updateBooking(selectedBooking, "CANCEL")}
@@ -12188,7 +15439,168 @@ function Admin({ onCreate, currentUserName = "Platform Owner" }: { onCreate: () 
           </div>
         </div>
       )}
-      {manualOpen&&<div className="modalback" onClick={()=>setManualOpen(false)}><div className="bookingmodal" onClick={event=>event.stopPropagation()}><div className="modalhead"><div><label>MANUAL BOOKING</label><h2>Create appointment</h2></div><button onClick={()=>setManualOpen(false)}>×</button></div><div className="crmForm"><label>Event type<select value={manual.eventTypeId} onChange={event=>setManual({...manual,eventTypeId:event.target.value})}><option value="">Select event</option>{eventOptions.map(item=><option value={item.id} key={item.id}>{item.name} · {item.duration_minutes} min</option>)}</select></label><label>CRM contact<select value={manual.contactId} onChange={event=>chooseContact(event.target.value)}><option value="">Select or enter manually</option>{contactOptions.map(item=><option value={item.id} key={item.id}>{item.full_name}</option>)}</select></label><label>Customer name<input value={manual.customerName} onChange={event=>setManual({...manual,customerName:event.target.value})}/></label><label>Email<input value={manual.customerEmail} onChange={event=>setManual({...manual,customerEmail:event.target.value})}/></label><label>Phone<input value={manual.customerPhone} onChange={event=>setManual({...manual,customerPhone:event.target.value})}/></label><label>Date and time<input type="datetime-local" value={manual.startsAt} onChange={event=>setManual({...manual,startsAt:event.target.value})}/></label><label>Assigned to<input value={manual.assignedTo} onChange={event=>setManual({...manual,assignedTo:event.target.value})}/></label><label>Meeting type<select value={manual.locationMode} onChange={event=>setManual({...manual,locationMode:event.target.value})}><option value="VIDEO">Video</option><option value="PHONE">Phone</option><option value="IN_PERSON">In person</option></select></label>{manual.locationMode==="VIDEO"&&<label>Video platform<select value={manual.videoPlatform} onChange={event=>setManual({...manual,videoPlatform:event.target.value})}><option value="GOOGLE_MEET">Google Meet</option><option value="ZOOM">Zoom</option><option value="FACETIME">FaceTime</option></select></label>}{manual.locationMode==="IN_PERSON"&&<label>Meeting address<input value={manual.meetingAddress} onChange={event=>setManual({...manual,meetingAddress:event.target.value})}/></label>}<label>Notes<textarea value={manual.notes} onChange={event=>setManual({...manual,notes:event.target.value})}/></label></div><div className="modalactions"><button onClick={()=>setManualOpen(false)}>Cancel</button><button disabled={!manual.eventTypeId||!manual.customerName||!manual.customerEmail||!manual.startsAt} onClick={()=>void createManualBooking()}>Create appointment</button></div></div></div>}
+      {manualOpen && (
+        <div className="modalback" onClick={() => setManualOpen(false)}>
+          <div
+            className="bookingmodal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalhead">
+              <div>
+                <label>MANUAL BOOKING</label>
+                <h2>Create appointment</h2>
+              </div>
+              <button onClick={() => setManualOpen(false)}>×</button>
+            </div>
+            <div className="crmForm">
+              <label>
+                Event type
+                <select
+                  value={manual.eventTypeId}
+                  onChange={(event) =>
+                    setManual({ ...manual, eventTypeId: event.target.value })
+                  }
+                >
+                  <option value="">Select event</option>
+                  {eventOptions.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.name} · {item.duration_minutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                CRM contact
+                <select
+                  value={manual.contactId}
+                  onChange={(event) => chooseContact(event.target.value)}
+                >
+                  <option value="">Select or enter manually</option>
+                  {contactOptions.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.full_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Customer name
+                <input
+                  value={manual.customerName}
+                  onChange={(event) =>
+                    setManual({ ...manual, customerName: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  value={manual.customerEmail}
+                  onChange={(event) =>
+                    setManual({ ...manual, customerEmail: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  value={manual.customerPhone}
+                  onChange={(event) =>
+                    setManual({ ...manual, customerPhone: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Date and time
+                <input
+                  type="datetime-local"
+                  value={manual.startsAt}
+                  onChange={(event) =>
+                    setManual({ ...manual, startsAt: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Assigned to
+                <input
+                  value={manual.assignedTo}
+                  onChange={(event) =>
+                    setManual({ ...manual, assignedTo: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Meeting type
+                <select
+                  value={manual.locationMode}
+                  onChange={(event) =>
+                    setManual({ ...manual, locationMode: event.target.value })
+                  }
+                >
+                  <option value="VIDEO">Video</option>
+                  <option value="PHONE">Phone</option>
+                  <option value="IN_PERSON">In person</option>
+                </select>
+              </label>
+              {manual.locationMode === "VIDEO" && (
+                <label>
+                  Video platform
+                  <select
+                    value={manual.videoPlatform}
+                    onChange={(event) =>
+                      setManual({
+                        ...manual,
+                        videoPlatform: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="GOOGLE_MEET">Google Meet</option>
+                    <option value="ZOOM">Zoom</option>
+                    <option value="FACETIME">FaceTime</option>
+                  </select>
+                </label>
+              )}
+              {manual.locationMode === "IN_PERSON" && (
+                <label>
+                  Meeting address
+                  <input
+                    value={manual.meetingAddress}
+                    onChange={(event) =>
+                      setManual({
+                        ...manual,
+                        meetingAddress: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+              )}
+              <label>
+                Notes
+                <textarea
+                  value={manual.notes}
+                  onChange={(event) =>
+                    setManual({ ...manual, notes: event.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <div className="modalactions">
+              <button onClick={() => setManualOpen(false)}>Cancel</button>
+              <button
+                disabled={
+                  !manual.eventTypeId ||
+                  !manual.customerName ||
+                  !manual.customerEmail ||
+                  !manual.startsAt
+                }
+                onClick={() => void createManualBooking()}
+              >
+                Create appointment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

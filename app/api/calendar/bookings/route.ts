@@ -49,15 +49,29 @@ export async function POST(request: Request) {
       return Response.json({ error: "That time is no longer available." }, { status: 409 });
     const now = new Date().toISOString();
     const bookingId = crypto.randomUUID();
+    let contactId = cleanText(body.contactId, 80) || null;
+    if (!contactId) {
+      const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email)=lower(?)").bind(customerEmail).first<{id:string}>();
+      contactId = existing?.id || crypto.randomUUID();
+      if (existing) {
+        await db.prepare("UPDATE crm_contacts SET full_name=?,phone=COALESCE(?,phone),lifecycle='CUSTOMER',updated_at=? WHERE id=?")
+          .bind(customerName, cleanText(body.customerPhone,40)||null, now, contactId).run();
+      } else {
+        await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,assigned_rep,source,created_at,updated_at)
+          VALUES (?,?,?,?, 'CUSTOMER', ?, 'CALENDAR', ?, ?)`).bind(contactId,customerName,customerEmail,cleanText(body.customerPhone,40)||null,String(eventType.host_name||requestUser(request)),now,now).run();
+      }
+    }
+    const assignedTo = cleanText(body.assignedTo, 160) || String(eventType.host_name || requestUser(request));
     await db.prepare(`INSERT INTO calendar_bookings
       (id, event_type_id, account_id, contact_id, customer_name, customer_email, customer_phone, starts_at, ends_at, timezone,
        location_mode, meeting_address, video_platform, video_url, status, notes, created_by, assigned_to, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)`) 
-      .bind(bookingId, eventTypeId, cleanText(body.accountId, 80) || null, cleanText(body.contactId, 80) || null,
+      .bind(bookingId, eventTypeId, cleanText(body.accountId, 80) || null, contactId,
         customerName, customerEmail, cleanText(body.customerPhone, 40) || null, starts.toISOString(), ends.toISOString(), timezone,
         locationMode, meetingAddress, videoPlatform, cleanText(body.videoUrl, 500) || null, cleanText(body.notes, 5000) || null,
-        requestUser(request), cleanText(body.assignedTo, 160) || requestUser(request), now, now).run();
-    const assignedTo = cleanText(body.assignedTo, 160) || requestUser(request);
+        requestUser(request), assignedTo, now, now).run();
+    await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,created_at,updated_at)
+      VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),requestUser(request),now,now).run();
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     return Response.json({ booking: { id: bookingId, startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED" } }, { status: 201 });
