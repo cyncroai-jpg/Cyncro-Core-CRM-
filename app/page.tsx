@@ -15,6 +15,7 @@ type Tab =
   | "admin"
   | "studio"
   | "crm"
+  | "messages"
   | "prospecting"
   | "dispatch"
   | "dispute"
@@ -64,6 +65,7 @@ export default function Home() {
       "admin",
       "studio",
       "crm",
+      "messages",
       "prospecting",
       "dispatch",
       "dispute",
@@ -110,6 +112,7 @@ export default function Home() {
             ["book", "Booking experience"],
             ["studio", "Core Studio"],
             ["crm", "Cyncro CRM"],
+            ["messages", "Messages"],
             ["prospecting", "Prospecting"],
             ["dispatch", "Dispatch"],
             ["dispute", "Dispute"],
@@ -156,6 +159,8 @@ export default function Home() {
           onOpenProspecting={() => navigate("prospecting")}
           isOwner={permissions?.role === "OWNER"}
         />
+      ) : tab === "messages" ? (
+        <CyncroMessagesComingSoon />
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
@@ -791,6 +796,23 @@ function FrontExperience({
         "Cyncro Prospecting AI showing ranked businesses, website signals, and call priorities",
       route: "prospecting" as Tab,
       action: "Open Prospecting AI",
+    },
+    {
+      name: "Cyncro Messages",
+      label: "CONNECT + CONVERT · COMING SOON",
+      headline: "Give every human and AI agent a number, an inbox, and complete customer context.",
+      copy: "A Cyncro-owned messaging platform for local and toll-free numbers, shared inboxes, intelligent routing, AI agents, compliant campaigns, appointment booking, and CRM-native conversations.",
+      capabilities: [
+        "Human + AI agent workspaces",
+        "Dedicated, shared + campaign numbers",
+        "CRM routing, consent + revenue attribution",
+      ],
+      proof: "SOON",
+      proofLabel: "private preview",
+      image: "/module-images/cyncro-crm.webp",
+      imageAlt: "Cyncro Messages unified team inbox and agent routing preview",
+      route: "messages" as Tab,
+      action: "Preview Cyncro Messages",
     },
     {
       name: "Cyncro Prime AI",
@@ -14046,6 +14068,25 @@ const primeAgents = [
     "5 concepts",
   ],
 ];
+
+function CyncroMessagesComingSoon() {
+  const agents = [
+    { name: "Nova", role: "AI Receptionist", number: "Miami local · reserved", state: "Ready for configuration", color: "N" },
+    { name: "Yvette", role: "Sales Director", number: "Dedicated line · planned", state: "Owner workspace", color: "Y" },
+    { name: "Setter AI", role: "Follow-up Agent", number: "Shared campaign pool", state: "Approval required", color: "S" },
+    { name: "Support Team", role: "Shared Inbox", number: "Toll-free · planned", state: "Round-robin routing", color: "C" },
+  ];
+  const [active,setActive]=useState(0); const [notice,setNotice]=useState("Private preview only · messaging transport is not active");
+  const selected=agents[active];
+  return <section className="messagesPreview">
+    <div className="messagesComingBar"><span>COMING SOON</span><b>Cyncro Messages is in private development.</b><p>No real numbers are purchased and no messages can be sent from this preview.</p></div>
+    <header><div><small>CYNCRO MESSAGES · OWN THE CONVERSATION</small><h1>One inbox.<br/><em>Every agent. Every number.</em></h1><p>Create human and AI agents, assign dedicated or shared numbers, route conversations with full CRM context, and turn every reply into the next best action.</p></div><aside><small>PLATFORM STATUS</small><b>Architecture ready</b><span>Messaging transport　Not connected</span><span>Number provisioning　Preview</span><span>Compliance engine　Designed</span></aside></header>
+    <nav>{["Unified Inbox","Agents","Numbers","Routing","Automations","Compliance"].map((item,index)=><button className={index===0?"active":""} onClick={()=>setNotice(`${item} workspace is designed and will activate when Cyncro Messages enters beta.`)} key={item}>{item}</button>)}</nav>
+    <div className="messagesWorkspace"><aside><div><small>AGENTS + INBOXES</small><button onClick={()=>setNotice("Agent creation is coming soon. No account was created.")}>＋ Add agent</button></div>{agents.map((agent,index)=><button className={active===index?"active":""} onClick={()=>setActive(index)} key={agent.name}><i>{agent.color}</i><span><b>{agent.name}</b><small>{agent.role}</small></span><em>{index<2?"●":"○"}</em></button>)}</aside><main><div className="messagesThreadHead"><div><i>{selected.color}</i><span><b>{selected.name}</b><small>{selected.role} · {selected.number}</small></span></div><button onClick={()=>setNotice("Real messaging will activate during the controlled beta.")}>Start conversation</button></div><div className="messagesThread"><div className="inbound"><small>CONTACT · 10:24 AM</small><p>Hi, I’d like to learn more and book a call for next week.</p></div><div className="outbound"><small>{selected.name.toUpperCase()} · DRAFT PREVIEW</small><p>Absolutely. I can help with that. Would Tuesday morning or Wednesday afternoon work better?</p><span>CRM contact matched · booking availability checked</span></div><div className="agentAction"><i>✦</i><span><b>Cyncro recommends</b><small>Offer two protected calendar slots and move the opportunity to Contacted after reply.</small></span><button onClick={()=>setNotice("AI actions remain approval-only until launch.")}>Review</button></div></div><div className="messageComposer"><button onClick={()=>setNotice("Attachments will be available in beta.")}>＋</button><input readOnly value="Messaging is disabled in this coming-soon preview"/><button onClick={()=>setNotice("Preview only — no message was sent.")}>Send</button></div></main><aside className="messageContext"><small>LIVE CRM CONTEXT</small><h3>Prospect record</h3><div><span>Stage<b>NEW LEAD</b></span><span>Owner<b>{selected.name}</b></span><span>Last signal<b>Booking intent</b></span><span>Consent<b>Required before send</b></span></div><small>NUMBER ROUTING</small><h3>{selected.number}</h3><p>{selected.state}</p><button onClick={()=>setNotice("Number selection will open when carrier inventory is connected.")}>Preview number setup</button></aside></div>
+    <div className="messagesCapabilities">{[["01","BRING YOUR TEAM","Human reps, managers, shared inboxes, permissions, reassignment, and owner visibility."],["02","CREATE AI AGENTS","Receptionist, setter, support, collections, and custom agents with human handoff."],["03","CHOOSE NUMBERS","Local, toll-free, ported, dedicated, shared, campaign, and location-based numbers."],["04","CONTROL EVERY SEND","Consent, STOP handling, quiet hours, limits, approvals, logs, and suppression lists."],["05","CONNECT REVENUE","CRM records, calendars, pipelines, attribution, payments, and performance analytics."],["06","BUILD ON CYNCRO","A branded API and webhook layer customers experience entirely as Cyncro."]].map(item=><article key={item[0]}><span>{item[0]}</span><b>{item[1]}</b><p>{item[2]}</p></article>)}</div>
+    <div className="messagesNotice">● {notice}</div>
+  </section>;
+}
 
 function CyncroPrime() {
   const [active, setActive] = useState(0);
