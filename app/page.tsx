@@ -8330,8 +8330,6 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [keyMissing, setKeyMissing] = useState(false);
-  const [searchSource, setSearchSource] = useState("OPEN BUSINESS DATA");
 
   const loadProspects = async () => {
     try {
@@ -8388,7 +8386,6 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     setSearching(true);
     setError("");
     setMessage("");
-    setKeyMissing(false);
     try {
       const response = await fetch("/api/prospecting/search", {
         method: "POST",
@@ -8399,18 +8396,12 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         results?: Prospect[];
         error?: string;
         code?: string;
-        source?: string;
-        providerNotice?: string | null;
       };
       if (!response.ok) {
-        if (data.code === "GOOGLE_KEY_REQUIRED") setKeyMissing(true);
         throw new Error(data.error || "Search failed.");
       }
       setResults(data.results || []);
-      setSearchSource((data.source || "Open business data").toUpperCase());
-      setMessage(
-        `${data.results?.length || 0} real businesses found through ${data.source || "open business data"}.${data.providerNotice ? ` ${data.providerNotice}` : ""}`,
-      );
+      setMessage(`${data.results?.length || 0} real businesses found.`);
     } catch (searchError) {
       setError(
         searchError instanceof Error ? searchError.message : "Search failed.",
@@ -8685,7 +8676,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 <small>REAL BUSINESS SEARCH</small>
                 <h2>Build today&apos;s call list</h2>
               </div>
-              <span>{searchSource}</span>
+              <span>LIVE BUSINESS SEARCH</span>
             </div>
             <div className="prospectingSearchGrid">
               <label>
@@ -8770,15 +8761,6 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 Any legitimate business category · Live public business data
               </p>
             </div>
-            {keyMissing && (
-              <div className="prospectingConfig">
-                <b>Free search is active. Google can add richer coverage.</b>
-                <span>
-                  OpenStreetMap works now. Add <code>GOOGLE_MAPS_API_KEY</code>
-                  later for ratings, reviews and broader listing coverage.
-                </span>
-              </div>
-            )}
             {error && <div className="prospectingAlert error">! {error}</div>}
             {message && (
               <div className="prospectingAlert success">✓ {message}</div>
@@ -8807,7 +8789,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                     <small>{prospect.category}</small>
                     <h3>{prospect.businessName}</h3>
                     <p>
-                      {prospect.reviewCount.toLocaleString()} Google reviews ·{" "}
+                      {prospect.reviewCount.toLocaleString()} public reviews ·{" "}
                       {prospect.rating
                         ? `${prospect.rating.toFixed(1)}★`
                         : "No rating"}
@@ -8850,7 +8832,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                   <small>SEARCH RESULTS</small>
                   <h2>{results.length} real businesses</h2>
                 </div>
-                <span>SOURCE · {searchSource}</span>
+                <span>LIVE RESULTS</span>
               </div>
               <div className="prospectTable">
                 <div className="prospectTableHead">

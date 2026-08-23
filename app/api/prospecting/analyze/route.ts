@@ -37,6 +37,67 @@ function safeWebsite(value: unknown) {
   return url;
 }
 
+async function fetchPublicHtml(start: URL, signal?: AbortSignal) {
+  let current = start;
+  for (let redirects = 0; redirects < 4; redirects += 1) {
+    const response = await fetch(current, {
+      redirect: "manual",
+      signal,
+      headers: { "User-Agent": "CyncroProspecting/1.0 (+public-website-analysis)" },
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) return null;
+      current = safeWebsite(new URL(location, current).toString()) as URL;
+      continue;
+    }
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || !contentType.includes("text/html")) return null;
+    return { html: (await response.text()).slice(0, 500_000), url: current };
+  }
+  return null;
+}
+
+function discoverInternalPages(html: string, base: URL) {
+  const links = html.match(/href=["'][^"']+["']/gi) || [];
+  const preferred = /(contact|about|team|staff|leadership|company)/i;
+  const pages: URL[] = [];
+  for (const token of links) {
+    const href = token.slice(6, -1).trim();
+    if (!preferred.test(href)) continue;
+    try {
+      const url = new URL(href, base);
+      if (url.hostname !== base.hostname || !["http:", "https:"].includes(url.protocol)) continue;
+      url.hash = "";
+      if (!pages.some((item) => item.toString() === url.toString())) pages.push(url);
+    } catch { /* Ignore malformed links. */ }
+    if (pages.length >= 3) break;
+  }
+  return pages;
+}
+
+function publicLeadership(html: string) {
+  const people = new Set<string>();
+  const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi) || [];
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (!value || typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    const kind = String(record["@type"] || "").toLowerCase();
+    const role = String(record.jobTitle || "");
+    const name = String(record.name || "").trim();
+    if (kind === "person" && name && (!role || /(owner|founder|president|chief|director|manager|partner)/i.test(role))) {
+      people.add(role ? `${name} — ${role}` : name);
+    }
+    Object.values(record).forEach(visit);
+  };
+  for (const script of scripts) {
+    const json = script.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "").trim();
+    try { visit(JSON.parse(json)); } catch { /* Ignore invalid structured data. */ }
+  }
+  return [...people].slice(0, 10);
+}
+
 export async function POST(request: Request) {
   try {
     enforceRateLimit(request, "website-analyze", 60, 60_000);
@@ -50,25 +111,25 @@ export async function POST(request: Request) {
     const reviewCount = Math.max(Number(body.reviewCount) || 0, 0);
     const website = safeWebsite(body.website);
     let html = "";
+    let rawHtml = "";
     let sourceUrl = website?.toString() || "";
     let websiteReachable = false;
 
     if (website) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
+      const timer = setTimeout(() => controller.abort(), 12_000);
       try {
-        const response = await fetch(website, {
-          redirect: "follow",
-          signal: controller.signal,
-          headers: {
-            "User-Agent": "CyncroProspecting/1.0 (+website-analysis)",
-          },
-        });
-        const contentType = response.headers.get("content-type") || "";
-        if (response.ok && contentType.includes("text/html")) {
-          html = (await response.text()).slice(0, 500_000).toLowerCase();
+        const home = await fetchPublicHtml(website, controller.signal);
+        if (home) {
+          const pages = [home];
+          for (const pageUrl of discoverInternalPages(home.html, home.url)) {
+            const page = await fetchPublicHtml(pageUrl, controller.signal);
+            if (page) pages.push(page);
+          }
+          rawHtml = pages.map((page) => page.html).join("\n").slice(0, 1_500_000);
+          html = rawHtml.toLowerCase();
           websiteReachable = true;
-          sourceUrl = response.url || sourceUrl;
+          sourceUrl = home.url.toString();
         }
       } finally {
         clearTimeout(timer);
@@ -76,12 +137,12 @@ export async function POST(request: Request) {
     }
 
     const has = (pattern: RegExp) => pattern.test(html);
-    const emails = [...new Set((html.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [])
+    const emails = [...new Set((rawHtml.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [])
       .filter((email) => !/example\.|sentry\.|wixpress\.|cloudflare\.|domain\.com/.test(email))
       .slice(0, 12))];
-    const extractedPhones = [...new Set((html.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/g) || [])
+    const extractedPhones = [...new Set((rawHtml.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/g) || [])
       .map((phone) => phone.trim()).slice(0, 12))];
-    const socialUrls = [...new Set((html.match(/https?:\/\/(?:www\.)?(?:facebook|instagram|linkedin)\.com\/[^\s"'<>]+/gi) || [])
+    const socialUrls = [...new Set((rawHtml.match(/https?:\/\/(?:www\.)?(?:facebook|instagram|linkedin)\.com\/[^\s"'<>]+/gi) || [])
       .map((url) => url.replace(/&amp;.*/, "").replace(/[),.;]+$/, "")).slice(0, 12))];
     const signals: Signals = {
       websiteExists: Boolean(website && websiteReachable),
@@ -190,7 +251,7 @@ export async function POST(request: Request) {
       nextAction: `Call ${businessName}, confirm the current lead-response process, then offer a 15-minute conversion demo.`,
       emails,
       extractedPhones,
-      leadership: [],
+      leadership: publicLeadership(rawHtml),
       sourceUrls: [sourceUrl, ...socialUrls].filter(Boolean),
       lastExtractedAt: new Date().toISOString(),
     });
