@@ -2,6 +2,7 @@ import { enforceRateLimit, RateLimitError } from "@/lib/prospecting/rate-limit";
 
 type ProspectResult = { googlePlaceId: string | null; businessName: string; category: string; address: string; phone: string | null; website: string | null; rating: number | null; reviewCount: number; source: string };
 type PlacesResult = { id?: string; displayName?: { text?: string }; primaryTypeDisplayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string };
+type SerperPlace = { placeId?: string; cid?: string; title?: string; category?: string; address?: string; phoneNumber?: string; website?: string; rating?: number; ratingCount?: number };
 type NominatimResult = { boundingbox?: string[] };
 type OverpassElement = { id: number; type: string; tags?: Record<string, string> };
 
@@ -43,6 +44,33 @@ async function searchGoogle(apiKey: string, query: string, maximum: number): Pro
     rating: typeof place.rating === "number" ? place.rating : null,
     reviewCount: place.userRatingCount || 0,
     source: "Google Places",
+  }));
+}
+
+async function searchSerper(apiKey: string, query: string, maximum: number): Promise<ProspectResult[]> {
+  const places: SerperPlace[] = [];
+  for (let page = 1; places.length < maximum && page <= 10; page += 1) {
+    const response = await fetch("https://google.serper.dev/places", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-KEY": apiKey },
+      body: JSON.stringify({ q: query, page }),
+    });
+    const data = (await response.json()) as { places?: SerperPlace[]; message?: string };
+    if (!response.ok) throw new Error(data.message || "Live business search failed.");
+    const pageResults = data.places || [];
+    if (!pageResults.length) break;
+    places.push(...pageResults);
+  }
+  return places.slice(0, maximum).map((place) => ({
+    googlePlaceId: place.placeId || (place.cid ? `serper:${place.cid}` : null),
+    businessName: place.title || "Unnamed business",
+    category: place.category || "Business",
+    address: place.address || "Address unavailable",
+    phone: place.phoneNumber || null,
+    website: cleanUrl(place.website),
+    rating: typeof place.rating === "number" ? place.rating : null,
+    reviewCount: Math.max(0, Number(place.ratingCount || 0)),
+    source: "Live business index",
   }));
 }
 
@@ -136,15 +164,20 @@ export async function POST(request: Request) {
     if (!keyword || !city || !state) return Response.json({ error: "Business type, city, and state are required." }, { status: 400 });
     const area = [city, state, zip].filter(Boolean).join(", ");
     const query = `${keyword} in ${area}${radius ? ` within ${radius} miles` : ""}`;
+    const serperKey = process.env.SERPER_API_KEY;
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     let results: ProspectResult[] = [], source = "OpenStreetMap", providerNotice: string | null = null;
-    if (apiKey) {
+    if (serperKey) {
+      try { results = await searchSerper(serperKey, query, maximum); source = "Live business index"; }
+      catch (error) { console.error("prospecting.serper.failed", error); providerNotice = "Primary search was unavailable, so Cyncro continued with its backup index."; }
+    }
+    if (!results.length && apiKey) {
       try { results = await searchGoogle(apiKey, query, maximum); source = "Google Places"; }
       catch (error) { console.error("prospecting.google.failed", error); providerNotice = "Google was unavailable, so Cyncro used its free open-data provider."; }
     }
     if (!results.length) { results = await searchOpenData(keyword, area, maximum); source = "OpenStreetMap"; }
     const unique = [...new Map(results.map((result) => [resultKey(result), result])).values()].slice(0, maximum);
-    return Response.json({ results: unique, query, source, providerNotice, freeMode: !apiKey || source === "OpenStreetMap" });
+    return Response.json({ results: unique, query, source, providerNotice, freeMode: !serperKey && (!apiKey || source === "OpenStreetMap") });
   } catch (error) {
     console.error("prospecting.search.failed", error);
     if (error instanceof RateLimitError) return Response.json({ error: error.message }, { status: error.status });
