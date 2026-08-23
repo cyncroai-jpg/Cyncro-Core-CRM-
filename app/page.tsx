@@ -712,7 +712,7 @@ function FrontExperience({
     "Sales & consulting": {
       promise: "Turn qualified interest into protected, high-value meetings.",
       event: "Executive Strategy Session",
-      route: "Yvette · Best-fit host",
+      route: "Best-fit host",
       value: "$5,000 opportunity",
       signals: ["Qualification", "Host routing", "CRM attribution"],
     },
@@ -1018,7 +1018,7 @@ function FrontExperience({
                 <small>ROUTING</small>
                 <b>Best-fit host assigned</b>
               </span>
-              <em>Yvette</em>
+              <em>Account Owner</em>
             </div>
             <div className="routeLine">
               <i>4</i>
@@ -1392,7 +1392,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
       "August 28, 2026 · 10:00 AM – 12:00 PM · 12 seats",
       "September 4, 2026 · 1:00 PM – 3:00 PM · 12 seats",
     ]),
-    [selectedHosts, setSelectedHosts] = useState(["Yvette Lomeli"]),
+    [selectedHosts, setSelectedHosts] = useState(["Account Owner"]),
     [selectedResources, setSelectedResources] = useState(["Executive Studio"]),
     [questionCount, setQuestionCount] = useState(2),
     [reminder24, setReminder24] = useState(true),
@@ -1951,21 +1951,21 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                 <div className="selectcards">
                   <button
                     className={
-                      selectedHosts.includes("Yvette Lomeli")
+                      selectedHosts.includes("Account Owner")
                         ? "selectedcard"
                         : ""
                     }
                     onClick={() =>
                       toggleChoice(
-                        "Yvette Lomeli",
+                        "Account Owner",
                         selectedHosts,
                         setSelectedHosts,
                       )
                     }
                   >
                     <b>
-                      {selectedHosts.includes("Yvette Lomeli") ? "✓ " : ""}
-                      Yvette Lomeli
+                      {selectedHosts.includes("Account Owner") ? "✓ " : ""}
+                      Account Owner
                     </b>
                     <span>Priority host · 100% weight</span>
                   </button>
@@ -2365,7 +2365,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
             </div>
             <div className="timeline">
               <span>9 AM</span>
-              <i style={{ width: "32%" }}>Strategy · Yvette</i>
+              <i style={{ width: "32%" }}>Strategy · Account Owner</i>
               <span>11 AM</span>
               <i style={{ width: "50%" }}>AI Intensive · Studio</i>
               <span>2 PM</span>
@@ -2672,7 +2672,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
             </div>
             <div className="teamlist">
               {[
-                ["YL", "Yvette Lomeli", "6 bookings", "78% utilized"],
+                ["AO", "Account Owner", "6 bookings", "78% utilized"],
                 ["CS", "Christopher Sydoriak", "4 bookings", "62% utilized"],
                 ["AM", "Amara M.", "2 bookings", "41% utilized"],
               ].map((m, i) => (
@@ -4254,7 +4254,7 @@ const suiteData: Record<
         title: "Calendar + events",
         subtitle: "Consultations and follow-ups",
         rows: [
-          ["Client review call", "Amelia Carter", "Aug 14 · 10 AM", "Yvette"],
+          ["Client review call", "Amelia Carter", "Aug 14 · 10 AM", "Account Owner"],
           ["Affiliate onboarding", "Palm Funding", "Aug 14 · 1 PM", "Dana"],
           ["Team compliance review", "All staff", "Aug 15 · 9 AM", "Owner"],
         ],
@@ -4398,7 +4398,7 @@ const suiteData: Record<
         title: "Team workload",
         subtitle: "Balanced by capacity and skill",
         rows: [
-          ["Yvette Lomeli", "Owner", "Full access", "86 cases"],
+          ["Account Owner", "Owner", "Full access", "86 cases"],
           ["Dana Pierce", "Compliance manager", "Approval + audit", "42 cases"],
           ["Maya Torres", "Dispute specialist", "Assigned clients", "38 cases"],
           ["Andre Cole", "Client success", "Portal + messaging", "52 clients"],
@@ -4577,7 +4577,7 @@ const financeDeals = [
     lender: "Chase Auto",
     risk: "LOW",
     salesperson: "Maya Torres",
-    financeManager: "Yvette Lomeli",
+    financeManager: "Finance Manager",
     frontGross: "$4,120",
     backGross: "$2,720",
     pointsHeld: "2.00 pts",
@@ -4611,7 +4611,7 @@ const financeDeals = [
     lender: "Mercedes-Benz FS",
     risk: "MEDIUM",
     salesperson: "Maya Torres",
-    financeManager: "Yvette Lomeli",
+    financeManager: "Finance Manager",
     frontGross: "$4,505",
     backGross: "$2,685",
     pointsHeld: "2.25 pts",
@@ -5733,7 +5733,7 @@ function FinancePerformance({
             <span>{period.toUpperCase()}</span>
           </header>
           {[
-            ["Yvette Lomeli", "18 deals", "$2,684 PVR", "2.12 pts", "112%"],
+            ["Finance Manager", "18 deals", "$2,684 PVR", "2.12 pts", "112%"],
             ["Dana Pierce", "14 deals", "$2,420 PVR", "1.84 pts", "104%"],
             ["Jason Cole", "11 deals", "$2,186 PVR", "1.61 pts", "96%"],
           ].map((row) => (
@@ -6390,7 +6390,7 @@ const financeWorkspaceData: Record<
       {
         title: "Audit stream",
         rows: [
-          ["Deal P24018", "Menu disclosure signed", "Yvette L.", "10:42 AM"],
+          ["Deal P24018", "Menu disclosure signed", "Finance Manager", "10:42 AM"],
           ["Deal M60117", "Credit consent verified", "System", "10:31 AM"],
           ["Deal A74221", "Rate change approved", "Dana P.", "10:08 AM"],
         ],
@@ -6452,7 +6452,7 @@ const financeWorkspaceData: Record<
       {
         title: "Manager performance",
         rows: [
-          ["Yvette Lomeli", "$2,684 PVR", "74% products", "112% target"],
+          ["Finance Manager", "$2,684 PVR", "74% products", "112% target"],
           ["Dana Pierce", "$2,420 PVR", "68% products", "104% target"],
           ["Jason Cole", "$2,186 PVR", "61% products", "96% target"],
         ],
@@ -8672,7 +8672,7 @@ function DispatchTeam({
           ["MT", "Maya Torres", "Technician", "3 jobs · $5.8K", "Moving"],
           ["DS", "Derek Stone", "Technician", "2 jobs · $2.9K", "Available"],
           ["DP", "Dana Pierce", "Dispatcher", "12 jobs managed", "Online"],
-          ["YL", "Yvette Lomeli", "Owner", "Full command", "Online"],
+          ["AO", "Account Owner", "Owner", "Full command", "Online"],
         ].map((i) => (
           <article className="teamMemberRow" key={i[1]}>
             <span>
@@ -9325,7 +9325,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         <div className="crmUser">
           <span>YL</span>
           <div>
-            <b>Yvette Lomeli</b>
+            <b>Account Owner</b>
             <small>Founder · Admin</small>
           </div>
           <i>•••</i>
@@ -9935,7 +9935,7 @@ function UniversalCRM({
     [creating, setCreating] = useState(false),
     [aiOpen, setAiOpen] = useState(false),
     [notice, setNotice] = useState(""),
-    [crmUserName, setCrmUserName] = useState("Yvette Lomeli"),
+    [crmUserName, setCrmUserName] = useState("Account Owner"),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
     [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
     [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>(
@@ -10199,7 +10199,7 @@ function UniversalCRM({
           <div className="crmPageHead">
             <div>
               <label>CYNCRO CRM</label>
-              <h1>{view === "Overview" ? "Good afternoon, Yvette." : view}</h1>
+              <h1>{view === "Overview" ? "Good afternoon." : view}</h1>
               <p>
                 {view === "Overview"
                   ? "Every customer signal, opportunity, and next move—organized in real time."
@@ -11884,7 +11884,7 @@ function CRMContactDetail({
           ["LIFECYCLE", contact.stage],
           ["OPPORTUNITY", contact.value],
           ["SOURCE", contact.source],
-          ["OWNER", "Yvette Lomeli"],
+          ["OWNER", "Account Owner"],
         ].map((item) => (
           <div key={item[0]}>
             <small>{item[0]}</small>
@@ -12007,7 +12007,7 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
         <div className="messageCanvas">
           <div className="messageDate">TODAY</div>
           <div className="message inbound">
-            Hi Yvette, I reviewed everything with my team.
+            Hi, I reviewed everything with my team.
           </div>
           <div className="message inbound">{threads[thread][1]}</div>
           <div className="message outbound">
@@ -13433,7 +13433,7 @@ function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
     ["Northstar Advisory", "ACCOUNT", "graphAccount", "50%", "12%"],
     ["$18.5K Proposal", "OPPORTUNITY", "graphDeal", "19%", "38%"],
     ["Strategy Session", "BOOKING", "graphBooking", "81%", "38%"],
-    ["Yvette Lomeli", "OWNER", "graphOwner", "27%", "73%"],
+    ["Account Owner", "OWNER", "graphOwner", "27%", "73%"],
     ["Private Link", "SOURCE", "graphSource", "73%", "73%"],
     ["Payment Intent", "SIGNAL", "graphSignal", "50%", "83%"],
   ];
@@ -14072,7 +14072,7 @@ const primeAgents = [
 function CyncroMessagesComingSoon() {
   const agents = [
     { name: "Nova", role: "AI Receptionist", number: "Miami local · reserved", state: "Ready for configuration", color: "N" },
-    { name: "Yvette", role: "Sales Director", number: "Dedicated line · planned", state: "Owner workspace", color: "Y" },
+    { name: "Sales Director", role: "Human Agent", number: "Dedicated line · planned", state: "Owner workspace", color: "D" },
     { name: "Setter AI", role: "Follow-up Agent", number: "Shared campaign pool", state: "Approval required", color: "S" },
     { name: "Support Team", role: "Shared Inbox", number: "Toll-free · planned", state: "Round-robin routing", color: "C" },
   ];
