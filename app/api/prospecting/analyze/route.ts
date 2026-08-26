@@ -60,7 +60,7 @@ async function fetchPublicHtml(start: URL, signal?: AbortSignal) {
 
 function discoverInternalPages(html: string, base: URL) {
   const links = html.match(/href=["'][^"']+["']/gi) || [];
-  const preferred = /(contact|about|team|staff|leadership|company)/i;
+  const preferred = /(contact|about|team|staff|leadership|company|location|support|book|appointment)/i;
   const pages: URL[] = [];
   for (const token of links) {
     const href = token.slice(6, -1).trim();
@@ -71,9 +71,16 @@ function discoverInternalPages(html: string, base: URL) {
       url.hash = "";
       if (!pages.some((item) => item.toString() === url.toString())) pages.push(url);
     } catch { /* Ignore malformed links. */ }
-    if (pages.length >= 3) break;
+    if (pages.length >= 8) break;
   }
   return pages;
+}
+
+function decodePublicText(html: string) {
+  return html
+    .replace(/&#64;|&#x40;|\s*\[at\]\s*|\s*\(at\)\s*/gi, "@")
+    .replace(/&#46;|&#x2e;|\s*\[dot\]\s*|\s*\(dot\)\s*/gi, ".")
+    .replace(/&amp;/gi, "&");
 }
 
 function publicLeadership(html: string) {
@@ -126,7 +133,7 @@ export async function POST(request: Request) {
             const page = await fetchPublicHtml(pageUrl, controller.signal);
             if (page) pages.push(page);
           }
-          rawHtml = pages.map((page) => page.html).join("\n").slice(0, 1_500_000);
+          rawHtml = decodePublicText(pages.map((page) => page.html).join("\n")).slice(0, 2_500_000);
           html = rawHtml.toLowerCase();
           websiteReachable = true;
           sourceUrl = home.url.toString();

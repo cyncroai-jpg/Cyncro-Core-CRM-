@@ -9450,7 +9450,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 >
                   {analyzing
                     ? `ANALYZING ${analysisProgress}/${Math.max(results.length, prospects.length)}…`
-                    : "✦ ANALYZE ALL"}
+                    : "✦ SCRAPE + ANALYZE ALL"}
                 </button>
               )}
               {results.length > 0 && (
@@ -9475,7 +9475,8 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </button>
               )}
               <p>
-                Any legitimate business category · Live public business data
+                Public business websites only · Contacts, decision-makers,
+                conversion signals, scoring, and CRM sync
               </p>
             </div>
             {error && <div className="prospectingAlert error">! {error}</div>}
@@ -9536,7 +9537,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 <span>⚡</span>
                 <div>
                   <b>Your highest-scoring prospects will appear here.</b>
-                  <p>Search businesses, save them, then run Analyze All.</p>
+                  <p>Search businesses, then run Scrape + Analyze All.</p>
                 </div>
               </div>
             )}
@@ -9637,7 +9638,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 onClick={analyzeAll}
                 disabled={analyzing || (!results.length && !prospects.length)}
               >
-                ✦ ANALYZE ALL
+                ✦ SCRAPE + ANALYZE ALL
               </button>
               <button
                 onClick={() => exportProspects(ranked)}
@@ -9734,7 +9735,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                     .catch((analysisError) => setError(analysisError.message))
                 }
               >
-                ✦ ANALYZE PROSPECT
+                ✦ SCRAPE WEBSITE + ANALYZE
               </button>
             )}
             <div className="drawerContact">
