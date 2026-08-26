@@ -415,6 +415,7 @@ function PublicBookingExperience() {
     slug: string;
     description?: string;
     duration_minutes: number;
+    duration_options?: string | null;
     location_modes: string;
     video_platforms: string;
     host_name?: string;
@@ -422,6 +423,7 @@ function PublicBookingExperience() {
   type Slot = { startsAt: string; endsAt: string; remaining: number };
   const [events, setEvents] = useState<EventType[]>([]);
   const [eventId, setEventId] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState(30);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [locationMode, setLocationMode] = useState("VIDEO");
   const [videoPlatform, setVideoPlatform] = useState("GOOGLE_MEET");
@@ -438,6 +440,9 @@ function PublicBookingExperience() {
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const selected = events.find((item) => item.id === eventId);
+  const durationOptions: number[] = selected
+    ? (() => { try { const parsed = JSON.parse(selected.duration_options || "[]") as number[]; return parsed.length ? parsed : [selected.duration_minutes]; } catch { return [selected.duration_minutes]; } })()
+    : [];
   const modes: string[] = selected
     ? JSON.parse(selected.location_modes || "[]")
     : [];
@@ -476,7 +481,7 @@ function PublicBookingExperience() {
       const from = new Date();
       from.setHours(0, 0, 0, 0);
       const response = await fetch(
-        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21`,
+        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&durationMinutes=${selectedDuration}&from=${encodeURIComponent(from.toISOString())}&days=21`,
       );
       const data = (await response.json()) as {
         slots?: Slot[];
@@ -489,9 +494,11 @@ function PublicBookingExperience() {
       setSlots(data.slots || []);
       setStartsAt("");
     })();
-  }, [eventId]);
+  }, [eventId, selectedDuration]);
   useEffect(() => {
     if (!selected) return;
+    const nextDurations = (() => { try { const parsed = JSON.parse(selected.duration_options || "[]") as number[]; return parsed.length ? parsed : [selected.duration_minutes]; } catch { return [selected.duration_minutes]; } })();
+    if (!nextDurations.includes(selectedDuration)) setSelectedDuration(nextDurations[0]);
     const nextModes: string[] = JSON.parse(selected.location_modes || "[]");
     const nextPlatforms: string[] = JSON.parse(
       selected.video_platforms || "[]",
@@ -521,6 +528,7 @@ function PublicBookingExperience() {
         customerEmail: form.email,
         customerPhone: form.phone,
         startsAt,
+        durationMinutes: selectedDuration,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         locationMode,
         videoPlatform: locationMode === "VIDEO" ? videoPlatform : null,
@@ -589,7 +597,7 @@ function PublicBookingExperience() {
             "Select how you want to meet, then choose a live available time."}
         </p>
         <div>
-          <b>{selected?.duration_minutes || 0} minutes</b>
+          <b>{selectedDuration || selected?.duration_minutes || 0} minutes</b>
           <span>Live availability</span>
           <span>Conflict protected</span>
           {selected?.host_name && <span>With {selected.host_name}</span>}
@@ -616,6 +624,16 @@ function PublicBookingExperience() {
           <div className="bookingState">No published event types yet.</div>
         ) : (
           <>
+            <div className="bookingBlock">
+              <small>APPOINTMENT LENGTH</small>
+              <div className="durationChoice">
+                {durationOptions.map((minutes) => (
+                  <button className={selectedDuration === minutes ? "active" : ""} onClick={() => setSelectedDuration(minutes)} key={minutes}>
+                    <b>{minutes < 60 ? `${minutes} min` : minutes % 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes / 60} hr`}</b>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="bookingBlock">
               <small>HOW WOULD YOU LIKE TO MEET?</small>
               <div className="meetingChoice">
@@ -1461,6 +1479,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
       "A high-impact group intensive to build and deploy your AI systems.",
     ),
     [durationMinutes, setDurationMinutes] = useState(120),
+    [durationOptions, setDurationOptions] = useState<number[]>([30, 60, 120]),
     [saveError, setSaveError] = useState("");
   const toggleChoice = (
     value: string,
@@ -1472,8 +1491,12 @@ function Studio({ onPreview }: { onPreview: () => void }) {
         ? current.filter((item) => item !== value)
         : [...current, value],
     );
-  const copyLink = (slug = "ai-systems-intensive") =>
-    navigator.clipboard?.writeText(`https://cyncro.ai/book/demo/${slug}`);
+  const copyLink = (slug = "ai-systems-intensive") => {
+    const url = `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(slug)}#book`;
+    void navigator.clipboard?.writeText(url);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
   const saveEventType = async () => {
     setSaveError("");
     const response = await fetch("/api/calendar/event-types", {
@@ -1484,6 +1507,7 @@ function Studio({ onPreview }: { onPreview: () => void }) {
         slug: eventSlug,
         description: eventDescription,
         durationMinutes,
+        durationOptions,
         capacity,
         bufferBeforeMinutes: 15,
         bufferAfterMinutes: 15,
@@ -1920,6 +1944,20 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                       <option value={30}>30 minutes</option>
                       <option value={60}>60 minutes</option>
                     </select>
+                  </Field>
+                  <Field label="Customer duration options">
+                    <div className="durationOptionEditor">
+                      {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                        <button
+                          type="button"
+                          className={durationOptions.includes(minutes) ? "active" : ""}
+                          onClick={() => setDurationOptions((current) => current.includes(minutes) ? (current.length > 1 ? current.filter((value) => value !== minutes) : current) : [...current, minutes].sort((a,b)=>a-b))}
+                          key={minutes}
+                        >
+                          {minutes} min
+                        </button>
+                      ))}
+                    </div>
                   </Field>
                   <Field label="Slot interval">
                     <select>
@@ -10786,6 +10824,10 @@ function CRMPipeline({
     name: string;
     stage: string;
     value_cents: number;
+    cost_cents?: number;
+    source?: string;
+    contact_email?: string;
+    contact_phone?: string;
     probability: number;
     assigned_rep?: string;
     commission_rate_bps?: number;
@@ -10822,8 +10864,13 @@ function CRMPipeline({
   const [createStage, setCreateStage] = useState<string | null>(null);
   const [newDeal, setNewDeal] = useState({
     company: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    source: "Website",
     name: "",
     value: "",
+    cost: "",
     probability: "25",
     assignedRep: "",
     commissionRate: "20",
@@ -10894,6 +10941,8 @@ function CRMPipeline({
       name: selectedDeal.name,
       stage: selectedDeal.stage,
       value: selectedDeal.value_cents / 100,
+      cost: Number(selectedDeal.cost_cents || 0) / 100,
+      source: selectedDeal.source || "MANUAL",
       probability: selectedDeal.probability,
       pipelineId: selectedPipelineId,
       assignedRep: selectedDeal.assigned_rep || "",
@@ -10951,21 +11000,28 @@ function CRMPipeline({
       onFlash(accountData.error || "Account could not be created");
       return;
     }
+    let primaryContactId: string | null = null;
+    let autoOpportunityId: string | null = null;
+    if (newDeal.contactName.trim()) {
+      const contactResponse = await fetch("/api/crm/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: accountData.account.id, fullName: newDeal.contactName, email: newDeal.email, phone: newDeal.phone, source: newDeal.source, assignedRep: newDeal.assignedRep }),
+      });
+      const contactData = (await contactResponse.json()) as { contact?: { id: string }; opportunityId?: string | null; error?: string };
+      if (!contactResponse.ok || !contactData.contact) { onFlash(contactData.error || "Contact could not be created"); return; }
+      primaryContactId = contactData.contact.id;
+      autoOpportunityId = contactData.opportunityId || null;
+    }
+    const opportunityPayload = {
+      pipelineId: selectedPipelineId, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
+      value: Number(newDeal.value || 0), cost: Number(newDeal.cost || 0), probability: Number(newDeal.probability || 10),
+      assignedRep: newDeal.assignedRep, commissionRate: Number(newDeal.commissionRate || 20), residualFlat: Number(newDeal.residualFlat || 25), source: newDeal.source,
+    };
     const response = await fetch("/api/crm/opportunities", {
-      method: "POST",
+      method: autoOpportunityId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accountId: accountData.account.id,
-        name: newDeal.name || `${newDeal.company} opportunity`,
-        stage: createStage,
-        pipelineId: selectedPipelineId,
-        value: Number(newDeal.value || 0),
-        probability: Number(newDeal.probability || 10),
-        assignedRep: newDeal.assignedRep,
-        commissionRate: Number(newDeal.commissionRate || 20),
-        residualFlat: Number(newDeal.residualFlat || 25),
-        source: "CRM",
-      }),
+      body: JSON.stringify(autoOpportunityId ? { id: autoOpportunityId, updates: opportunityPayload } : { accountId: accountData.account.id, primaryContactId, ...opportunityPayload }),
     });
     const data = (await response.json()) as { error?: string };
     if (!response.ok) {
@@ -10975,8 +11031,13 @@ function CRMPipeline({
     setCreateStage(null);
     setNewDeal({
       company: "",
+      contactName: "",
+      email: "",
+      phone: "",
+      source: "Website",
       name: "",
       value: "",
+      cost: "",
       probability: "25",
       assignedRep: "",
       commissionRate: "20",
@@ -11066,6 +11127,14 @@ function CRMPipeline({
       currency: "USD",
       maximumFractionDigits: 0,
     }).format(cents / 100);
+  const moveDeal = async (deal: Deal, stage: string) => {
+    if (deal.stage === stage) return;
+    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deal.id, updates: { stage, pipelineId: selectedPipelineId } }) });
+    if (!response.ok) { const data = (await response.json()) as { error?: string }; onFlash(data.error || "Lead could not be moved"); return; }
+    setDeals((current) => current.map((item) => item.id === deal.id ? { ...item, stage } : item));
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "moved" } }));
+    onFlash(`${deal.name} moved to ${stage}`);
+  };
   return (
     <>
       <div className="pipelineToolbar">
@@ -11118,6 +11187,8 @@ function CRMPipeline({
           return (
             <section
               key={stage}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData("text/plain"); const deal = deals.find((item) => item.id === id); if (deal) void moveDeal(deal, stage); }}
               style={{ borderTopColor: stageSetting?.color || "#a30e18" }}
             >
               <header>
@@ -11139,6 +11210,8 @@ function CRMPipeline({
                 {columnDeals.map((deal) => (
                   <button
                     className="dealCard"
+                    draggable
+                    onDragStart={(event) => event.dataTransfer.setData("text/plain", deal.id)}
                     onClick={() => setSelectedDeal({ ...deal })}
                     key={deal.id}
                   >
@@ -11147,11 +11220,12 @@ function CRMPipeline({
                       <span>
                         <b>{deal.name}</b>
                         <small>{deal.account_name}</small>
+                        <small>{deal.contact_name || "No contact"}{deal.contact_phone ? ` · ${deal.contact_phone}` : ""}</small>
                       </span>
                     </div>
                     <strong>{money(deal.value_cents)}</strong>
                     <footer>
-                      <span>{deal.probability}% probability</span>
+                      <span>{deal.source || "MANUAL"} · Profit {money(Math.max(0, Number(deal.value_cents || 0) - Number(deal.cost_cents || 0)))}</span>
                       <em>EDIT</em>
                     </footer>
                   </button>
@@ -11358,6 +11432,18 @@ function CRMPipeline({
                 />
               </label>
               <label>
+                Estimated cost
+                <input type="number" min="0" value={Number(selectedDeal.cost_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, cost_cents: Number(event.target.value) * 100 })} />
+              </label>
+              <label>
+                Lead source
+                <input value={selectedDeal.source || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, source: event.target.value })} placeholder="Website, referral, prospecting…" />
+              </label>
+              <label>
+                Estimated profit
+                <input disabled value={money(Math.max(0, Number(selectedDeal.value_cents || 0) - Number(selectedDeal.cost_cents || 0)))} />
+              </label>
+              <label>
                 Probability
                 <input
                   type="number"
@@ -11529,6 +11615,22 @@ function CRMPipeline({
                 />
               </label>
               <label>
+                Contact name
+                <input value={newDeal.contactName} onChange={(event) => setNewDeal({ ...newDeal, contactName: event.target.value })} placeholder="First and last name" />
+              </label>
+              <label>
+                Contact email
+                <input type="email" value={newDeal.email} onChange={(event) => setNewDeal({ ...newDeal, email: event.target.value })} />
+              </label>
+              <label>
+                Contact phone
+                <input value={newDeal.phone} onChange={(event) => setNewDeal({ ...newDeal, phone: event.target.value })} />
+              </label>
+              <label>
+                Lead source
+                <input value={newDeal.source} onChange={(event) => setNewDeal({ ...newDeal, source: event.target.value })} placeholder="Website, referral, prospecting…" />
+              </label>
+              <label>
                 Opportunity name
                 <input
                   value={newDeal.name}
@@ -11546,6 +11648,10 @@ function CRMPipeline({
                     setNewDeal({ ...newDeal, value: event.target.value })
                   }
                 />
+              </label>
+              <label>
+                Estimated cost
+                <input type="number" min="0" value={newDeal.cost} onChange={(event) => setNewDeal({ ...newDeal, cost: event.target.value })} />
               </label>
               <label>
                 Probability %
@@ -15335,8 +15441,8 @@ function Admin({
         </button>
       </div>
       <div className="externalCalendarBar">
-        <div><small>MANAGER CALENDAR SYNC</small><b>{calendarFeed ? "Private live calendar ready" : "Connect your outside calendar"}</b><span>Subscribe once in Google Calendar, Outlook, or Apple Calendar. New, rescheduled, and cancelled Cyncro appointments stay synchronized.</span></div>
-        <button onClick={() => void connectCalendar()}>{calendarFeed ? "Copy private calendar link" : "Connect calendar"}</button>
+        <div><small>GOOGLE · OUTLOOK · APPLE CALENDAR</small><b>{calendarFeed ? "Live calendar connection ready" : "Connect your manager calendar"}</b><span>Subscribe once. Every new, rescheduled, or cancelled Cyncro appointment automatically updates on your outside calendar.</span></div>
+        <button onClick={() => void connectCalendar()}>{calendarFeed ? "Copy Google Calendar link" : "Connect calendar"}</button>
       </div>
       {calendarView !== "LIST" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>

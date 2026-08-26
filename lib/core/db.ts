@@ -81,6 +81,7 @@ export async function ensureCoreSchema() {
       name TEXT NOT NULL,
       stage TEXT NOT NULL DEFAULT 'NEW LEAD',
       value_cents INTEGER NOT NULL DEFAULT 0,
+      cost_cents INTEGER NOT NULL DEFAULT 0,
       probability INTEGER NOT NULL DEFAULT 10,
       assigned_rep TEXT,
       commission_rate_bps INTEGER NOT NULL DEFAULT 0,
@@ -128,6 +129,7 @@ export async function ensureCoreSchema() {
       slug TEXT NOT NULL UNIQUE,
       description TEXT,
       duration_minutes INTEGER NOT NULL,
+      duration_options TEXT,
       buffer_before_minutes INTEGER NOT NULL DEFAULT 0,
       buffer_after_minutes INTEGER NOT NULL DEFAULT 0,
       capacity INTEGER NOT NULL DEFAULT 1,
@@ -185,7 +187,10 @@ export async function ensureCoreSchema() {
     )`),
   ]);
   try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN host_name TEXT").run(); } catch { /* already migrated */ }
+  try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN duration_options TEXT").run(); } catch { /* already migrated */ }
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN residual_flat_cents INTEGER NOT NULL DEFAULT 2500").run(); } catch { /* already migrated */ }
+  try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN cost_cents INTEGER NOT NULL DEFAULT 0").run(); } catch { /* already migrated */ }
+  await db.prepare("UPDATE calendar_event_types SET duration_options=json_array(15,30,45,60) WHERE id='cyncro-default-consultation' AND (duration_options IS NULL OR duration_options='')").run();
   await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=2000 WHERE commission_rate_bps<2000").run();
   await db.prepare("UPDATE crm_opportunities SET commission_rate_bps=3000 WHERE commission_rate_bps>3000").run();
   const now = new Date().toISOString();

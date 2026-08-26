@@ -1,4 +1,32 @@
 @import "tailwindcss";
+.durationChoice,
+.durationOptionEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.durationChoice button,
+.durationOptionEditor button {
+  min-height: 44px;
+  border: 1px solid #4a3439;
+  border-radius: 8px;
+  background: #130f10;
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 13px;
+}
+.durationChoice button.active,
+.durationOptionEditor button.active {
+  border-color: #d13a53;
+  background: #6f1022;
+  box-shadow: 0 0 0 2px #b51f3830;
+}
+.pipelineBoard > section {
+  transition: border-color .2s ease, background .2s ease;
+}
+.dealCard[draggable="true"] { cursor: grab; }
+.dealCard[draggable="true"]:active { cursor: grabbing; opacity: .72; }
 .advanced {
   margin-top: 42px;
   border-top: 1px solid #38262a;

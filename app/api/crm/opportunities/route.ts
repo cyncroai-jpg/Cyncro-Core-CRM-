@@ -6,13 +6,13 @@ export async function GET(request: Request) {
     const url = new URL(request.url); const rep = cleanText(url.searchParams.get("rep"), 160); const pipelineId = cleanText(url.searchParams.get("pipelineId"), 80);
     const db = coreDb();
     const statement = rep
-      ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name FROM crm_opportunities o
+      ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
           WHERE o.assigned_rep = ? ORDER BY o.updated_at DESC`).bind(rep)
-      : pipelineId ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name FROM crm_opportunities o
+      : pipelineId ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
           WHERE o.pipeline_id = ? ORDER BY o.updated_at DESC`).bind(pipelineId)
-      : db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name FROM crm_opportunities o
+      : db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id ORDER BY o.updated_at DESC`);
     const results = (await statement.all()).results as Record<string, unknown>[];
     if (!(await isWorkspaceOwner(request))) for (const row of results) {
@@ -39,10 +39,10 @@ export async function POST(request: Request) {
     const probability = Math.min(100, Math.max(0, Math.round(Number(body.probability || 10))));
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO crm_opportunities
-      (id, account_id, primary_contact_id, pipeline_id, name, stage, value_cents, probability, assigned_rep, commission_rate_bps,
+      (id, account_id, primary_contact_id, pipeline_id, name, stage, value_cents, cost_cents, probability, assigned_rep, commission_rate_bps,
        commission_status, payment_status, collected_cents, residual_rate_bps, residual_months, residual_flat_cents, expected_close_date, source, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, accountId, cleanText(body.primaryContactId, 80) || null, pipelineId, name, stage, valueCents, probability,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, accountId, cleanText(body.primaryContactId, 80) || null, pipelineId, name, stage, valueCents, Math.max(0, Math.round(Number(body.cost || 0) * 100)), probability,
         cleanText(body.assignedRep, 160) || requestUser(request), commissionRateBps, cleanText(body.paymentStatus, 30).toUpperCase() || "UNPAID",
         Math.max(0, Math.round(Number(body.collected || 0) * 100)), 0, 0, residualFlatCents, cleanText(body.expectedCloseDate, 20) || null,
         cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, now, now).run();
@@ -67,6 +67,8 @@ export async function PATCH(request: Request) {
     if (updates.stage !== undefined) { const stage = cleanText(updates.stage, 80).toUpperCase(); if (!stage) return Response.json({ error: "Invalid pipeline stage." }, { status: 400 }); add("stage", stage); }
     if (updates.pipelineId !== undefined) add("pipeline_id", cleanText(updates.pipelineId, 80) || null);
     if (updates.value !== undefined) add("value_cents", Math.max(0, Math.round(Number(updates.value) * 100)));
+    if (updates.cost !== undefined) add("cost_cents", Math.max(0, Math.round(Number(updates.cost) * 100)));
+    if (updates.source !== undefined) add("source", cleanText(updates.source, 80) || "MANUAL");
     if (updates.probability !== undefined) add("probability", Math.min(100, Math.max(0, Math.round(Number(updates.probability)))));
     if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
     if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(3000, Math.max(2000, Math.round(Number(updates.commissionRate) * 100))));

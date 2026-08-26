@@ -41,7 +41,12 @@ export async function POST(request: Request) {
     const db = coreDb();
     const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
-    const ends = new Date(starts.getTime() + Number(eventType.duration_minutes) * 60_000);
+    const requestedDuration = Number(body.durationMinutes || eventType.duration_minutes);
+    const allowedDurations = (() => { try { return JSON.parse(String(eventType.duration_options || "[]")) as number[]; } catch { return []; } })();
+    if (allowedDurations.length && !allowedDurations.includes(requestedDuration))
+      return Response.json({ error: "Choose a valid appointment length." }, { status: 400 });
+    const duration = allowedDurations.length ? requestedDuration : Number(eventType.duration_minutes);
+    const ends = new Date(starts.getTime() + duration * 60_000);
     const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
       WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
       .bind(eventTypeId, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
@@ -100,7 +105,8 @@ export async function PATCH(request: Request) {
     } else if (action === "RESCHEDULE") {
       const starts = new Date(String(body.startsAt || ""));
       if (Number.isNaN(starts.valueOf())) return Response.json({ error: "A valid new start time is required." }, { status: 400 });
-      const ends = new Date(starts.getTime() + Number(booking.duration_minutes) * 60_000);
+      const originalDuration = Math.max(5, Math.round((new Date(String(booking.ends_at)).getTime() - new Date(String(booking.starts_at)).getTime()) / 60_000));
+      const ends = new Date(starts.getTime() + originalDuration * 60_000);
       const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
         WHERE id <> ? AND event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
         .bind(id, booking.event_type_id, ends.toISOString(), starts.toISOString()).first<{ total: number }>();

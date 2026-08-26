@@ -16,7 +16,9 @@ export async function GET(request: Request) {
     const { results: bookings } = await db.prepare(`SELECT starts_at, ends_at FROM calendar_bookings
       WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
       .bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
-    const duration = Number(eventType.duration_minutes);
+    const requestedDuration = Number(url.searchParams.get("durationMinutes") || eventType.duration_minutes);
+    const allowedDurations = (() => { try { return JSON.parse(String(eventType.duration_options || "[]")) as number[]; } catch { return []; } })();
+    const duration = allowedDurations.length && allowedDurations.includes(requestedDuration) ? requestedDuration : Number(eventType.duration_minutes);
     const capacity = Number(eventType.capacity || 1);
     const slots: { startsAt: string; endsAt: string; remaining: number }[] = [];
     for (let offset = 0; offset < days; offset++) {

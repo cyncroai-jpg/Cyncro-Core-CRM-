@@ -19,6 +19,9 @@ export async function POST(request: Request) {
     const name = cleanText(body.name, 160);
     const slug = cleanText(body.slug, 120).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const duration = Number(body.durationMinutes);
+    const durationOptions = Array.isArray(body.durationOptions)
+      ? [...new Set(body.durationOptions.map(Number).filter((value) => Number.isInteger(value) && value >= 5 && value <= 1440))].sort((a,b)=>a-b)
+      : [duration];
     const capacity = Number(body.capacity || 1);
     if (!name || !slug || !Number.isInteger(duration) || duration < 5 || duration > 1440)
       return Response.json({ error: "Name, slug, and a valid duration are required." }, { status: 400 });
@@ -27,9 +30,9 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO calendar_event_types
-      (id, name, slug, description, duration_minutes, buffer_before_minutes, buffer_after_minutes, capacity, location_modes, video_platforms, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, name, slug, cleanText(body.description, 1000) || null, duration,
+      (id, name, slug, description, duration_minutes, duration_options, buffer_before_minutes, buffer_after_minutes, capacity, location_modes, video_platforms, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, name, slug, cleanText(body.description, 1000) || null, duration, JSON.stringify(durationOptions.length ? durationOptions : [duration]),
         Math.max(0, Number(body.bufferBeforeMinutes || 0)), Math.max(0, Number(body.bufferAfterMinutes || 0)), capacity,
         JSON.stringify(Array.isArray(body.locationModes) ? body.locationModes : ["VIDEO"]),
         JSON.stringify(Array.isArray(body.videoPlatforms) ? body.videoPlatforms : ["GOOGLE_MEET", "ZOOM", "FACETIME"]), now, now).run();
@@ -64,6 +67,11 @@ export async function PATCH(request: Request) {
     }
     if (Array.isArray(body.locationModes)) add("location_modes", JSON.stringify(body.locationModes));
     if (Array.isArray(body.videoPlatforms)) add("video_platforms", JSON.stringify(body.videoPlatforms));
+    if (Array.isArray(body.durationOptions)) {
+      const options = [...new Set(body.durationOptions.map(Number).filter((value) => Number.isInteger(value) && value >= 5 && value <= 1440))].sort((a,b)=>a-b);
+      if (!options.length) return Response.json({ error: "Add at least one valid duration option." }, { status: 400 });
+      add("duration_options", JSON.stringify(options));
+    }
     if (body.hostName !== undefined) add("host_name", cleanText(body.hostName, 160) || null);
     if (body.active !== undefined) add("active", body.active ? 1 : 0);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
