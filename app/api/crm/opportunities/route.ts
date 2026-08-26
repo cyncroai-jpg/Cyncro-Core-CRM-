@@ -86,3 +86,19 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Unable to update opportunity." }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    if (!id) return Response.json({ error: "Opportunity id is required." }, { status: 400 });
+    const db = coreDb();
+    const existing = await db.prepare("SELECT id FROM crm_opportunities WHERE id=?").bind(id).first();
+    if (!existing) return Response.json({ error: "Opportunity not found." }, { status: 404 });
+    await db.prepare("DELETE FROM crm_opportunities WHERE id=?").bind(id).run();
+    return Response.json({ deleted: true });
+  } catch (error) {
+    console.error("crm.opportunities.delete_failed", error);
+    return Response.json({ error: "Unable to delete opportunity." }, { status: 500 });
+  }
+}

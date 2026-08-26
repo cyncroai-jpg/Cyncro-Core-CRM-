@@ -8,10 +8,16 @@ export async function GET(request: Request) {
     const query = cleanText(url.searchParams.get("q"), 100);
     const db = coreDb();
     const statement = query
-      ? db.prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
+      ? db.prepare(`SELECT c.*, a.name AS company_name,
+          COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
+          COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
+          FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
           WHERE c.full_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR a.name LIKE ? ORDER BY c.updated_at DESC LIMIT 250`)
           .bind(...Array(4).fill(`%${query}%`))
-      : db.prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
+      : db.prepare(`SELECT c.*, a.name AS company_name,
+          COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
+          COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
+          FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
           ORDER BY c.updated_at DESC LIMIT 250`);
     const { results } = await statement.all();
     return Response.json({ contacts: results });

@@ -9203,6 +9203,16 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     );
   };
 
+  const deleteProspect = async (prospect: Prospect) => {
+    if (!prospect.id || !window.confirm(`Delete ${prospect.businessName} from Prospecting?`)) return;
+    const response = await fetch(`/api/prospecting/prospects?id=${encodeURIComponent(prospect.id)}`, { method: "DELETE" });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) { setError(data.error || "Prospect could not be deleted."); return; }
+    setProspects((current) => current.filter((item) => item.id !== prospect.id));
+    setSelected(null);
+    setMessage(`${prospect.businessName} deleted from Prospecting.`);
+  };
+
   const saveAllToCRM = async () => {
     if (!results.length) return;
     setImporting(true);
@@ -9933,6 +9943,9 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               >
                 SAVE ASSIGNMENT + NOTES
               </button>
+              <button className="prospectDelete" onClick={() => void deleteProspect(selected)}>
+                DELETE PROSPECT
+              </button>
             </div>
           </aside>
         </div>
@@ -10040,8 +10053,8 @@ function UniversalCRM({
           company: String(item.company_name || "No account"),
           email: String(item.email || "No email"),
           phone: String(item.phone || "No phone"),
-          value: "$0",
-          stage: String(item.lifecycle || "Lead"),
+          value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(item.opportunity_value_cents || 0) / 100),
+          stage: String(item.opportunity_stage || item.lifecycle || "Lead"),
           source: String(item.source || "Manual"),
           intent: 50,
           last: "CRM record updated",
@@ -10089,7 +10102,7 @@ function UniversalCRM({
     };
     window.addEventListener("cyncro:data-changed", refresh);
     window.addEventListener("focus", refresh);
-    const timer = window.setInterval(refresh, 15000);
+    const timer = window.setInterval(refresh, 5000);
     return () => {
       window.removeEventListener("cyncro:data-changed", refresh);
       window.removeEventListener("focus", refresh);
@@ -10131,11 +10144,22 @@ function UniversalCRM({
     await Promise.all([loadCRMContacts(), loadCRMOverview()]);
     flash("Contact, account, and pipeline lead created");
   };
+  const completeActivity = async (id: string) => {
+    const response = await fetch("/api/crm/activities", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "COMPLETED" }),
+    });
+    if (!response.ok) { flash("Task could not be completed"); return; }
+    await loadCRMOverview();
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "completed" } }));
+    flash("Task completed everywhere");
+  };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
-    { name: "Pipeline", icon: "◫", count: "$75K" },
-    { name: "Accounts", icon: "▦", count: "386" },
-    { name: "Contacts", icon: "◎", count: "2.4K" },
+    { name: "Pipeline", icon: "◫", count: String(crmSummary.opportunities || 0) },
+    { name: "Accounts", icon: "▦", count: String(crmSummary.accounts || 0) },
+    { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
     { name: "Conversations", icon: "◇", count: "12" },
     { name: "Social Automations", icon: "⚡", count: "8" },
@@ -10258,8 +10282,8 @@ function UniversalCRM({
             </div>
             <div className="crmDate">
               <small>LIVE WORKSPACE</small>
-              <b>August 13, 2026</b>
-              <span>● All systems operational</span>
+              <b>{new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</b>
+              <span>● Data synced across workspace</span>
             </div>
           </div>
 
@@ -10462,8 +10486,8 @@ function UniversalCRM({
                             {String(item.contact_name || "Contact")} · Task
                           </small>
                         </div>
-                        <button onClick={() => flash("Record opened")}>
-                          •••
+                        <button onClick={() => void completeActivity(String(item.id))}>
+                          Complete
                         </button>
                       </div>
                     ))}
@@ -10488,11 +10512,11 @@ function UniversalCRM({
                 <div className="listToolbar">
                   <span>{filteredContacts.length} contacts</span>
                   <div>
-                    <button onClick={() => flash("Filters opened")}>
-                      Filter
+                    <button onClick={() => void Promise.all([loadCRMContacts(), loadCRMOverview()])}>
+                      ↻ Refresh data
                     </button>
-                    <button onClick={() => flash("View changed")}>
-                      Columns
+                    <button className="crmCreate" onClick={() => setCreating(true)}>
+                      ＋ Add contact
                     </button>
                   </div>
                 </div>
@@ -10501,6 +10525,7 @@ function UniversalCRM({
                   <span>STAGE</span>
                   <span>VALUE</span>
                   <span>INTENT</span>
+                  <span>ACTION</span>
                 </div>
                 {filteredContacts.map((item) => {
                   const originalIndex = liveContacts.indexOf(item);
@@ -10525,6 +10550,7 @@ function UniversalCRM({
                       <em>{item.stage}</em>
                       <strong>{item.value}</strong>
                       <span className="intentScore">{item.intent}</span>
+                      <em>OPEN / EDIT</em>
                     </button>
                   );
                 })}
@@ -10538,10 +10564,10 @@ function UniversalCRM({
                 <CRMContactDetail
                   contact={contact}
                   onFlash={flash}
-                  onUpdated={() => void loadCRMContacts()}
+                  onUpdated={() => void Promise.all([loadCRMContacts(), loadCRMOverview()])}
                   onDeleted={() => {
                     setSelected(0);
-                    void loadCRMContacts();
+                    void Promise.all([loadCRMContacts(), loadCRMOverview()]);
                   }}
                   onBook={openCRMCalendar}
                 />
@@ -10899,6 +10925,16 @@ function CRMPipeline({
       }),
     );
     onFlash("Pipeline card updated everywhere");
+  };
+  const deleteDeal = async () => {
+    if (!selectedDeal || !window.confirm(`Delete ${selectedDeal.name}? This permanently removes the pipeline lead.`)) return;
+    const response = await fetch(`/api/crm/opportunities?id=${encodeURIComponent(selectedDeal.id)}`, { method: "DELETE" });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Pipeline lead could not be deleted"); return; }
+    setSelectedDeal(null);
+    await loadDeals();
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "deleted" } }));
+    onFlash("Pipeline lead deleted everywhere");
   };
   const createOpportunity = async () => {
     if (!createStage) return;
@@ -11462,6 +11498,7 @@ function CRMPipeline({
               </label>
             </div>
             <div className="modalactions">
+              <button className="dangerText" onClick={() => void deleteDeal()}>Delete lead</button>
               <button onClick={() => setSelectedDeal(null)}>Cancel</button>
               <button onClick={() => void saveDeal()}>Save changes</button>
             </div>
