@@ -1061,6 +1061,27 @@ function FrontExperience({
       clickfunnels: "Marketing messaging",
     },
   ];
+  const cyncroLayers = [
+    ["ACQUIRE", "Prospecting AI", "Public-business search, website scraping, scoring, ranking + ownership"],
+    ["CONVERT", "CRM + Calendar", "Contacts, pipelines, booking links, routing, reminders + Framer capture"],
+    ["COMMUNICATE", "Social + Messages", "Social automations, shared inboxes, agent numbers + compliant routing"],
+    ["TRANSACT", "Revenue Operations", "Proposals, contracts, signatures, invoices, payments + commissions"],
+    ["OPERATE", "Dispatch", "Work orders, field teams, routes, photos, labor, fulfillment + profitability"],
+    ["SPECIALIZE", "Industry Systems", "Automotive Finance, Dispute operations + Apex Funds lending infrastructure"],
+    ["UNDERSTAND", "Intelligence", "Attribution, forecasts, agent performance, exceptions + next-best actions"],
+    ["CONTROL", "Team + Governance", "Workspaces, roles, permissions, approvals, audit history + owner controls"],
+  ];
+  const agentWorkforce = [
+    ["N", "Nova", "Appointment Conversion", "Answers, qualifies, routes and books", "BOOKINGS"],
+    ["P", "Prospector", "Market Intelligence", "Finds, scrapes, scores and ranks", "PIPELINE"],
+    ["R", "Revenue", "Deal Intelligence", "Forecasts and recommends next moves", "REVENUE"],
+    ["F", "Follow-Up", "Lifecycle Nurture", "Personalizes sequences and handoffs", "REPLIES"],
+    ["C", "Calendar", "Capacity + Routing", "Protects availability and reduces no-shows", "ATTENDANCE"],
+    ["D", "Deal Desk", "Documents + Payment", "Prepares contracts, invoices and follow-up", "CASH FLOW"],
+    ["O", "Operations", "Fulfillment Control", "Coordinates dispatch, jobs and exceptions", "DELIVERY"],
+    ["A", "Apex", "Lending Intelligence", "Compares lenders and recovery paths", "FUNDING"],
+    ["M", "Manager", "Workforce Oversight", "Tracks workload, payouts and performance", "ACCOUNTABILITY"],
+  ];
   return (
     <div className="frontExperience">
       <section className="frontHero">
@@ -1316,21 +1337,85 @@ function FrontExperience({
         </div>
       </section>
 
+      <section className="cyncroDepth" aria-labelledby="depth-title">
+        <div className="depthLead">
+          <label>THIS IS THE REAL CYNCRO</label>
+          <h2 id="depth-title">One platform.<br /><span>Eight operating layers.</span></h2>
+          <p>
+            Cyncro does not stop when a lead converts. It connects acquisition,
+            sales, communication, transactions, fulfillment, industry
+            operations, intelligence, and governance around one customer truth.
+          </p>
+        </div>
+        <div className="depthGrid">
+          {cyncroLayers.map((layer, index) => (
+            <article key={layer[0]}>
+              <div className="depthNumber">0{index + 1}</div>
+              <small>{layer[0]}</small>
+              <h3>{layer[1]}</h3>
+              <p>{layer[2]}</p>
+              <span>CONNECTED TO CORE <i>◆</i></span>
+            </article>
+          ))}
+        </div>
+        <div className="depthCoreRail">
+          <span>ONE CUSTOMER RECORD</span><i>◆</i>
+          <span>ONE TEAM</span><i>◆</i>
+          <span>ONE REVENUE TRUTH</span><i>◆</i>
+          <span>ONE INTELLIGENCE LAYER</span>
+        </div>
+      </section>
+
+      <section className="agentWorkforce" aria-labelledby="agents-title">
+        <div className="agentWorkforceHead">
+          <div>
+            <label>CYNCRO AGENT WORKFORCE</label>
+            <h2 id="agents-title">Not chatbots.<br /><span>Digital operators.</span></h2>
+          </div>
+          <div className="agentDifference">
+            <small>WHY THEY STAND OUT</small>
+            <p>Every agent has a defined job, governed access, a human escalation path, and a measurable business outcome.</p>
+            <div><span>PERMISSIONS</span><span>APPROVALS</span><span>AUDIT TRAIL</span><span>ROI</span></div>
+          </div>
+        </div>
+        <div className="agentWorkforceGrid">
+          {agentWorkforce.map((agent, index) => (
+            <article key={agent[1]}>
+              <div className="agentIdentity">
+                <i>{agent[0]}</i>
+                <span><small>AGENT 0{index + 1}</small><b>{agent[1]}</b></span>
+                <em>● ACTIVE</em>
+              </div>
+              <h3>{agent[2]}</h3>
+              <p>{agent[3]}</p>
+              <footer><small>MEASURED BY</small><strong>{agent[4]}</strong></footer>
+            </article>
+          ))}
+        </div>
+        <div className="agentOrchestration">
+          <div><small>SHARED CONTEXT</small><b>Every agent sees the same governed customer history.</b></div>
+          <span>→</span>
+          <div><small>COORDINATED ACTION</small><b>Agents work across modules instead of isolated automations.</b></div>
+          <span>→</span>
+          <div><small>HUMAN CONTROL</small><b>Your team approves, intervenes, and owns the outcome.</b></div>
+        </div>
+      </section>
+
       <section className="platformComparison" aria-labelledby="comparison-title">
         <div className="comparisonIntro">
           <div>
-            <label>THE CATEGORY IS DIFFERENT</label>
+            <label>NOW COMPARE THE FULL SYSTEM</label>
             <h2 id="comparison-title">
-              Funnels bring people in.
+              Others optimize the funnel.
               <br />
-              <span>Cyncro runs what happens next.</span>
+              <span>Cyncro operates the company.</span>
             </h2>
           </div>
           <p>
-            ClickFunnels is built around conversion funnels. HighLevel is built
-            around agency sales and marketing. Cyncro is being engineered as a
-            connected operating system for the customer, the team, the work,
-            and the money.
+            ClickFunnels is strongest around conversion funnels. HighLevel
+            centers agency sales and marketing. Cyncro reaches across the full
+            lifecycle—from finding the opportunity through delivering the work,
+            managing the money, and improving the next decision.
           </p>
         </div>
 

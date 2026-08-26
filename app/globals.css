@@ -8990,6 +8990,166 @@ label {
 }
 
 /* Platform comparison — Overview */
+.cyncroDepth,
+.agentWorkforce {
+  padding: 110px clamp(22px, 6vw, 96px);
+  background: #080707;
+}
+.depthLead,
+.agentWorkforceHead {
+  max-width: 1440px;
+  margin: 0 auto 44px;
+}
+.depthLead {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 70px;
+}
+.depthLead label,
+.agentWorkforceHead label {
+  grid-column: 1 / -1;
+  color: #e44761;
+  font-size: 9px;
+  letter-spacing: .2em;
+}
+.depthLead h2,
+.agentWorkforceHead h2 {
+  margin: 17px 0 0;
+  color: #f5f0f1;
+  font-size: clamp(42px, 5.2vw, 76px);
+  font-weight: 400 !important;
+  line-height: .96;
+  letter-spacing: -.055em;
+}
+.depthLead h2 span,
+.agentWorkforceHead h2 span { color: #cc2c49; }
+.depthLead > p {
+  align-self: end;
+  max-width: 620px;
+  margin: 0 0 4px;
+  color: #b6a9ac;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.depthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 1440px;
+  margin: auto;
+  border-top: 1px solid #3b272c;
+  border-left: 1px solid #3b272c;
+}
+.depthGrid article {
+  position: relative;
+  min-height: 260px;
+  border-right: 1px solid #3b272c;
+  border-bottom: 1px solid #3b272c;
+  background: linear-gradient(145deg, #120e0f, #0a0909);
+  padding: 28px;
+}
+.depthGrid article:hover { background: linear-gradient(145deg, #271017, #0b090a); }
+.depthNumber {
+  position: absolute;
+  right: 22px;
+  top: 20px;
+  color: #4a373b;
+  font-size: 28px;
+  font-weight: 300;
+}
+.depthGrid small { color: #d33a55; font-size: 8px; letter-spacing: .16em; }
+.depthGrid h3 { margin: 38px 0 14px; color: #fff; font-size: 20px; font-weight: 500 !important; }
+.depthGrid p { min-height: 64px; color: #9e9194; font-size: 10px; line-height: 1.65; }
+.depthGrid article > span { display: block; margin-top: 24px; color: #665a5d; font-size: 7px; letter-spacing: .12em; }
+.depthGrid article > span i { float: right; color: #bd2943; font-style: normal; }
+.depthCoreRail {
+  display: flex;
+  max-width: 1440px;
+  margin: 18px auto 0;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  border: 1px solid #5d2632;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2a0f16, #130c0e, #2a0f16);
+  padding: 15px 24px;
+  color: #d9cdd0;
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+.depthCoreRail i { color: #ca2c48; font-style: normal; }
+.agentWorkforce {
+  border-top: 1px solid #2e2023;
+  background:
+    radial-gradient(circle at 10% 20%, #a41d3821, transparent 28%),
+    #0b090a;
+}
+.agentWorkforceHead {
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: 60px;
+  align-items: end;
+}
+.agentDifference {
+  border-left: 2px solid #b72943;
+  padding-left: 24px;
+}
+.agentDifference small { color: #df3e59; font-size: 8px; letter-spacing: .15em; }
+.agentDifference p { color: #c2b6b9; font-size: 12px; line-height: 1.7; }
+.agentDifference div { display: flex; flex-wrap: wrap; gap: 7px; }
+.agentDifference div span { border: 1px solid #4b3036; border-radius: 99px; padding: 6px 9px; color: #9f9094; font-size: 7px; }
+.agentWorkforceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 1440px;
+  margin: auto;
+}
+.agentWorkforceGrid article {
+  min-height: 225px;
+  border: 1px solid #38282c;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #131011, #0b0a0a);
+  padding: 22px;
+  box-shadow: inset 0 1px #ffffff07;
+}
+.agentIdentity { display: flex; align-items: center; gap: 11px; }
+.agentIdentity > i {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #7a2938;
+  border-radius: 9px;
+  background: #3b1119;
+  color: #fff;
+  font-style: normal;
+  font-weight: 700;
+}
+.agentIdentity span { display: grid; gap: 4px; }
+.agentIdentity small { color: #716568; font-size: 7px; letter-spacing: .1em; }
+.agentIdentity b { color: #fff; font-size: 13px; }
+.agentIdentity em { margin-left: auto; color: #68bd8b; font-size: 7px; font-style: normal; }
+.agentWorkforceGrid h3 { margin: 28px 0 9px; color: #e4dade; font-size: 12px; font-weight: 500 !important; }
+.agentWorkforceGrid > article > p { color: #95888c; font-size: 9px; line-height: 1.55; }
+.agentWorkforceGrid footer { display: flex; margin-top: 24px; border-top: 1px solid #2b2224; padding-top: 14px; justify-content: space-between; align-items: center; }
+.agentWorkforceGrid footer small { color: #6f6266; font-size: 7px; }
+.agentWorkforceGrid footer strong { color: #dc3b57; font-size: 8px; letter-spacing: .12em; }
+.agentOrchestration {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 22px;
+  max-width: 1440px;
+  margin: 18px auto 0;
+  align-items: center;
+  border: 1px solid #432a30;
+  border-radius: 12px;
+  padding: 23px;
+  background: #100d0e;
+}
+.agentOrchestration small,.agentOrchestration b { display: block; }
+.agentOrchestration small { margin-bottom: 8px; color: #c9344f; font-size: 7px; letter-spacing: .12em; }
+.agentOrchestration b { color: #b7aaad; font-size: 9px; font-weight: 500; line-height: 1.5; }
+.agentOrchestration > span { color: #7f2636; }
 .platformComparison {
   position: relative;
   overflow: hidden;
@@ -9153,6 +9313,20 @@ label {
 }
 
 @media (max-width: 760px) {
+  .cyncroDepth,.agentWorkforce { padding: 72px 16px; }
+  .depthLead,.agentWorkforceHead { grid-template-columns: 1fr; gap: 20px; }
+  .depthLead h2,.agentWorkforceHead h2 { font-size: clamp(38px, 12vw, 52px); }
+  .depthLead > p { font-size: 11px; }
+  .depthGrid { grid-template-columns: 1fr; }
+  .depthGrid article { min-height: 210px; padding: 23px; }
+  .depthGrid h3 { margin-top: 30px; }
+  .depthGrid p { min-height: 0; }
+  .depthCoreRail { overflow-x: auto; justify-content: flex-start; border-radius: 12px; white-space: nowrap; }
+  .agentDifference { margin-top: 8px; }
+  .agentWorkforceGrid { grid-template-columns: 1fr; }
+  .agentWorkforceGrid article { min-height: 205px; }
+  .agentOrchestration { grid-template-columns: 1fr; }
+  .agentOrchestration > span { transform: rotate(90deg); justify-self: center; }
   .platformComparison {
     padding: 72px 16px;
   }
