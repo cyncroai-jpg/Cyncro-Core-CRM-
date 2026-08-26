@@ -191,6 +191,16 @@ export async function ensureCoreSchema() {
       reach_count INTEGER NOT NULL DEFAULT 0, lead_count INTEGER NOT NULL DEFAULT 0,
       created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_invoices (
+      id TEXT PRIMARY KEY, invoice_number TEXT NOT NULL UNIQUE, client_name TEXT NOT NULL, client_email TEXT NOT NULL,
+      description TEXT NOT NULL, amount_cents INTEGER NOT NULL, due_date TEXT, status TEXT NOT NULL DEFAULT 'DRAFT',
+      stripe_url TEXT, paid_at TEXT, created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_contracts (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, client_name TEXT NOT NULL, client_email TEXT NOT NULL,
+      body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DRAFT', signing_token TEXT NOT NULL UNIQUE,
+      signer_name TEXT, signer_ip TEXT, signed_at TEXT, created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
   ]);
   try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN host_name TEXT").run(); } catch { /* already migrated */ }
   try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN duration_options TEXT").run(); } catch { /* already migrated */ }

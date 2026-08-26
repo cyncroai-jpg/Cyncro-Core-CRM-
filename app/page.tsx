@@ -21,6 +21,7 @@ type Tab =
   | "dispute"
   | "finance"
   | "apex"
+  | "sign"
   | "prime";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
@@ -71,6 +72,7 @@ export default function Home() {
       "dispute",
       "finance",
       "apex",
+      "sign",
       "prime",
     ];
     const syncRoute = () => {
@@ -171,6 +173,8 @@ export default function Home() {
         <CyncroFinance />
       ) : tab === "apex" ? (
         <ApexFunds />
+      ) : tab === "sign" ? (
+        <ContractSigning />
       ) : tab === "prime" ? (
         <CyncroPrime />
       ) : tab === "admin" ? (
@@ -407,6 +411,8 @@ function ApexFunds() {
     </section>
   );
 }
+
+function ContractSigning(){type Contract={title:string;client_name:string;body:string;status:string;signer_name?:string;signed_at?:string};const [contract,setContract]=useState<Contract|null>(null),[name,setName]=useState(""),[accepted,setAccepted]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);const token=typeof window!=="undefined"?new URLSearchParams(window.location.search).get("contract")||"":"";useEffect(()=>{if(!token){setError("Signature link is missing.");return}void fetch(`/api/crm/contracts?token=${encodeURIComponent(token)}`).then(async r=>{const d=await r.json() as {contract?:Contract;error?:string};if(!r.ok){setError(d.error||"Contract unavailable");return}setContract(d.contract||null)})},[token]);const sign=async()=>{if(!accepted||!name.trim()){setError("Type your legal name and accept the agreement.");return}const r=await fetch("/api/crm/contracts",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,signerName:name})}),d=await r.json() as {error?:string};if(!r.ok){setError(d.error||"Signature could not be recorded");return}setDone(true)};return <section className="contractSigning"><main>{done?<div className="signatureSuccess"><i>✓</i><small>AGREEMENT SIGNED</small><h1>Signature recorded.</h1><p>A dated audit record has been saved securely.</p></div>:<><header><small>CYNCRO SECURE AGREEMENT</small><h1>{contract?.title||"Loading agreement…"}</h1><p>Prepared for {contract?.client_name||"client"}</p></header>{error&&<div className="bookingError">{error}</div>}{contract&&<><article>{contract.body}</article>{contract.status==="SIGNED"?<div className="signatureSuccess"><b>Already signed by {contract.signer_name}</b><span>{contract.signed_at&&new Date(contract.signed_at).toLocaleString()}</span></div>:<div className="signatureBox"><label>Legal signature<input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name"/></label><label className="signatureConsent"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I have read and agree to this contract. My typed name is my electronic signature.</label><button onClick={()=>void sign()}>Sign agreement</button></div>}</>}</>}</main></section>}
 
 function PublicBookingExperience() {
   type EventType = {
@@ -10006,6 +10012,9 @@ type CRMView =
   | "Agent Team"
   | "Team Access"
   | "Integrations"
+  | "Compensation"
+  | "Invoices"
+  | "Contracts"
   | "Intelligence";
 
 type CRMContactCard = {
@@ -10207,6 +10216,9 @@ function UniversalCRM({
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧", count: "5" },
     { name: "Team Access", icon: "♙" },
+    { name: "Compensation", icon: "%" },
+    { name: "Invoices", icon: "$" },
+    { name: "Contracts", icon: "✎" },
     { name: "Integrations", icon: "↔" },
     { name: "Intelligence", icon: "✦" },
   ];
@@ -10641,6 +10653,9 @@ function UniversalCRM({
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} />}
+          {view === "Compensation" && <CRMCompensation onFlash={flash} isOwner={isOwner} />}
+          {view === "Invoices" && <CRMInvoices onFlash={flash} />}
+          {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
@@ -13839,6 +13854,21 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+function CRMCompensation({onFlash,isOwner}:{onFlash:(message:string)=>void;isOwner:boolean}){
+  type Deal={id:string;name:string;account_name:string;assigned_rep?:string;value_cents:number;collected_cents?:number;payment_status?:string;source?:string;notes?:string};
+  const [deals,setDeals]=useState<Deal[]>([]);const [service,setService]=useState<Record<string,string>>({});
+  useEffect(()=>{if(isOwner)void fetch("/api/crm/opportunities").then(async r=>{const d=await r.json() as {opportunities?:Deal[]};setDeals(d.opportunities||[])})},[isOwner]);
+  const rate=(deal:Deal)=>{const kind=service[deal.id]||"AUTOMATION";if(kind==="WEBSITE"||kind==="LANDING_PAGE")return 50;const value=deal.value_cents/100;return value>=10000?30:value>=5000?25:20};
+  const payout=(deal:Deal)=>Math.round((Number(deal.collected_cents||deal.value_cents)*rate(deal))/100);
+  const exportCsv=()=>{const rows=[["Employee","Deal","Service","Deal Value","Collected","Rate","Payout"],...deals.map(d=>[d.assigned_rep||"Unassigned",d.name,service[d.id]||"AUTOMATION",(d.value_cents/100).toFixed(2),(Number(d.collected_cents||0)/100).toFixed(2),`${rate(d)}%`,(payout(d)/100).toFixed(2)])];const blob=new Blob([rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`cyncro-payouts-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);onFlash("Payout report downloaded")};
+  if(!isOwner)return <section className="crmPanel restrictedPanel"><h2>Owner-only compensation</h2><p>Employee commissions and payouts are private.</p></section>;
+  return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>OWNER COMPENSATION DESK</small><h2>Calculate every payout with one rule set.</h2><p>Automations scale from 20–30% by deal size. Websites and landing pages pay 50% for the first month only.</p></div><button onClick={exportCsv}>↓ Download payout data</button></section><section className="crmPanel payoutRules"><div><b>20%</b><span>Under $5,000</span></div><div><b>25%</b><span>$5,000–$9,999</span></div><div><b>30%</b><span>$10,000+</span></div><div><b>50%</b><span>Website/landing page · month one</span></div></section><section className="crmPanel payoutLedger"><header><span>DEAL / EMPLOYEE</span><span>SERVICE</span><span>COLLECTED</span><span>RATE</span><span>PAYOUT</span></header>{deals.map(d=><div key={d.id}><span><b>{d.name}</b><small>{d.assigned_rep||"Unassigned"} · {d.account_name}</small></span><select value={service[d.id]||"AUTOMATION"} onChange={e=>setService({...service,[d.id]:e.target.value})}><option value="AUTOMATION">Automation / recurring</option><option value="WEBSITE">Website · first month</option><option value="LANDING_PAGE">Landing page · first month</option></select><strong>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(d.collected_cents||0)/100)}</strong><em>{rate(d)}%</em><b>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(payout(d)/100)}</b></div>)}</section></div>;
+}
+
+function CRMInvoices({onFlash}:{onFlash:(message:string)=>void}){type Invoice={id:string;invoice_number:string;client_name:string;client_email:string;description:string;amount_cents:number;due_date?:string;status:string;stripe_url?:string};const [rows,setRows]=useState<Invoice[]>([]),[form,setForm]=useState({clientName:"",clientEmail:"",description:"",amount:"",dueDate:""});const load=async()=>{const r=await fetch("/api/crm/invoices",{cache:"no-store"}),d=await r.json() as {invoices?:Invoice[];error?:string};if(!r.ok){onFlash(d.error||"Invoices could not load");return}setRows(d.invoices||[])};useEffect(()=>{void load()},[]);const create=async()=>{const r=await fetch("/api/crm/invoices",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}),d=await r.json() as {error?:string};if(!r.ok){onFlash(d.error||"Invoice could not be created");return}setForm({clientName:"",clientEmail:"",description:"",amount:"",dueDate:""});await load();onFlash("Invoice draft created")};const action=async(id:string,value:string)=>{const r=await fetch("/api/crm/invoices",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,action:value})}),d=await r.json() as {error?:string;url?:string};if(!r.ok){onFlash(d.error||"Invoice action failed");return}if(d.url)window.open(d.url,"_blank");await load();onFlash(value==="SEND"?"Stripe payment link created":"Invoice updated")};return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>INVOICE COMMAND</small><h2>Create, send, and track invoices.</h2><p>Drafts save now. Connect Stripe to generate secure payment links.</p></div></section><section className="crmPanel financeForm"><input placeholder="Client name" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/><input type="email" placeholder="Client email" value={form.clientEmail} onChange={e=>setForm({...form,clientEmail:e.target.value})}/><input placeholder="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/><input type="date" value={form.dueDate} onChange={e=>setForm({...form,dueDate:e.target.value})}/><button onClick={()=>void create()}>＋ Create invoice</button></section><section className="crmPanel invoiceLedger">{rows.map(row=><article key={row.id}><span><b>{row.invoice_number}</b><small>{row.client_name} · {row.client_email}</small></span><p>{row.description}</p><strong>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(row.amount_cents/100)}</strong><em>{row.status}</em><div>{row.stripe_url&&<a href={row.stripe_url} target="_blank">Payment link</a>}<button onClick={()=>void action(row.id,"SEND")}>Send</button><button onClick={()=>void action(row.id,"PAID")}>Mark paid</button><button onClick={()=>void action(row.id,"VOID")}>Void</button></div></article>)}</section></div>}
+
+function CRMContracts({onFlash}:{onFlash:(message:string)=>void}){type Contract={id:string;title:string;client_name:string;client_email:string;body:string;status:string;signing_token:string;signer_name?:string;signed_at?:string};const template="SERVICE AGREEMENT\n\nThis agreement is between Cyncro Media and the client named above. Services, deliverables, payment schedule, ownership, confidentiality, cancellation, and acceptance terms may be edited below before sending.";const [rows,setRows]=useState<Contract[]>([]),[form,setForm]=useState({title:"Service Agreement",clientName:"",clientEmail:"",body:template});const load=async()=>{const r=await fetch("/api/crm/contracts",{cache:"no-store"}),d=await r.json() as {contracts?:Contract[];error?:string};if(!r.ok){onFlash(d.error||"Contracts could not load");return}setRows(d.contracts||[])};useEffect(()=>{void load()},[]);const create=async()=>{const r=await fetch("/api/crm/contracts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}),d=await r.json() as {error?:string};if(!r.ok){onFlash(d.error||"Contract could not be created");return}await load();onFlash("Editable contract created")};const copyLink=async(row:Contract)=>{const url=`${window.location.origin}${window.location.pathname}?contract=${encodeURIComponent(row.signing_token)}#sign`;await navigator.clipboard.writeText(url);await fetch("/api/crm/contracts",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:row.id,status:"SENT"})});await load();onFlash("Secure signature link copied")};return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>CONTRACT STUDIO</small><h2>Edit, send, and capture signatures.</h2><p>Every signature records the signer name, date, and audit IP.</p></div></section><section className="crmPanel contractEditor"><div><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/><input placeholder="Client name" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/><input type="email" placeholder="Client email" value={form.clientEmail} onChange={e=>setForm({...form,clientEmail:e.target.value})}/></div><textarea value={form.body} onChange={e=>setForm({...form,body:e.target.value})}/><button onClick={()=>void create()}>Save contract draft</button></section><section className="crmPanel contractLedger">{rows.map(row=><article key={row.id}><span><b>{row.title}</b><small>{row.client_name} · {row.client_email}</small></span><em>{row.status}</em>{row.signer_name?<strong>Signed by {row.signer_name}</strong>:<button onClick={()=>void copyLink(row)}>Copy signature link</button>}</article>)}</section></div>}
+
 function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
   type Status = { connections: Record<string, boolean>; eventTypes: { id:string; name:string; duration_minutes:number; bookingUrl:string }[]; framerWebhookUrl:string };
   const [status,setStatus]=useState<Status|null>(null);
@@ -13851,6 +13881,7 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
     ["resend","Transactional email","Booking confirmations and CRM email","RESEND_API_KEY · EMAIL_FROM"],
     ["googleCalendar","Google Calendar","Two-way calendar authorization","GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET"],
     ["framer","Framer landing pages","Send every form lead into Cyncro","FRAMER_WEBHOOK_SECRET"],
+    ["stripe","Stripe payments","Invoice payment links and payment status","STRIPE_SECRET_KEY · STRIPE_WEBHOOK_SECRET"],
   ];
   return <div className="integrationsWorkspace">
     <section className="integrationHero crmPanel"><div><small>CONNECTION CENTER</small><h2>Connect once. Run everything from Cyncro.</h2><p>Your CRM, calendars, landing pages, email, SMS, and social channels share the same contacts, ownership, permissions, and analytics.</p></div><span>{Object.values(status?.connections||{}).filter(Boolean).length} / {connections.length}<small>CONNECTED</small></span></section>
