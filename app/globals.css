@@ -9311,6 +9311,19 @@ label {
   font-size: 8px;
   line-height: 1.6;
 }
+.fixedDurationBlock > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 9px;
+  border: 1px solid #4c2a32;
+  border-radius: 9px;
+  background: #1a1013;
+  padding: 14px 16px;
+}
+.fixedDurationBlock b { color: #fff; font-size: 12px; }
+.fixedDurationBlock span { color: #9a8d90; font-size: 8px; }
 
 @media (max-width: 760px) {
   .cyncroDepth,.agentWorkforce { padding: 72px 16px; }

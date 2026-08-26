@@ -421,7 +421,6 @@ function PublicBookingExperience() {
     slug: string;
     description?: string;
     duration_minutes: number;
-    duration_options?: string | null;
     location_modes: string;
     video_platforms: string;
     host_name?: string;
@@ -429,7 +428,6 @@ function PublicBookingExperience() {
   type Slot = { startsAt: string; endsAt: string; remaining: number };
   const [events, setEvents] = useState<EventType[]>([]);
   const [eventId, setEventId] = useState("");
-  const [selectedDuration, setSelectedDuration] = useState(30);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [locationMode, setLocationMode] = useState("VIDEO");
   const [videoPlatform, setVideoPlatform] = useState("GOOGLE_MEET");
@@ -446,9 +444,7 @@ function PublicBookingExperience() {
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const selected = events.find((item) => item.id === eventId);
-  const durationOptions: number[] = selected
-    ? (() => { try { const parsed = JSON.parse(selected.duration_options || "[]") as number[]; return parsed.length ? parsed : [selected.duration_minutes]; } catch { return [selected.duration_minutes]; } })()
-    : [];
+  const selectedDuration = selected?.duration_minutes || 0;
   const modes: string[] = selected
     ? JSON.parse(selected.location_modes || "[]")
     : [];
@@ -487,7 +483,7 @@ function PublicBookingExperience() {
       const from = new Date();
       from.setHours(0, 0, 0, 0);
       const response = await fetch(
-        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&durationMinutes=${selectedDuration}&from=${encodeURIComponent(from.toISOString())}&days=21`,
+        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21`,
       );
       const data = (await response.json()) as {
         slots?: Slot[];
@@ -500,11 +496,9 @@ function PublicBookingExperience() {
       setSlots(data.slots || []);
       setStartsAt("");
     })();
-  }, [eventId, selectedDuration]);
+  }, [eventId]);
   useEffect(() => {
     if (!selected) return;
-    const nextDurations = (() => { try { const parsed = JSON.parse(selected.duration_options || "[]") as number[]; return parsed.length ? parsed : [selected.duration_minutes]; } catch { return [selected.duration_minutes]; } })();
-    if (!nextDurations.includes(selectedDuration)) setSelectedDuration(nextDurations[0]);
     const nextModes: string[] = JSON.parse(selected.location_modes || "[]");
     const nextPlatforms: string[] = JSON.parse(
       selected.video_platforms || "[]",
@@ -534,7 +528,6 @@ function PublicBookingExperience() {
         customerEmail: form.email,
         customerPhone: form.phone,
         startsAt,
-        durationMinutes: selectedDuration,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         locationMode,
         videoPlatform: locationMode === "VIDEO" ? videoPlatform : null,
@@ -603,7 +596,7 @@ function PublicBookingExperience() {
             "Select how you want to meet, then choose a live available time."}
         </p>
         <div>
-          <b>{selectedDuration || selected?.duration_minutes || 0} minutes</b>
+          <b>{selected?.duration_minutes || 0} minutes</b>
           <span>Live availability</span>
           <span>Conflict protected</span>
           {selected?.host_name && <span>With {selected.host_name}</span>}
@@ -630,14 +623,11 @@ function PublicBookingExperience() {
           <div className="bookingState">No published event types yet.</div>
         ) : (
           <>
-            <div className="bookingBlock">
+            <div className="bookingBlock fixedDurationBlock">
               <small>APPOINTMENT LENGTH</small>
-              <div className="durationChoice">
-                {durationOptions.map((minutes) => (
-                  <button className={selectedDuration === minutes ? "active" : ""} onClick={() => setSelectedDuration(minutes)} key={minutes}>
-                    <b>{minutes < 60 ? `${minutes} min` : minutes % 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes / 60} hr`}</b>
-                  </button>
-                ))}
+              <div>
+                <b>{selectedDuration < 60 ? `${selectedDuration} minutes` : selectedDuration % 60 ? `${Math.floor(selectedDuration / 60)} hr ${selectedDuration % 60} min` : `${selectedDuration / 60} ${selectedDuration === 60 ? "hour" : "hours"}`}</b>
+                <span>Set by the event organizer</span>
               </div>
             </div>
             <div className="bookingBlock">
@@ -1696,7 +1686,6 @@ function Studio({ onPreview }: { onPreview: () => void }) {
       "A high-impact group intensive to build and deploy your AI systems.",
     ),
     [durationMinutes, setDurationMinutes] = useState(120),
-    [durationOptions, setDurationOptions] = useState<number[]>([30, 60, 120]),
     [saveError, setSaveError] = useState("");
   const toggleChoice = (
     value: string,
@@ -1724,7 +1713,6 @@ function Studio({ onPreview }: { onPreview: () => void }) {
         slug: eventSlug,
         description: eventDescription,
         durationMinutes,
-        durationOptions,
         capacity,
         bufferBeforeMinutes: 15,
         bufferAfterMinutes: 15,
@@ -2161,20 +2149,6 @@ function Studio({ onPreview }: { onPreview: () => void }) {
                       <option value={30}>30 minutes</option>
                       <option value={60}>60 minutes</option>
                     </select>
-                  </Field>
-                  <Field label="Customer duration options">
-                    <div className="durationOptionEditor">
-                      {[15, 30, 45, 60, 90, 120].map((minutes) => (
-                        <button
-                          type="button"
-                          className={durationOptions.includes(minutes) ? "active" : ""}
-                          onClick={() => setDurationOptions((current) => current.includes(minutes) ? (current.length > 1 ? current.filter((value) => value !== minutes) : current) : [...current, minutes].sort((a,b)=>a-b))}
-                          key={minutes}
-                        >
-                          {minutes} min
-                        </button>
-                      ))}
-                    </div>
                   </Field>
                   <Field label="Slot interval">
                     <select>

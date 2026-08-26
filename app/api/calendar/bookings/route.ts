@@ -41,11 +41,8 @@ export async function POST(request: Request) {
     const db = coreDb();
     const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
-    const requestedDuration = Number(body.durationMinutes || eventType.duration_minutes);
-    const allowedDurations = (() => { try { return JSON.parse(String(eventType.duration_options || "[]")) as number[]; } catch { return []; } })();
-    if (allowedDurations.length && !allowedDurations.includes(requestedDuration))
-      return Response.json({ error: "Choose a valid appointment length." }, { status: 400 });
-    const duration = allowedDurations.length ? requestedDuration : Number(eventType.duration_minutes);
+    // Appointment length is owned by the event type. Public bookers cannot override it.
+    const duration = Number(eventType.duration_minutes);
     const ends = new Date(starts.getTime() + duration * 60_000);
     const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
       WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
