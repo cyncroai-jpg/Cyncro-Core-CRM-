@@ -20,6 +20,7 @@ type Tab =
   | "dispatch"
   | "dispute"
   | "finance"
+  | "apex"
   | "prime"
   | "sports";
 export default function Home() {
@@ -70,6 +71,7 @@ export default function Home() {
       "dispatch",
       "dispute",
       "finance",
+      "apex",
       "prime",
       "sports",
     ];
@@ -117,6 +119,7 @@ export default function Home() {
             ["dispatch", "Dispatch"],
             ["dispute", "Dispute"],
             ["finance", "Finance"],
+            ["apex", "Apex Funds"],
             ["prime", "Prime AI"],
             ["sports", "Sports AI"],
             ["admin", "Operations"],
@@ -169,6 +172,8 @@ export default function Home() {
         <CyncroDispute />
       ) : tab === "finance" ? (
         <CyncroFinance />
+      ) : tab === "apex" ? (
+        <ApexFunds />
       ) : tab === "prime" ? (
         <CyncroPrime />
       ) : tab === "sports" ? (
@@ -355,6 +360,56 @@ export default function Home() {
         </section>
       )}
     </main>
+  );
+}
+
+function ApexFunds() {
+  const [view, setView] = useState<"pipeline" | "network" | "recovery">("pipeline");
+  const [notice, setNotice] = useState("");
+  const applications = [
+    { applicant: "Meridian Transport", amount: "$425,000", lenders: 14, best: "9.2% · 60 mo", stage: "OFFERS READY", score: 742 },
+    { applicant: "Northline Dental Group", amount: "$180,000", lenders: 9, best: "10.1% · 48 mo", stage: "UNDERWRITING", score: 701 },
+    { applicant: "Atlas Commercial Roofing", amount: "$310,000", lenders: 17, best: "—", stage: "STIPS REQUIRED", score: 668 },
+    { applicant: "Harbor Hospitality", amount: "$750,000", lenders: 21, best: "12.4% · 72 mo", stage: "LENDER REVIEW", score: 689 },
+  ];
+  const lenders = [
+    ["Northstar Capital", "Preferred", "7 min ago", "9.2–13.8%", "24–72 mo", "ACTIVE"],
+    ["Cobalt Funding", "Equipment", "11 min ago", "10.4–16.2%", "36–60 mo", "ACTIVE"],
+    ["Summit Commercial", "SBA / Term", "18 min ago", "Prime + 2.75%", "60–120 mo", "ACTIVE"],
+    ["Velocity Advance", "Working capital", "24 min ago", "Factor 1.18–1.34", "6–18 mo", "ACTIVE"],
+  ];
+  const recovery = [
+    ["Pinnacle Auto Group", "Utilization 79%", "+46 pts est.", "45–60 days", "$240,000"],
+    ["Luna Wellness Partners", "2 reporting errors", "+31 pts est.", "30–45 days", "$125,000"],
+    ["Coastal Build Co.", "Thin business file", "Fundability plan", "60–90 days", "$390,000"],
+  ];
+  const flash = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); };
+  return (
+    <section className="apexFunds">
+      <aside className="apexRail">
+        <div className="apexBrand"><i>▲</i><span><small>FINTECH INFRASTRUCTURE</small><b>Apex Funds</b></span></div>
+        <nav>
+          <small>COMMAND CENTER</small>
+          {([['pipeline','Deal Intelligence','28'],['network','Lender Network','104'],['recovery','Approval Recovery','12']] as const).map(([key,label,count]) => <button key={key} className={view===key?'active':''} onClick={()=>setView(key)}><i>{key==='pipeline'?'⌁':key==='network'?'◎':'↗'}</i><span>{label}</span><em>{count}</em></button>)}
+          <small>OPERATIONS</small>
+          <button onClick={()=>flash('Application intake opened')}><i>＋</i><span>New application</span></button>
+          <button onClick={()=>flash('Document center opened')}><i>▱</i><span>Documents</span></button>
+          <button onClick={()=>flash('Broker analytics opened')}><i>⌗</i><span>Broker analytics</span></button>
+        </nav>
+        <div className="apexRailStatus"><span>●</span><div><small>NETWORK STATUS</small><b>Integration ready</b><p>Connect lender APIs and secure feeds to activate live synchronization.</p></div></div>
+      </aside>
+      <main>
+        <header className="apexTop"><div><small>APEX FUNDS · BROKER OPERATING SYSTEM</small><h1>{view==='pipeline'?'Every deal. Every lender. One truth.':view==='network'?'The entire lender network—normalized.':'Turn declines into fundable deals.'}</h1></div><button onClick={()=>flash('Lender connection workflow opened')}>＋ CONNECT LENDER</button></header>
+        {notice && <div className="apexNotice">✓ {notice}</div>}
+        <div className="apexMetrics">{[["$6.42M","ACTIVE REQUESTS","↑ 18.4%"],["28","OPEN APPLICATIONS","7 need action"],["104","LENDER CONNECTIONS","96 healthy"],["$840K","RECOVERABLE PIPELINE","12 applicants"]].map((metric)=><article key={metric[1]}><small>{metric[1]}</small><b>{metric[0]}</b><span>{metric[2]}</span></article>)}</div>
+        {view==='pipeline' && <>
+          <section className="apexCommandCard"><header><div><small>LIVE DEAL INTELLIGENCE</small><h2>Applications across the network</h2></div><span>STATUS NORMALIZATION ACTIVE</span></header><div className="apexTable apexDeals"><div><b>APPLICANT</b><b>REQUEST</b><b>LENDERS</b><b>BEST CURRENT OFFER</b><b>STATUS</b></div>{applications.map((app)=><button key={app.applicant} onClick={()=>flash(`${app.applicant} deal room opened`)}><span><i>{app.applicant.slice(0,2).toUpperCase()}</i><strong>{app.applicant}</strong><small>Credit {app.score}</small></span><b>{app.amount}</b><b>{app.lenders} matched</b><b>{app.best}</b><em>{app.stage}</em></button>)}</div></section>
+          <div className="apexSplit"><section className="apexCommandCard"><header><div><small>DECISION VELOCITY</small><h2>One application, multiple outcomes</h2></div></header><div className="apexOfferFlow"><span>APPLICATION<i>1</i></span><b>→</b><span>LENDERS<i>14</i></span><b>→</b><span>RESPONSES<i>9</i></span><b>→</b><span>QUALIFIED OFFERS<i>4</i></span></div><div className="apexOfferBest"><small>BEST FIT IDENTIFIED</small><b>Northstar Capital</b><span>9.2% · 60 months · $8,864 estimated monthly</span><button onClick={()=>flash('Offer comparison opened')}>COMPARE ALL OFFERS →</button></div></section><section className="apexCommandCard apexAction"><small>NEXT BEST ACTION</small><h2>3 stipulations block $935K in approvals.</h2><p>Apex normalized the lender requests and grouped duplicate documents so your broker sends each item once.</p><button onClick={()=>flash('Stipulation workspace opened')}>RESOLVE STIPULATIONS</button></section></div>
+        </>}
+        {view==='network' && <section className="apexCommandCard"><header><div><small>CONNECTED LENDER NETWORK</small><h2>Rates, terms, programs, and health</h2></div><span>104 CONNECTIONS</span></header><div className="apexTable apexLenders"><div><b>LENDER</b><b>PROGRAM</b><b>LAST UPDATE</b><b>RATE / FACTOR</b><b>TERM</b><b>HEALTH</b></div>{lenders.map((item)=><button key={item[0]} onClick={()=>flash(`${item[0]} connection opened`)}>{item.map((value,index)=>index===5?<em key={value}>{value}</em>:<span key={value}>{value}</span>)}</button>)}</div><div className="apexNetworkFoot"><div><b>96</b><span>Healthy</span></div><div><b>6</b><span>Attention</span></div><div><b>2</b><span>Reconnect</span></div><p>Production connections require each lender&apos;s approved API, secure file feed, or authorized portal integration.</p></div></section>}
+        {view==='recovery' && <><section className="apexRecoveryHero"><div><small>BUILT-IN APPROVAL RECOVERY</small><h2>A decline is a diagnosis—not the end of the deal.</h2><p>Identify the approval blocker, create a documented remediation path, monitor progress, and return the applicant to the right lenders when fundability improves.</p></div><div><b>$840K</b><span>recoverable opportunity</span><small>Never promise deletion or approval. Every action remains documented and reviewable.</small></div></section><section className="apexCommandCard"><header><div><small>RECOVERY QUEUE</small><h2>Applicants with a path back to funding</h2></div><span>12 ACTIVE PLANS</span></header><div className="apexTable apexRecovery"><div><b>APPLICANT</b><b>PRIMARY BLOCKER</b><b>PROJECTED IMPACT</b><b>REVIEW WINDOW</b><b>DEAL VALUE</b></div>{recovery.map((item)=><button key={item[0]} onClick={()=>flash(`${item[0]} recovery plan opened`)}>{item.map((value,index)=>index===2?<em key={value}>{value}</em>:<span key={value}>{value}</span>)}</button>)}</div></section></>}
+      </main>
+    </section>
   );
 }
 
@@ -867,6 +922,24 @@ function FrontExperience({
         "Automotive finance desk with deal analytics, inventory, and lender signals",
       route: "finance" as Tab,
       action: "Explore Finance",
+    },
+    {
+      name: "Apex Funds",
+      label: "CONNECT + FUND",
+      headline: "One command center for the entire lender network.",
+      copy: "Purpose-built fintech infrastructure for lending brokers. Normalize live application status, rates, terms, stipulations, and lender decisions across every connected lender—then recover declined applicants instead of losing the deal.",
+      capabilities: [
+        "Multi-lender status synchronization",
+        "Offer, rate + term comparison",
+        "Built-in approval recovery workflows",
+      ],
+      proof: "100+",
+      proofLabel: "lenders connected",
+      image: "/module-images/cyncro-finance.webp",
+      imageAlt:
+        "Apex Funds lender network dashboard with applications, offers, and recovery workflows",
+      route: "apex" as Tab,
+      action: "Open Apex Funds",
     },
     {
       name: "Cyncro Dispute",
