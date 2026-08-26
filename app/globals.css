@@ -8988,6 +8988,235 @@ label {
   gap: 10px;
   margin-top: 10px;
 }
+
+/* Platform comparison — Overview */
+.platformComparison {
+  position: relative;
+  overflow: hidden;
+  padding: 110px clamp(22px, 6vw, 96px);
+  border-top: 1px solid #2b1b1f;
+  background:
+    radial-gradient(circle at 82% 12%, #9f173325, transparent 28%),
+    linear-gradient(180deg, #080707, #0d090a 58%, #080707);
+}
+.comparisonIntro {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: clamp(35px, 7vw, 110px);
+  max-width: 1440px;
+  margin: 0 auto 42px;
+  align-items: end;
+}
+.comparisonIntro label {
+  color: #e44761;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+}
+.comparisonIntro h2 {
+  margin: 16px 0 0;
+  color: #f6f1f2;
+  font-size: clamp(38px, 5vw, 72px);
+  font-weight: 400 !important;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+.comparisonIntro h2 span {
+  color: #c92c48;
+}
+.comparisonIntro > p {
+  max-width: 620px;
+  margin: 0 0 5px;
+  color: #b8aaad;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.comparisonFrame {
+  max-width: 1440px;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid #3a262b;
+  border-radius: 18px;
+  background: #0c0a0b;
+  box-shadow: 0 32px 90px #0009, inset 0 1px #ffffff08;
+}
+.comparisonBrands,
+.comparisonRows article {
+  display: grid;
+  grid-template-columns: 1.25fr 1.15fr 0.9fr 0.9fr;
+}
+.comparisonBrands {
+  min-height: 74px;
+  align-items: center;
+  border-bottom: 1px solid #3a262b;
+  background: linear-gradient(90deg, #131011, #1c0d11 53%, #131011);
+}
+.comparisonBrands > * {
+  padding: 0 24px;
+  color: #8f8083;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+}
+.comparisonBrands strong {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-inline: 1px solid #5e2330;
+  background: #7c142718;
+  color: #fff;
+  font-size: 15px;
+}
+.comparisonBrands strong i {
+  color: #d22f4b;
+  font-style: normal;
+}
+.comparisonRows article {
+  min-height: 72px;
+  border-bottom: 1px solid #241c1e;
+}
+.comparisonRows article > * {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 17px 24px;
+}
+.comparisonRows h3 {
+  margin: 0;
+  color: #d7ced0;
+  font-size: 11px;
+  font-weight: 500 !important;
+}
+.comparisonRows article > div {
+  border-left: 1px solid #241c1e;
+  color: #928589;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.comparisonRows small {
+  display: none;
+}
+.comparisonRows .cyncroComparisonCell {
+  border-left-color: #5e2330;
+  background: linear-gradient(90deg, #8f17301c, #4e101409);
+  color: #f3e7e9;
+  font-weight: 600;
+}
+.comparisonRows .cyncroComparisonCell span::before {
+  content: "✓";
+  margin-right: 9px;
+  color: #ef4965;
+}
+.comparisonVerdict {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr auto;
+  gap: 28px;
+  align-items: center;
+  padding: 30px 24px;
+  background: linear-gradient(100deg, #74132638, #140d0f 60%);
+}
+.comparisonVerdict small,
+.comparisonVerdict strong {
+  display: block;
+}
+.comparisonVerdict small {
+  margin-bottom: 7px;
+  color: #e04660;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+}
+.comparisonVerdict strong {
+  color: #fff;
+  font-size: 16px;
+}
+.comparisonVerdict p {
+  margin: 0;
+  color: #aa9ca0;
+  font-size: 10px;
+  line-height: 1.65;
+}
+.comparisonVerdict button {
+  min-height: 44px;
+  border: 1px solid #c62b46;
+  border-radius: 7px;
+  background: #a51e36;
+  color: #fff;
+  padding: 0 18px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.comparisonNote {
+  max-width: 1440px;
+  margin: 15px auto 0;
+  color: #75696c;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .platformComparison {
+    padding: 72px 16px;
+  }
+  .comparisonIntro {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    margin-bottom: 28px;
+  }
+  .comparisonIntro h2 {
+    font-size: clamp(34px, 11vw, 48px);
+  }
+  .comparisonIntro > p {
+    font-size: 11px;
+  }
+  .comparisonBrands {
+    display: none;
+  }
+  .comparisonRows article {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 0;
+    padding: 18px;
+    gap: 10px;
+  }
+  .comparisonRows article > * {
+    padding: 0;
+  }
+  .comparisonRows h3 {
+    grid-column: 1 / -1;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #2b2224;
+    font-size: 12px;
+  }
+  .comparisonRows article > div {
+    display: block;
+    border: 0;
+    border-radius: 8px;
+    background: #121011;
+    padding: 12px;
+    font-size: 9px;
+  }
+  .comparisonRows .cyncroComparisonCell {
+    grid-column: 1 / -1;
+    border: 1px solid #6c2533;
+  }
+  .comparisonRows small {
+    display: block;
+    margin-bottom: 7px;
+    color: #766a6d;
+    font-size: 7px;
+    letter-spacing: 0.11em;
+  }
+  .comparisonRows .cyncroComparisonCell small {
+    color: #dd4861;
+  }
+  .comparisonVerdict {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 24px 18px;
+  }
+  .comparisonVerdict button {
+    width: 100%;
+  }
+}
 .crmPanel {
   min-width: 0;
   padding: 19px;

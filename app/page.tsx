@@ -999,6 +999,68 @@ function FrontExperience({
     },
   ];
   const active = journeys[journey];
+  const platformComparison = [
+    {
+      capability: "Primary strength",
+      cyncro: "Business operations + intelligence",
+      highlevel: "Agency sales + marketing",
+      clickfunnels: "Funnels + online selling",
+    },
+    {
+      capability: "CRM + visual pipelines",
+      cyncro: "Included",
+      highlevel: "Included",
+      clickfunnels: "Included",
+    },
+    {
+      capability: "Funnels + landing pages",
+      cyncro: "Framer-ready connection",
+      highlevel: "Built in",
+      clickfunnels: "Core strength",
+    },
+    {
+      capability: "Calendars + booking links",
+      cyncro: "Included · multi-host",
+      highlevel: "Included",
+      clickfunnels: "Included",
+    },
+    {
+      capability: "Public-business prospecting",
+      cyncro: "Built in · score + scrape",
+      highlevel: "Not a core workflow",
+      clickfunnels: "Not a core workflow",
+    },
+    {
+      capability: "Team commissions + payout export",
+      cyncro: "Built in · custom rules",
+      highlevel: "Requires configuration",
+      clickfunnels: "Not a core workflow",
+    },
+    {
+      capability: "Invoices + editable contracts",
+      cyncro: "Built in · connection-ready",
+      highlevel: "Included",
+      clickfunnels: "Sales-focused tools",
+    },
+    {
+      capability: "Industry operating systems",
+      cyncro: "Dispatch · Finance · Dispute",
+      highlevel: "General-purpose",
+      clickfunnels: "General-purpose",
+    },
+    {
+      capability: "Lending-broker infrastructure",
+      cyncro: "Apex Funds",
+      highlevel: "Not purpose-built",
+      clickfunnels: "Not purpose-built",
+    },
+    {
+      capability: "Unified agent messaging",
+      cyncro: "Cyncro Messages · coming soon",
+      highlevel: "Included",
+      clickfunnels: "Marketing messaging",
+    },
+  ];
   return (
     <div className="frontExperience">
       <section className="frontHero">
@@ -1252,6 +1314,70 @@ function FrontExperience({
           <i>→</i>
           <span>RETENTION</span>
         </div>
+      </section>
+
+      <section className="platformComparison" aria-labelledby="comparison-title">
+        <div className="comparisonIntro">
+          <div>
+            <label>THE CATEGORY IS DIFFERENT</label>
+            <h2 id="comparison-title">
+              Funnels bring people in.
+              <br />
+              <span>Cyncro runs what happens next.</span>
+            </h2>
+          </div>
+          <p>
+            ClickFunnels is built around conversion funnels. HighLevel is built
+            around agency sales and marketing. Cyncro is being engineered as a
+            connected operating system for the customer, the team, the work,
+            and the money.
+          </p>
+        </div>
+
+        <div className="comparisonFrame">
+          <div className="comparisonBrands" aria-hidden="true">
+            <span>CAPABILITY</span>
+            <strong><i>◆</i> CYNCRO</strong>
+            <b>HighLevel</b>
+            <b>ClickFunnels</b>
+          </div>
+          <div className="comparisonRows">
+            {platformComparison.map((row) => (
+              <article key={row.capability}>
+                <h3>{row.capability}</h3>
+                <div className="cyncroComparisonCell">
+                  <small>CYNCRO</small>
+                  <span>{row.cyncro}</span>
+                </div>
+                <div>
+                  <small>HIGHLEVEL</small>
+                  <span>{row.highlevel}</span>
+                </div>
+                <div>
+                  <small>CLICKFUNNELS</small>
+                  <span>{row.clickfunnels}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+          <footer className="comparisonVerdict">
+            <div>
+              <small>THE CYNCRO ADVANTAGE</small>
+              <strong>Not another CRM. The operating layer above it.</strong>
+            </div>
+            <p>
+              One customer record connecting acquisition, appointments,
+              operations, payouts, documents, specialized workflows, and
+              revenue intelligence.
+            </p>
+            <button onClick={onPlatform}>Explore the platform <span>↗</span></button>
+          </footer>
+        </div>
+        <p className="comparisonNote">
+          Product positioning based on publicly described platform capabilities.
+          Some Cyncro features require external connections; Cyncro Messages and
+          live lender synchronization remain preview capabilities.
+        </p>
       </section>
 
       <section className="journeySection">
