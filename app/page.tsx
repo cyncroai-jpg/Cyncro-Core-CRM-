@@ -21,8 +21,7 @@ type Tab =
   | "dispute"
   | "finance"
   | "apex"
-  | "prime"
-  | "sports";
+  | "prime";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
     [permissions, setPermissions] = useState<{
@@ -73,7 +72,6 @@ export default function Home() {
       "finance",
       "apex",
       "prime",
-      "sports",
     ];
     const syncRoute = () => {
       const route = window.location.hash.slice(1) as Tab;
@@ -121,7 +119,6 @@ export default function Home() {
             ["finance", "Finance"],
             ["apex", "Apex Funds"],
             ["prime", "Prime AI"],
-            ["sports", "Sports AI"],
             ["admin", "Operations"],
           ]
             .filter((x) => canAccess(x[0] as Tab))
@@ -176,8 +173,6 @@ export default function Home() {
         <ApexFunds />
       ) : tab === "prime" ? (
         <CyncroPrime />
-      ) : tab === "sports" ? (
-        <CyncroSports />
       ) : tab === "admin" ? (
         <Admin onCreate={() => navigate("studio")} />
       ) : (
@@ -977,25 +972,6 @@ function FrontExperience({
         "Social conversation automation flowing from messages into customer records",
       route: "crm" as Tab,
       action: "See social automation",
-    },
-    {
-      name: "Cyncro Sports AI",
-      label: "ANALYZE + CONTROL",
-      headline:
-        "Make sharper sports decisions with disciplined exposure controls.",
-      copy: "Compare markets, study line movement, evaluate injuries and travel, test model signals, size units, set alerts, and measure every decision in a responsible journal.",
-      capabilities: [
-        "Market + line intelligence",
-        "Bankroll guardrails + unit sizing",
-        "Decision journal, ROI + CLV",
-      ],
-      proof: "+2.7%",
-      proofLabel: "tracked CLV",
-      image: "/module-images/cyncro-sports.webp",
-      imageAlt:
-        "Sports intelligence workspace with market movement and risk analysis",
-      route: "sports" as Tab,
-      action: "Open Sports AI",
     },
   ];
   const active = journeys[journey];
