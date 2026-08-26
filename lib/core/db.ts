@@ -185,6 +185,12 @@ export async function ensureCoreSchema() {
     db.prepare(`CREATE TABLE IF NOT EXISTS calendar_feeds (
       id TEXT PRIMARY KEY, owner TEXT NOT NULL UNIQUE, token TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_social_flows (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, channel TEXT NOT NULL, trigger_word TEXT NOT NULL,
+      reply_text TEXT NOT NULL, extra_keywords TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'DRAFT',
+      reach_count INTEGER NOT NULL DEFAULT 0, lead_count INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
   ]);
   try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN host_name TEXT").run(); } catch { /* already migrated */ }
   try { await db.prepare("ALTER TABLE calendar_event_types ADD COLUMN duration_options TEXT").run(); } catch { /* already migrated */ }
@@ -213,9 +219,6 @@ export function requestUser(request: Request) {
 }
 
 export async function hasModuleAccess(request: Request, module: "crm" | "calendar" | "prospecting") {
-  // CRM and Calendar are temporarily open while the live role matrix is being finalized.
-  // Sensitive compensation remains protected separately by isWorkspaceOwner().
-  if (module === "calendar" || module === "crm" || module === "prospecting") return true;
   const email = requestUser(request); if (email === "platform-owner") return true;
   const member = await coreDb().prepare(`SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`).bind(email).first<{ role: string; active: number; allowed: number }>();
   if (!member) { const count = await coreDb().prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>(); if (!Number(count?.total || 0)) return true; }

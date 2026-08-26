@@ -10005,6 +10005,7 @@ type CRMView =
   | "Data Graph"
   | "Agent Team"
   | "Team Access"
+  | "Integrations"
   | "Intelligence";
 
 type CRMContactCard = {
@@ -10199,13 +10200,14 @@ function UniversalCRM({
     { name: "Accounts", icon: "▦", count: String(crmSummary.accounts || 0) },
     { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
-    { name: "Conversations", icon: "◇", count: "12" },
-    { name: "Social Automations", icon: "⚡", count: "8" },
-    { name: "Journeys", icon: "↝", count: "6" },
-    { name: "Automations", icon: "⌁", count: "18" },
+    { name: "Conversations", icon: "◇" },
+    { name: "Social Automations", icon: "⚡" },
+    { name: "Journeys", icon: "↝" },
+    { name: "Automations", icon: "⌁" },
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧", count: "5" },
     { name: "Team Access", icon: "♙" },
+    { name: "Integrations", icon: "↔" },
     { name: "Intelligence", icon: "✦" },
   ];
   return (
@@ -10639,6 +10641,7 @@ function UniversalCRM({
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} />}
+          {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
       </main>
@@ -12250,51 +12253,22 @@ function CRMSocialAutomations({
   );
   const [customKeyword, setCustomKeyword] = useState("");
   const [extraKeywords, setExtraKeywords] = useState<string[]>([]);
-  const flows = [
-    {
-      name: "DEMO keyword",
-      channel: "Instagram + Facebook",
-      trigger: "DEMO",
-      reach: "1,284",
-      leads: "386",
-      rate: "30.1%",
-      status: "LIVE",
-    },
-    {
-      name: "Comment-to-DM launch",
-      channel: "Instagram comments",
-      trigger: "SYSTEM",
-      reach: "842",
-      leads: "214",
-      rate: "25.4%",
-      status: "LIVE",
-    },
-    {
-      name: "Pricing concierge",
-      channel: "Facebook Messenger",
-      trigger: "PRICE",
-      reach: "419",
-      leads: "172",
-      rate: "41.1%",
-      status: "LIVE",
-    },
-    {
-      name: "Event waitlist",
-      channel: "Instagram story replies",
-      trigger: "WAITLIST",
-      reach: "268",
-      leads: "96",
-      rate: "35.8%",
-      status: "DRAFT",
-    },
-  ];
-  const active = flows[selectedFlow];
+  type SocialFlow={id:string;name:string;channel:string;trigger:string;reply:string;reach:string;leads:string;rate:string;status:string;extraKeywords:string[]};
+  const [flows,setFlows]=useState<SocialFlow[]>([]);
+  const loadFlows=async()=>{const response=await fetch("/api/crm/social-flows",{cache:"no-store"});const data=await response.json() as {flows?:Record<string,unknown>[];error?:string};if(!response.ok){onFlash(data.error||"Social automations could not be loaded");return}setFlows((data.flows||[]).map(row=>{const reach=Number(row.reach_count||0),leads=Number(row.lead_count||0);return{id:String(row.id),name:String(row.name),channel:String(row.channel),trigger:String(row.trigger_word),reply:String(row.reply_text),reach:String(reach),leads:String(leads),rate:reach?`${(leads/reach*100).toFixed(1)}%`:"0%",status:String(row.status),extraKeywords:(()=>{try{return JSON.parse(String(row.extra_keywords||"[]")) as string[]}catch{return[]}})()}}));};
+  useEffect(()=>{void loadFlows();void fetch("/api/integrations/status").then(async response=>{if(!response.ok)return;const data=await response.json() as {connections?:Record<string,boolean>};setInstagramConnected(Boolean(data.connections?.meta));setFacebookConnected(Boolean(data.connections?.meta));})},[]);
+  const active = flows[selectedFlow] || {id:"",name:"Loading…",channel:"",trigger:"",reply:"",reach:"0",leads:"0",rate:"0%",status:"DRAFT",extraKeywords:[]};
+  const socialTotals=flows.reduce((sum,flow)=>({reach:sum.reach+Number(flow.reach||0),leads:sum.leads+Number(flow.leads||0)}),{reach:0,leads:0});
+  useEffect(()=>{if(active.id){setPublished(active.status==="LIVE");setReply(active.reply);setExtraKeywords(active.extraKeywords)}},[active.id]);
+  const saveFlow=async(updates:Record<string,unknown>)=>{if(!active.id)return;const response=await fetch("/api/crm/social-flows",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:active.id,...updates})});if(!response.ok){const data=await response.json() as {error?:string};onFlash(data.error||"Flow could not be saved");return}await loadFlows();onFlash("Social automation saved")};
+  const createFlow=async()=>{const response=await fetch("/api/crm/social-flows",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"Untitled social automation",trigger:"NEW"})});if(!response.ok){onFlash("Flow could not be created");return}await loadFlows();setSelectedFlow(0);onFlash("New social automation created")};
   const addKeyword = () => {
     const clean = customKeyword.trim().toUpperCase();
     if (!clean || extraKeywords.includes(clean)) return;
     setExtraKeywords([...extraKeywords, clean]);
     setCustomKeyword("");
     onFlash(`${clean} trigger added`);
+    void saveFlow({extraKeywords:[...extraKeywords,clean]});
   };
   return (
     <div className="socialAutomationWorkspace">
@@ -12307,7 +12281,7 @@ function CRMSocialAutomations({
             instantly, capture the lead, and move them into Cyncro CRM.
           </p>
           <div className="socialHeroActions">
-            <button onClick={() => onFlash("New social flow created")}>
+            <button onClick={() => void createFlow()}>
               ＋ Create automation
             </button>
             <button onClick={() => setPanel("Live Inbox")}>
@@ -12317,21 +12291,21 @@ function CRMSocialAutomations({
         </div>
         <div className="socialPulse">
           <span>LIVE CONVERSION PULSE</span>
-          <b>386</b>
+          <b>{socialTotals.leads}</b>
           <small>LEADS CAPTURED THIS MONTH</small>
           <div>
             <i style={{ width: "72%" }} />
           </div>
-          <em>↑ 28.6% from social automation</em>
+          <em>{instagramConnected ? "Live channel data connected" : "Connect Meta to begin collecting live data"}</em>
         </div>
       </section>
 
       <div className="socialStats">
         {[
-          ["2,813", "AUTOMATED CONVERSATIONS", "+18.4%"],
-          ["34.6%", "LEAD CAPTURE RATE", "+6.2%"],
-          ["18 sec", "AVERAGE FIRST RESPONSE", "Always on"],
-          ["$42.8K", "SOCIAL-ATTRIBUTED PIPELINE", "+$9.4K"],
+          [String(socialTotals.reach), "AUTOMATED CONVERSATIONS", instagramConnected?"Live":"Awaiting Meta"],
+          [socialTotals.reach?`${(socialTotals.leads/socialTotals.reach*100).toFixed(1)}%`:"0%", "LEAD CAPTURE RATE", "Live calculation"],
+          ["—", "AVERAGE FIRST RESPONSE", instagramConnected?"Collecting":"Awaiting Meta"],
+          ["$0", "SOCIAL-ATTRIBUTED PIPELINE", "Updates from won deals"],
         ].map((stat) => (
           <article key={stat[1]}>
             <small>{stat[1]}</small>
@@ -12360,16 +12334,9 @@ function CRMSocialAutomations({
             </div>
             <em>{instagramConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
             <button
-              onClick={() => {
-                setInstagramConnected(!instagramConnected);
-                onFlash(
-                  instagramConnected
-                    ? "Instagram disconnected"
-                    : "Instagram connected",
-                );
-              }}
+              onClick={() => onFlash(instagramConnected ? "Instagram connection is active" : "Open Integrations and add Meta credentials")}
             >
-              {instagramConnected ? "Settings" : "Connect"}
+              {instagramConnected ? "Connected" : "Connect in Integrations"}
             </button>
           </article>
           <article className={facebookConnected ? "connected" : ""}>
@@ -12380,16 +12347,9 @@ function CRMSocialAutomations({
             </div>
             <em>{facebookConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
             <button
-              onClick={() => {
-                setFacebookConnected(!facebookConnected);
-                onFlash(
-                  facebookConnected
-                    ? "Facebook disconnected"
-                    : "Facebook connected",
-                );
-              }}
+              onClick={() => onFlash(facebookConnected ? "Facebook connection is active" : "Open Integrations and add Meta credentials")}
             >
-              {facebookConnected ? "Settings" : "Connect"}
+              {facebookConnected ? "Connected" : "Connect in Integrations"}
             </button>
           </article>
           <button
@@ -12423,7 +12383,7 @@ function CRMSocialAutomations({
                 <small>KEYWORD AUTOMATIONS</small>
                 <h2>Live flows</h2>
               </div>
-              <button onClick={() => onFlash("Blank flow created")}>＋</button>
+              <button onClick={() => void createFlow()}>＋</button>
             </header>
             {flows.map((flow, index) => (
               <button
@@ -12463,15 +12423,12 @@ function CRMSocialAutomations({
                 >
                   ● {published ? "LIVE" : "DRAFT"}
                 </span>
-                <button onClick={() => onFlash("Flow tested successfully")}>
+                <button onClick={() => onFlash(instagramConnected ? "Test sent through connected Meta channel" : "Connect Meta before sending a live test")}>
                   Test flow
                 </button>
                 <button
                   className="publishFlow"
-                  onClick={() => {
-                    setPublished(!published);
-                    onFlash(published ? "Flow paused" : "Flow published");
-                  }}
+                  onClick={() => { const next=!published;setPublished(next);void saveFlow({status:next?"LIVE":"DRAFT",reply,extraKeywords}); }}
                 >
                   {published ? "Pause" : "Publish"}
                 </button>
@@ -12532,6 +12489,7 @@ function CRMSocialAutomations({
                   <textarea
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
+                    onBlur={() => void saveFlow({reply,extraKeywords})}
                     aria-label="Automatic social reply"
                   />
                   <div className="quickReplies">
@@ -13881,6 +13839,29 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
+  type Status = { connections: Record<string, boolean>; eventTypes: { id:string; name:string; duration_minutes:number; bookingUrl:string }[]; framerWebhookUrl:string };
+  const [status,setStatus]=useState<Status|null>(null);
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{void (async()=>{const response=await fetch("/api/integrations/status");const data=await response.json() as Status&{error?:string};setLoading(false);if(!response.ok){onFlash(data.error||"Connections could not be loaded");return}setStatus(data)})()},[]);
+  const copy=async(value:string,label:string)=>{await navigator.clipboard?.writeText(value);onFlash(`${label} copied`)};
+  const connections=[
+    ["meta","Instagram + Facebook","DMs, comments, leads, attribution","META_APP_ID · META_APP_SECRET · META_PAGE_ACCESS_TOKEN"],
+    ["twilio","SMS + calling","Shared numbers, outbound SMS, call routing","TWILIO_ACCOUNT_SID · TWILIO_AUTH_TOKEN · TWILIO_PHONE_NUMBER"],
+    ["resend","Transactional email","Booking confirmations and CRM email","RESEND_API_KEY · EMAIL_FROM"],
+    ["googleCalendar","Google Calendar","Two-way calendar authorization","GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET"],
+    ["framer","Framer landing pages","Send every form lead into Cyncro","FRAMER_WEBHOOK_SECRET"],
+  ];
+  return <div className="integrationsWorkspace">
+    <section className="integrationHero crmPanel"><div><small>CONNECTION CENTER</small><h2>Connect once. Run everything from Cyncro.</h2><p>Your CRM, calendars, landing pages, email, SMS, and social channels share the same contacts, ownership, permissions, and analytics.</p></div><span>{Object.values(status?.connections||{}).filter(Boolean).length} / {connections.length}<small>CONNECTED</small></span></section>
+    <div className="integrationGrid">
+      {connections.map(([key,name,description,needed])=><article className="crmPanel" key={key}><div className="integrationStatus"><i className={status?.connections[key]?"connected":""}/><span>{status?.connections[key]?"CONNECTED":"CONNECTION REQUIRED"}</span></div><h3>{name}</h3><p>{description}</p><small>REQUIRED</small><code>{needed}</code><button onClick={()=>onFlash(status?.connections[key]?`${name} settings ready`:`Add the required connection values to activate ${name}`)}>{status?.connections[key]?"Manage connection":"Connection instructions"}</button></article>)}
+    </div>
+    <section className="crmPanel integrationSection"><div className="crmPanelHead"><div><small>FRAMER → CYNCRO</small><h2>Landing-page lead connection</h2></div></div><p>Send Framer form submissions to this secure Cyncro endpoint. Matching contacts update instead of duplicating.</p><div className="copyField"><code>{status?.framerWebhookUrl||"Loading…"}</code><button disabled={!status} onClick={()=>status&&void copy(status.framerWebhookUrl,"Framer webhook URL")}>Copy webhook URL</button></div><ol><li>Create a form in Framer with name, email, phone, company, and message fields.</li><li>Post the form JSON to the webhook URL and include <code>x-cyncro-secret</code>.</li><li>The lead appears in Contacts immediately with source FRAMER.</li></ol></section>
+    <section className="crmPanel integrationSection"><div className="crmPanelHead"><div><small>PUBLIC BOOKING LINKS</small><h2>Calendar links ready to share or embed</h2></div></div>{loading&&<p>Loading event links…</p>}{status?.eventTypes.map(event=><div className="bookingLinkRow" key={event.id}><span><b>{event.name}</b><small>{event.duration_minutes} minute default</small></span><code>{event.bookingUrl}</code><button onClick={()=>void copy(event.bookingUrl,`${event.name} link`)}>Copy link</button></div>)}</section>
+  </div>;
+}
+
 function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
   type Member = {
     email: string;
@@ -13986,9 +13967,11 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
-              <option>MEMBER</option>
-              <option>MANAGER</option>
-              <option>ADMIN</option>
+              <option value="MEMBER">Team member</option>
+              <option value="ACCOUNT_MANAGER">Account manager</option>
+              <option value="SALES_DIRECTOR">Sales director</option>
+              <option value="VP_SALES">VP of sales</option>
+              <option value="ADMIN">Administrator</option>
             </select>
           </label>
         </div>

@@ -15826,3 +15826,31 @@ label {
   .contactRow > em:nth-of-type(1) { max-width: 76px; }
   .crmPageHead h1 { font-size: 25px; }
 }
+
+/* CRM connection center */
+.integrationsWorkspace { display: grid; gap: 14px; margin-top: 24px; }
+.integrationHero { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 28px; border-color: #5f2b37; background: radial-gradient(circle at 92% 20%,rgba(185,35,64,.2),transparent 32%),linear-gradient(145deg,#191114,#0d0b0c); }
+.integrationHero small,.integrationSection .crmPanelHead small { color: #e4778a; font-size: 8px; font-weight: 800; letter-spacing: .14em; }
+.integrationHero h2 { margin: 8px 0; font-size: clamp(24px,3vw,38px); font-weight: 500; }
+.integrationHero p,.integrationSection>p { max-width: 760px; color: #cbbdc0; font-size: 11px; line-height: 1.7; }
+.integrationHero>span { display: grid; min-width: 110px; height: 110px; place-items: center; align-content: center; border: 5px solid #9d263d; border-right-color: #38282d; border-radius: 50%; font-size: 23px; }
+.integrationHero>span small { display: block; margin-top: 5px; font-size: 7px; }
+.integrationGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.integrationGrid article { padding: 20px; }
+.integrationGrid h3 { margin: 17px 0 7px; font-size: 16px; font-weight: 600; }
+.integrationGrid p { min-height: 44px; color: #b9abad; font-size: 10px; line-height: 1.55; }
+.integrationGrid article>small { display: block; margin-top: 15px; color: #837679; font-size: 7px; letter-spacing: .12em; }
+.integrationGrid code { display: block; min-height: 38px; margin-top: 7px; color: #d9c9cc; font-size: 8px; line-height: 1.45; overflow-wrap: anywhere; }
+.integrationGrid button,.copyField button,.bookingLinkRow button { min-height: 38px; border: 1px solid #713242; border-radius: 7px; background: #281319; color: #fff; padding: 0 12px; font-size: 9px; }
+.integrationStatus { display: flex; align-items: center; gap: 8px; color: #d27c8b; font-size: 7px; font-weight: 800; letter-spacing: .09em; }
+.integrationStatus i { width: 8px; height: 8px; border-radius: 50%; background: #963047; box-shadow: 0 0 0 4px #96304720; }
+.integrationStatus i.connected { background: #58bd82; box-shadow: 0 0 0 4px #58bd8220; }
+.integrationSection { padding: 22px; }
+.copyField { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 16px 0; }
+.copyField code { display: flex; min-width: 0; align-items: center; border: 1px solid #3b2d31; border-radius: 7px; background: #0b0a0a; color: #eadde0; padding: 11px; font-size: 9px; overflow-wrap: anywhere; }
+.integrationSection ol { margin: 12px 0 0; padding-left: 19px; color: #bdb0b3; font-size: 10px; line-height: 1.8; }
+.bookingLinkRow { display: grid; grid-template-columns: minmax(170px,.7fr) minmax(250px,1.5fr) auto; gap: 12px; align-items: center; border-top: 1px solid #30272a; padding: 13px 0; }
+.bookingLinkRow b,.bookingLinkRow small { display: block; }.bookingLinkRow b { font-size: 11px; }.bookingLinkRow small { margin-top: 4px; color: #9d9093; font-size: 8px; }
+.bookingLinkRow code { min-width: 0; color: #d3c5c8; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media(max-width:1000px){.integrationGrid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.integrationHero{align-items:flex-start;flex-direction:column;padding:21px}.integrationHero>span{min-width:82px;width:82px;height:82px;font-size:18px}.integrationGrid{grid-template-columns:1fr}.integrationGrid p{min-height:0}.copyField,.bookingLinkRow{grid-template-columns:1fr}.copyField button,.bookingLinkRow button{width:100%}.bookingLinkRow code{white-space:normal;overflow-wrap:anywhere}}

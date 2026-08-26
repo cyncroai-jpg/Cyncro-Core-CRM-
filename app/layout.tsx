@@ -5,11 +5,8 @@ import "@fontsource/montserrat/600.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cyncro Advanced Calendar Demo",
-  description: "Interactive Cyncro Core universal calendar demo.",
-  other: {
-    "codex-preview": "development",
-  },
+  title: "Cyncro Core",
+  description: "Cyncro CRM, scheduling, prospecting, and revenue operations.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
