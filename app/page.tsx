@@ -14053,6 +14053,9 @@ function CRMAccounts({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [accountView, setAccountView] = useState<
+    "OVERVIEW" | "TEAM" | "NOTES" | "DEALS"
+  >("OVERVIEW");
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [accountNote, setAccountNote] = useState("");
@@ -14239,9 +14242,27 @@ function CRMAccounts({
                 intelligence.
               </p>
             </div>
-            <button className="crmCreate" onClick={beginEdit}>
-              Customize account
-            </button>
+            <div className="accountCommandControls">
+              <label>
+                ACCOUNT
+                <select
+                  value={selectedId}
+                  onChange={(event) => {
+                    setSelectedId(event.target.value);
+                    setAccountView("OVERVIEW");
+                  }}
+                >
+                  {accounts.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="crmCreate" onClick={beginEdit}>
+                Edit account
+              </button>
+            </div>
           </div>
           <div className="accountValueGrid">
             {[
@@ -14269,7 +14290,37 @@ function CRMAccounts({
               </div>
             ))}
           </div>
-          <div className="salesHierarchy">
+          <nav className="accountCommandTabs" aria-label="Account sections">
+            {(["OVERVIEW", "TEAM", "NOTES", "DEALS"] as const).map(
+              (item) => (
+                <button
+                  className={accountView === item ? "active" : ""}
+                  onClick={() => setAccountView(item)}
+                  key={item}
+                >
+                  {item[0] + item.slice(1).toLowerCase()}
+                </button>
+              ),
+            )}
+          </nav>
+          {accountView === "OVERVIEW" && (
+            <div className="accountOverviewClean">
+              {[
+                ["CATEGORY", active.category || "Not set"],
+                ["WEBSITE", active.domain || "Not set"],
+                ["PHONE", active.phone || "Not set"],
+                ["ADDRESS", active.address || "Not set"],
+                ["ACCOUNT MANAGER", active.account_manager || "Unassigned"],
+                ["OPEN DEALS", String(active.opportunity_count || 0)],
+              ].map((item) => (
+                <div key={item[0]}>
+                  <small>{item[0]}</small>
+                  <b>{item[1]}</b>
+                </div>
+              ))}
+            </div>
+          )}
+          {accountView === "TEAM" && <div className="salesHierarchy">
             <div className="crmPanelHead">
               <div>
                 <small>SALES OWNERSHIP</small>
@@ -14290,8 +14341,8 @@ function CRMAccounts({
                 </span>
               </div>
             ))}
-          </div>
-          <div className="accountNotes">
+          </div>}
+          {accountView === "NOTES" && <div className="accountNotes">
             <div className="crmPanelHead">
               <div>
                 <small>ACCOUNT NOTES</small>
@@ -14333,8 +14384,8 @@ function CRMAccounts({
               {active.notes ||
                 "No account notes yet. Add the first note so everyone assigned to this account can see it."}
             </p>
-          </div>
-          {isOwner && (
+          </div>}
+          {accountView === "DEALS" && isOwner && (
             <div className="accountDeals">
               <div className="crmPanelHead">
                 <div>

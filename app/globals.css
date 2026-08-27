@@ -894,6 +894,104 @@
     display: none;
   }
 }
+
+/* Account command v3 — one calm profile, no portfolio wall */
+.accountUnifiedCommand .accountPortfolio {
+  display: none !important;
+}
+.accountUnifiedCommand .accountCommand {
+  border-top: 0;
+  padding: 32px;
+}
+.accountCommandControls {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.accountCommandControls label {
+  display: grid;
+  gap: 6px;
+  min-width: 260px;
+  color: #9b8d90;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.accountCommandControls select {
+  min-height: 44px;
+  border: 1px solid #443238;
+  border-radius: 8px;
+  background: #0c0a0b;
+  color: #fff;
+  padding: 0 12px;
+  font-size: 11px;
+}
+.accountCommandTabs {
+  display: flex;
+  gap: 4px;
+  margin: 22px 0 0;
+  border-bottom: 1px solid #392b30;
+}
+.accountCommandTabs button {
+  min-height: 43px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #918487;
+  padding: 0 18px;
+  font-size: 10px;
+}
+.accountCommandTabs button.active {
+  border-bottom-color: #ce334f;
+  color: #fff;
+}
+.accountOverviewClean {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 10px;
+}
+.accountOverviewClean > div {
+  min-height: 92px;
+  border-bottom: 1px solid #30262a;
+  padding: 22px 18px;
+}
+.accountOverviewClean small,
+.accountOverviewClean b { display: block; }
+.accountOverviewClean small {
+  color: #827579;
+  font-size: 8px;
+  letter-spacing: .1em;
+}
+.accountOverviewClean b {
+  margin-top: 10px;
+  color: #eee5e7;
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.accountUnifiedCommand .salesHierarchy,
+.accountUnifiedCommand .accountNotes,
+.accountUnifiedCommand .accountDeals {
+  margin-top: 10px;
+  border: 0;
+  border-radius: 0;
+  padding: 20px 0 0;
+}
+.accountUnifiedCommand .accountValueGrid {
+  margin: 22px 0 0;
+}
+
+@media (max-width: 760px) {
+  .accountUnifiedCommand .accountCommand { padding: 20px 17px; }
+  .accountCommandControls { align-items: stretch; flex-direction: column; }
+  .accountCommandControls label { min-width: 0; width: 100%; }
+  .accountCommandControls button { width: 100%; }
+  .accountCommandTabs { overflow-x: auto; }
+  .accountCommandTabs button { flex: 1 0 auto; padding: 0 13px; }
+  .accountOverviewClean { grid-template-columns: 1fr; }
+  .accountOverviewClean > div { min-height: 72px; padding: 17px 4px; }
+}
 @media (max-width: 520px) {
   .prospectingTopbar {
     padding: 0 16px;
