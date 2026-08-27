@@ -921,6 +921,290 @@
   }
 }
 
+/* Accounts + Contacts presentation reset — spacious consumer-grade CRM */
+.crmContent:has(.contactWorkspace),
+.crmContent:has(.accountWorkspace) {
+  max-width: 1540px;
+}
+.contactWorkspace,
+.accountWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  margin-top: 26px;
+}
+.contactList,
+.contactDetail,
+.accountPortfolio,
+.accountCommand {
+  width: 100%;
+  min-width: 0;
+  border-radius: 14px;
+}
+.listToolbar,
+.accountPortfolio > .crmPanelHead {
+  min-height: 70px;
+  height: auto;
+  padding: 16px 22px;
+}
+.listToolbar > span,
+.accountPortfolio .crmPanelHead h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.listToolbar > div {
+  display: flex;
+  gap: 9px;
+}
+.listToolbar button,
+.accountPortfolio .crmPanelHead button {
+  min-height: 42px;
+  padding: 0 15px;
+  font-size: 10px;
+}
+.contactTableHead,
+.contactRow {
+  grid-template-columns: minmax(260px, 2.2fr) minmax(115px, .8fr) minmax(100px, .7fr) 70px 118px;
+  gap: 20px;
+}
+.contactTableHead {
+  height: 46px;
+  padding: 0 22px;
+  font-size: 8px;
+}
+.contactRow {
+  min-height: 88px;
+  padding: 14px 22px;
+}
+.contactRow > span:first-child {
+  gap: 14px;
+  min-width: 0;
+}
+.contactRow > span:first-child > i {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  font-size: 10px;
+}
+.contactRow b {
+  font-size: 13px;
+}
+.contactRow small {
+  margin-top: 6px;
+  font-size: 10px;
+}
+.contactRow em {
+  padding: 7px 10px;
+  font-size: 8px;
+}
+.contactRow strong {
+  font-size: 13px;
+}
+.intentScore {
+  width: 38px;
+  height: 38px;
+  font-size: 10px;
+}
+.contactHero {
+  grid-template-columns: 64px minmax(240px, 1fr) auto auto auto;
+  gap: 16px;
+  padding: 26px 28px;
+}
+.contactHero > i {
+  width: 64px;
+  height: 64px;
+  font-size: 13px;
+}
+.contactHero small { font-size: 8px; }
+.contactHero h2 { font-size: 24px; }
+.contactHero p { font-size: 11px; }
+.contactHero > button,
+.contactHero > span {
+  min-height: 40px;
+  align-content: center;
+  padding: 0 13px;
+  font-size: 9px;
+}
+.contactActions {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  padding: 18px 24px;
+}
+.contactActions button {
+  min-height: 46px;
+  font-size: 10px;
+}
+.contactFacts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  padding: 20px 24px;
+  background: #30272a;
+}
+.contactFacts > div {
+  min-height: 70px;
+  background: #121012;
+  padding: 16px;
+}
+.contactFacts small { font-size: 8px; }
+.contactFacts b { margin-top: 9px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.contactTimeline { padding: 22px 26px; }
+.contactTimeline > div:not(.crmPanelHead) {
+  grid-template-columns: 80px 10px 1fr;
+  min-height: 62px;
+  padding-top: 12px;
+}
+.contactTimeline time,
+.contactTimeline small { font-size: 9px; }
+.contactTimeline b { font-size: 12px; }
+.contactDetail .crmForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 24px 28px;
+}
+.contactDetail .crmForm label { font-size: 9px; }
+.contactDetail .crmForm label:has(textarea),
+.contactDetail .crmForm > button { grid-column: 1 / -1; }
+.contactDetail .crmForm input,
+.contactDetail .crmForm select,
+.contactDetail .crmForm textarea {
+  min-height: 48px;
+  padding: 12px;
+  font-size: 12px;
+}
+.contactDetail .crmForm textarea { min-height: 130px; }
+.accountPortfolioHead,
+.accountPortfolio > button:not(.crmPanelHead button) {
+  grid-template-columns: minmax(300px, 2fr) minmax(130px, .8fr) minmax(110px, .7fr) minmax(110px, .7fr);
+  gap: 24px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.accountPortfolioHead {
+  min-height: 46px;
+  font-size: 8px;
+}
+.accountPortfolio > button:not(.crmPanelHead button) {
+  min-height: 88px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.accountPortfolio > button > span:first-child { gap: 14px; }
+.accountPortfolio > button > span:first-child > i {
+  width: 46px;
+  height: 46px;
+  font-size: 10px;
+}
+.accountPortfolio b { font-size: 13px; }
+.accountPortfolio small { margin-top: 6px; font-size: 9px; }
+.accountPortfolio strong,
+.accountPortfolio em,
+.accountHealth { font-size: 10px; }
+.accountCommand { padding: 28px; }
+.accountCommandHead { align-items: center; }
+.accountCommandHead h2 { font-size: 28px; }
+.accountCommandHead p { font-size: 11px; }
+.accountCommandHead > button { min-height: 44px; padding: 0 17px; }
+.accountValueGrid { gap: 10px; border: 0; background: transparent; }
+.accountValueGrid > div {
+  min-height: 92px;
+  border: 1px solid #382c30;
+  border-radius: 10px;
+  padding: 18px;
+}
+.accountValueGrid small { font-size: 8px; }
+.accountValueGrid b { margin-top: 10px; font-size: 18px; }
+.salesHierarchy,
+.accountNotes,
+.accountDeals {
+  margin-top: 18px;
+  border: 1px solid #35292d;
+  border-radius: 12px;
+  padding: 22px;
+}
+.salesHierarchy > div:not(.crmPanelHead) { min-height: 64px; padding: 12px 0; }
+.accountDealRow { min-height: 82px; padding: 14px 0; }
+
+@media (max-width: 760px) {
+  .contactWorkspace,
+  .accountWorkspace { gap: 14px; margin-top: 16px; }
+  .contactTableHead,
+  .accountPortfolioHead { display: none; }
+  .contactList,
+  .accountPortfolio { border: 0; background: transparent; box-shadow: none; }
+  .listToolbar,
+  .accountPortfolio > .crmPanelHead {
+    border: 1px solid #382c30;
+    border-radius: 12px;
+    background: #100d0e;
+    padding: 16px;
+  }
+  .contactRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "person stage" "value intent" "action action";
+    gap: 14px 12px;
+    min-height: 0;
+    margin-top: 12px;
+    border: 1px solid #3a2c30;
+    border-radius: 13px;
+    background: linear-gradient(145deg, #171214, #0e0c0d);
+    padding: 17px;
+  }
+  .contactRow > span:first-child { grid-area: person; }
+  .contactRow > em:nth-of-type(1) { grid-area: stage; align-self: start; }
+  .contactRow > strong { display: block !important; grid-area: value; padding-left: 58px; font-size: 14px; }
+  .contactRow > .intentScore { display: grid !important; grid-area: intent; justify-self: end; }
+  .contactRow > em:last-child { grid-area: action; width: 100%; padding: 11px; }
+  .contactHero {
+    grid-template-columns: 56px 1fr;
+    grid-template-areas: "avatar identity" "intent intent" "edit delete";
+    padding: 20px;
+  }
+  .contactHero > i { grid-area: avatar; width: 56px; height: 56px; }
+  .contactHero > div { grid-area: identity; }
+  .contactHero > span { grid-area: intent; width: fit-content; }
+  .contactHero > button:not(.dangerText) { grid-area: edit; }
+  .contactHero > .dangerText { grid-area: delete; }
+  .contactActions { grid-template-columns: 1fr 1fr; padding: 15px; }
+  .contactActions button:last-child { grid-column: 1 / -1; }
+  .contactFacts { grid-template-columns: 1fr; padding: 14px; }
+  .contactDetail .crmForm { grid-template-columns: 1fr; padding: 18px; }
+  .contactDetail .crmForm > * { grid-column: 1 !important; }
+  .contactTimeline { padding: 18px; }
+  .contactTimeline > div:not(.crmPanelHead) { grid-template-columns: 58px 8px 1fr; }
+  .accountPortfolio > button:not(.crmPanelHead button) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "account status" "value health";
+    gap: 14px;
+    min-height: 0;
+    margin-top: 12px;
+    border: 1px solid #3a2c30;
+    border-radius: 13px;
+    background: linear-gradient(145deg, #171214, #0e0c0d);
+    padding: 17px;
+  }
+  .accountPortfolio > button > span:first-child { grid-area: account; }
+  .accountPortfolio > button > strong { grid-area: value; padding-left: 60px; font-size: 15px; }
+  .accountPortfolio > button > em { grid-area: status; align-self: start; }
+  .accountPortfolio > button > .accountHealth { grid-area: health; justify-self: end; }
+  .accountCommand { padding: 19px; }
+  .accountCommandHead { align-items: stretch; flex-direction: column; }
+  .accountCommandHead h2 { font-size: 25px; }
+  .accountValueGrid { grid-template-columns: 1fr 1fr; }
+  .salesHierarchy,
+  .accountNotes,
+  .accountDeals { padding: 16px; }
+}
+
+@media (max-width: 430px) {
+  .listToolbar { align-items: stretch; }
+  .listToolbar > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .contactActions,
+  .accountValueGrid { grid-template-columns: 1fr; }
+  .contactActions button:last-child { grid-column: 1; }
+}
+
 /* Readability upgrade + reversible luxury light study */
 .readable small,
 .readable label,
