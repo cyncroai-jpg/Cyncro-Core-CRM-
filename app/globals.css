@@ -20475,6 +20475,28 @@ label {
   grid-template-columns: 330px minmax(0, 1fr);
   gap: 10px;
 }
+.contractRecordPicker {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin: 10px 0;
+  border: 1px solid #3a292e;
+  border-radius: 10px;
+  background: #151113;
+  padding: 14px 16px;
+}
+.contractRecordPicker span { color: #d94b64; font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.contractRecordPicker select { width: 100%; min-width: 0; }
+.contractStudioUnified { grid-template-columns: 1fr; }
+.contractStudioUnified .contractListV2 { display: none; }
+.ownerAccessSummary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 18px; border: 1px solid #5a2631; border-radius: 10px; background: #251218; padding: 14px 16px; }
+.ownerAccessSummary span:first-child { display: grid; gap: 4px; }
+.ownerAccessSummary small { color: #ef6079; font-size: 8px; }
+.payoutLedger input { min-width: 0; width: 100%; }
+.payoutAssignmentFields { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 7px; }
+.payoutAssignmentFields input { font-size: 8px; padding: 7px; }
+.universalSearch > button { border: 0; background: transparent; color: #a89ca0; padding: 0; font-size: 18px; }
 .contractListV2,
 .contractDetailV2,
 .contractBuilderV2 {
@@ -20865,6 +20887,8 @@ label {
     max-height: 380px;
     overflow: auto;
   }
+  .contractRecordPicker { grid-template-columns: 1fr; gap: 8px; }
+  .ownerAccessSummary { align-items: flex-start; flex-direction: column; }
   .contractEmpty {
     min-height: 320px;
   }

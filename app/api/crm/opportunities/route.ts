@@ -3,19 +3,22 @@ import { cleanText, coreDb, ensureCoreSchema, isWorkspaceOwner, requestUser } fr
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    const url = new URL(request.url); const rep = cleanText(url.searchParams.get("rep"), 160); const pipelineId = cleanText(url.searchParams.get("pipelineId"), 80);
+    const url = new URL(request.url); const rep = cleanText(url.searchParams.get("rep"), 160); const pipelineId = cleanText(url.searchParams.get("pipelineId"), 80); const compensation = url.searchParams.get("compensation") === "1";
     const db = coreDb();
-    const statement = rep
+    const owner = await isWorkspaceOwner(request);
+    const member = owner ? null : await db.prepare("SELECT display_name FROM workspace_members WHERE email=? AND active=1").bind(requestUser(request)).first<{display_name:string}>();
+    const visibleRep = owner ? rep : compensation ? cleanText(member?.display_name, 160) : rep;
+    const statement = visibleRep
       ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
-          WHERE o.assigned_rep = ? ORDER BY o.updated_at DESC`).bind(rep)
+          WHERE lower(o.assigned_rep) = lower(?) ORDER BY o.updated_at DESC`).bind(visibleRep)
       : pipelineId ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
           WHERE o.pipeline_id = ? ORDER BY o.updated_at DESC`).bind(pipelineId)
       : db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id ORDER BY o.updated_at DESC`);
     const results = (await statement.all()).results as Record<string, unknown>[];
-    if (!(await isWorkspaceOwner(request))) for (const row of results) {
+    if (!owner && !compensation) for (const row of results) {
       delete row.commission_rate_bps; delete row.commission_status; delete row.residual_rate_bps; delete row.residual_months; delete row.residual_flat_cents; delete row.paid_at;
     }
     return Response.json({ opportunities: results });
@@ -71,7 +74,7 @@ export async function PATCH(request: Request) {
     if (updates.source !== undefined) add("source", cleanText(updates.source, 80) || "MANUAL");
     if (updates.probability !== undefined) add("probability", Math.min(100, Math.max(0, Math.round(Number(updates.probability)))));
     if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
-    if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(3000, Math.max(2000, Math.round(Number(updates.commissionRate) * 100))));
+    if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(5000, Math.max(2000, Math.round(Number(updates.commissionRate) * 100))));
     if (updates.commissionStatus !== undefined) add("commission_status", cleanText(updates.commissionStatus, 30).toUpperCase());
     if (updates.paymentStatus !== undefined) { const status = cleanText(updates.paymentStatus, 30).toUpperCase(); add("payment_status", status); if (status === "PAID") add("paid_at", new Date().toISOString()); }
     if (updates.collected !== undefined) add("collected_cents", Math.max(0, Math.round(Number(updates.collected) * 100)));

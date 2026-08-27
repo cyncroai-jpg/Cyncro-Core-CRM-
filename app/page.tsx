@@ -11175,10 +11175,11 @@ function UniversalCRM({
       <main className="crmMain">
         <header className="crmTopbar">
           <div className="universalSearch">
-            <span>⌕</span>
+            <button type="button" aria-label="Search CRM" onClick={() => query.trim() ? setView("Contacts") : flash("Type a name, company, email, phone, or deal")}>⌕</button>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) setView("Contacts"); }}
               placeholder="Search any contact, company, deal, message, or booking…"
             />
             <kbd>⌘ K</kbd>
@@ -12086,6 +12087,7 @@ function CRMPipeline({
     }).format(cents / 100);
   const moveDeal = async (deal: Deal, stage: string) => {
     if (deal.stage === stage) return;
+    setDeals((current) => current.map((item) => item.id === deal.id ? { ...item, stage } : item));
     const response = await fetch("/api/crm/opportunities", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -12095,13 +12097,11 @@ function CRMPipeline({
       }),
     });
     if (!response.ok) {
+      setDeals((current) => current.map((item) => item.id === deal.id ? { ...item, stage: deal.stage } : item));
       const data = (await response.json()) as { error?: string };
       onFlash(data.error || "Lead could not be moved");
       return;
     }
-    setDeals((current) =>
-      current.map((item) => (item.id === deal.id ? { ...item, stage } : item)),
-    );
     window.dispatchEvent(
       new CustomEvent("cyncro:data-changed", {
         detail: { entity: "opportunity", action: "moved" },
@@ -15113,17 +15113,20 @@ function CRMCompensation({
     payment_status?: string;
     source?: string;
     notes?: string;
+    commission_rate_bps?: number;
+    commission_status?: string;
   };
   const [deals, setDeals] = useState<Deal[]>([]);
   const [service, setService] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (isOwner)
-      void fetch("/api/crm/opportunities").then(async (r) => {
-        const d = (await r.json()) as { opportunities?: Deal[] };
-        setDeals(d.opportunities || []);
-      });
-  }, [isOwner]);
+  const load = async () => {
+    const r = await fetch("/api/crm/opportunities?compensation=1", { cache: "no-store" });
+    const d = (await r.json()) as { opportunities?: Deal[]; error?: string };
+    if (!r.ok) return onFlash(d.error || "Commissions could not load");
+    setDeals(d.opportunities || []);
+  };
+  useEffect(() => { void load(); }, [isOwner]);
   const rate = (deal: Deal) => {
+    if (deal.commission_rate_bps) return deal.commission_rate_bps / 100;
     const kind = service[deal.id] || "AUTOMATION";
     if (kind === "WEBSITE" || kind === "LANDING_PAGE") return 50;
     const value = deal.value_cents / 100;
@@ -15172,19 +15175,19 @@ function CRMCompensation({
     URL.revokeObjectURL(url);
     onFlash("Payout report downloaded");
   };
-  if (!isOwner)
-    return (
-      <section className="crmPanel restrictedPanel">
-        <h2>Owner-only compensation</h2>
-        <p>Employee commissions and payouts are private.</p>
-      </section>
-    );
+  const updateDeal = async (deal: Deal, updates: Record<string, unknown>) => {
+    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deal.id, updates }) });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) return onFlash(data.error || "Payout could not be updated");
+    await load();
+    onFlash("Commission and payout saved");
+  };
   return (
     <div className="financeWorkspace">
       <section className="financeHero crmPanel">
         <div>
-          <small>OWNER COMPENSATION DESK</small>
-          <h2>Calculate every payout with one rule set.</h2>
+          <small>{isOwner ? "OWNER COMPENSATION DESK" : "MY COMMISSION SHEET"}</small>
+          <h2>{isOwner ? "Calculate and approve every payout." : "Your assigned deals and payouts."}</h2>
           <p>
             Automations scale from 20–30% by deal size. Websites and landing
             pages pay 50% for the first month only.
@@ -15225,24 +15228,34 @@ function CRMCompensation({
               <small>
                 {d.assigned_rep || "Unassigned"} · {d.account_name}
               </small>
+              {isOwner && (
+                <span className="payoutAssignmentFields">
+                  <input aria-label="Account manager" defaultValue={d.assigned_rep || ""} placeholder="Account manager" onBlur={(e) => void updateDeal(d, { assignedRep: e.target.value })} />
+                  <input aria-label="Lead source" defaultValue={d.source || ""} placeholder="Source" onBlur={(e) => void updateDeal(d, { source: e.target.value })} />
+                </span>
+              )}
             </span>
             <select
+              disabled={!isOwner}
               value={service[d.id] || "AUTOMATION"}
-              onChange={(e) =>
-                setService({ ...service, [d.id]: e.target.value })
-              }
+              onChange={(e) => {
+                const kind = e.target.value;
+                setService({ ...service, [d.id]: kind });
+                const automaticRate = kind === "AUTOMATION" ? (d.value_cents >= 1000000 ? 30 : d.value_cents >= 500000 ? 25 : 20) : 50;
+                void updateDeal(d, { commissionRate: automaticRate });
+              }}
             >
               <option value="AUTOMATION">Automation / recurring</option>
               <option value="WEBSITE">Website · first month</option>
               <option value="LANDING_PAGE">Landing page · first month</option>
             </select>
-            <strong>
+            {isOwner ? <input aria-label="Amount paid" type="number" min="0" defaultValue={Number(d.collected_cents || 0) / 100} onBlur={(e) => void updateDeal(d, { collected: Number(e.target.value) })} /> : <strong>
               {new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "USD",
               }).format(Number(d.collected_cents || 0) / 100)}
-            </strong>
-            <em>{rate(d)}%</em>
+            </strong>}
+            {isOwner ? <input aria-label="Commission percentage" type="number" min="20" max="50" defaultValue={rate(d)} onBlur={(e) => void updateDeal(d, { commissionRate: Number(e.target.value) })} /> : <em>{rate(d)}%</em>}
             <b>
               {new Intl.NumberFormat("en-US", {
                 style: "currency",
@@ -15251,6 +15264,7 @@ function CRMCompensation({
             </b>
           </div>
         ))}
+        {!deals.length && <div className="emptyState">No commissions are assigned to this user yet.</div>}
       </section>
     </div>
   );
@@ -16317,7 +16331,15 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
           </div>
         </section>
       ) : (
-        <div className="contractStudioGrid">
+        <>
+        <label className="contractRecordPicker">
+          <span>OPEN AGREEMENT</span>
+          <select value={selected} onChange={(event) => void loadDetail(event.target.value)}>
+            <option value="">Choose a customer contract…</option>
+            {rows.map((row) => <option key={row.id} value={row.id}>{row.client_name} — {row.title} ({row.status})</option>)}
+          </select>
+        </label>
+        <div className="contractStudioGrid contractStudioUnified">
           <aside className="crmPanel contractListV2">
             <header>
               <small>AGREEMENT LEDGER</small>
@@ -16493,6 +16515,7 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
             )}
           </main>
         </div>
+        </>
       )}
     </div>
   );
@@ -16706,6 +16729,7 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
     active: number;
   };
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [allowed, setAllowed] = useState(false);
   const [form, setForm] = useState({
     email: "",
@@ -16729,7 +16753,8 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
       return;
     }
     setAllowed(Boolean(data.member?.manage_users));
-    setMembers(data.members || []);
+    setCurrentMember(data.member || null);
+    setMembers(data.members?.length ? data.members : data.member ? [data.member] : []);
   };
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -16775,6 +16800,12 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
             <h2>Add a team member</h2>
           </div>
         </div>
+        {currentMember && (
+          <div className="ownerAccessSummary">
+            <span><small>YOUR ACCESS</small><b>{currentMember.display_name}</b></span>
+            <span>{currentMember.role} · CRM · Calendar · Prospecting · User management</span>
+          </div>
+        )}
         <div className="crmForm">
           <label>
             Name
