@@ -14187,12 +14187,12 @@ function CRMAccounts({
     ),
   );
   return (
-    <div className="accountWorkspace">
-      <section className="accountPortfolio crmPanel">
+    <div className="accountWorkspace accountUnifiedCommand crmPanel">
+      <section className="accountPortfolio">
         <div className="crmPanelHead">
           <div>
-            <small>ACCOUNT PORTFOLIO</small>
-            <h2>Revenue relationships</h2>
+            <small>ACCOUNT COMMAND</small>
+            <h2>Choose a customer account</h2>
           </div>
           <button onClick={() => void load()}>Refresh</button>
         </div>
@@ -14229,10 +14229,10 @@ function CRMAccounts({
         )}
       </section>
       {active && (
-        <section className="accountCommand crmPanel">
+        <section className="accountCommand">
           <div className="accountCommandHead">
             <div>
-              <small>ACCOUNT COMMAND</small>
+              <small>SELECTED ACCOUNT</small>
               <h2>{active.name}</h2>
               <p>
                 Unified relationship, revenue, engagement, and delivery
