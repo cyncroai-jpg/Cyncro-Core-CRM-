@@ -19013,6 +19013,23 @@ label {
   }
 }
 
+/* Launch polish: spacious records and direct connections */
+.contactWorkspace { grid-template-columns: minmax(420px, .9fr) minmax(520px, 1.1fr); gap: 18px; }
+.contactList, .contactDetail { min-width: 0; }
+.contactRow { min-height: 76px; padding: 15px 18px; }
+.contactHero { gap: 14px; padding: 22px; }
+.contactDetail .crmForm { padding: 20px; gap: 14px; }
+.contactDetail .crmForm input, .contactDetail .crmForm select, .contactDetail .crmForm textarea { min-height: 44px; font-size: 12px; }
+.googleConnectPanel { display:flex; align-items:center; justify-content:space-between; gap:28px; padding:26px; border-color:#6f2a39; background:linear-gradient(145deg,#181214,#0e0c0d); }
+.googleConnectPanel small { color:#e4778a; font-size:8px; font-weight:800; letter-spacing:.14em; }
+.googleConnectPanel h2 { margin:8px 0; font-size:25px; }
+.googleConnectPanel p, .googleConnectPanel ol { color:#bcaeb1; font-size:10px; line-height:1.7; }
+.googleConnectPanel code { color:#f0dce0; overflow-wrap:anywhere; }
+.googleConnectButton { flex:0 0 auto; min-height:48px; border:1px solid #a52b43; border-radius:8px; background:#8f1a31; color:#fff; padding:0 20px; font-weight:700; }
+.externalCalendarBar > div:last-child { display:flex; gap:8px; flex-wrap:wrap; }
+@media (max-width: 1180px) { .contactWorkspace { grid-template-columns:1fr; } }
+@media (max-width: 700px) { .googleConnectPanel { align-items:stretch; flex-direction:column; } .googleConnectButton { width:100%; } .contactWorkspace { display:block; } .contactList { margin-bottom:14px; } }
+
 /* CRM connection center */
 .integrationsWorkspace {
   display: grid;

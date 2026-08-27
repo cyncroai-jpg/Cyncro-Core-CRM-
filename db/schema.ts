@@ -206,3 +206,13 @@ export const calendarBookings = sqliteTable("calendar_bookings", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const calendarOauthStates = sqliteTable("calendar_oauth_states", {
+  state: text("state").primaryKey(), owner: text("owner").notNull(), expiresAt: text("expires_at").notNull(), createdAt: text("created_at").notNull(),
+});
+export const calendarOauthConnections = sqliteTable("calendar_oauth_connections", {
+  owner: text("owner").primaryKey(), provider: text("provider").notNull().default("GOOGLE"), accountEmail: text("account_email"), calendarId: text("calendar_id").notNull().default("primary"), accessToken: text("access_token").notNull(), refreshToken: text("refresh_token"), expiresAt: text("expires_at").notNull(), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+export const calendarExternalEvents = sqliteTable("calendar_external_events", {
+  bookingId: text("booking_id").primaryKey().references(() => calendarBookings.id), provider: text("provider").notNull().default("GOOGLE"), externalEventId: text("external_event_id").notNull(), owner: text("owner").notNull(), updatedAt: text("updated_at").notNull(),
+});

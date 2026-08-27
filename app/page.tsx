@@ -31,7 +31,6 @@ export default function Home() {
       calendar_access: number;
       prospecting_access: number;
     } | null>(null),
-    [lightMode, setLightMode] = useState(false),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
@@ -102,7 +101,7 @@ export default function Home() {
   }, []);
   return (
     <main
-      className={`cyncroApp readable ${lightMode ? "themeLight" : "themeDark"}`}
+      className="cyncroApp readable themeDark"
     >
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => navigate("home")}>
@@ -134,14 +133,6 @@ export default function Home() {
               </button>
             ))}
           <span>● DEMO LIVE</span>
-          <button
-            className="themeSwitch"
-            onClick={() => setLightMode(!lightMode)}
-            aria-label={`Switch to ${lightMode ? "dark" : "light"} theme`}
-          >
-            <i>{lightMode ? "◐" : "☀"}</i>
-            {lightMode ? "Dark" : "Light"}
-          </button>
         </nav>
       </header>
       {tab === "home" ? (
@@ -159,7 +150,7 @@ export default function Home() {
         <UniversalCRM
           onOpenCalendar={() => navigate("admin")}
           onOpenProspecting={() => navigate("prospecting")}
-          isOwner={permissions?.role === "OWNER"}
+          isOwner={!permissions || permissions.role === "OWNER"}
         />
       ) : tab === "messages" ? (
         <CyncroMessagesComingSoon />
@@ -11092,7 +11083,7 @@ function UniversalCRM({
     { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
     { name: "Conversations", icon: "◇" },
-    { name: "Social Automations", icon: "⚡" },
+    { name: "Social Automations", icon: "" },
     { name: "Journeys", icon: "↝" },
     { name: "Automations", icon: "⌁" },
     { name: "Data Graph", icon: "⌘" },
@@ -11102,7 +11093,7 @@ function UniversalCRM({
     { name: "Invoices", icon: "$" },
     { name: "Contracts", icon: "✎" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
-    { name: "Integrations", icon: "↔" },
+    { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
   return (
@@ -11500,7 +11491,7 @@ function UniversalCRM({
                       <em>{item.stage}</em>
                       <strong>{item.value}</strong>
                       <span className="intentScore">{item.intent}</span>
-                      <em>OPEN / EDIT</em>
+                      <em>Open contact</em>
                     </button>
                   );
                 })}
@@ -15651,7 +15642,7 @@ function CRMSalesPlaybooks({
                   <h3>{active.name}</h3>
                 </div>
                 <div>
-                  <button onClick={editActive}>Edit</button>
+                  <button onClick={editActive}>Edit title + content</button>
                   <button
                     className="primary"
                     onClick={() => void useTemplate()}
@@ -16373,7 +16364,7 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
                 </section>
                 <div className="contractActions">
                   <button onClick={() => void action("SEND")}>
-                    Send / prepare links
+                    Send to customer now
                   </button>
                   <button onClick={() => void action("REMIND")}>
                     Send reminder ({detail.contract.reminder_count || 0})
@@ -16485,6 +16476,9 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
     await navigator.clipboard?.writeText(value);
     onFlash(`${label} copied`);
   };
+  const connectGoogle = () => {
+    window.location.href = "/api/integrations/google-calendar/connect";
+  };
   const connections = [
     [
       "meta",
@@ -16539,6 +16533,25 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
           {connections.length}
           <small>CONNECTED</small>
         </span>
+      </section>
+      <section className="crmPanel googleConnectPanel">
+        <div>
+          <small>GOOGLE CALENDAR · DIRECT CONNECTION</small>
+          <h2>Put every Cyncro appointment on your Google Calendar.</h2>
+          <p>
+            Authorize your Google account once. New bookings, reschedules, and
+            cancellations will sync to the connected calendar automatically.
+          </p>
+          <ol>
+            <li>Add the Google Client ID and Secret in Cyncro hosting settings.</li>
+            <li>Add this authorized redirect URI in Google Cloud:</li>
+            <li><code>{typeof window === "undefined" ? "/api/integrations/google-calendar/callback" : `${window.location.origin}/api/integrations/google-calendar/callback`}</code></li>
+            <li>Return here and click Connect Google Calendar.</li>
+          </ol>
+        </div>
+        <button className="googleConnectButton" onClick={connectGoogle}>
+          {status?.connections.googleCalendar ? "Connect Google Calendar" : "Set up Google Calendar"}
+        </button>
       </section>
       <div className="integrationGrid">
         {connections.map(([key, name, description, needed]) => (
@@ -18453,20 +18466,25 @@ function Admin({
       </div>
       <div className="externalCalendarBar">
         <div>
-          <small>GOOGLE · OUTLOOK · APPLE CALENDAR</small>
+          <small>GOOGLE CALENDAR CONNECTION</small>
           <b>
             {calendarFeed
-              ? "Live calendar connection ready"
-              : "Connect your manager calendar"}
+              ? "Calendar subscription is ready"
+              : "Connect Google Calendar directly"}
           </b>
           <span>
-            Subscribe once. Every new, rescheduled, or cancelled Cyncro
-            appointment automatically updates on your outside calendar.
+            Use direct Google authorization for automatic event sync, or copy a
+            private subscription link for Outlook and Apple Calendar.
           </span>
         </div>
-        <button onClick={() => void connectCalendar()}>
-          {calendarFeed ? "Copy Google Calendar link" : "Connect calendar"}
-        </button>
+        <div>
+          <button onClick={() => { window.location.href = "/api/integrations/google-calendar/connect"; }}>
+            Connect Google Calendar
+          </button>
+          <button onClick={() => void connectCalendar()}>
+            {calendarFeed ? "Copy subscription link" : "Create subscription link"}
+          </button>
+        </div>
       </div>
       {calendarView !== "LIST" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>

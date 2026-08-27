@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { syncGoogleBooking } from "@/lib/core/google-calendar";
 
 export async function GET(request: Request) {
   try {
@@ -76,6 +77,8 @@ export async function POST(request: Request) {
       VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),requestUser(request),now,now).run();
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
+    const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
+    if (createdBooking) await syncGoogleBooking(requestUser(request), createdBooking);
     return Response.json({ booking: { id: bookingId, startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED" } }, { status: 201 });
   } catch (error) {
     console.error("calendar.bookings.create_failed", error);
@@ -122,6 +125,7 @@ export async function PATCH(request: Request) {
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
     const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first();
+    if (updated) await syncGoogleBooking(requestUser(request), { ...updated, event_name: booking.event_name || "Cyncro appointment" });
     return Response.json({ booking: updated });
   } catch (error) {
     console.error("calendar.bookings.update_failed", error);
