@@ -363,56 +363,540 @@ export default function Home() {
 }
 
 function ApexFunds() {
-  const [view, setView] = useState<"pipeline" | "network" | "recovery">("pipeline");
+  const [view, setView] = useState<"pipeline" | "network" | "recovery">(
+    "pipeline",
+  );
   const [notice, setNotice] = useState("");
   const applications = [
-    { applicant: "Meridian Transport", amount: "$425,000", lenders: 14, best: "9.2% · 60 mo", stage: "OFFERS READY", score: 742 },
-    { applicant: "Northline Dental Group", amount: "$180,000", lenders: 9, best: "10.1% · 48 mo", stage: "UNDERWRITING", score: 701 },
-    { applicant: "Atlas Commercial Roofing", amount: "$310,000", lenders: 17, best: "—", stage: "STIPS REQUIRED", score: 668 },
-    { applicant: "Harbor Hospitality", amount: "$750,000", lenders: 21, best: "12.4% · 72 mo", stage: "LENDER REVIEW", score: 689 },
+    {
+      applicant: "Meridian Transport",
+      amount: "$425,000",
+      lenders: 14,
+      best: "9.2% · 60 mo",
+      stage: "OFFERS READY",
+      score: 742,
+    },
+    {
+      applicant: "Northline Dental Group",
+      amount: "$180,000",
+      lenders: 9,
+      best: "10.1% · 48 mo",
+      stage: "UNDERWRITING",
+      score: 701,
+    },
+    {
+      applicant: "Atlas Commercial Roofing",
+      amount: "$310,000",
+      lenders: 17,
+      best: "—",
+      stage: "STIPS REQUIRED",
+      score: 668,
+    },
+    {
+      applicant: "Harbor Hospitality",
+      amount: "$750,000",
+      lenders: 21,
+      best: "12.4% · 72 mo",
+      stage: "LENDER REVIEW",
+      score: 689,
+    },
   ];
   const lenders = [
-    ["Northstar Capital", "Preferred", "7 min ago", "9.2–13.8%", "24–72 mo", "ACTIVE"],
-    ["Cobalt Funding", "Equipment", "11 min ago", "10.4–16.2%", "36–60 mo", "ACTIVE"],
-    ["Summit Commercial", "SBA / Term", "18 min ago", "Prime + 2.75%", "60–120 mo", "ACTIVE"],
-    ["Velocity Advance", "Working capital", "24 min ago", "Factor 1.18–1.34", "6–18 mo", "ACTIVE"],
+    [
+      "Northstar Capital",
+      "Preferred",
+      "7 min ago",
+      "9.2–13.8%",
+      "24–72 mo",
+      "ACTIVE",
+    ],
+    [
+      "Cobalt Funding",
+      "Equipment",
+      "11 min ago",
+      "10.4–16.2%",
+      "36–60 mo",
+      "ACTIVE",
+    ],
+    [
+      "Summit Commercial",
+      "SBA / Term",
+      "18 min ago",
+      "Prime + 2.75%",
+      "60–120 mo",
+      "ACTIVE",
+    ],
+    [
+      "Velocity Advance",
+      "Working capital",
+      "24 min ago",
+      "Factor 1.18–1.34",
+      "6–18 mo",
+      "ACTIVE",
+    ],
   ];
   const recovery = [
-    ["Pinnacle Auto Group", "Utilization 79%", "+46 pts est.", "45–60 days", "$240,000"],
-    ["Luna Wellness Partners", "2 reporting errors", "+31 pts est.", "30–45 days", "$125,000"],
-    ["Coastal Build Co.", "Thin business file", "Fundability plan", "60–90 days", "$390,000"],
+    [
+      "Pinnacle Auto Group",
+      "Utilization 79%",
+      "+46 pts est.",
+      "45–60 days",
+      "$240,000",
+    ],
+    [
+      "Luna Wellness Partners",
+      "2 reporting errors",
+      "+31 pts est.",
+      "30–45 days",
+      "$125,000",
+    ],
+    [
+      "Coastal Build Co.",
+      "Thin business file",
+      "Fundability plan",
+      "60–90 days",
+      "$390,000",
+    ],
   ];
-  const flash = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); };
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 2600);
+  };
   return (
     <section className="apexFunds">
       <aside className="apexRail">
-        <div className="apexBrand"><i>▲</i><span><small>FINTECH INFRASTRUCTURE</small><b>Apex Funds</b></span></div>
+        <div className="apexBrand">
+          <i>▲</i>
+          <span>
+            <small>FINTECH INFRASTRUCTURE</small>
+            <b>Apex Funds</b>
+          </span>
+        </div>
         <nav>
           <small>COMMAND CENTER</small>
-          {([['pipeline','Deal Intelligence','28'],['network','Lender Network','104'],['recovery','Approval Recovery','12']] as const).map(([key,label,count]) => <button key={key} className={view===key?'active':''} onClick={()=>setView(key)}><i>{key==='pipeline'?'⌁':key==='network'?'◎':'↗'}</i><span>{label}</span><em>{count}</em></button>)}
+          {(
+            [
+              ["pipeline", "Deal Intelligence", "28"],
+              ["network", "Lender Network", "104"],
+              ["recovery", "Approval Recovery", "12"],
+            ] as const
+          ).map(([key, label, count]) => (
+            <button
+              key={key}
+              className={view === key ? "active" : ""}
+              onClick={() => setView(key)}
+            >
+              <i>{key === "pipeline" ? "⌁" : key === "network" ? "◎" : "↗"}</i>
+              <span>{label}</span>
+              <em>{count}</em>
+            </button>
+          ))}
           <small>OPERATIONS</small>
-          <button onClick={()=>flash('Application intake opened')}><i>＋</i><span>New application</span></button>
-          <button onClick={()=>flash('Document center opened')}><i>▱</i><span>Documents</span></button>
-          <button onClick={()=>flash('Broker analytics opened')}><i>⌗</i><span>Broker analytics</span></button>
+          <button onClick={() => flash("Application intake opened")}>
+            <i>＋</i>
+            <span>New application</span>
+          </button>
+          <button onClick={() => flash("Document center opened")}>
+            <i>▱</i>
+            <span>Documents</span>
+          </button>
+          <button onClick={() => flash("Broker analytics opened")}>
+            <i>⌗</i>
+            <span>Broker analytics</span>
+          </button>
         </nav>
-        <div className="apexRailStatus"><span>●</span><div><small>NETWORK STATUS</small><b>Integration ready</b><p>Connect lender APIs and secure feeds to activate live synchronization.</p></div></div>
+        <div className="apexRailStatus">
+          <span>●</span>
+          <div>
+            <small>NETWORK STATUS</small>
+            <b>Integration ready</b>
+            <p>
+              Connect lender APIs and secure feeds to activate live
+              synchronization.
+            </p>
+          </div>
+        </div>
       </aside>
       <main>
-        <header className="apexTop"><div><small>APEX FUNDS · BROKER OPERATING SYSTEM</small><h1>{view==='pipeline'?'Every deal. Every lender. One truth.':view==='network'?'The entire lender network—normalized.':'Turn declines into fundable deals.'}</h1></div><button onClick={()=>flash('Lender connection workflow opened')}>＋ CONNECT LENDER</button></header>
+        <header className="apexTop">
+          <div>
+            <small>APEX FUNDS · BROKER OPERATING SYSTEM</small>
+            <h1>
+              {view === "pipeline"
+                ? "Every deal. Every lender. One truth."
+                : view === "network"
+                  ? "The entire lender network—normalized."
+                  : "Turn declines into fundable deals."}
+            </h1>
+          </div>
+          <button onClick={() => flash("Lender connection workflow opened")}>
+            ＋ CONNECT LENDER
+          </button>
+        </header>
         {notice && <div className="apexNotice">✓ {notice}</div>}
-        <div className="apexMetrics">{[["$6.42M","ACTIVE REQUESTS","↑ 18.4%"],["28","OPEN APPLICATIONS","7 need action"],["104","LENDER CONNECTIONS","96 healthy"],["$840K","RECOVERABLE PIPELINE","12 applicants"]].map((metric)=><article key={metric[1]}><small>{metric[1]}</small><b>{metric[0]}</b><span>{metric[2]}</span></article>)}</div>
-        {view==='pipeline' && <>
-          <section className="apexCommandCard"><header><div><small>LIVE DEAL INTELLIGENCE</small><h2>Applications across the network</h2></div><span>STATUS NORMALIZATION ACTIVE</span></header><div className="apexTable apexDeals"><div><b>APPLICANT</b><b>REQUEST</b><b>LENDERS</b><b>BEST CURRENT OFFER</b><b>STATUS</b></div>{applications.map((app)=><button key={app.applicant} onClick={()=>flash(`${app.applicant} deal room opened`)}><span><i>{app.applicant.slice(0,2).toUpperCase()}</i><strong>{app.applicant}</strong><small>Credit {app.score}</small></span><b>{app.amount}</b><b>{app.lenders} matched</b><b>{app.best}</b><em>{app.stage}</em></button>)}</div></section>
-          <div className="apexSplit"><section className="apexCommandCard"><header><div><small>DECISION VELOCITY</small><h2>One application, multiple outcomes</h2></div></header><div className="apexOfferFlow"><span>APPLICATION<i>1</i></span><b>→</b><span>LENDERS<i>14</i></span><b>→</b><span>RESPONSES<i>9</i></span><b>→</b><span>QUALIFIED OFFERS<i>4</i></span></div><div className="apexOfferBest"><small>BEST FIT IDENTIFIED</small><b>Northstar Capital</b><span>9.2% · 60 months · $8,864 estimated monthly</span><button onClick={()=>flash('Offer comparison opened')}>COMPARE ALL OFFERS →</button></div></section><section className="apexCommandCard apexAction"><small>NEXT BEST ACTION</small><h2>3 stipulations block $935K in approvals.</h2><p>Apex normalized the lender requests and grouped duplicate documents so your broker sends each item once.</p><button onClick={()=>flash('Stipulation workspace opened')}>RESOLVE STIPULATIONS</button></section></div>
-        </>}
-        {view==='network' && <section className="apexCommandCard"><header><div><small>CONNECTED LENDER NETWORK</small><h2>Rates, terms, programs, and health</h2></div><span>104 CONNECTIONS</span></header><div className="apexTable apexLenders"><div><b>LENDER</b><b>PROGRAM</b><b>LAST UPDATE</b><b>RATE / FACTOR</b><b>TERM</b><b>HEALTH</b></div>{lenders.map((item)=><button key={item[0]} onClick={()=>flash(`${item[0]} connection opened`)}>{item.map((value,index)=>index===5?<em key={value}>{value}</em>:<span key={value}>{value}</span>)}</button>)}</div><div className="apexNetworkFoot"><div><b>96</b><span>Healthy</span></div><div><b>6</b><span>Attention</span></div><div><b>2</b><span>Reconnect</span></div><p>Production connections require each lender&apos;s approved API, secure file feed, or authorized portal integration.</p></div></section>}
-        {view==='recovery' && <><section className="apexRecoveryHero"><div><small>BUILT-IN APPROVAL RECOVERY</small><h2>A decline is a diagnosis—not the end of the deal.</h2><p>Identify the approval blocker, create a documented remediation path, monitor progress, and return the applicant to the right lenders when fundability improves.</p></div><div><b>$840K</b><span>recoverable opportunity</span><small>Never promise deletion or approval. Every action remains documented and reviewable.</small></div></section><section className="apexCommandCard"><header><div><small>RECOVERY QUEUE</small><h2>Applicants with a path back to funding</h2></div><span>12 ACTIVE PLANS</span></header><div className="apexTable apexRecovery"><div><b>APPLICANT</b><b>PRIMARY BLOCKER</b><b>PROJECTED IMPACT</b><b>REVIEW WINDOW</b><b>DEAL VALUE</b></div>{recovery.map((item)=><button key={item[0]} onClick={()=>flash(`${item[0]} recovery plan opened`)}>{item.map((value,index)=>index===2?<em key={value}>{value}</em>:<span key={value}>{value}</span>)}</button>)}</div></section></>}
+        <div className="apexMetrics">
+          {[
+            ["$6.42M", "ACTIVE REQUESTS", "↑ 18.4%"],
+            ["28", "OPEN APPLICATIONS", "7 need action"],
+            ["104", "LENDER CONNECTIONS", "96 healthy"],
+            ["$840K", "RECOVERABLE PIPELINE", "12 applicants"],
+          ].map((metric) => (
+            <article key={metric[1]}>
+              <small>{metric[1]}</small>
+              <b>{metric[0]}</b>
+              <span>{metric[2]}</span>
+            </article>
+          ))}
+        </div>
+        {view === "pipeline" && (
+          <>
+            <section className="apexCommandCard">
+              <header>
+                <div>
+                  <small>LIVE DEAL INTELLIGENCE</small>
+                  <h2>Applications across the network</h2>
+                </div>
+                <span>STATUS NORMALIZATION ACTIVE</span>
+              </header>
+              <div className="apexTable apexDeals">
+                <div>
+                  <b>APPLICANT</b>
+                  <b>REQUEST</b>
+                  <b>LENDERS</b>
+                  <b>BEST CURRENT OFFER</b>
+                  <b>STATUS</b>
+                </div>
+                {applications.map((app) => (
+                  <button
+                    key={app.applicant}
+                    onClick={() => flash(`${app.applicant} deal room opened`)}
+                  >
+                    <span>
+                      <i>{app.applicant.slice(0, 2).toUpperCase()}</i>
+                      <strong>{app.applicant}</strong>
+                      <small>Credit {app.score}</small>
+                    </span>
+                    <b>{app.amount}</b>
+                    <b>{app.lenders} matched</b>
+                    <b>{app.best}</b>
+                    <em>{app.stage}</em>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <div className="apexSplit">
+              <section className="apexCommandCard">
+                <header>
+                  <div>
+                    <small>DECISION VELOCITY</small>
+                    <h2>One application, multiple outcomes</h2>
+                  </div>
+                </header>
+                <div className="apexOfferFlow">
+                  <span>
+                    APPLICATION<i>1</i>
+                  </span>
+                  <b>→</b>
+                  <span>
+                    LENDERS<i>14</i>
+                  </span>
+                  <b>→</b>
+                  <span>
+                    RESPONSES<i>9</i>
+                  </span>
+                  <b>→</b>
+                  <span>
+                    QUALIFIED OFFERS<i>4</i>
+                  </span>
+                </div>
+                <div className="apexOfferBest">
+                  <small>BEST FIT IDENTIFIED</small>
+                  <b>Northstar Capital</b>
+                  <span>9.2% · 60 months · $8,864 estimated monthly</span>
+                  <button onClick={() => flash("Offer comparison opened")}>
+                    COMPARE ALL OFFERS →
+                  </button>
+                </div>
+              </section>
+              <section className="apexCommandCard apexAction">
+                <small>NEXT BEST ACTION</small>
+                <h2>3 stipulations block $935K in approvals.</h2>
+                <p>
+                  Apex normalized the lender requests and grouped duplicate
+                  documents so your broker sends each item once.
+                </p>
+                <button onClick={() => flash("Stipulation workspace opened")}>
+                  RESOLVE STIPULATIONS
+                </button>
+              </section>
+            </div>
+          </>
+        )}
+        {view === "network" && (
+          <section className="apexCommandCard">
+            <header>
+              <div>
+                <small>CONNECTED LENDER NETWORK</small>
+                <h2>Rates, terms, programs, and health</h2>
+              </div>
+              <span>104 CONNECTIONS</span>
+            </header>
+            <div className="apexTable apexLenders">
+              <div>
+                <b>LENDER</b>
+                <b>PROGRAM</b>
+                <b>LAST UPDATE</b>
+                <b>RATE / FACTOR</b>
+                <b>TERM</b>
+                <b>HEALTH</b>
+              </div>
+              {lenders.map((item) => (
+                <button
+                  key={item[0]}
+                  onClick={() => flash(`${item[0]} connection opened`)}
+                >
+                  {item.map((value, index) =>
+                    index === 5 ? (
+                      <em key={value}>{value}</em>
+                    ) : (
+                      <span key={value}>{value}</span>
+                    ),
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="apexNetworkFoot">
+              <div>
+                <b>96</b>
+                <span>Healthy</span>
+              </div>
+              <div>
+                <b>6</b>
+                <span>Attention</span>
+              </div>
+              <div>
+                <b>2</b>
+                <span>Reconnect</span>
+              </div>
+              <p>
+                Production connections require each lender&apos;s approved API,
+                secure file feed, or authorized portal integration.
+              </p>
+            </div>
+          </section>
+        )}
+        {view === "recovery" && (
+          <>
+            <section className="apexRecoveryHero">
+              <div>
+                <small>BUILT-IN APPROVAL RECOVERY</small>
+                <h2>A decline is a diagnosis—not the end of the deal.</h2>
+                <p>
+                  Identify the approval blocker, create a documented remediation
+                  path, monitor progress, and return the applicant to the right
+                  lenders when fundability improves.
+                </p>
+              </div>
+              <div>
+                <b>$840K</b>
+                <span>recoverable opportunity</span>
+                <small>
+                  Never promise deletion or approval. Every action remains
+                  documented and reviewable.
+                </small>
+              </div>
+            </section>
+            <section className="apexCommandCard">
+              <header>
+                <div>
+                  <small>RECOVERY QUEUE</small>
+                  <h2>Applicants with a path back to funding</h2>
+                </div>
+                <span>12 ACTIVE PLANS</span>
+              </header>
+              <div className="apexTable apexRecovery">
+                <div>
+                  <b>APPLICANT</b>
+                  <b>PRIMARY BLOCKER</b>
+                  <b>PROJECTED IMPACT</b>
+                  <b>REVIEW WINDOW</b>
+                  <b>DEAL VALUE</b>
+                </div>
+                {recovery.map((item) => (
+                  <button
+                    key={item[0]}
+                    onClick={() => flash(`${item[0]} recovery plan opened`)}
+                  >
+                    {item.map((value, index) =>
+                      index === 2 ? (
+                        <em key={value}>{value}</em>
+                      ) : (
+                        <span key={value}>{value}</span>
+                      ),
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </section>
   );
 }
 
-function ContractSigning(){type Contract={title:string;client_name:string;body:string;status:string;signer_name?:string;signed_at?:string};const [contract,setContract]=useState<Contract|null>(null),[name,setName]=useState(""),[accepted,setAccepted]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);const token=typeof window!=="undefined"?new URLSearchParams(window.location.search).get("contract")||"":"";useEffect(()=>{if(!token){setError("Signature link is missing.");return}void fetch(`/api/crm/contracts?token=${encodeURIComponent(token)}`).then(async r=>{const d=await r.json() as {contract?:Contract;error?:string};if(!r.ok){setError(d.error||"Contract unavailable");return}setContract(d.contract||null)})},[token]);const sign=async()=>{if(!accepted||!name.trim()){setError("Type your legal name and accept the agreement.");return}const r=await fetch("/api/crm/contracts",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,signerName:name})}),d=await r.json() as {error?:string};if(!r.ok){setError(d.error||"Signature could not be recorded");return}setDone(true)};return <section className="contractSigning"><main>{done?<div className="signatureSuccess"><i>✓</i><small>AGREEMENT SIGNED</small><h1>Signature recorded.</h1><p>A dated audit record has been saved securely.</p></div>:<><header><small>CYNCRO SECURE AGREEMENT</small><h1>{contract?.title||"Loading agreement…"}</h1><p>Prepared for {contract?.client_name||"client"}</p></header>{error&&<div className="bookingError">{error}</div>}{contract&&<><article>{contract.body}</article>{contract.status==="SIGNED"?<div className="signatureSuccess"><b>Already signed by {contract.signer_name}</b><span>{contract.signed_at&&new Date(contract.signed_at).toLocaleString()}</span></div>:<div className="signatureBox"><label>Legal signature<input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name"/></label><label className="signatureConsent"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I have read and agree to this contract. My typed name is my electronic signature.</label><button onClick={()=>void sign()}>Sign agreement</button></div>}</>}</>}</main></section>}
+function ContractSigning() {
+  type Contract = {
+    title: string;
+    client_name: string;
+    body: string;
+    contract_status?: string;
+    status?: string;
+    signer_name?: string;
+    signed_at?: string;
+    signing_order?: number;
+    signer_role?: string;
+    expires_at?: string;
+    owner_signer_name?: string;
+    owner_signed_at?: string;
+  };
+  const [contract, setContract] = useState<Contract | null>(null),
+    [name, setName] = useState(""),
+    [accepted, setAccepted] = useState(false),
+    [error, setError] = useState(""),
+    [done, setDone] = useState(false);
+  const token =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("contract") || ""
+      : "";
+  useEffect(() => {
+    if (!token) {
+      setError("Signature link is missing.");
+      return;
+    }
+    void fetch(`/api/crm/contracts?token=${encodeURIComponent(token)}`).then(
+      async (response) => {
+        const data = (await response.json()) as {
+          contract?: Contract;
+          error?: string;
+        };
+        if (!response.ok) {
+          setError(data.error || "Contract unavailable");
+          return;
+        }
+        setContract(data.contract || null);
+        setName(data.contract?.signer_name || "");
+      },
+    );
+  }, [token]);
+  const sign = async () => {
+    if (!accepted || !name.trim()) {
+      setError("Type your legal name and accept the agreement.");
+      return;
+    }
+    const consentText =
+      "I reviewed and agree to this contract and adopt my typed name as my electronic signature.";
+    const response = await fetch("/api/crm/contracts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, signerName: name, consentText }),
+      }),
+      data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setError(data.error || "Signature could not be recorded");
+      return;
+    }
+    setDone(true);
+  };
+  const completed =
+    contract?.status === "SIGNED" || contract?.contract_status === "SIGNED";
+  return (
+    <section className="contractSigning">
+      <main>
+        {done ? (
+          <div className="signatureSuccess">
+            <i>✓</i>
+            <small>AGREEMENT SIGNED</small>
+            <h1>Your signature is recorded.</h1>
+            <p>
+              The audit trail now contains your consent, date, time, and network
+              record.
+            </p>
+          </div>
+        ) : (
+          <>
+            <header>
+              <small>CYNCRO SECURE AGREEMENT</small>
+              <h1>{contract?.title || "Loading agreement…"}</h1>
+              <p>Prepared for {contract?.client_name || "client"}</p>
+              {contract?.signing_order && (
+                <span>
+                  SIGNER {contract.signing_order} ·{" "}
+                  {contract.signer_role || "CLIENT"}
+                </span>
+              )}
+              {contract?.expires_at && (
+                <span>
+                  EXPIRES {new Date(contract.expires_at).toLocaleDateString()}
+                </span>
+              )}
+            </header>
+            {error && <div className="bookingError">{error}</div>}
+            {contract && (
+              <>
+                <article>{contract.body}</article>
+                {completed ? (
+                  <div className="signatureSuccess">
+                    <b>Agreement completed</b>
+                    <span>
+                      {contract.owner_signed_at &&
+                        `Countersigned ${new Date(contract.owner_signed_at).toLocaleString()}`}
+                    </span>
+                  </div>
+                ) : contract.status === "SIGNED" ? (
+                  <div className="signatureSuccess">
+                    <b>Already signed by {contract.signer_name}</b>
+                    <span>
+                      {contract.signed_at &&
+                        new Date(contract.signed_at).toLocaleString()}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="signatureBox">
+                    <label>
+                      Legal signature
+                      <input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="Type your full legal name"
+                      />
+                    </label>
+                    <label className="signatureConsent">
+                      <input
+                        type="checkbox"
+                        checked={accepted}
+                        onChange={(event) => setAccepted(event.target.checked)}
+                      />{" "}
+                      I have reviewed and agree to this contract. My typed name
+                      is my electronic signature.
+                    </label>
+                    <button onClick={() => void sign()}>
+                      Adopt and sign agreement
+                    </button>
+                    <small>
+                      Signing creates a timestamped audit event. Cyncro records
+                      consent and network information for evidence.
+                    </small>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </main>
+    </section>
+  );
+}
 
 function PublicBookingExperience() {
   type EventType = {
@@ -626,7 +1110,13 @@ function PublicBookingExperience() {
             <div className="bookingBlock fixedDurationBlock">
               <small>APPOINTMENT LENGTH</small>
               <div>
-                <b>{selectedDuration < 60 ? `${selectedDuration} minutes` : selectedDuration % 60 ? `${Math.floor(selectedDuration / 60)} hr ${selectedDuration % 60} min` : `${selectedDuration / 60} ${selectedDuration === 60 ? "hour" : "hours"}`}</b>
+                <b>
+                  {selectedDuration < 60
+                    ? `${selectedDuration} minutes`
+                    : selectedDuration % 60
+                      ? `${Math.floor(selectedDuration / 60)} hr ${selectedDuration % 60} min`
+                      : `${selectedDuration / 60} ${selectedDuration === 60 ? "hour" : "hours"}`}
+                </b>
                 <span>Set by the event organizer</span>
               </div>
             </div>
@@ -864,7 +1354,8 @@ function FrontExperience({
     {
       name: "Cyncro Messages",
       label: "CONNECT + CONVERT · COMING SOON",
-      headline: "Give every human and AI agent a number, an inbox, and complete customer context.",
+      headline:
+        "Give every human and AI agent a number, an inbox, and complete customer context.",
       copy: "A Cyncro-owned messaging platform for local and toll-free numbers, shared inboxes, intelligent routing, AI agents, compliant campaigns, appointment booking, and CRM-native conversations.",
       capabilities: [
         "Human + AI agent workspaces",
@@ -1052,25 +1543,111 @@ function FrontExperience({
     },
   ];
   const cyncroLayers = [
-    ["ACQUIRE", "Prospecting AI", "Public-business search, website scraping, scoring, ranking + ownership"],
-    ["CONVERT", "CRM + Calendar", "Contacts, pipelines, booking links, routing, reminders + Framer capture"],
-    ["COMMUNICATE", "Social + Messages", "Social automations, shared inboxes, agent numbers + compliant routing"],
-    ["TRANSACT", "Revenue Operations", "Proposals, contracts, signatures, invoices, payments + commissions"],
-    ["OPERATE", "Dispatch", "Work orders, field teams, routes, photos, labor, fulfillment + profitability"],
-    ["SPECIALIZE", "Industry Systems", "Automotive Finance, Dispute operations + Apex Funds lending infrastructure"],
-    ["UNDERSTAND", "Intelligence", "Attribution, forecasts, agent performance, exceptions + next-best actions"],
-    ["CONTROL", "Team + Governance", "Workspaces, roles, permissions, approvals, audit history + owner controls"],
+    [
+      "ACQUIRE",
+      "Prospecting AI",
+      "Public-business search, website scraping, scoring, ranking + ownership",
+    ],
+    [
+      "CONVERT",
+      "CRM + Calendar",
+      "Contacts, pipelines, booking links, routing, reminders + Framer capture",
+    ],
+    [
+      "COMMUNICATE",
+      "Social + Messages",
+      "Social automations, shared inboxes, agent numbers + compliant routing",
+    ],
+    [
+      "TRANSACT",
+      "Revenue Operations",
+      "Proposals, contracts, signatures, invoices, payments + commissions",
+    ],
+    [
+      "OPERATE",
+      "Dispatch",
+      "Work orders, field teams, routes, photos, labor, fulfillment + profitability",
+    ],
+    [
+      "SPECIALIZE",
+      "Industry Systems",
+      "Automotive Finance, Dispute operations + Apex Funds lending infrastructure",
+    ],
+    [
+      "UNDERSTAND",
+      "Intelligence",
+      "Attribution, forecasts, agent performance, exceptions + next-best actions",
+    ],
+    [
+      "CONTROL",
+      "Team + Governance",
+      "Workspaces, roles, permissions, approvals, audit history + owner controls",
+    ],
   ];
   const agentWorkforce = [
-    ["N", "Nova", "Appointment Conversion", "Answers, qualifies, routes and books", "BOOKINGS"],
-    ["P", "Prospector", "Market Intelligence", "Finds, scrapes, scores and ranks", "PIPELINE"],
-    ["R", "Revenue", "Deal Intelligence", "Forecasts and recommends next moves", "REVENUE"],
-    ["F", "Follow-Up", "Lifecycle Nurture", "Personalizes sequences and handoffs", "REPLIES"],
-    ["C", "Calendar", "Capacity + Routing", "Protects availability and reduces no-shows", "ATTENDANCE"],
-    ["D", "Deal Desk", "Documents + Payment", "Prepares contracts, invoices and follow-up", "CASH FLOW"],
-    ["O", "Operations", "Fulfillment Control", "Coordinates dispatch, jobs and exceptions", "DELIVERY"],
-    ["A", "Apex", "Lending Intelligence", "Compares lenders and recovery paths", "FUNDING"],
-    ["M", "Manager", "Workforce Oversight", "Tracks workload, payouts and performance", "ACCOUNTABILITY"],
+    [
+      "N",
+      "Nova",
+      "Appointment Conversion",
+      "Answers, qualifies, routes and books",
+      "BOOKINGS",
+    ],
+    [
+      "P",
+      "Prospector",
+      "Market Intelligence",
+      "Finds, scrapes, scores and ranks",
+      "PIPELINE",
+    ],
+    [
+      "R",
+      "Revenue",
+      "Deal Intelligence",
+      "Forecasts and recommends next moves",
+      "REVENUE",
+    ],
+    [
+      "F",
+      "Follow-Up",
+      "Lifecycle Nurture",
+      "Personalizes sequences and handoffs",
+      "REPLIES",
+    ],
+    [
+      "C",
+      "Calendar",
+      "Capacity + Routing",
+      "Protects availability and reduces no-shows",
+      "ATTENDANCE",
+    ],
+    [
+      "D",
+      "Deal Desk",
+      "Documents + Payment",
+      "Prepares contracts, invoices and follow-up",
+      "CASH FLOW",
+    ],
+    [
+      "O",
+      "Operations",
+      "Fulfillment Control",
+      "Coordinates dispatch, jobs and exceptions",
+      "DELIVERY",
+    ],
+    [
+      "A",
+      "Apex",
+      "Lending Intelligence",
+      "Compares lenders and recovery paths",
+      "FUNDING",
+    ],
+    [
+      "M",
+      "Manager",
+      "Workforce Oversight",
+      "Tracks workload, payouts and performance",
+      "ACCOUNTABILITY",
+    ],
   ];
   return (
     <div className="frontExperience">
@@ -1330,7 +1907,11 @@ function FrontExperience({
       <section className="cyncroDepth" aria-labelledby="depth-title">
         <div className="depthLead">
           <label>THIS IS THE REAL CYNCRO</label>
-          <h2 id="depth-title">One platform.<br /><span>Eight operating layers.</span></h2>
+          <h2 id="depth-title">
+            One platform.
+            <br />
+            <span>Eight operating layers.</span>
+          </h2>
           <p>
             Cyncro does not stop when a lead converts. It connects acquisition,
             sales, communication, transactions, fulfillment, industry
@@ -1344,14 +1925,19 @@ function FrontExperience({
               <small>{layer[0]}</small>
               <h3>{layer[1]}</h3>
               <p>{layer[2]}</p>
-              <span>CONNECTED TO CORE <i>◆</i></span>
+              <span>
+                CONNECTED TO CORE <i>◆</i>
+              </span>
             </article>
           ))}
         </div>
         <div className="depthCoreRail">
-          <span>ONE CUSTOMER RECORD</span><i>◆</i>
-          <span>ONE TEAM</span><i>◆</i>
-          <span>ONE REVENUE TRUTH</span><i>◆</i>
+          <span>ONE CUSTOMER RECORD</span>
+          <i>◆</i>
+          <span>ONE TEAM</span>
+          <i>◆</i>
+          <span>ONE REVENUE TRUTH</span>
+          <i>◆</i>
           <span>ONE INTELLIGENCE LAYER</span>
         </div>
       </section>
@@ -1360,12 +1946,24 @@ function FrontExperience({
         <div className="agentWorkforceHead">
           <div>
             <label>CYNCRO AGENT WORKFORCE</label>
-            <h2 id="agents-title">Not chatbots.<br /><span>Digital operators.</span></h2>
+            <h2 id="agents-title">
+              Not chatbots.
+              <br />
+              <span>Digital operators.</span>
+            </h2>
           </div>
           <div className="agentDifference">
             <small>WHY THEY STAND OUT</small>
-            <p>Every agent has a defined job, governed access, a human escalation path, and a measurable business outcome.</p>
-            <div><span>PERMISSIONS</span><span>APPROVALS</span><span>AUDIT TRAIL</span><span>ROI</span></div>
+            <p>
+              Every agent has a defined job, governed access, a human escalation
+              path, and a measurable business outcome.
+            </p>
+            <div>
+              <span>PERMISSIONS</span>
+              <span>APPROVALS</span>
+              <span>AUDIT TRAIL</span>
+              <span>ROI</span>
+            </div>
           </div>
         </div>
         <div className="agentWorkforceGrid">
@@ -1373,25 +1971,43 @@ function FrontExperience({
             <article key={agent[1]}>
               <div className="agentIdentity">
                 <i>{agent[0]}</i>
-                <span><small>AGENT 0{index + 1}</small><b>{agent[1]}</b></span>
+                <span>
+                  <small>AGENT 0{index + 1}</small>
+                  <b>{agent[1]}</b>
+                </span>
                 <em>● ACTIVE</em>
               </div>
               <h3>{agent[2]}</h3>
               <p>{agent[3]}</p>
-              <footer><small>MEASURED BY</small><strong>{agent[4]}</strong></footer>
+              <footer>
+                <small>MEASURED BY</small>
+                <strong>{agent[4]}</strong>
+              </footer>
             </article>
           ))}
         </div>
         <div className="agentOrchestration">
-          <div><small>SHARED CONTEXT</small><b>Every agent sees the same governed customer history.</b></div>
+          <div>
+            <small>SHARED CONTEXT</small>
+            <b>Every agent sees the same governed customer history.</b>
+          </div>
           <span>→</span>
-          <div><small>COORDINATED ACTION</small><b>Agents work across modules instead of isolated automations.</b></div>
+          <div>
+            <small>COORDINATED ACTION</small>
+            <b>Agents work across modules instead of isolated automations.</b>
+          </div>
           <span>→</span>
-          <div><small>HUMAN CONTROL</small><b>Your team approves, intervenes, and owns the outcome.</b></div>
+          <div>
+            <small>HUMAN CONTROL</small>
+            <b>Your team approves, intervenes, and owns the outcome.</b>
+          </div>
         </div>
       </section>
 
-      <section className="platformComparison" aria-labelledby="comparison-title">
+      <section
+        className="platformComparison"
+        aria-labelledby="comparison-title"
+      >
         <div className="comparisonIntro">
           <div>
             <label>NOW COMPARE THE FULL SYSTEM</label>
@@ -1412,7 +2028,9 @@ function FrontExperience({
         <div className="comparisonFrame">
           <div className="comparisonBrands" aria-hidden="true">
             <span>CAPABILITY</span>
-            <strong><i>◆</i> CYNCRO</strong>
+            <strong>
+              <i>◆</i> CYNCRO
+            </strong>
             <b>HighLevel</b>
             <b>ClickFunnels</b>
           </div>
@@ -1442,10 +2060,12 @@ function FrontExperience({
             </div>
             <p>
               One customer record connecting acquisition, appointments,
-              operations, payouts, documents, specialized workflows, and
-              revenue intelligence.
+              operations, payouts, documents, specialized workflows, and revenue
+              intelligence.
             </p>
-            <button onClick={onPlatform}>Explore the platform <span>↗</span></button>
+            <button onClick={onPlatform}>
+              Explore the platform <span>↗</span>
+            </button>
           </footer>
         </div>
         <p className="comparisonNote">
@@ -4532,7 +5152,12 @@ const suiteData: Record<
         title: "Calendar + events",
         subtitle: "Consultations and follow-ups",
         rows: [
-          ["Client review call", "Amelia Carter", "Aug 14 · 10 AM", "Account Owner"],
+          [
+            "Client review call",
+            "Amelia Carter",
+            "Aug 14 · 10 AM",
+            "Account Owner",
+          ],
           ["Affiliate onboarding", "Palm Funding", "Aug 14 · 1 PM", "Dana"],
           ["Team compliance review", "All staff", "Aug 15 · 9 AM", "Owner"],
         ],
@@ -6668,7 +7293,12 @@ const financeWorkspaceData: Record<
       {
         title: "Audit stream",
         rows: [
-          ["Deal P24018", "Menu disclosure signed", "Finance Manager", "10:42 AM"],
+          [
+            "Deal P24018",
+            "Menu disclosure signed",
+            "Finance Manager",
+            "10:42 AM",
+          ],
           ["Deal M60117", "Credit consent verified", "System", "10:31 AM"],
           ["Deal A74221", "Rate change approved", "Dana P.", "10:08 AM"],
         ],
@@ -9433,11 +10063,23 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   };
 
   const deleteProspect = async (prospect: Prospect) => {
-    if (!prospect.id || !window.confirm(`Delete ${prospect.businessName} from Prospecting?`)) return;
-    const response = await fetch(`/api/prospecting/prospects?id=${encodeURIComponent(prospect.id)}`, { method: "DELETE" });
+    if (
+      !prospect.id ||
+      !window.confirm(`Delete ${prospect.businessName} from Prospecting?`)
+    )
+      return;
+    const response = await fetch(
+      `/api/prospecting/prospects?id=${encodeURIComponent(prospect.id)}`,
+      { method: "DELETE" },
+    );
     const data = (await response.json()) as { error?: string };
-    if (!response.ok) { setError(data.error || "Prospect could not be deleted."); return; }
-    setProspects((current) => current.filter((item) => item.id !== prospect.id));
+    if (!response.ok) {
+      setError(data.error || "Prospect could not be deleted.");
+      return;
+    }
+    setProspects((current) =>
+      current.filter((item) => item.id !== prospect.id),
+    );
     setSelected(null);
     setMessage(`${prospect.businessName} deleted from Prospecting.`);
   };
@@ -10007,9 +10649,32 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               <strong>{selected.rankLabel || "NOT ANALYZED"}</strong>
             </div>
             <div className="prospectRevenueCard">
-              <section><small>SELF-REPORTED ANNUAL REVENUE</small><b>{selected.selfReportedRevenue ? `$${selected.selfReportedRevenue.toLocaleString()}` : "Not provided"}</b><span>Entered by your team or confirmed by the business</span></section>
-              <section><small>ESTIMATED ANNUAL REVENUE</small><b>{selected.estimatedRevenueLow != null && selected.estimatedRevenueHigh != null ? `$${selected.estimatedRevenueLow.toLocaleString()}–$${selected.estimatedRevenueHigh.toLocaleString()}` : "Not estimated"}</b><span>{selected.revenueConfidence || "LOW"} confidence · Directional, not verified</span></section>
-              <p>{selected.revenueMethodology || "Estimate uses public business signals and industry benchmark bands."}</p>
+              <section>
+                <small>SELF-REPORTED ANNUAL REVENUE</small>
+                <b>
+                  {selected.selfReportedRevenue
+                    ? `$${selected.selfReportedRevenue.toLocaleString()}`
+                    : "Not provided"}
+                </b>
+                <span>Entered by your team or confirmed by the business</span>
+              </section>
+              <section>
+                <small>ESTIMATED ANNUAL REVENUE</small>
+                <b>
+                  {selected.estimatedRevenueLow != null &&
+                  selected.estimatedRevenueHigh != null
+                    ? `$${selected.estimatedRevenueLow.toLocaleString()}–$${selected.estimatedRevenueHigh.toLocaleString()}`
+                    : "Not estimated"}
+                </b>
+                <span>
+                  {selected.revenueConfidence || "LOW"} confidence ·
+                  Directional, not verified
+                </span>
+              </section>
+              <p>
+                {selected.revenueMethodology ||
+                  "Estimate uses public business signals and industry benchmark bands."}
+              </p>
             </div>
             {!selected.opportunityScore && (
               <button
@@ -10115,7 +10780,20 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               </button>
               <label>
                 Self-reported annual revenue
-                <input type="number" min="0" value={selected.selfReportedRevenue || ""} onChange={(event)=>setSelected({...selected,selfReportedRevenue:event.target.value ? Number(event.target.value) : null})} placeholder="Example: 1500000" />
+                <input
+                  type="number"
+                  min="0"
+                  value={selected.selfReportedRevenue || ""}
+                  onChange={(event) =>
+                    setSelected({
+                      ...selected,
+                      selfReportedRevenue: event.target.value
+                        ? Number(event.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="Example: 1500000"
+                />
               </label>
               <label>
                 Assigned rep
@@ -10172,7 +10850,10 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
               >
                 SAVE ASSIGNMENT + NOTES
               </button>
-              <button className="prospectDelete" onClick={() => void deleteProspect(selected)}>
+              <button
+                className="prospectDelete"
+                onClick={() => void deleteProspect(selected)}
+              >
                 DELETE PROSPECT
               </button>
             </div>
@@ -10200,6 +10881,7 @@ type CRMView =
   | "Compensation"
   | "Invoices"
   | "Contracts"
+  | "Sales Playbooks"
   | "Intelligence";
 
 type CRMContactCard = {
@@ -10286,7 +10968,11 @@ function UniversalCRM({
           company: String(item.company_name || "No account"),
           email: String(item.email || "No email"),
           phone: String(item.phone || "No phone"),
-          value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(item.opportunity_value_cents || 0) / 100),
+          value: new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0,
+          }).format(Number(item.opportunity_value_cents || 0) / 100),
           stage: String(item.opportunity_stage || item.lifecycle || "Lead"),
           source: String(item.source || "Manual"),
           intent: 50,
@@ -10383,14 +11069,25 @@ function UniversalCRM({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "COMPLETED" }),
     });
-    if (!response.ok) { flash("Task could not be completed"); return; }
+    if (!response.ok) {
+      flash("Task could not be completed");
+      return;
+    }
     await loadCRMOverview();
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "completed" } }));
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "activity", action: "completed" },
+      }),
+    );
     flash("Task completed everywhere");
   };
   const views: { name: CRMView; icon: string; count?: string }[] = [
     { name: "Overview", icon: "⌂" },
-    { name: "Pipeline", icon: "◫", count: String(crmSummary.opportunities || 0) },
+    {
+      name: "Pipeline",
+      icon: "◫",
+      count: String(crmSummary.opportunities || 0),
+    },
     { name: "Accounts", icon: "▦", count: String(crmSummary.accounts || 0) },
     { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
@@ -10404,6 +11101,7 @@ function UniversalCRM({
     { name: "Compensation", icon: "%" },
     { name: "Invoices", icon: "$" },
     { name: "Contracts", icon: "✎" },
+    { name: "Sales Playbooks", icon: "◉", count: "Live" },
     { name: "Integrations", icon: "↔" },
     { name: "Intelligence", icon: "✦" },
   ];
@@ -10519,7 +11217,13 @@ function UniversalCRM({
             </div>
             <div className="crmDate">
               <small>LIVE WORKSPACE</small>
-              <b>{new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</b>
+              <b>
+                {new Date().toLocaleDateString(undefined, {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </b>
               <span>● Data synced across workspace</span>
             </div>
           </div>
@@ -10723,7 +11427,9 @@ function UniversalCRM({
                             {String(item.contact_name || "Contact")} · Task
                           </small>
                         </div>
-                        <button onClick={() => void completeActivity(String(item.id))}>
+                        <button
+                          onClick={() => void completeActivity(String(item.id))}
+                        >
                           Complete
                         </button>
                       </div>
@@ -10749,10 +11455,17 @@ function UniversalCRM({
                 <div className="listToolbar">
                   <span>{filteredContacts.length} contacts</span>
                   <div>
-                    <button onClick={() => void Promise.all([loadCRMContacts(), loadCRMOverview()])}>
+                    <button
+                      onClick={() =>
+                        void Promise.all([loadCRMContacts(), loadCRMOverview()])
+                      }
+                    >
                       ↻ Refresh data
                     </button>
-                    <button className="crmCreate" onClick={() => setCreating(true)}>
+                    <button
+                      className="crmCreate"
+                      onClick={() => setCreating(true)}
+                    >
                       ＋ Add contact
                     </button>
                   </div>
@@ -10801,7 +11514,9 @@ function UniversalCRM({
                 <CRMContactDetail
                   contact={contact}
                   onFlash={flash}
-                  onUpdated={() => void Promise.all([loadCRMContacts(), loadCRMOverview()])}
+                  onUpdated={() =>
+                    void Promise.all([loadCRMContacts(), loadCRMOverview()])
+                  }
                   onDeleted={() => {
                     setSelected(0);
                     void Promise.all([loadCRMContacts(), loadCRMOverview()]);
@@ -10838,9 +11553,12 @@ function UniversalCRM({
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} />}
-          {view === "Compensation" && <CRMCompensation onFlash={flash} isOwner={isOwner} />}
+          {view === "Compensation" && (
+            <CRMCompensation onFlash={flash} isOwner={isOwner} />
+          )}
           {view === "Invoices" && <CRMInvoices onFlash={flash} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
+          {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
@@ -11179,13 +11897,29 @@ function CRMPipeline({
     onFlash("Pipeline card updated everywhere");
   };
   const deleteDeal = async () => {
-    if (!selectedDeal || !window.confirm(`Delete ${selectedDeal.name}? This permanently removes the pipeline lead.`)) return;
-    const response = await fetch(`/api/crm/opportunities?id=${encodeURIComponent(selectedDeal.id)}`, { method: "DELETE" });
+    if (
+      !selectedDeal ||
+      !window.confirm(
+        `Delete ${selectedDeal.name}? This permanently removes the pipeline lead.`,
+      )
+    )
+      return;
+    const response = await fetch(
+      `/api/crm/opportunities?id=${encodeURIComponent(selectedDeal.id)}`,
+      { method: "DELETE" },
+    );
     const data = (await response.json()) as { error?: string };
-    if (!response.ok) { onFlash(data.error || "Pipeline lead could not be deleted"); return; }
+    if (!response.ok) {
+      onFlash(data.error || "Pipeline lead could not be deleted");
+      return;
+    }
     setSelectedDeal(null);
     await loadDeals();
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "deleted" } }));
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "opportunity", action: "deleted" },
+      }),
+    );
     onFlash("Pipeline lead deleted everywhere");
   };
   const createOpportunity = async () => {
@@ -11209,22 +11943,51 @@ function CRMPipeline({
       const contactResponse = await fetch("/api/crm/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: accountData.account.id, fullName: newDeal.contactName, email: newDeal.email, phone: newDeal.phone, source: newDeal.source, assignedRep: newDeal.assignedRep }),
+        body: JSON.stringify({
+          accountId: accountData.account.id,
+          fullName: newDeal.contactName,
+          email: newDeal.email,
+          phone: newDeal.phone,
+          source: newDeal.source,
+          assignedRep: newDeal.assignedRep,
+        }),
       });
-      const contactData = (await contactResponse.json()) as { contact?: { id: string }; opportunityId?: string | null; error?: string };
-      if (!contactResponse.ok || !contactData.contact) { onFlash(contactData.error || "Contact could not be created"); return; }
+      const contactData = (await contactResponse.json()) as {
+        contact?: { id: string };
+        opportunityId?: string | null;
+        error?: string;
+      };
+      if (!contactResponse.ok || !contactData.contact) {
+        onFlash(contactData.error || "Contact could not be created");
+        return;
+      }
       primaryContactId = contactData.contact.id;
       autoOpportunityId = contactData.opportunityId || null;
     }
     const opportunityPayload = {
-      pipelineId: selectedPipelineId, name: newDeal.name || `${newDeal.company} opportunity`, stage: createStage,
-      value: Number(newDeal.value || 0), cost: Number(newDeal.cost || 0), probability: Number(newDeal.probability || 10),
-      assignedRep: newDeal.assignedRep, commissionRate: Number(newDeal.commissionRate || 20), residualFlat: Number(newDeal.residualFlat || 25), source: newDeal.source,
+      pipelineId: selectedPipelineId,
+      name: newDeal.name || `${newDeal.company} opportunity`,
+      stage: createStage,
+      value: Number(newDeal.value || 0),
+      cost: Number(newDeal.cost || 0),
+      probability: Number(newDeal.probability || 10),
+      assignedRep: newDeal.assignedRep,
+      commissionRate: Number(newDeal.commissionRate || 20),
+      residualFlat: Number(newDeal.residualFlat || 25),
+      source: newDeal.source,
     };
     const response = await fetch("/api/crm/opportunities", {
       method: autoOpportunityId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(autoOpportunityId ? { id: autoOpportunityId, updates: opportunityPayload } : { accountId: accountData.account.id, primaryContactId, ...opportunityPayload }),
+      body: JSON.stringify(
+        autoOpportunityId
+          ? { id: autoOpportunityId, updates: opportunityPayload }
+          : {
+              accountId: accountData.account.id,
+              primaryContactId,
+              ...opportunityPayload,
+            },
+      ),
     });
     const data = (await response.json()) as { error?: string };
     if (!response.ok) {
@@ -11332,10 +12095,27 @@ function CRMPipeline({
     }).format(cents / 100);
   const moveDeal = async (deal: Deal, stage: string) => {
     if (deal.stage === stage) return;
-    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deal.id, updates: { stage, pipelineId: selectedPipelineId } }) });
-    if (!response.ok) { const data = (await response.json()) as { error?: string }; onFlash(data.error || "Lead could not be moved"); return; }
-    setDeals((current) => current.map((item) => item.id === deal.id ? { ...item, stage } : item));
-    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "moved" } }));
+    const response = await fetch("/api/crm/opportunities", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: deal.id,
+        updates: { stage, pipelineId: selectedPipelineId },
+      }),
+    });
+    if (!response.ok) {
+      const data = (await response.json()) as { error?: string };
+      onFlash(data.error || "Lead could not be moved");
+      return;
+    }
+    setDeals((current) =>
+      current.map((item) => (item.id === deal.id ? { ...item, stage } : item)),
+    );
+    window.dispatchEvent(
+      new CustomEvent("cyncro:data-changed", {
+        detail: { entity: "opportunity", action: "moved" },
+      }),
+    );
     onFlash(`${deal.name} moved to ${stage}`);
   };
   return (
@@ -11391,7 +12171,12 @@ function CRMPipeline({
             <section
               key={stage}
               onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData("text/plain"); const deal = deals.find((item) => item.id === id); if (deal) void moveDeal(deal, stage); }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const id = event.dataTransfer.getData("text/plain");
+                const deal = deals.find((item) => item.id === id);
+                if (deal) void moveDeal(deal, stage);
+              }}
               style={{ borderTopColor: stageSetting?.color || "#a30e18" }}
             >
               <header>
@@ -11414,7 +12199,9 @@ function CRMPipeline({
                   <button
                     className="dealCard"
                     draggable
-                    onDragStart={(event) => event.dataTransfer.setData("text/plain", deal.id)}
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData("text/plain", deal.id)
+                    }
                     onClick={() => setSelectedDeal({ ...deal })}
                     key={deal.id}
                   >
@@ -11423,12 +12210,24 @@ function CRMPipeline({
                       <span>
                         <b>{deal.name}</b>
                         <small>{deal.account_name}</small>
-                        <small>{deal.contact_name || "No contact"}{deal.contact_phone ? ` · ${deal.contact_phone}` : ""}</small>
+                        <small>
+                          {deal.contact_name || "No contact"}
+                          {deal.contact_phone ? ` · ${deal.contact_phone}` : ""}
+                        </small>
                       </span>
                     </div>
                     <strong>{money(deal.value_cents)}</strong>
                     <footer>
-                      <span>{deal.source || "MANUAL"} · Profit {money(Math.max(0, Number(deal.value_cents || 0) - Number(deal.cost_cents || 0)))}</span>
+                      <span>
+                        {deal.source || "MANUAL"} · Profit{" "}
+                        {money(
+                          Math.max(
+                            0,
+                            Number(deal.value_cents || 0) -
+                              Number(deal.cost_cents || 0),
+                          ),
+                        )}
+                      </span>
                       <em>EDIT</em>
                     </footer>
                   </button>
@@ -11636,15 +12435,43 @@ function CRMPipeline({
               </label>
               <label>
                 Estimated cost
-                <input type="number" min="0" value={Number(selectedDeal.cost_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, cost_cents: Number(event.target.value) * 100 })} />
+                <input
+                  type="number"
+                  min="0"
+                  value={Number(selectedDeal.cost_cents || 0) / 100}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      cost_cents: Number(event.target.value) * 100,
+                    })
+                  }
+                />
               </label>
               <label>
                 Lead source
-                <input value={selectedDeal.source || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, source: event.target.value })} placeholder="Website, referral, prospecting…" />
+                <input
+                  value={selectedDeal.source || ""}
+                  onChange={(event) =>
+                    setSelectedDeal({
+                      ...selectedDeal,
+                      source: event.target.value,
+                    })
+                  }
+                  placeholder="Website, referral, prospecting…"
+                />
               </label>
               <label>
                 Estimated profit
-                <input disabled value={money(Math.max(0, Number(selectedDeal.value_cents || 0) - Number(selectedDeal.cost_cents || 0)))} />
+                <input
+                  disabled
+                  value={money(
+                    Math.max(
+                      0,
+                      Number(selectedDeal.value_cents || 0) -
+                        Number(selectedDeal.cost_cents || 0),
+                    ),
+                  )}
+                />
               </label>
               <label>
                 Probability
@@ -11787,7 +12614,9 @@ function CRMPipeline({
               </label>
             </div>
             <div className="modalactions">
-              <button className="dangerText" onClick={() => void deleteDeal()}>Delete lead</button>
+              <button className="dangerText" onClick={() => void deleteDeal()}>
+                Delete lead
+              </button>
               <button onClick={() => setSelectedDeal(null)}>Cancel</button>
               <button onClick={() => void saveDeal()}>Save changes</button>
             </div>
@@ -11819,19 +12648,42 @@ function CRMPipeline({
               </label>
               <label>
                 Contact name
-                <input value={newDeal.contactName} onChange={(event) => setNewDeal({ ...newDeal, contactName: event.target.value })} placeholder="First and last name" />
+                <input
+                  value={newDeal.contactName}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, contactName: event.target.value })
+                  }
+                  placeholder="First and last name"
+                />
               </label>
               <label>
                 Contact email
-                <input type="email" value={newDeal.email} onChange={(event) => setNewDeal({ ...newDeal, email: event.target.value })} />
+                <input
+                  type="email"
+                  value={newDeal.email}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, email: event.target.value })
+                  }
+                />
               </label>
               <label>
                 Contact phone
-                <input value={newDeal.phone} onChange={(event) => setNewDeal({ ...newDeal, phone: event.target.value })} />
+                <input
+                  value={newDeal.phone}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, phone: event.target.value })
+                  }
+                />
               </label>
               <label>
                 Lead source
-                <input value={newDeal.source} onChange={(event) => setNewDeal({ ...newDeal, source: event.target.value })} placeholder="Website, referral, prospecting…" />
+                <input
+                  value={newDeal.source}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, source: event.target.value })
+                  }
+                  placeholder="Website, referral, prospecting…"
+                />
               </label>
               <label>
                 Opportunity name
@@ -11854,7 +12706,14 @@ function CRMPipeline({
               </label>
               <label>
                 Estimated cost
-                <input type="number" min="0" value={newDeal.cost} onChange={(event) => setNewDeal({ ...newDeal, cost: event.target.value })} />
+                <input
+                  type="number"
+                  min="0"
+                  value={newDeal.cost}
+                  onChange={(event) =>
+                    setNewDeal({ ...newDeal, cost: event.target.value })
+                  }
+                />
               </label>
               <label>
                 Probability %
@@ -12453,22 +13312,132 @@ function CRMSocialAutomations({
   );
   const [customKeyword, setCustomKeyword] = useState("");
   const [extraKeywords, setExtraKeywords] = useState<string[]>([]);
-  type SocialFlow={id:string;name:string;channel:string;trigger:string;reply:string;reach:string;leads:string;rate:string;status:string;extraKeywords:string[]};
-  const [flows,setFlows]=useState<SocialFlow[]>([]);
-  const loadFlows=async()=>{const response=await fetch("/api/crm/social-flows",{cache:"no-store"});const data=await response.json() as {flows?:Record<string,unknown>[];error?:string};if(!response.ok){onFlash(data.error||"Social automations could not be loaded");return}setFlows((data.flows||[]).map(row=>{const reach=Number(row.reach_count||0),leads=Number(row.lead_count||0);return{id:String(row.id),name:String(row.name),channel:String(row.channel),trigger:String(row.trigger_word),reply:String(row.reply_text),reach:String(reach),leads:String(leads),rate:reach?`${(leads/reach*100).toFixed(1)}%`:"0%",status:String(row.status),extraKeywords:(()=>{try{return JSON.parse(String(row.extra_keywords||"[]")) as string[]}catch{return[]}})()}}));};
-  useEffect(()=>{void loadFlows();void fetch("/api/integrations/status").then(async response=>{if(!response.ok)return;const data=await response.json() as {connections?:Record<string,boolean>};setInstagramConnected(Boolean(data.connections?.meta));setFacebookConnected(Boolean(data.connections?.meta));})},[]);
-  const active = flows[selectedFlow] || {id:"",name:"Loading…",channel:"",trigger:"",reply:"",reach:"0",leads:"0",rate:"0%",status:"DRAFT",extraKeywords:[]};
-  const socialTotals=flows.reduce((sum,flow)=>({reach:sum.reach+Number(flow.reach||0),leads:sum.leads+Number(flow.leads||0)}),{reach:0,leads:0});
-  useEffect(()=>{if(active.id){setPublished(active.status==="LIVE");setReply(active.reply);setExtraKeywords(active.extraKeywords)}},[active.id]);
-  const saveFlow=async(updates:Record<string,unknown>)=>{if(!active.id)return;const response=await fetch("/api/crm/social-flows",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:active.id,...updates})});if(!response.ok){const data=await response.json() as {error?:string};onFlash(data.error||"Flow could not be saved");return}await loadFlows();onFlash("Social automation saved")};
-  const createFlow=async()=>{const response=await fetch("/api/crm/social-flows",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"Untitled social automation",trigger:"NEW"})});if(!response.ok){onFlash("Flow could not be created");return}await loadFlows();setSelectedFlow(0);onFlash("New social automation created")};
+  type SocialFlow = {
+    id: string;
+    name: string;
+    channel: string;
+    trigger: string;
+    reply: string;
+    reach: string;
+    leads: string;
+    rate: string;
+    status: string;
+    extraKeywords: string[];
+  };
+  const [flows, setFlows] = useState<SocialFlow[]>([]);
+  const loadFlows = async () => {
+    const response = await fetch("/api/crm/social-flows", {
+      cache: "no-store",
+    });
+    const data = (await response.json()) as {
+      flows?: Record<string, unknown>[];
+      error?: string;
+    };
+    if (!response.ok) {
+      onFlash(data.error || "Social automations could not be loaded");
+      return;
+    }
+    setFlows(
+      (data.flows || []).map((row) => {
+        const reach = Number(row.reach_count || 0),
+          leads = Number(row.lead_count || 0);
+        return {
+          id: String(row.id),
+          name: String(row.name),
+          channel: String(row.channel),
+          trigger: String(row.trigger_word),
+          reply: String(row.reply_text),
+          reach: String(reach),
+          leads: String(leads),
+          rate: reach ? `${((leads / reach) * 100).toFixed(1)}%` : "0%",
+          status: String(row.status),
+          extraKeywords: (() => {
+            try {
+              return JSON.parse(String(row.extra_keywords || "[]")) as string[];
+            } catch {
+              return [];
+            }
+          })(),
+        };
+      }),
+    );
+  };
+  useEffect(() => {
+    void loadFlows();
+    void fetch("/api/integrations/status").then(async (response) => {
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        connections?: Record<string, boolean>;
+      };
+      setInstagramConnected(Boolean(data.connections?.meta));
+      setFacebookConnected(Boolean(data.connections?.meta));
+    });
+  }, []);
+  const active = flows[selectedFlow] || {
+    id: "",
+    name: "Loading…",
+    channel: "",
+    trigger: "",
+    reply: "",
+    reach: "0",
+    leads: "0",
+    rate: "0%",
+    status: "DRAFT",
+    extraKeywords: [],
+  };
+  const socialTotals = flows.reduce(
+    (sum, flow) => ({
+      reach: sum.reach + Number(flow.reach || 0),
+      leads: sum.leads + Number(flow.leads || 0),
+    }),
+    { reach: 0, leads: 0 },
+  );
+  useEffect(() => {
+    if (active.id) {
+      setPublished(active.status === "LIVE");
+      setReply(active.reply);
+      setExtraKeywords(active.extraKeywords);
+    }
+  }, [active.id]);
+  const saveFlow = async (updates: Record<string, unknown>) => {
+    if (!active.id) return;
+    const response = await fetch("/api/crm/social-flows", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: active.id, ...updates }),
+    });
+    if (!response.ok) {
+      const data = (await response.json()) as { error?: string };
+      onFlash(data.error || "Flow could not be saved");
+      return;
+    }
+    await loadFlows();
+    onFlash("Social automation saved");
+  };
+  const createFlow = async () => {
+    const response = await fetch("/api/crm/social-flows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Untitled social automation",
+        trigger: "NEW",
+      }),
+    });
+    if (!response.ok) {
+      onFlash("Flow could not be created");
+      return;
+    }
+    await loadFlows();
+    setSelectedFlow(0);
+    onFlash("New social automation created");
+  };
   const addKeyword = () => {
     const clean = customKeyword.trim().toUpperCase();
     if (!clean || extraKeywords.includes(clean)) return;
     setExtraKeywords([...extraKeywords, clean]);
     setCustomKeyword("");
     onFlash(`${clean} trigger added`);
-    void saveFlow({extraKeywords:[...extraKeywords,clean]});
+    void saveFlow({ extraKeywords: [...extraKeywords, clean] });
   };
   return (
     <div className="socialAutomationWorkspace">
@@ -12496,15 +13465,33 @@ function CRMSocialAutomations({
           <div>
             <i style={{ width: "72%" }} />
           </div>
-          <em>{instagramConnected ? "Live channel data connected" : "Connect Meta to begin collecting live data"}</em>
+          <em>
+            {instagramConnected
+              ? "Live channel data connected"
+              : "Connect Meta to begin collecting live data"}
+          </em>
         </div>
       </section>
 
       <div className="socialStats">
         {[
-          [String(socialTotals.reach), "AUTOMATED CONVERSATIONS", instagramConnected?"Live":"Awaiting Meta"],
-          [socialTotals.reach?`${(socialTotals.leads/socialTotals.reach*100).toFixed(1)}%`:"0%", "LEAD CAPTURE RATE", "Live calculation"],
-          ["—", "AVERAGE FIRST RESPONSE", instagramConnected?"Collecting":"Awaiting Meta"],
+          [
+            String(socialTotals.reach),
+            "AUTOMATED CONVERSATIONS",
+            instagramConnected ? "Live" : "Awaiting Meta",
+          ],
+          [
+            socialTotals.reach
+              ? `${((socialTotals.leads / socialTotals.reach) * 100).toFixed(1)}%`
+              : "0%",
+            "LEAD CAPTURE RATE",
+            "Live calculation",
+          ],
+          [
+            "—",
+            "AVERAGE FIRST RESPONSE",
+            instagramConnected ? "Collecting" : "Awaiting Meta",
+          ],
           ["$0", "SOCIAL-ATTRIBUTED PIPELINE", "Updates from won deals"],
         ].map((stat) => (
           <article key={stat[1]}>
@@ -12534,7 +13521,13 @@ function CRMSocialAutomations({
             </div>
             <em>{instagramConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
             <button
-              onClick={() => onFlash(instagramConnected ? "Instagram connection is active" : "Open Integrations and add Meta credentials")}
+              onClick={() =>
+                onFlash(
+                  instagramConnected
+                    ? "Instagram connection is active"
+                    : "Open Integrations and add Meta credentials",
+                )
+              }
             >
               {instagramConnected ? "Connected" : "Connect in Integrations"}
             </button>
@@ -12547,7 +13540,13 @@ function CRMSocialAutomations({
             </div>
             <em>{facebookConnected ? "● CONNECTED" : "NOT CONNECTED"}</em>
             <button
-              onClick={() => onFlash(facebookConnected ? "Facebook connection is active" : "Open Integrations and add Meta credentials")}
+              onClick={() =>
+                onFlash(
+                  facebookConnected
+                    ? "Facebook connection is active"
+                    : "Open Integrations and add Meta credentials",
+                )
+              }
             >
               {facebookConnected ? "Connected" : "Connect in Integrations"}
             </button>
@@ -12623,12 +13622,28 @@ function CRMSocialAutomations({
                 >
                   ● {published ? "LIVE" : "DRAFT"}
                 </span>
-                <button onClick={() => onFlash(instagramConnected ? "Test sent through connected Meta channel" : "Connect Meta before sending a live test")}>
+                <button
+                  onClick={() =>
+                    onFlash(
+                      instagramConnected
+                        ? "Test sent through connected Meta channel"
+                        : "Connect Meta before sending a live test",
+                    )
+                  }
+                >
                   Test flow
                 </button>
                 <button
                   className="publishFlow"
-                  onClick={() => { const next=!published;setPublished(next);void saveFlow({status:next?"LIVE":"DRAFT",reply,extraKeywords}); }}
+                  onClick={() => {
+                    const next = !published;
+                    setPublished(next);
+                    void saveFlow({
+                      status: next ? "LIVE" : "DRAFT",
+                      reply,
+                      extraKeywords,
+                    });
+                  }}
                 >
                   {published ? "Pause" : "Publish"}
                 </button>
@@ -12689,7 +13704,7 @@ function CRMSocialAutomations({
                   <textarea
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
-                    onBlur={() => void saveFlow({reply,extraKeywords})}
+                    onBlur={() => void saveFlow({ reply, extraKeywords })}
                     aria-label="Automatic social reply"
                   />
                   <div className="quickReplies">
@@ -14039,43 +15054,1580 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
-function CRMCompensation({onFlash,isOwner}:{onFlash:(message:string)=>void;isOwner:boolean}){
-  type Deal={id:string;name:string;account_name:string;assigned_rep?:string;value_cents:number;collected_cents?:number;payment_status?:string;source?:string;notes?:string};
-  const [deals,setDeals]=useState<Deal[]>([]);const [service,setService]=useState<Record<string,string>>({});
-  useEffect(()=>{if(isOwner)void fetch("/api/crm/opportunities").then(async r=>{const d=await r.json() as {opportunities?:Deal[]};setDeals(d.opportunities||[])})},[isOwner]);
-  const rate=(deal:Deal)=>{const kind=service[deal.id]||"AUTOMATION";if(kind==="WEBSITE"||kind==="LANDING_PAGE")return 50;const value=deal.value_cents/100;return value>=10000?30:value>=5000?25:20};
-  const payout=(deal:Deal)=>Math.round((Number(deal.collected_cents||deal.value_cents)*rate(deal))/100);
-  const exportCsv=()=>{const rows=[["Employee","Deal","Service","Deal Value","Collected","Rate","Payout"],...deals.map(d=>[d.assigned_rep||"Unassigned",d.name,service[d.id]||"AUTOMATION",(d.value_cents/100).toFixed(2),(Number(d.collected_cents||0)/100).toFixed(2),`${rate(d)}%`,(payout(d)/100).toFixed(2)])];const blob=new Blob([rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`cyncro-payouts-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);onFlash("Payout report downloaded")};
-  if(!isOwner)return <section className="crmPanel restrictedPanel"><h2>Owner-only compensation</h2><p>Employee commissions and payouts are private.</p></section>;
-  return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>OWNER COMPENSATION DESK</small><h2>Calculate every payout with one rule set.</h2><p>Automations scale from 20–30% by deal size. Websites and landing pages pay 50% for the first month only.</p></div><button onClick={exportCsv}>↓ Download payout data</button></section><section className="crmPanel payoutRules"><div><b>20%</b><span>Under $5,000</span></div><div><b>25%</b><span>$5,000–$9,999</span></div><div><b>30%</b><span>$10,000+</span></div><div><b>50%</b><span>Website/landing page · month one</span></div></section><section className="crmPanel payoutLedger"><header><span>DEAL / EMPLOYEE</span><span>SERVICE</span><span>COLLECTED</span><span>RATE</span><span>PAYOUT</span></header>{deals.map(d=><div key={d.id}><span><b>{d.name}</b><small>{d.assigned_rep||"Unassigned"} · {d.account_name}</small></span><select value={service[d.id]||"AUTOMATION"} onChange={e=>setService({...service,[d.id]:e.target.value})}><option value="AUTOMATION">Automation / recurring</option><option value="WEBSITE">Website · first month</option><option value="LANDING_PAGE">Landing page · first month</option></select><strong>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(d.collected_cents||0)/100)}</strong><em>{rate(d)}%</em><b>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(payout(d)/100)}</b></div>)}</section></div>;
+function CRMCompensation({
+  onFlash,
+  isOwner,
+}: {
+  onFlash: (message: string) => void;
+  isOwner: boolean;
+}) {
+  type Deal = {
+    id: string;
+    name: string;
+    account_name: string;
+    assigned_rep?: string;
+    value_cents: number;
+    collected_cents?: number;
+    payment_status?: string;
+    source?: string;
+    notes?: string;
+  };
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [service, setService] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (isOwner)
+      void fetch("/api/crm/opportunities").then(async (r) => {
+        const d = (await r.json()) as { opportunities?: Deal[] };
+        setDeals(d.opportunities || []);
+      });
+  }, [isOwner]);
+  const rate = (deal: Deal) => {
+    const kind = service[deal.id] || "AUTOMATION";
+    if (kind === "WEBSITE" || kind === "LANDING_PAGE") return 50;
+    const value = deal.value_cents / 100;
+    return value >= 10000 ? 30 : value >= 5000 ? 25 : 20;
+  };
+  const payout = (deal: Deal) =>
+    Math.round(
+      (Number(deal.collected_cents || deal.value_cents) * rate(deal)) / 100,
+    );
+  const exportCsv = () => {
+    const rows = [
+      [
+        "Employee",
+        "Deal",
+        "Service",
+        "Deal Value",
+        "Collected",
+        "Rate",
+        "Payout",
+      ],
+      ...deals.map((d) => [
+        d.assigned_rep || "Unassigned",
+        d.name,
+        service[d.id] || "AUTOMATION",
+        (d.value_cents / 100).toFixed(2),
+        (Number(d.collected_cents || 0) / 100).toFixed(2),
+        `${rate(d)}%`,
+        (payout(d) / 100).toFixed(2),
+      ]),
+    ];
+    const blob = new Blob(
+      [
+        rows
+          .map((r) =>
+            r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","),
+          )
+          .join("\n"),
+      ],
+      { type: "text/csv" },
+    );
+    const url = URL.createObjectURL(blob),
+      a = document.createElement("a");
+    a.href = url;
+    a.download = `cyncro-payouts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onFlash("Payout report downloaded");
+  };
+  if (!isOwner)
+    return (
+      <section className="crmPanel restrictedPanel">
+        <h2>Owner-only compensation</h2>
+        <p>Employee commissions and payouts are private.</p>
+      </section>
+    );
+  return (
+    <div className="financeWorkspace">
+      <section className="financeHero crmPanel">
+        <div>
+          <small>OWNER COMPENSATION DESK</small>
+          <h2>Calculate every payout with one rule set.</h2>
+          <p>
+            Automations scale from 20–30% by deal size. Websites and landing
+            pages pay 50% for the first month only.
+          </p>
+        </div>
+        <button onClick={exportCsv}>↓ Download payout data</button>
+      </section>
+      <section className="crmPanel payoutRules">
+        <div>
+          <b>20%</b>
+          <span>Under $5,000</span>
+        </div>
+        <div>
+          <b>25%</b>
+          <span>$5,000–$9,999</span>
+        </div>
+        <div>
+          <b>30%</b>
+          <span>$10,000+</span>
+        </div>
+        <div>
+          <b>50%</b>
+          <span>Website/landing page · month one</span>
+        </div>
+      </section>
+      <section className="crmPanel payoutLedger">
+        <header>
+          <span>DEAL / EMPLOYEE</span>
+          <span>SERVICE</span>
+          <span>COLLECTED</span>
+          <span>RATE</span>
+          <span>PAYOUT</span>
+        </header>
+        {deals.map((d) => (
+          <div key={d.id}>
+            <span>
+              <b>{d.name}</b>
+              <small>
+                {d.assigned_rep || "Unassigned"} · {d.account_name}
+              </small>
+            </span>
+            <select
+              value={service[d.id] || "AUTOMATION"}
+              onChange={(e) =>
+                setService({ ...service, [d.id]: e.target.value })
+              }
+            >
+              <option value="AUTOMATION">Automation / recurring</option>
+              <option value="WEBSITE">Website · first month</option>
+              <option value="LANDING_PAGE">Landing page · first month</option>
+            </select>
+            <strong>
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+              }).format(Number(d.collected_cents || 0) / 100)}
+            </strong>
+            <em>{rate(d)}%</em>
+            <b>
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+              }).format(payout(d) / 100)}
+            </b>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
 }
 
-function CRMInvoices({onFlash}:{onFlash:(message:string)=>void}){type Invoice={id:string;invoice_number:string;client_name:string;client_email:string;description:string;amount_cents:number;due_date?:string;status:string;stripe_url?:string};const [rows,setRows]=useState<Invoice[]>([]),[form,setForm]=useState({clientName:"",clientEmail:"",description:"",amount:"",dueDate:""});const load=async()=>{const r=await fetch("/api/crm/invoices",{cache:"no-store"}),d=await r.json() as {invoices?:Invoice[];error?:string};if(!r.ok){onFlash(d.error||"Invoices could not load");return}setRows(d.invoices||[])};useEffect(()=>{void load()},[]);const create=async()=>{const r=await fetch("/api/crm/invoices",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}),d=await r.json() as {error?:string};if(!r.ok){onFlash(d.error||"Invoice could not be created");return}setForm({clientName:"",clientEmail:"",description:"",amount:"",dueDate:""});await load();onFlash("Invoice draft created")};const action=async(id:string,value:string)=>{const r=await fetch("/api/crm/invoices",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,action:value})}),d=await r.json() as {error?:string;url?:string};if(!r.ok){onFlash(d.error||"Invoice action failed");return}if(d.url)window.open(d.url,"_blank");await load();onFlash(value==="SEND"?"Stripe payment link created":"Invoice updated")};return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>INVOICE COMMAND</small><h2>Create, send, and track invoices.</h2><p>Drafts save now. Connect Stripe to generate secure payment links.</p></div></section><section className="crmPanel financeForm"><input placeholder="Client name" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/><input type="email" placeholder="Client email" value={form.clientEmail} onChange={e=>setForm({...form,clientEmail:e.target.value})}/><input placeholder="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/><input type="date" value={form.dueDate} onChange={e=>setForm({...form,dueDate:e.target.value})}/><button onClick={()=>void create()}>＋ Create invoice</button></section><section className="crmPanel invoiceLedger">{rows.map(row=><article key={row.id}><span><b>{row.invoice_number}</b><small>{row.client_name} · {row.client_email}</small></span><p>{row.description}</p><strong>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(row.amount_cents/100)}</strong><em>{row.status}</em><div>{row.stripe_url&&<a href={row.stripe_url} target="_blank">Payment link</a>}<button onClick={()=>void action(row.id,"SEND")}>Send</button><button onClick={()=>void action(row.id,"PAID")}>Mark paid</button><button onClick={()=>void action(row.id,"VOID")}>Void</button></div></article>)}</section></div>}
+function CRMInvoices({ onFlash }: { onFlash: (message: string) => void }) {
+  type Invoice = {
+    id: string;
+    invoice_number: string;
+    client_name: string;
+    client_email: string;
+    description: string;
+    amount_cents: number;
+    due_date?: string;
+    status: string;
+    stripe_url?: string;
+  };
+  const [rows, setRows] = useState<Invoice[]>([]),
+    [form, setForm] = useState({
+      clientName: "",
+      clientEmail: "",
+      description: "",
+      amount: "",
+      dueDate: "",
+    });
+  const load = async () => {
+    const r = await fetch("/api/crm/invoices", { cache: "no-store" }),
+      d = (await r.json()) as { invoices?: Invoice[]; error?: string };
+    if (!r.ok) {
+      onFlash(d.error || "Invoices could not load");
+      return;
+    }
+    setRows(d.invoices || []);
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const create = async () => {
+    const r = await fetch("/api/crm/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }),
+      d = (await r.json()) as { error?: string };
+    if (!r.ok) {
+      onFlash(d.error || "Invoice could not be created");
+      return;
+    }
+    setForm({
+      clientName: "",
+      clientEmail: "",
+      description: "",
+      amount: "",
+      dueDate: "",
+    });
+    await load();
+    onFlash("Invoice draft created");
+  };
+  const action = async (id: string, value: string) => {
+    const r = await fetch("/api/crm/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: value }),
+      }),
+      d = (await r.json()) as { error?: string; url?: string };
+    if (!r.ok) {
+      onFlash(d.error || "Invoice action failed");
+      return;
+    }
+    if (d.url) window.open(d.url, "_blank");
+    await load();
+    onFlash(
+      value === "SEND" ? "Stripe payment link created" : "Invoice updated",
+    );
+  };
+  return (
+    <div className="financeWorkspace">
+      <section className="financeHero crmPanel">
+        <div>
+          <small>INVOICE COMMAND</small>
+          <h2>Create, send, and track invoices.</h2>
+          <p>
+            Drafts save now. Connect Stripe to generate secure payment links.
+          </p>
+        </div>
+      </section>
+      <section className="crmPanel financeForm">
+        <input
+          placeholder="Client name"
+          value={form.clientName}
+          onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+        />
+        <input
+          type="email"
+          placeholder="Client email"
+          value={form.clientEmail}
+          onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
+        />
+        <input
+          placeholder="Description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+        <input
+          type="number"
+          placeholder="Amount"
+          value={form.amount}
+          onChange={(e) => setForm({ ...form, amount: e.target.value })}
+        />
+        <input
+          type="date"
+          value={form.dueDate}
+          onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+        />
+        <button onClick={() => void create()}>＋ Create invoice</button>
+      </section>
+      <section className="crmPanel invoiceLedger">
+        {rows.map((row) => (
+          <article key={row.id}>
+            <span>
+              <b>{row.invoice_number}</b>
+              <small>
+                {row.client_name} · {row.client_email}
+              </small>
+            </span>
+            <p>{row.description}</p>
+            <strong>
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+              }).format(row.amount_cents / 100)}
+            </strong>
+            <em>{row.status}</em>
+            <div>
+              {row.stripe_url && (
+                <a href={row.stripe_url} target="_blank">
+                  Payment link
+                </a>
+              )}
+              <button onClick={() => void action(row.id, "SEND")}>Send</button>
+              <button onClick={() => void action(row.id, "PAID")}>
+                Mark paid
+              </button>
+              <button onClick={() => void action(row.id, "VOID")}>Void</button>
+            </div>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
 
-function CRMContracts({onFlash}:{onFlash:(message:string)=>void}){type Contract={id:string;title:string;client_name:string;client_email:string;body:string;status:string;signing_token:string;signer_name?:string;signed_at?:string};const template="SERVICE AGREEMENT\n\nThis agreement is between Cyncro Media and the client named above. Services, deliverables, payment schedule, ownership, confidentiality, cancellation, and acceptance terms may be edited below before sending.";const [rows,setRows]=useState<Contract[]>([]),[form,setForm]=useState({title:"Service Agreement",clientName:"",clientEmail:"",body:template});const load=async()=>{const r=await fetch("/api/crm/contracts",{cache:"no-store"}),d=await r.json() as {contracts?:Contract[];error?:string};if(!r.ok){onFlash(d.error||"Contracts could not load");return}setRows(d.contracts||[])};useEffect(()=>{void load()},[]);const create=async()=>{const r=await fetch("/api/crm/contracts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}),d=await r.json() as {error?:string};if(!r.ok){onFlash(d.error||"Contract could not be created");return}await load();onFlash("Editable contract created")};const copyLink=async(row:Contract)=>{const url=`${window.location.origin}${window.location.pathname}?contract=${encodeURIComponent(row.signing_token)}#sign`;await navigator.clipboard.writeText(url);await fetch("/api/crm/contracts",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:row.id,status:"SENT"})});await load();onFlash("Secure signature link copied")};return <div className="financeWorkspace"><section className="financeHero crmPanel"><div><small>CONTRACT STUDIO</small><h2>Edit, send, and capture signatures.</h2><p>Every signature records the signer name, date, and audit IP.</p></div></section><section className="crmPanel contractEditor"><div><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/><input placeholder="Client name" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/><input type="email" placeholder="Client email" value={form.clientEmail} onChange={e=>setForm({...form,clientEmail:e.target.value})}/></div><textarea value={form.body} onChange={e=>setForm({...form,body:e.target.value})}/><button onClick={()=>void create()}>Save contract draft</button></section><section className="crmPanel contractLedger">{rows.map(row=><article key={row.id}><span><b>{row.title}</b><small>{row.client_name} · {row.client_email}</small></span><em>{row.status}</em>{row.signer_name?<strong>Signed by {row.signer_name}</strong>:<button onClick={()=>void copyLink(row)}>Copy signature link</button>}</article>)}</section></div>}
+function CRMSalesPlaybooks({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  type Playbook = {
+    id: string;
+    name: string;
+    channel: string;
+    category: string;
+    stage: string;
+    subject?: string;
+    content: string;
+    objection?: string;
+    usage_count: number;
+    success_count: number;
+  };
+  const empty = {
+    name: "",
+    channel: "CALL",
+    category: "Discovery",
+    stage: "ANY",
+    subject: "",
+    content: "",
+    objection: "",
+  };
+  const [rows, setRows] = useState<Playbook[]>([]),
+    [selected, setSelected] = useState(""),
+    [channel, setChannel] = useState("ALL"),
+    [query, setQuery] = useState(""),
+    [editing, setEditing] = useState(false),
+    [form, setForm] = useState(empty),
+    [contact, setContact] = useState({
+      first_name: "Alex",
+      rep_name: "Sales Representative",
+      company_name: "Cyncro",
+      interest: "business systems",
+      personalized_reason: "your growth",
+      problem_area: "lead follow-up",
+      desired_outcome: "a connected sales operation",
+      recommended_solution: "Cyncro Core",
+      investment: "the approved proposal",
+      proposal_link: "[proposal link]",
+      booking_link: "[booking link]",
+      meeting_length: "30",
+      option_one: "Tuesday",
+      option_two: "Wednesday",
+    });
+  const load = async () => {
+    const response = await fetch(
+        `/api/crm/playbooks?channel=${channel === "ALL" ? "" : channel}&q=${encodeURIComponent(query)}`,
+        { cache: "no-store" },
+      ),
+      data = (await response.json()) as {
+        playbooks?: Playbook[];
+        error?: string;
+      };
+    if (!response.ok) {
+      onFlash(data.error || "Playbooks could not load");
+      return;
+    }
+    setRows(data.playbooks || []);
+    if (!selected && data.playbooks?.[0]) setSelected(data.playbooks[0].id);
+  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [channel, query]);
+  const active = rows.find((row) => row.id === selected) || rows[0];
+  const merge = (value = "") =>
+    value.replace(
+      /{{([a-z_]+)}}/g,
+      (_, key: string) => contact[key as keyof typeof contact] || `{{${key}}}`,
+    );
+  const save = async () => {
+    const method = editing && selected ? "PATCH" : "POST",
+      payload = editing && selected ? { ...form, id: selected } : form,
+      response = await fetch("/api/crm/playbooks", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+      data = (await response.json()) as { id?: string; error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Playbook could not be saved");
+      return;
+    }
+    setEditing(false);
+    setForm(empty);
+    if (data.id) setSelected(data.id);
+    await load();
+    onFlash("Sales playbook saved for the team");
+  };
+  const useTemplate = async () => {
+    if (!active) return;
+    await navigator.clipboard?.writeText(
+      active.channel === "EMAIL"
+        ? `${merge(active.subject || "")}\n\n${merge(active.content)}`
+        : merge(active.content),
+    );
+    await fetch("/api/crm/playbooks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: active.id, action: "USE" }),
+    });
+    await load();
+    onFlash(`${active.channel} template personalized and copied`);
+  };
+  const editActive = () => {
+    if (!active) return;
+    setForm({
+      name: active.name,
+      channel: active.channel,
+      category: active.category,
+      stage: active.stage,
+      subject: active.subject || "",
+      content: active.content,
+      objection: active.objection || "",
+    });
+    setEditing(true);
+  };
+  return (
+    <div className="salesPlaybookWorkspace">
+      <section className="playbookHero crmPanel">
+        <div>
+          <small>CYNCRO SALES COMMAND</small>
+          <h2>Give every rep the words, timing, and next move to win.</h2>
+          <p>
+            Editable call scripts, compliant SMS, conversion emails, objection
+            responses, merge fields, team usage, and outcome tracking—inside the
+            CRM.
+          </p>
+        </div>
+        <aside>
+          <b>{rows.length}</b>
+          <span>LIVE PLAYBOOKS</span>
+          <button
+            onClick={() => {
+              setSelected("");
+              setForm(empty);
+              setEditing(true);
+            }}
+          >
+            ＋ New playbook
+          </button>
+        </aside>
+      </section>
+      <section className="playbookMetrics">
+        {[
+          ["CALL", "Guided conversations"],
+          ["SMS", "Fast, consent-aware follow-up"],
+          ["EMAIL", "Personalized closing sequences"],
+          ["ROI", "Usage + win attribution"],
+        ].map((item) => (
+          <article className="crmPanel" key={item[0]}>
+            <b>{item[0]}</b>
+            <span>{item[1]}</span>
+          </article>
+        ))}
+      </section>
+      <div className="playbookLayout">
+        <aside className="crmPanel playbookLibrary">
+          <header>
+            <small>TEAM LIBRARY</small>
+            <input
+              placeholder="Search scripts…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <div>
+              {["ALL", "CALL", "SMS", "EMAIL"].map((item) => (
+                <button
+                  className={channel === item ? "active" : ""}
+                  onClick={() => setChannel(item)}
+                  key={item}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </header>
+          {rows.map((row) => (
+            <button
+              className={active?.id === row.id ? "active" : ""}
+              onClick={() => setSelected(row.id)}
+              key={row.id}
+            >
+              <span>
+                <i>{row.channel[0]}</i>
+                <b>{row.name}</b>
+                <small>
+                  {row.category} · {row.stage}
+                </small>
+              </span>
+              <em>{row.usage_count} uses</em>
+            </button>
+          ))}
+        </aside>
+        <main className="crmPanel playbookStage">
+          {editing ? (
+            <>
+              <header>
+                <div>
+                  <small>PLAYBOOK EDITOR</small>
+                  <h3>
+                    {selected ? "Edit team playbook" : "Create team playbook"}
+                  </h3>
+                </div>
+                <button onClick={() => setEditing(false)}>Close</button>
+              </header>
+              <div className="playbookForm">
+                <input
+                  placeholder="Playbook name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+                <select
+                  value={form.channel}
+                  onChange={(e) =>
+                    setForm({ ...form, channel: e.target.value })
+                  }
+                >
+                  <option>CALL</option>
+                  <option>SMS</option>
+                  <option>EMAIL</option>
+                </select>
+                <input
+                  placeholder="Category"
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({ ...form, category: e.target.value })
+                  }
+                />
+                <select
+                  value={form.stage}
+                  onChange={(e) => setForm({ ...form, stage: e.target.value })}
+                >
+                  {[
+                    "ANY",
+                    "NEW",
+                    "QUALIFIED",
+                    "PROPOSAL",
+                    "NEGOTIATION",
+                    "WON",
+                    "LOST",
+                  ].map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+                {form.channel === "EMAIL" && (
+                  <input
+                    className="wide"
+                    placeholder="Email subject"
+                    value={form.subject}
+                    onChange={(e) =>
+                      setForm({ ...form, subject: e.target.value })
+                    }
+                  />
+                )}
+                <textarea
+                  className="wide"
+                  placeholder="Script or message"
+                  value={form.content}
+                  onChange={(e) =>
+                    setForm({ ...form, content: e.target.value })
+                  }
+                />
+                <textarea
+                  className="wide objectionInput"
+                  placeholder="Objection guidance / rep coaching"
+                  value={form.objection}
+                  onChange={(e) =>
+                    setForm({ ...form, objection: e.target.value })
+                  }
+                />
+                <button className="wide" onClick={() => void save()}>
+                  Save to team library
+                </button>
+              </div>
+            </>
+          ) : active ? (
+            <>
+              <header>
+                <div>
+                  <small>
+                    {active.channel} · {active.category} · {active.stage}
+                  </small>
+                  <h3>{active.name}</h3>
+                </div>
+                <div>
+                  <button onClick={editActive}>Edit</button>
+                  <button
+                    className="primary"
+                    onClick={() => void useTemplate()}
+                  >
+                    Personalize + copy
+                  </button>
+                </div>
+              </header>
+              {active.channel === "EMAIL" && (
+                <div className="playbookSubject">
+                  <small>SUBJECT</small>
+                  <b>{merge(active.subject || "")}</b>
+                </div>
+              )}
+              <pre className={active.channel === "CALL" ? "teleprompter" : ""}>
+                {merge(active.content)}
+              </pre>
+              {active.objection && (
+                <aside className="objectionCoach">
+                  <small>REP COACHING</small>
+                  <p>{active.objection}</p>
+                </aside>
+              )}
+              <footer>
+                <span>
+                  <small>USES</small>
+                  <b>{active.usage_count}</b>
+                </span>
+                <span>
+                  <small>ATTRIBUTED WINS</small>
+                  <b>{active.success_count}</b>
+                </span>
+                <span>
+                  <small>WIN RATE</small>
+                  <b>
+                    {active.usage_count
+                      ? Math.round(
+                          (active.success_count / active.usage_count) * 100,
+                        )
+                      : 0}
+                    %
+                  </b>
+                </span>
+                <button
+                  onClick={async () => {
+                    await fetch("/api/crm/playbooks", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: active.id, action: "WON" }),
+                    });
+                    await load();
+                    onFlash("Win attributed to this playbook");
+                  }}
+                >
+                  Mark won
+                </button>
+              </footer>
+            </>
+          ) : (
+            <div className="emptyState">Create the first sales playbook.</div>
+          )}
+        </main>
+        <aside className="crmPanel mergePanel">
+          <small>LIVE PERSONALIZATION</small>
+          <h3>Merge-field preview</h3>
+          {Object.entries(contact)
+            .slice(0, 9)
+            .map(([key, value]) => (
+              <label key={key}>
+                {key.replaceAll("_", " ")}
+                <input
+                  value={value}
+                  onChange={(event) =>
+                    setContact({ ...contact, [key]: event.target.value })
+                  }
+                />
+              </label>
+            ))}
+          <div>
+            <small>AVAILABLE TOKENS</small>
+            <code>
+              {"{{first_name}} {{rep_name}} {{company_name}} {{booking_link}}"}
+            </code>
+          </div>
+        </aside>
+      </div>
+      <section className="crmPanel salesSequence">
+        <div>
+          <small>MAX-SALES WORKFLOW</small>
+          <h3>One lead. One coordinated sequence.</h3>
+        </div>
+        {[
+          ["00:00", "SMS", "Immediate personalized response"],
+          ["00:02", "CALL", "Guided discovery script"],
+          ["+1 DAY", "EMAIL", "Value recap + proof"],
+          ["+3 DAYS", "SMS", "Permission-based check-in"],
+          ["+7 DAYS", "CALL", "Decision conversation"],
+        ].map((step) => (
+          <article key={step[0]}>
+            <b>{step[0]}</b>
+            <i>{step[1]}</i>
+            <span>{step[2]}</span>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function CRMContractsLegacy({
+  onFlash,
+}: {
+  onFlash: (message: string) => void;
+}) {
+  type Contract = {
+    id: string;
+    title: string;
+    client_name: string;
+    client_email: string;
+    body: string;
+    status: string;
+    signing_token: string;
+    signer_name?: string;
+    signed_at?: string;
+  };
+  const template =
+    "SERVICE AGREEMENT\n\nThis agreement is between Cyncro Media and the client named above. Services, deliverables, payment schedule, ownership, confidentiality, cancellation, and acceptance terms may be edited below before sending.";
+  const [rows, setRows] = useState<Contract[]>([]),
+    [form, setForm] = useState({
+      title: "Service Agreement",
+      clientName: "",
+      clientEmail: "",
+      body: template,
+    });
+  const load = async () => {
+    const r = await fetch("/api/crm/contracts", { cache: "no-store" }),
+      d = (await r.json()) as { contracts?: Contract[]; error?: string };
+    if (!r.ok) {
+      onFlash(d.error || "Contracts could not load");
+      return;
+    }
+    setRows(d.contracts || []);
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const create = async () => {
+    const r = await fetch("/api/crm/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }),
+      d = (await r.json()) as { error?: string };
+    if (!r.ok) {
+      onFlash(d.error || "Contract could not be created");
+      return;
+    }
+    await load();
+    onFlash("Editable contract created");
+  };
+  const copyLink = async (row: Contract) => {
+    const url = `${window.location.origin}${window.location.pathname}?contract=${encodeURIComponent(row.signing_token)}#sign`;
+    await navigator.clipboard.writeText(url);
+    await fetch("/api/crm/contracts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id, status: "SENT" }),
+    });
+    await load();
+    onFlash("Secure signature link copied");
+  };
+  return (
+    <div className="financeWorkspace">
+      <section className="financeHero crmPanel">
+        <div>
+          <small>CONTRACT STUDIO</small>
+          <h2>Edit, send, and capture signatures.</h2>
+          <p>Every signature records the signer name, date, and audit IP.</p>
+        </div>
+      </section>
+      <section className="crmPanel contractEditor">
+        <div>
+          <input
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+          <input
+            placeholder="Client name"
+            value={form.clientName}
+            onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+          />
+          <input
+            type="email"
+            placeholder="Client email"
+            value={form.clientEmail}
+            onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
+          />
+        </div>
+        <textarea
+          value={form.body}
+          onChange={(e) => setForm({ ...form, body: e.target.value })}
+        />
+        <button onClick={() => void create()}>Save contract draft</button>
+      </section>
+      <section className="crmPanel contractLedger">
+        {rows.map((row) => (
+          <article key={row.id}>
+            <span>
+              <b>{row.title}</b>
+              <small>
+                {row.client_name} · {row.client_email}
+              </small>
+            </span>
+            <em>{row.status}</em>
+            {row.signer_name ? (
+              <strong>Signed by {row.signer_name}</strong>
+            ) : (
+              <button onClick={() => void copyLink(row)}>
+                Copy signature link
+              </button>
+            )}
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
+  type Contract = {
+    id: string;
+    title: string;
+    client_name: string;
+    client_email: string;
+    body: string;
+    status: string;
+    expires_at?: string;
+    locked_at?: string;
+    revoked_at?: string;
+    signer_name?: string;
+    signed_at?: string;
+    owner_signer_name?: string;
+    owner_signed_at?: string;
+    document_hash?: string;
+    reminder_count?: number;
+    opportunity_name?: string;
+    invoice_number?: string;
+  };
+  type Signer = {
+    id: string;
+    signer_name: string;
+    signer_email: string;
+    signing_order: number;
+    signing_token: string;
+    status: string;
+    signed_at?: string;
+  };
+  type Detail = {
+    contract: Contract;
+    signers: Signer[];
+    versions: {
+      id: string;
+      version_number: number;
+      document_hash: string;
+      created_at: string;
+    }[];
+    events: {
+      id: string;
+      event_type: string;
+      actor: string;
+      details: string;
+      created_at: string;
+    }[];
+    attachments: {
+      id: string;
+      filename: string;
+      size_bytes: number;
+      created_at: string;
+    }[];
+  };
+  const templates = {
+    SERVICE: {
+      title: "Professional Services Agreement",
+      body: "PROFESSIONAL SERVICES AGREEMENT\n\nClient: {{client_name}}\nEffective date: {{effective_date}}\n\n1. SERVICES\nCyncro will provide the services and deliverables described in the approved statement of work.\n\n2. FEES AND PAYMENT\nFees, payment milestones, deposits, and recurring charges are stated in the linked invoice or proposal.\n\n3. CLIENT RESPONSIBILITIES\nThe client will provide timely access, approvals, content, credentials, and decisions required for delivery.\n\n4. INTELLECTUAL PROPERTY\nOwnership and license rights for final deliverables transfer only as stated after payment. Cyncro retains pre-existing tools, frameworks, and know-how.\n\n5. CONFIDENTIALITY\nBoth parties will protect non-public business and customer information.\n\n6. TERM, CANCELLATION, AND ACCEPTANCE\nProject timing, cancellation rights, and acceptance requirements are governed by the approved scope.\n\n7. ELECTRONIC SIGNATURES\nThe parties agree to transact and sign electronically.\n\nAttorney review required before production use.",
+    },
+    NDA: {
+      title: "Mutual Confidentiality Agreement",
+      body: "MUTUAL CONFIDENTIALITY AGREEMENT\n\nThe parties may exchange confidential business, technical, financial, and customer information solely to evaluate or perform the contemplated relationship. Each party will use reasonable safeguards, limit access to authorized people, and return or destroy protected information when requested. Standard exclusions apply for public, previously known, independently developed, or lawfully received information.\n\nAttorney review required before production use.",
+    },
+    WEBSITE: {
+      title: "Website & Landing Page Agreement",
+      body: "WEBSITE AND LANDING PAGE AGREEMENT\n\nClient: {{client_name}}\n\nScope, pages, revisions, integrations, content responsibilities, timeline, payment milestones, launch acceptance, hosting, third-party services, and intellectual-property terms will be defined in the approved statement of work.\n\nAttorney review required before production use.",
+    },
+    AUTOMATION: {
+      title: "AI & Automation Services Agreement",
+      body: "AI AND AUTOMATION SERVICES AGREEMENT\n\nClient: {{client_name}}\n\nThis agreement covers configured workflows, integrations, AI-assisted functions, human-approval requirements, usage limits, third-party services, customer data responsibilities, monitoring, maintenance, and change requests. AI outputs require appropriate human review and are not guaranteed to be error-free.\n\nAttorney review required before production use.",
+    },
+  };
+  const [rows, setRows] = useState<Contract[]>([]),
+    [selected, setSelected] = useState(""),
+    [detail, setDetail] = useState<Detail | null>(null),
+    [mode, setMode] = useState<"LIST" | "CREATE" | "EDIT">("LIST"),
+    [templateKey, setTemplateKey] = useState<keyof typeof templates>("SERVICE"),
+    [form, setForm] = useState({
+      title: templates.SERVICE.title,
+      clientName: "",
+      clientEmail: "",
+      body: templates.SERVICE.body,
+      expiresAt: "",
+      opportunityId: "",
+      invoiceId: "",
+      additionalName: "",
+      additionalEmail: "",
+    }),
+    [ownerName, setOwnerName] = useState("Account Owner"),
+    [file, setFile] = useState<File | null>(null);
+  const load = async () => {
+    const response = await fetch("/api/crm/contracts", { cache: "no-store" }),
+      data = (await response.json()) as {
+        contracts?: Contract[];
+        error?: string;
+      };
+    if (!response.ok) {
+      onFlash(data.error || "Contracts could not load");
+      return;
+    }
+    setRows(data.contracts || []);
+  };
+  const loadDetail = async (id: string) => {
+    setSelected(id);
+    const response = await fetch(
+        `/api/crm/contracts?id=${encodeURIComponent(id)}`,
+        { cache: "no-store" },
+      ),
+      data = (await response.json()) as Detail & { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Contract details could not load");
+      return;
+    }
+    setDetail(data);
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const chooseTemplate = (key: keyof typeof templates) => {
+    setTemplateKey(key);
+    setForm({
+      ...form,
+      title: templates[key].title,
+      body: templates[key].body,
+    });
+  };
+  const create = async () => {
+    const body = form.body
+        .replaceAll("{{client_name}}", form.clientName || "Client")
+        .replaceAll("{{effective_date}}", new Date().toLocaleDateString()),
+      signers =
+        form.additionalName && form.additionalEmail
+          ? [{ name: form.additionalName, email: form.additionalEmail }]
+          : [],
+      response = await fetch("/api/crm/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, body, templateKey, signers }),
+      }),
+      data = (await response.json()) as { contract?: Contract; error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Contract could not be created");
+      return;
+    }
+    setMode("LIST");
+    await load();
+    if (data.contract) await loadDetail(data.contract.id);
+    onFlash("Versioned contract draft created");
+  };
+  const saveEdit = async () => {
+    if (!detail) return;
+    const response = await fetch("/api/crm/contracts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: detail.contract.id,
+          title: form.title,
+          body: form.body,
+          expiresAt: form.expiresAt,
+          opportunityId: form.opportunityId,
+          invoiceId: form.invoiceId,
+        }),
+      }),
+      data = (await response.json()) as { error?: string; version?: number };
+    if (!response.ok) {
+      onFlash(data.error || "Contract could not be saved");
+      return;
+    }
+    setMode("LIST");
+    await Promise.all([load(), loadDetail(detail.contract.id)]);
+    onFlash(`Contract version ${data.version || ""} saved`);
+  };
+  const action = async (
+    actionName: string,
+    payload: Record<string, unknown> = {},
+  ) => {
+    if (!detail) return;
+    const response = await fetch("/api/crm/contracts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: detail.contract.id,
+          action: actionName,
+          ...payload,
+        }),
+      }),
+      data = (await response.json()) as { error?: string; delivery?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Contract action failed");
+      return;
+    }
+    await Promise.all([load(), loadDetail(detail.contract.id)]);
+    onFlash(
+      actionName === "SEND" && data.delivery === "CONNECTION_REQUIRED"
+        ? "Signing links ready; connect email for automatic delivery"
+        : `${actionName.toLowerCase()} completed`,
+    );
+  };
+  const edit = () => {
+    if (!detail) return;
+    setForm({
+      ...form,
+      title: detail.contract.title,
+      clientName: detail.contract.client_name,
+      clientEmail: detail.contract.client_email,
+      body: detail.contract.body,
+      expiresAt: detail.contract.expires_at?.slice(0, 10) || "",
+      opportunityId: "",
+      invoiceId: "",
+      additionalName: "",
+      additionalEmail: "",
+    });
+    setMode("EDIT");
+  };
+  const copyLink = async (signer: Signer) => {
+    const url = `${window.location.origin}${window.location.pathname}?contract=${encodeURIComponent(signer.signing_token)}#sign`;
+    await navigator.clipboard?.writeText(url);
+    await action("SEND");
+    onFlash(`Secure link copied for ${signer.signer_name}`);
+  };
+  const upload = async () => {
+    if (!detail || !file) return;
+    const data = new FormData();
+    data.append("contractId", detail.contract.id);
+    data.append("file", file);
+    const response = await fetch("/api/crm/contracts/attachments", {
+        method: "POST",
+        body: data,
+      }),
+      result = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(result.error || "Attachment upload failed");
+      return;
+    }
+    setFile(null);
+    await loadDetail(detail.contract.id);
+    onFlash("Attachment saved to the contract");
+  };
+  return (
+    <div className="contractStudioV2">
+      <section className="contractCommand crmPanel">
+        <div>
+          <small>CYNCRO CONTRACT STUDIO</small>
+          <h2>From approved deal to locked agreement.</h2>
+          <p>
+            Templates, merge fields, sequential signers, countersignature, PDF
+            evidence, attachments, reminders, expiration, audit history, invoice
+            linking, and document integrity.
+          </p>
+        </div>
+        <aside>
+          <span>
+            <b>{rows.filter((row) => row.status === "SIGNED").length}</b>
+            <small>COMPLETED</small>
+          </span>
+          <span>
+            <b>
+              {
+                rows.filter((row) =>
+                  ["SENT", "CLIENT_SIGNED"].includes(row.status),
+                ).length
+              }
+            </b>
+            <small>IN MOTION</small>
+          </span>
+          <button
+            onClick={() => {
+              setMode("CREATE");
+              setSelected("");
+              setDetail(null);
+            }}
+          >
+            ＋ New contract
+          </button>
+        </aside>
+      </section>
+      <div className="contractStatusRail">
+        {[
+          ["DRAFT", "Prepare + edit"],
+          ["SENT", "Sequential signatures"],
+          ["CLIENT_SIGNED", "Owner countersign"],
+          ["SIGNED", "Locked + auditable"],
+        ].map((step) => (
+          <div key={step[0]}>
+            <i>◆</i>
+            <span>
+              <b>{step[0]}</b>
+              <small>{step[1]}</small>
+            </span>
+          </div>
+        ))}
+      </div>
+      {mode !== "LIST" ? (
+        <section className="crmPanel contractBuilderV2">
+          <header>
+            <div>
+              <small>
+                {mode === "EDIT" ? "NEW VERSION" : "CONTRACT BUILDER"}
+              </small>
+              <h3>
+                {mode === "EDIT"
+                  ? "Edit saved draft"
+                  : "Choose, personalize, and route"}
+              </h3>
+            </div>
+            <button onClick={() => setMode("LIST")}>Close</button>
+          </header>
+          {mode === "CREATE" && (
+            <div className="contractTemplates">
+              {(Object.keys(templates) as (keyof typeof templates)[]).map(
+                (key) => (
+                  <button
+                    className={templateKey === key ? "active" : ""}
+                    onClick={() => chooseTemplate(key)}
+                    key={key}
+                  >
+                    <b>{templates[key].title}</b>
+                    <small>Attorney review required</small>
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+          <div className="contractFormV2">
+            <input
+              placeholder="Agreement title"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+            <input
+              placeholder="Primary signer name"
+              disabled={mode === "EDIT"}
+              value={form.clientName}
+              onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+            />
+            <input
+              type="email"
+              placeholder="Primary signer email"
+              disabled={mode === "EDIT"}
+              value={form.clientEmail}
+              onChange={(e) =>
+                setForm({ ...form, clientEmail: e.target.value })
+              }
+            />
+            <input
+              type="date"
+              title="Signing expiration"
+              value={form.expiresAt}
+              onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+            />
+            {mode === "CREATE" && (
+              <>
+                <input
+                  placeholder="Additional signer name (optional)"
+                  value={form.additionalName}
+                  onChange={(e) =>
+                    setForm({ ...form, additionalName: e.target.value })
+                  }
+                />
+                <input
+                  type="email"
+                  placeholder="Additional signer email (optional)"
+                  value={form.additionalEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, additionalEmail: e.target.value })
+                  }
+                />
+              </>
+            )}
+            <input
+              placeholder="Opportunity ID (optional)"
+              value={form.opportunityId}
+              onChange={(e) =>
+                setForm({ ...form, opportunityId: e.target.value })
+              }
+            />
+            <input
+              placeholder="Invoice ID (optional)"
+              value={form.invoiceId}
+              onChange={(e) => setForm({ ...form, invoiceId: e.target.value })}
+            />
+            <textarea
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
+            <div className="contractLegalNotice">
+              Template content is operational scaffolding, not legal advice.
+              Have licensed counsel approve production templates.
+            </div>
+            <button
+              onClick={() => void (mode === "EDIT" ? saveEdit() : create())}
+            >
+              {mode === "EDIT" ? "Save new version" : "Create versioned draft"}
+            </button>
+          </div>
+        </section>
+      ) : (
+        <div className="contractStudioGrid">
+          <aside className="crmPanel contractListV2">
+            <header>
+              <small>AGREEMENT LEDGER</small>
+              <b>{rows.length} contracts</b>
+            </header>
+            {rows.map((row) => (
+              <button
+                className={selected === row.id ? "active" : ""}
+                onClick={() => void loadDetail(row.id)}
+                key={row.id}
+              >
+                <span>
+                  <b>{row.title}</b>
+                  <small>
+                    {row.client_name} · {row.client_email}
+                  </small>
+                </span>
+                <em className={row.status.toLowerCase()}>{row.status}</em>
+                <i>{row.locked_at ? "🔒" : "→"}</i>
+              </button>
+            ))}
+            {!rows.length && (
+              <div className="emptyState">Create your first agreement.</div>
+            )}
+          </aside>
+          <main className="crmPanel contractDetailV2">
+            {detail ? (
+              <>
+                <header>
+                  <div>
+                    <small>
+                      {detail.contract.status} · {detail.versions.length}{" "}
+                      VERSION{detail.versions.length === 1 ? "" : "S"}
+                    </small>
+                    <h3>{detail.contract.title}</h3>
+                    <p>
+                      {detail.contract.client_name} ·{" "}
+                      {detail.contract.client_email}
+                    </p>
+                  </div>
+                  <div>
+                    <button
+                      disabled={Boolean(detail.contract.locked_at)}
+                      onClick={edit}
+                    >
+                      Edit
+                    </button>
+                    <a href={`/api/crm/contracts/pdf?id=${detail.contract.id}`}>
+                      ↓ PDF
+                    </a>
+                  </div>
+                </header>
+                <div className="contractDocumentPreview">
+                  <pre>{detail.contract.body}</pre>
+                  <footer>
+                    <span>SHA-256</span>
+                    <code>
+                      {detail.contract.document_hash || "Generated when saved"}
+                    </code>
+                  </footer>
+                </div>
+                <section className="signerRouting">
+                  <div className="detailTitle">
+                    <small>SIGNING ORDER</small>
+                    <b>Sequential routing</b>
+                  </div>
+                  {detail.signers.map((signer) => (
+                    <article key={signer.id}>
+                      <i>{signer.signing_order}</i>
+                      <span>
+                        <b>{signer.signer_name}</b>
+                        <small>{signer.signer_email}</small>
+                      </span>
+                      <em>{signer.status}</em>
+                      {signer.status !== "SIGNED" && (
+                        <button onClick={() => void copyLink(signer)}>
+                          Copy link
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                  <article className="ownerSigner">
+                    <i>✓</i>
+                    <span>
+                      <b>Owner countersignature</b>
+                      <small>
+                        {detail.contract.owner_signer_name ||
+                          "Required after clients sign"}
+                      </small>
+                    </span>
+                    <em>
+                      {detail.contract.owner_signed_at ? "SIGNED" : "PENDING"}
+                    </em>
+                  </article>
+                </section>
+                <div className="contractActions">
+                  <button onClick={() => void action("SEND")}>
+                    Send / prepare links
+                  </button>
+                  <button onClick={() => void action("REMIND")}>
+                    Send reminder ({detail.contract.reminder_count || 0})
+                  </button>
+                  <input
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                  />
+                  <button
+                    disabled={
+                      !detail.contract.signed_at ||
+                      Boolean(detail.contract.owner_signed_at)
+                    }
+                    onClick={() =>
+                      void action("COUNTERSIGN", { signerName: ownerName })
+                    }
+                  >
+                    Countersign + lock
+                  </button>
+                  <button
+                    className="danger"
+                    disabled={Boolean(detail.contract.locked_at)}
+                    onClick={() => void action("REVOKE")}
+                  >
+                    Revoke links
+                  </button>
+                </div>
+                <section className="contractAttachments">
+                  <div>
+                    <small>ATTACHMENTS + EXHIBITS</small>
+                    <input
+                      type="file"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    <button disabled={!file} onClick={() => void upload()}>
+                      Upload
+                    </button>
+                  </div>
+                  {detail.attachments.map((item) => (
+                    <span key={item.id}>
+                      <b>{item.filename}</b>
+                      <small>{Math.ceil(item.size_bytes / 1024)} KB</small>
+                    </span>
+                  ))}
+                </section>
+                <section className="auditTimeline">
+                  <div className="detailTitle">
+                    <small>IMMUTABLE ACTIVITY</small>
+                    <b>Audit trail</b>
+                  </div>
+                  {detail.events.slice(0, 8).map((item) => (
+                    <article key={item.id}>
+                      <i>◆</i>
+                      <span>
+                        <b>{item.event_type.replaceAll("_", " ")}</b>
+                        <small>
+                          {item.actor} ·{" "}
+                          {new Date(item.created_at).toLocaleString()}
+                        </small>
+                        <p>{item.details}</p>
+                      </span>
+                    </article>
+                  ))}
+                </section>
+              </>
+            ) : (
+              <div className="contractEmpty">
+                <i>✎</i>
+                <h3>Select an agreement</h3>
+                <p>
+                  Review signatures, versions, attachments, linked revenue, and
+                  every audit event.
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
-  type Status = { connections: Record<string, boolean>; eventTypes: { id:string; name:string; duration_minutes:number; bookingUrl:string }[]; framerWebhookUrl:string };
-  const [status,setStatus]=useState<Status|null>(null);
-  const [loading,setLoading]=useState(true);
-  useEffect(()=>{void (async()=>{const response=await fetch("/api/integrations/status");const data=await response.json() as Status&{error?:string};setLoading(false);if(!response.ok){onFlash(data.error||"Connections could not be loaded");return}setStatus(data)})()},[]);
-  const copy=async(value:string,label:string)=>{await navigator.clipboard?.writeText(value);onFlash(`${label} copied`)};
-  const connections=[
-    ["meta","Instagram + Facebook","DMs, comments, leads, attribution","META_APP_ID · META_APP_SECRET · META_PAGE_ACCESS_TOKEN"],
-    ["twilio","SMS + calling","Shared numbers, outbound SMS, call routing","TWILIO_ACCOUNT_SID · TWILIO_AUTH_TOKEN · TWILIO_PHONE_NUMBER"],
-    ["resend","Transactional email","Booking confirmations and CRM email","RESEND_API_KEY · EMAIL_FROM"],
-    ["googleCalendar","Google Calendar","Two-way calendar authorization","GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET"],
-    ["framer","Framer landing pages","Send every form lead into Cyncro","FRAMER_WEBHOOK_SECRET"],
-    ["stripe","Stripe payments","Invoice payment links and payment status","STRIPE_SECRET_KEY · STRIPE_WEBHOOK_SECRET"],
+  type Status = {
+    connections: Record<string, boolean>;
+    eventTypes: {
+      id: string;
+      name: string;
+      duration_minutes: number;
+      bookingUrl: string;
+    }[];
+    framerWebhookUrl: string;
+  };
+  const [status, setStatus] = useState<Status | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void (async () => {
+      const response = await fetch("/api/integrations/status");
+      const data = (await response.json()) as Status & { error?: string };
+      setLoading(false);
+      if (!response.ok) {
+        onFlash(data.error || "Connections could not be loaded");
+        return;
+      }
+      setStatus(data);
+    })();
+  }, []);
+  const copy = async (value: string, label: string) => {
+    await navigator.clipboard?.writeText(value);
+    onFlash(`${label} copied`);
+  };
+  const connections = [
+    [
+      "meta",
+      "Instagram + Facebook",
+      "DMs, comments, leads, attribution",
+      "META_APP_ID · META_APP_SECRET · META_PAGE_ACCESS_TOKEN",
+    ],
+    [
+      "twilio",
+      "SMS + calling",
+      "Shared numbers, outbound SMS, call routing",
+      "TWILIO_ACCOUNT_SID · TWILIO_AUTH_TOKEN · TWILIO_PHONE_NUMBER",
+    ],
+    [
+      "resend",
+      "Transactional email",
+      "Booking confirmations and CRM email",
+      "RESEND_API_KEY · EMAIL_FROM",
+    ],
+    [
+      "googleCalendar",
+      "Google Calendar",
+      "Two-way calendar authorization",
+      "GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET",
+    ],
+    [
+      "framer",
+      "Framer landing pages",
+      "Send every form lead into Cyncro",
+      "FRAMER_WEBHOOK_SECRET",
+    ],
+    [
+      "stripe",
+      "Stripe payments",
+      "Invoice payment links and payment status",
+      "STRIPE_SECRET_KEY · STRIPE_WEBHOOK_SECRET",
+    ],
   ];
-  return <div className="integrationsWorkspace">
-    <section className="integrationHero crmPanel"><div><small>CONNECTION CENTER</small><h2>Connect once. Run everything from Cyncro.</h2><p>Your CRM, calendars, landing pages, email, SMS, and social channels share the same contacts, ownership, permissions, and analytics.</p></div><span>{Object.values(status?.connections||{}).filter(Boolean).length} / {connections.length}<small>CONNECTED</small></span></section>
-    <div className="integrationGrid">
-      {connections.map(([key,name,description,needed])=><article className="crmPanel" key={key}><div className="integrationStatus"><i className={status?.connections[key]?"connected":""}/><span>{status?.connections[key]?"CONNECTED":"CONNECTION REQUIRED"}</span></div><h3>{name}</h3><p>{description}</p><small>REQUIRED</small><code>{needed}</code><button onClick={()=>onFlash(status?.connections[key]?`${name} settings ready`:`Add the required connection values to activate ${name}`)}>{status?.connections[key]?"Manage connection":"Connection instructions"}</button></article>)}
+  return (
+    <div className="integrationsWorkspace">
+      <section className="integrationHero crmPanel">
+        <div>
+          <small>CONNECTION CENTER</small>
+          <h2>Connect once. Run everything from Cyncro.</h2>
+          <p>
+            Your CRM, calendars, landing pages, email, SMS, and social channels
+            share the same contacts, ownership, permissions, and analytics.
+          </p>
+        </div>
+        <span>
+          {Object.values(status?.connections || {}).filter(Boolean).length} /{" "}
+          {connections.length}
+          <small>CONNECTED</small>
+        </span>
+      </section>
+      <div className="integrationGrid">
+        {connections.map(([key, name, description, needed]) => (
+          <article className="crmPanel" key={key}>
+            <div className="integrationStatus">
+              <i className={status?.connections[key] ? "connected" : ""} />
+              <span>
+                {status?.connections[key] ? "CONNECTED" : "CONNECTION REQUIRED"}
+              </span>
+            </div>
+            <h3>{name}</h3>
+            <p>{description}</p>
+            <small>REQUIRED</small>
+            <code>{needed}</code>
+            <button
+              onClick={() =>
+                onFlash(
+                  status?.connections[key]
+                    ? `${name} settings ready`
+                    : `Add the required connection values to activate ${name}`,
+                )
+              }
+            >
+              {status?.connections[key]
+                ? "Manage connection"
+                : "Connection instructions"}
+            </button>
+          </article>
+        ))}
+      </div>
+      <section className="crmPanel integrationSection">
+        <div className="crmPanelHead">
+          <div>
+            <small>FRAMER → CYNCRO</small>
+            <h2>Landing-page lead connection</h2>
+          </div>
+        </div>
+        <p>
+          Send Framer form submissions to this secure Cyncro endpoint. Matching
+          contacts update instead of duplicating.
+        </p>
+        <div className="copyField">
+          <code>{status?.framerWebhookUrl || "Loading…"}</code>
+          <button
+            disabled={!status}
+            onClick={() =>
+              status && void copy(status.framerWebhookUrl, "Framer webhook URL")
+            }
+          >
+            Copy webhook URL
+          </button>
+        </div>
+        <ol>
+          <li>
+            Create a form in Framer with name, email, phone, company, and
+            message fields.
+          </li>
+          <li>
+            Post the form JSON to the webhook URL and include{" "}
+            <code>x-cyncro-secret</code>.
+          </li>
+          <li>The lead appears in Contacts immediately with source FRAMER.</li>
+        </ol>
+      </section>
+      <section className="crmPanel integrationSection">
+        <div className="crmPanelHead">
+          <div>
+            <small>PUBLIC BOOKING LINKS</small>
+            <h2>Calendar links ready to share or embed</h2>
+          </div>
+        </div>
+        {loading && <p>Loading event links…</p>}
+        {status?.eventTypes.map((event) => (
+          <div className="bookingLinkRow" key={event.id}>
+            <span>
+              <b>{event.name}</b>
+              <small>{event.duration_minutes} minute default</small>
+            </span>
+            <code>{event.bookingUrl}</code>
+            <button
+              onClick={() => void copy(event.bookingUrl, `${event.name} link`)}
+            >
+              Copy link
+            </button>
+          </div>
+        ))}
+      </section>
     </div>
-    <section className="crmPanel integrationSection"><div className="crmPanelHead"><div><small>FRAMER → CYNCRO</small><h2>Landing-page lead connection</h2></div></div><p>Send Framer form submissions to this secure Cyncro endpoint. Matching contacts update instead of duplicating.</p><div className="copyField"><code>{status?.framerWebhookUrl||"Loading…"}</code><button disabled={!status} onClick={()=>status&&void copy(status.framerWebhookUrl,"Framer webhook URL")}>Copy webhook URL</button></div><ol><li>Create a form in Framer with name, email, phone, company, and message fields.</li><li>Post the form JSON to the webhook URL and include <code>x-cyncro-secret</code>.</li><li>The lead appears in Contacts immediately with source FRAMER.</li></ol></section>
-    <section className="crmPanel integrationSection"><div className="crmPanelHead"><div><small>PUBLIC BOOKING LINKS</small><h2>Calendar links ready to share or embed</h2></div></div>{loading&&<p>Loading event links…</p>}{status?.eventTypes.map(event=><div className="bookingLinkRow" key={event.id}><span><b>{event.name}</b><small>{event.duration_minutes} minute default</small></span><code>{event.bookingUrl}</code><button onClick={()=>void copy(event.bookingUrl,`${event.name} link`)}>Copy link</button></div>)}</section>
-  </div>;
+  );
 }
 
 function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
@@ -14463,21 +17015,268 @@ const primeAgents = [
 
 function CyncroMessagesComingSoon() {
   const agents = [
-    { name: "Nova", role: "AI Receptionist", number: "Miami local · reserved", state: "Ready for configuration", color: "N" },
-    { name: "Sales Director", role: "Human Agent", number: "Dedicated line · planned", state: "Owner workspace", color: "D" },
-    { name: "Setter AI", role: "Follow-up Agent", number: "Shared campaign pool", state: "Approval required", color: "S" },
-    { name: "Support Team", role: "Shared Inbox", number: "Toll-free · planned", state: "Round-robin routing", color: "C" },
+    {
+      name: "Nova",
+      role: "AI Receptionist",
+      number: "Miami local · reserved",
+      state: "Ready for configuration",
+      color: "N",
+    },
+    {
+      name: "Sales Director",
+      role: "Human Agent",
+      number: "Dedicated line · planned",
+      state: "Owner workspace",
+      color: "D",
+    },
+    {
+      name: "Setter AI",
+      role: "Follow-up Agent",
+      number: "Shared campaign pool",
+      state: "Approval required",
+      color: "S",
+    },
+    {
+      name: "Support Team",
+      role: "Shared Inbox",
+      number: "Toll-free · planned",
+      state: "Round-robin routing",
+      color: "C",
+    },
   ];
-  const [active,setActive]=useState(0); const [notice,setNotice]=useState("Private preview only · messaging transport is not active");
-  const selected=agents[active];
-  return <section className="messagesPreview">
-    <div className="messagesComingBar"><span>COMING SOON</span><b>Cyncro Messages is in private development.</b><p>No real numbers are purchased and no messages can be sent from this preview.</p></div>
-    <header><div><small>CYNCRO MESSAGES · OWN THE CONVERSATION</small><h1>One inbox.<br/><em>Every agent. Every number.</em></h1><p>Create human and AI agents, assign dedicated or shared numbers, route conversations with full CRM context, and turn every reply into the next best action.</p></div><aside><small>PLATFORM STATUS</small><b>Architecture ready</b><span>Messaging transport　Not connected</span><span>Number provisioning　Preview</span><span>Compliance engine　Designed</span></aside></header>
-    <nav>{["Unified Inbox","Agents","Numbers","Routing","Automations","Compliance"].map((item,index)=><button className={index===0?"active":""} onClick={()=>setNotice(`${item} workspace is designed and will activate when Cyncro Messages enters beta.`)} key={item}>{item}</button>)}</nav>
-    <div className="messagesWorkspace"><aside><div><small>AGENTS + INBOXES</small><button onClick={()=>setNotice("Agent creation is coming soon. No account was created.")}>＋ Add agent</button></div>{agents.map((agent,index)=><button className={active===index?"active":""} onClick={()=>setActive(index)} key={agent.name}><i>{agent.color}</i><span><b>{agent.name}</b><small>{agent.role}</small></span><em>{index<2?"●":"○"}</em></button>)}</aside><main><div className="messagesThreadHead"><div><i>{selected.color}</i><span><b>{selected.name}</b><small>{selected.role} · {selected.number}</small></span></div><button onClick={()=>setNotice("Real messaging will activate during the controlled beta.")}>Start conversation</button></div><div className="messagesThread"><div className="inbound"><small>CONTACT · 10:24 AM</small><p>Hi, I’d like to learn more and book a call for next week.</p></div><div className="outbound"><small>{selected.name.toUpperCase()} · DRAFT PREVIEW</small><p>Absolutely. I can help with that. Would Tuesday morning or Wednesday afternoon work better?</p><span>CRM contact matched · booking availability checked</span></div><div className="agentAction"><i>✦</i><span><b>Cyncro recommends</b><small>Offer two protected calendar slots and move the opportunity to Contacted after reply.</small></span><button onClick={()=>setNotice("AI actions remain approval-only until launch.")}>Review</button></div></div><div className="messageComposer"><button onClick={()=>setNotice("Attachments will be available in beta.")}>＋</button><input readOnly value="Messaging is disabled in this coming-soon preview"/><button onClick={()=>setNotice("Preview only — no message was sent.")}>Send</button></div></main><aside className="messageContext"><small>LIVE CRM CONTEXT</small><h3>Prospect record</h3><div><span>Stage<b>NEW LEAD</b></span><span>Owner<b>{selected.name}</b></span><span>Last signal<b>Booking intent</b></span><span>Consent<b>Required before send</b></span></div><small>NUMBER ROUTING</small><h3>{selected.number}</h3><p>{selected.state}</p><button onClick={()=>setNotice("Number selection will open when carrier inventory is connected.")}>Preview number setup</button></aside></div>
-    <div className="messagesCapabilities">{[["01","BRING YOUR TEAM","Human reps, managers, shared inboxes, permissions, reassignment, and owner visibility."],["02","CREATE AI AGENTS","Receptionist, setter, support, collections, and custom agents with human handoff."],["03","CHOOSE NUMBERS","Local, toll-free, ported, dedicated, shared, campaign, and location-based numbers."],["04","CONTROL EVERY SEND","Consent, STOP handling, quiet hours, limits, approvals, logs, and suppression lists."],["05","CONNECT REVENUE","CRM records, calendars, pipelines, attribution, payments, and performance analytics."],["06","BUILD ON CYNCRO","A branded API and webhook layer customers experience entirely as Cyncro."]].map(item=><article key={item[0]}><span>{item[0]}</span><b>{item[1]}</b><p>{item[2]}</p></article>)}</div>
-    <div className="messagesNotice">● {notice}</div>
-  </section>;
+  const [active, setActive] = useState(0);
+  const [notice, setNotice] = useState(
+    "Private preview only · messaging transport is not active",
+  );
+  const selected = agents[active];
+  return (
+    <section className="messagesPreview">
+      <div className="messagesComingBar">
+        <span>COMING SOON</span>
+        <b>Cyncro Messages is in private development.</b>
+        <p>
+          No real numbers are purchased and no messages can be sent from this
+          preview.
+        </p>
+      </div>
+      <header>
+        <div>
+          <small>CYNCRO MESSAGES · OWN THE CONVERSATION</small>
+          <h1>
+            One inbox.
+            <br />
+            <em>Every agent. Every number.</em>
+          </h1>
+          <p>
+            Create human and AI agents, assign dedicated or shared numbers,
+            route conversations with full CRM context, and turn every reply into
+            the next best action.
+          </p>
+        </div>
+        <aside>
+          <small>PLATFORM STATUS</small>
+          <b>Architecture ready</b>
+          <span>Messaging transport　Not connected</span>
+          <span>Number provisioning　Preview</span>
+          <span>Compliance engine　Designed</span>
+        </aside>
+      </header>
+      <nav>
+        {[
+          "Unified Inbox",
+          "Agents",
+          "Numbers",
+          "Routing",
+          "Automations",
+          "Compliance",
+        ].map((item, index) => (
+          <button
+            className={index === 0 ? "active" : ""}
+            onClick={() =>
+              setNotice(
+                `${item} workspace is designed and will activate when Cyncro Messages enters beta.`,
+              )
+            }
+            key={item}
+          >
+            {item}
+          </button>
+        ))}
+      </nav>
+      <div className="messagesWorkspace">
+        <aside>
+          <div>
+            <small>AGENTS + INBOXES</small>
+            <button
+              onClick={() =>
+                setNotice(
+                  "Agent creation is coming soon. No account was created.",
+                )
+              }
+            >
+              ＋ Add agent
+            </button>
+          </div>
+          {agents.map((agent, index) => (
+            <button
+              className={active === index ? "active" : ""}
+              onClick={() => setActive(index)}
+              key={agent.name}
+            >
+              <i>{agent.color}</i>
+              <span>
+                <b>{agent.name}</b>
+                <small>{agent.role}</small>
+              </span>
+              <em>{index < 2 ? "●" : "○"}</em>
+            </button>
+          ))}
+        </aside>
+        <main>
+          <div className="messagesThreadHead">
+            <div>
+              <i>{selected.color}</i>
+              <span>
+                <b>{selected.name}</b>
+                <small>
+                  {selected.role} · {selected.number}
+                </small>
+              </span>
+            </div>
+            <button
+              onClick={() =>
+                setNotice(
+                  "Real messaging will activate during the controlled beta.",
+                )
+              }
+            >
+              Start conversation
+            </button>
+          </div>
+          <div className="messagesThread">
+            <div className="inbound">
+              <small>CONTACT · 10:24 AM</small>
+              <p>Hi, I’d like to learn more and book a call for next week.</p>
+            </div>
+            <div className="outbound">
+              <small>{selected.name.toUpperCase()} · DRAFT PREVIEW</small>
+              <p>
+                Absolutely. I can help with that. Would Tuesday morning or
+                Wednesday afternoon work better?
+              </p>
+              <span>CRM contact matched · booking availability checked</span>
+            </div>
+            <div className="agentAction">
+              <i>✦</i>
+              <span>
+                <b>Cyncro recommends</b>
+                <small>
+                  Offer two protected calendar slots and move the opportunity to
+                  Contacted after reply.
+                </small>
+              </span>
+              <button
+                onClick={() =>
+                  setNotice("AI actions remain approval-only until launch.")
+                }
+              >
+                Review
+              </button>
+            </div>
+          </div>
+          <div className="messageComposer">
+            <button
+              onClick={() =>
+                setNotice("Attachments will be available in beta.")
+              }
+            >
+              ＋
+            </button>
+            <input
+              readOnly
+              value="Messaging is disabled in this coming-soon preview"
+            />
+            <button
+              onClick={() => setNotice("Preview only — no message was sent.")}
+            >
+              Send
+            </button>
+          </div>
+        </main>
+        <aside className="messageContext">
+          <small>LIVE CRM CONTEXT</small>
+          <h3>Prospect record</h3>
+          <div>
+            <span>
+              Stage<b>NEW LEAD</b>
+            </span>
+            <span>
+              Owner<b>{selected.name}</b>
+            </span>
+            <span>
+              Last signal<b>Booking intent</b>
+            </span>
+            <span>
+              Consent<b>Required before send</b>
+            </span>
+          </div>
+          <small>NUMBER ROUTING</small>
+          <h3>{selected.number}</h3>
+          <p>{selected.state}</p>
+          <button
+            onClick={() =>
+              setNotice(
+                "Number selection will open when carrier inventory is connected.",
+              )
+            }
+          >
+            Preview number setup
+          </button>
+        </aside>
+      </div>
+      <div className="messagesCapabilities">
+        {[
+          [
+            "01",
+            "BRING YOUR TEAM",
+            "Human reps, managers, shared inboxes, permissions, reassignment, and owner visibility.",
+          ],
+          [
+            "02",
+            "CREATE AI AGENTS",
+            "Receptionist, setter, support, collections, and custom agents with human handoff.",
+          ],
+          [
+            "03",
+            "CHOOSE NUMBERS",
+            "Local, toll-free, ported, dedicated, shared, campaign, and location-based numbers.",
+          ],
+          [
+            "04",
+            "CONTROL EVERY SEND",
+            "Consent, STOP handling, quiet hours, limits, approvals, logs, and suppression lists.",
+          ],
+          [
+            "05",
+            "CONNECT REVENUE",
+            "CRM records, calendars, pipelines, attribution, payments, and performance analytics.",
+          ],
+          [
+            "06",
+            "BUILD ON CYNCRO",
+            "A branded API and webhook layer customers experience entirely as Cyncro.",
+          ],
+        ].map((item) => (
+          <article key={item[0]}>
+            <span>{item[0]}</span>
+            <b>{item[1]}</b>
+            <p>{item[2]}</p>
+          </article>
+        ))}
+      </div>
+      <div className="messagesNotice">● {notice}</div>
+    </section>
+  );
 }
 
 function CyncroPrime() {
@@ -15166,7 +17965,9 @@ function SimpleEventManager({
             <input
               value={form.hostName}
               placeholder="Manager name or email"
-              onChange={(event) => setForm({ ...form, hostName: event.target.value })}
+              onChange={(event) =>
+                setForm({ ...form, hostName: event.target.value })
+              }
             />
           </label>
           <label className="wide">
@@ -15385,11 +18186,22 @@ function Admin({
     });
   }, []);
   const connectCalendar = async () => {
-    const response = await fetch("/api/calendar/connections", { method: "POST" });
-    const data = (await response.json()) as { feedUrl?: string; error?: string };
-    if (!response.ok || !data.feedUrl) { setNotice(data.error || "Calendar connection could not be created"); return; }
-    setCalendarFeed(data.feedUrl); await navigator.clipboard?.writeText(data.feedUrl);
-    setNotice("Private calendar subscription copied. Add it to Google, Outlook, or Apple Calendar once; future bookings update automatically.");
+    const response = await fetch("/api/calendar/connections", {
+      method: "POST",
+    });
+    const data = (await response.json()) as {
+      feedUrl?: string;
+      error?: string;
+    };
+    if (!response.ok || !data.feedUrl) {
+      setNotice(data.error || "Calendar connection could not be created");
+      return;
+    }
+    setCalendarFeed(data.feedUrl);
+    await navigator.clipboard?.writeText(data.feedUrl);
+    setNotice(
+      "Private calendar subscription copied. Add it to Google, Outlook, or Apple Calendar once; future bookings update automatically.",
+    );
   };
   const loadBookings = async () => {
     const from = new Date();
@@ -15640,8 +18452,21 @@ function Admin({
         </button>
       </div>
       <div className="externalCalendarBar">
-        <div><small>GOOGLE · OUTLOOK · APPLE CALENDAR</small><b>{calendarFeed ? "Live calendar connection ready" : "Connect your manager calendar"}</b><span>Subscribe once. Every new, rescheduled, or cancelled Cyncro appointment automatically updates on your outside calendar.</span></div>
-        <button onClick={() => void connectCalendar()}>{calendarFeed ? "Copy Google Calendar link" : "Connect calendar"}</button>
+        <div>
+          <small>GOOGLE · OUTLOOK · APPLE CALENDAR</small>
+          <b>
+            {calendarFeed
+              ? "Live calendar connection ready"
+              : "Connect your manager calendar"}
+          </b>
+          <span>
+            Subscribe once. Every new, rescheduled, or cancelled Cyncro
+            appointment automatically updates on your outside calendar.
+          </span>
+        </div>
+        <button onClick={() => void connectCalendar()}>
+          {calendarFeed ? "Copy Google Calendar link" : "Connect calendar"}
+        </button>
       </div>
       {calendarView !== "LIST" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
