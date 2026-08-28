@@ -1314,6 +1314,23 @@
     #100d0e;
   overflow: hidden;
 }
+.accountCommandBar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 420px) auto auto;
+  align-items: end;
+  gap: 12px;
+  border-bottom: 1px solid #3d2b30;
+  padding: 22px 26px;
+}
+.accountCommandBar > div small,
+.accountCommandBar label span { display: block; margin-bottom: 7px; color: #dd5169; font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.accountCommandBar h2 { margin: 0; font-size: 19px; }
+.accountCommandBar select { width: 100%; }
+.accountEmptyState { display: grid; justify-items: center; gap: 10px; min-height: 360px; place-content: center; padding: 40px 24px; text-align: center; }
+.accountEmptyState i { display: grid; width: 54px; height: 54px; place-items: center; border: 1px solid #63313c; border-radius: 50%; color: #eb526d; font-size: 24px; font-style: normal; }
+.accountEmptyState h3 { margin: 6px 0 0; font-size: 20px; }
+.accountEmptyState p { max-width: 580px; margin: 0 0 8px; color: #a7979b; line-height: 1.7; }
+.accountUnifiedCommand .accountCommand { border-top: 0; }
 .accountUnifiedCommand .accountPortfolio,
 .accountUnifiedCommand .accountCommand {
   border: 0;
@@ -1411,6 +1428,10 @@
   .accountUnifiedCommand .accountCommand {
     padding: 20px 17px;
   }
+  .accountCommandBar { grid-template-columns: 1fr 1fr; align-items: end; padding: 17px; }
+  .accountCommandBar > div,
+  .accountCommandBar > label { grid-column: 1 / -1; }
+  .accountCommandBar > button { width: 100%; }
 }
 
 /* Readability upgrade + reversible luxury light study */
@@ -20490,6 +20511,10 @@ label {
 .contractRecordPicker select { width: 100%; min-width: 0; }
 .contractStudioUnified { grid-template-columns: 1fr; }
 .contractStudioUnified .contractListV2 { display: none; }
+.contractStudioV2 .contractStatusRail { display: none; }
+.contractStudioV2 .contractCommand { min-height: 0; padding: 22px; }
+.contractStudioV2 .contractCommand h2 { margin: 5px 0; font-size: 20px; }
+.contractStudioV2 .contractCommand p { max-width: 760px; margin-bottom: 0; }
 .ownerAccessSummary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 18px; border: 1px solid #5a2631; border-radius: 10px; background: #251218; padding: 14px 16px; }
 .ownerAccessSummary span:first-child { display: grid; gap: 4px; }
 .ownerAccessSummary small { color: #ef6079; font-size: 8px; }

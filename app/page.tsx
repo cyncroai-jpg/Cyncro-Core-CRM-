@@ -14057,6 +14057,7 @@ function CRMAccounts({
     "OVERVIEW" | "TEAM" | "NOTES" | "DEALS"
   >("OVERVIEW");
   const [editing, setEditing] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [accountNote, setAccountNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
@@ -14071,6 +14072,9 @@ function CRMAccounts({
     vpSales: "",
     notes: "",
     status: "ACTIVE",
+  });
+  const [newAccount, setNewAccount] = useState({
+    name: "", domain: "", phone: "", category: "", accountManager: currentUserName,
   });
   const load = async () => {
     const [a, d] = await Promise.all([
@@ -14141,6 +14145,21 @@ function CRMAccounts({
     await load();
     onFlash("Account and sales hierarchy saved");
   };
+  const createAccount = async () => {
+    if (!newAccount.name.trim()) return onFlash("Account name is required");
+    const response = await fetch("/api/crm/accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newAccount),
+    });
+    const data = (await response.json()) as { account?: Account; error?: string };
+    if (!response.ok) return onFlash(data.error || "Account could not be created");
+    setCreatingAccount(false);
+    setNewAccount({ name: "", domain: "", phone: "", category: "", accountManager: currentUserName });
+    if (data.account?.id) setSelectedId(data.account.id);
+    await load();
+    onFlash("Account created");
+  };
   const addAccountNote = async () => {
     if (!active || !accountNote.trim()) {
       onFlash("Type an account note first");
@@ -14191,46 +14210,25 @@ function CRMAccounts({
   );
   return (
     <div className="accountWorkspace accountUnifiedCommand crmPanel">
-      <section className="accountPortfolio">
-        <div className="crmPanelHead">
-          <div>
-            <small>ACCOUNT COMMAND</small>
-            <h2>Choose a customer account</h2>
-          </div>
-          <button onClick={() => void load()}>Refresh</button>
-        </div>
-        <div className="accountPortfolioHead">
-          <span>ACCOUNT</span>
-          <span>VALUE</span>
-          <span>STAGE</span>
-          <span>HEALTH</span>
-        </div>
-        {accounts.map((item) => (
-          <button
-            className={selectedId === item.id ? "active" : ""}
-            onClick={() => setSelectedId(item.id)}
-            key={item.id}
-          >
-            <span>
-              <i>{item.name.slice(0, 2).toUpperCase()}</i>
-              <div>
-                <b>{item.name}</b>
-                <small>{item.account_manager || "Unassigned manager"}</small>
-              </div>
-            </span>
-            <strong>{money(item.pipeline_cents)}</strong>
-            <em>{item.status}</em>
-            <span className="accountHealth strong">
-              {item.opportunity_count} deals
-            </span>
-          </button>
-        ))}
-        {!accounts.length && (
-          <div className="noProspects">
-            No accounts yet. Create a CRM record or convert a prospect.
-          </div>
-        )}
+      <section className="accountCommandBar">
+        <div><small>ACCOUNT COMMAND</small><h2>{active?.name || "Customer accounts"}</h2></div>
+        <label>
+          <span>SELECT ACCOUNT</span>
+          <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setAccountView("OVERVIEW"); }}>
+            <option value="">Choose an account…</option>
+            {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+        <button onClick={() => void load()}>↻ Refresh</button>
+        <button className="crmCreate" onClick={() => setCreatingAccount(true)}>＋ New account</button>
       </section>
+      {!active && (
+        <section className="accountEmptyState">
+          <i>◎</i><h3>No customer account selected</h3>
+          <p>Create an account or import a prospect to manage contacts, ownership, deals, notes, payments, and commissions in one place.</p>
+          <button className="crmCreate" onClick={() => setCreatingAccount(true)}>Create first account</button>
+        </section>
+      )}
       {active && (
         <section className="accountCommand">
           <div className="accountCommandHead">
@@ -14243,22 +14241,6 @@ function CRMAccounts({
               </p>
             </div>
             <div className="accountCommandControls">
-              <label>
-                ACCOUNT
-                <select
-                  value={selectedId}
-                  onChange={(event) => {
-                    setSelectedId(event.target.value);
-                    setAccountView("OVERVIEW");
-                  }}
-                >
-                  {accounts.map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
               <button className="crmCreate" onClick={beginEdit}>
                 Edit account
               </button>
@@ -14590,6 +14572,21 @@ function CRMAccounts({
               <button onClick={() => setEditing(false)}>Cancel</button>
               <button onClick={() => void saveAccount()}>Save account</button>
             </div>
+          </div>
+        </div>
+      )}
+      {creatingAccount && (
+        <div className="modalback" onClick={() => setCreatingAccount(false)}>
+          <div className="bookingmodal" onClick={(event) => event.stopPropagation()}>
+            <div className="modalhead"><div><label>NEW CUSTOMER</label><h2>Create account</h2></div><button onClick={() => setCreatingAccount(false)}>×</button></div>
+            <div className="crmForm">
+              <label>Account name<input autoFocus value={newAccount.name} onChange={(e) => setNewAccount({...newAccount,name:e.target.value})} /></label>
+              <label>Website<input value={newAccount.domain} onChange={(e) => setNewAccount({...newAccount,domain:e.target.value})} /></label>
+              <label>Phone<input value={newAccount.phone} onChange={(e) => setNewAccount({...newAccount,phone:e.target.value})} /></label>
+              <label>Category<input value={newAccount.category} onChange={(e) => setNewAccount({...newAccount,category:e.target.value})} /></label>
+              <label className="wide">Account manager<input value={newAccount.accountManager} onChange={(e) => setNewAccount({...newAccount,accountManager:e.target.value})} /></label>
+            </div>
+            <button className="modalSave" onClick={() => void createAccount()}>Create account</button>
           </div>
         </div>
       )}
