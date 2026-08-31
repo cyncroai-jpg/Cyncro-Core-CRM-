@@ -274,6 +274,15 @@ export async function ensureCoreSchema() {
       workspace_key TEXT PRIMARY KEY, model TEXT NOT NULL DEFAULT 'LAST_TOUCH', lookback_days INTEGER NOT NULL DEFAULT 90,
       currency TEXT NOT NULL DEFAULT 'USD', updated_at TEXT NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS attribution_print_campaigns (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, destination_url TEXT NOT NULL, channel TEXT NOT NULL DEFAULT 'PRINT',
+      distribution_count INTEGER NOT NULL DEFAULT 0, scans INTEGER NOT NULL DEFAULT 0, conversions INTEGER NOT NULL DEFAULT 0,
+      revenue_cents INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS attribution_reports (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, dimensions TEXT NOT NULL DEFAULT '[]', metrics TEXT NOT NULL DEFAULT '[]',
+      filters TEXT NOT NULL DEFAULT '{}', date_range TEXT NOT NULL DEFAULT '90D', created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS work_tasks (
       id TEXT PRIMARY KEY, title TEXT NOT NULL, details TEXT, status TEXT NOT NULL DEFAULT 'TODO', priority TEXT NOT NULL DEFAULT 'MEDIUM',
       assignee TEXT, reporter TEXT, contact_id TEXT, opportunity_id TEXT, account_id TEXT, due_at TEXT, start_at TEXT,

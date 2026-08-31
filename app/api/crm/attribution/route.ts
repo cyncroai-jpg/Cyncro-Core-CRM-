@@ -1,20 +1,22 @@
 import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
 
-const models = new Set(["FIRST_TOUCH", "LAST_TOUCH", "LINEAR", "TIME_DECAY", "POSITION_BASED"]);
+const models = new Set(["FIRST_TOUCH", "LAST_TOUCH", "LINEAR", "TIME_DECAY", "POSITION_BASED", "CUSTOM"]);
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
     if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
     const db = coreDb();
-    const [touchpoints, spend, settings] = await Promise.all([
+    const [touchpoints, spend, settings, print, reports] = await Promise.all([
       db.prepare(`SELECT t.*,c.full_name contact_name,o.name opportunity_name FROM attribution_touchpoints t
         LEFT JOIN crm_contacts c ON c.id=t.contact_id LEFT JOIN crm_opportunities o ON o.id=t.opportunity_id
         ORDER BY t.occurred_at DESC LIMIT 250`).all(),
       db.prepare("SELECT * FROM attribution_spend ORDER BY period_end DESC LIMIT 100").all(),
       db.prepare("SELECT * FROM attribution_settings WHERE workspace_key='default'").first(),
+      db.prepare("SELECT * FROM attribution_print_campaigns ORDER BY created_at DESC").all(),
+      db.prepare("SELECT * FROM attribution_reports ORDER BY updated_at DESC").all(),
     ]);
-    return Response.json({ touchpoints: touchpoints.results, spend: spend.results, settings: settings || { model: "LAST_TOUCH", lookback_days: 90, currency: "USD" } });
+    return Response.json({ touchpoints: touchpoints.results, spend: spend.results, printCampaigns:print.results, reports:reports.results, settings: settings || { model: "LAST_TOUCH", lookback_days: 90, currency: "USD" } });
   } catch (error) {
     console.error("attribution.list_failed", error);
     return Response.json({ error: "Unable to load attribution." }, { status: 500 });
@@ -26,7 +28,14 @@ export async function POST(request: Request) {
     await ensureCoreSchema();
     if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
     const body = await request.json() as Record<string, unknown>, now = new Date().toISOString(), db = coreDb();
-    if (cleanText(body.kind, 20).toUpperCase() === "SPEND") {
+    const kind=cleanText(body.kind,20).toUpperCase();
+    if(kind==="REPORT"){
+      const name=cleanText(body.name,160);if(!name)return Response.json({error:"Report name required."},{status:400});
+      await db.prepare("INSERT INTO attribution_reports (id,name,dimensions,metrics,filters,date_range,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),name,JSON.stringify(Array.isArray(body.dimensions)?body.dimensions:[]),JSON.stringify(Array.isArray(body.metrics)?body.metrics:[]),JSON.stringify(body.filters&&typeof body.filters==="object"?body.filters:{}),cleanText(body.dateRange,20)||"90D","workspace",now,now).run();
+    } else if(kind==="PRINT"){
+      const name=cleanText(body.name,160),destination=cleanText(body.destinationUrl,500),code=(cleanText(body.code,40)||crypto.randomUUID().slice(0,8)).toUpperCase();if(!name||!destination)return Response.json({error:"Campaign and destination are required."},{status:400});
+      await db.prepare("INSERT INTO attribution_print_campaigns (id,name,code,destination_url,distribution_count,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),name,code,destination,Math.max(0,Number(body.distributionCount||0)),now,now).run();
+    } else if (kind === "SPEND") {
       const campaign = cleanText(body.campaign, 160), platform = cleanText(body.platform, 50);
       if (!campaign || !platform) return Response.json({ error: "Platform and campaign are required." }, { status: 400 });
       await db.prepare(`INSERT INTO attribution_spend (id,platform,account_name,campaign,spend_cents,impressions,clicks,period_start,period_end,created_at,updated_at)
