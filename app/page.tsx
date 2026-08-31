@@ -11958,16 +11958,16 @@ function CRMPipeline({
     );
     onFlash("Pipeline card updated everywhere");
   };
-  const deleteDeal = async () => {
+  const deleteDeal = async (target: Deal | null = selectedDeal) => {
     if (
-      !selectedDeal ||
+      !target ||
       !window.confirm(
-        `Delete ${selectedDeal.name}? This permanently removes the pipeline lead.`,
+        `Delete ${target.name}? This permanently removes the pipeline lead.`,
       )
     )
       return;
     const response = await fetch(
-      `/api/crm/opportunities?id=${encodeURIComponent(selectedDeal.id)}`,
+      `/api/crm/opportunities?id=${encodeURIComponent(target.id)}`,
       { method: "DELETE" },
     );
     const data = (await response.json()) as { error?: string };
@@ -12257,13 +12257,12 @@ function CRMPipeline({
               </header>
               <div>
                 {columnDeals.map((deal) => (
-                  <button
+                  <article
                     className="dealCard"
                     draggable
                     onDragStart={(event) =>
                       event.dataTransfer.setData("text/plain", deal.id)
                     }
-                    onClick={() => setSelectedDeal({ ...deal })}
                     key={deal.id}
                   >
                     <div>
@@ -12289,9 +12288,9 @@ function CRMPipeline({
                           ),
                         )}
                       </span>
-                      <em>EDIT</em>
+                      <span className="dealCardActions"><button onClick={() => setSelectedDeal({ ...deal })}>Edit</button><button className="dangerText" onClick={() => void deleteDeal(deal)}>Delete</button></span>
                     </footer>
-                  </button>
+                  </article>
                 ))}
               </div>
               <button className="addDeal" onClick={() => setCreateStage(stage)}>

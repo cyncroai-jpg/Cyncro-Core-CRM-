@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema, isWorkspaceOwner, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, isWorkspaceOwner, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
@@ -95,6 +95,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
+    if (!(await hasCrmAction(request,"delete"))) return Response.json({error:"Delete permission is required."},{status:403});
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Opportunity id is required." }, { status: 400 });
     const db = coreDb();
