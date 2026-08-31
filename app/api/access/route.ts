@@ -3,10 +3,14 @@ import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, requestUser } from
 async function currentMember(request: Request) {
   const db = coreDb(); const email = requestUser(request); const now = new Date().toISOString();
   let member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
+  const protectedOwnerEmails = new Set(["vividpyvette@gmail.com"]);
+  if (!member && protectedOwnerEmails.has(email)) {
+    await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?) ON CONFLICT(email) DO NOTHING`).bind(email,"Account Owner",now,now).run();
+    member=await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string,unknown>>();
+  }
   const count = await db.prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>();
   if (!member && Number(count?.total || 0) === 0) { await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?)`).bind(email, email === "platform-owner" ? "Platform Owner" : email.split("@")[0], now, now).run(); member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>(); }
   const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
-  const protectedOwnerEmails = new Set(["vividpyvette@gmail.com"]);
   if (member && (protectedOwners.has(String(member.display_name || "").trim().toLowerCase()) || protectedOwnerEmails.has(email)) && (member.role !== "OWNER" || !member.active)) {
     await db.prepare("UPDATE workspace_members SET role='OWNER',manage_users=1,crm_access=1,calendar_access=1,prospecting_access=1,active=1,updated_at=? WHERE email=?").bind(now,email).run();
     member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
