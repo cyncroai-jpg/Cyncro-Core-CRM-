@@ -14117,6 +14117,8 @@ function CRMAccounts({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [accountQuery, setAccountQuery] = useState("");
   const [accountView, setAccountView] = useState<
     "OVERVIEW" | "TEAM" | "NOTES" | "DEALS"
   >("OVERVIEW");
@@ -14171,6 +14173,11 @@ function CRMAccounts({
     };
   }, []);
   const active = accounts.find((item) => item.id === selectedId);
+  const visibleAccounts = accounts.filter((item) =>
+    `${item.name} ${item.domain || ""} ${item.category || ""}`
+      .toLowerCase()
+      .includes(accountQuery.toLowerCase()),
+  );
   const accountDeals = deals.filter((deal) => deal.account_id === selectedId);
   const beginEdit = () => {
     if (!active) return;
@@ -14276,12 +14283,20 @@ function CRMAccounts({
     <div className="accountWorkspace accountUnifiedCommand crmPanel">
       <section className="accountCommandBar">
         <div><small>ACCOUNT COMMAND</small><h2>{active?.name || "Customer accounts"}</h2></div>
-        <label>
+        <label className="accountPickerLabel">
           <span>SELECT ACCOUNT</span>
-          <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setAccountView("OVERVIEW"); }}>
-            <option value="">Choose an account…</option>
-            {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          <button className="accountPickerTrigger" type="button" onClick={() => setAccountPickerOpen((open) => !open)} aria-expanded={accountPickerOpen}>
+            <b>{active?.name || "Choose an account"}</b><i>{accountPickerOpen ? "⌃" : "⌄"}</i>
+          </button>
+          {accountPickerOpen && <div className="accountPickerMenu">
+            <input autoFocus placeholder="Search accounts…" value={accountQuery} onChange={(event) => setAccountQuery(event.target.value)} />
+            <div>
+              {visibleAccounts.map((item) => <button type="button" className={item.id === selectedId ? "active" : ""} key={item.id} onClick={() => { setSelectedId(item.id); setAccountView("OVERVIEW"); setAccountPickerOpen(false); setAccountQuery(""); }}>
+                <span><b>{item.name}</b><small>{item.category || item.domain || "Customer account"}</small></span><em>{item.id === selectedId ? "Selected" : "Open"}</em>
+              </button>)}
+              {!visibleAccounts.length && <p>No accounts match that search.</p>}
+            </div>
+          </div>}
         </label>
         <button onClick={() => void load()}>↻ Refresh</button>
         <button className="crmCreate" onClick={() => setCreatingAccount(true)}>＋ New account</button>

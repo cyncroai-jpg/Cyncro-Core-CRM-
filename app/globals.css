@@ -1339,6 +1339,19 @@
 .accountCommandBar label span { display: block; margin-bottom: 7px; color: #dd5169; font-size: 8px; font-weight: 800; letter-spacing: .12em; }
 .accountCommandBar h2 { margin: 0; font-size: 19px; }
 .accountCommandBar select { width: 100%; }
+.accountPickerLabel { position: relative; min-width: 260px; }
+.accountPickerTrigger { display: flex; width: 100%; min-height: 43px; align-items: center; justify-content: space-between; border: 1px solid #56323a; border-radius: 9px; background: #100c0d; color: #fff; padding: 0 13px; text-align: left; }
+.accountPickerTrigger b { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.accountPickerTrigger i { color: #e85b74; font-size: 14px; font-style: normal; }
+.accountPickerMenu { position: absolute; z-index: 40; top: calc(100% + 8px); left: 0; width: min(390px, 82vw); overflow: hidden; border: 1px solid #683745; border-radius: 12px; background: #100c0e; box-shadow: 0 22px 60px #000c; padding: 10px; }
+.accountPickerMenu > input { width: 100%; border: 1px solid #443036; border-radius: 8px; background: #090708; color: #fff; padding: 11px 12px; }
+.accountPickerMenu > div { display: grid; gap: 5px; max-height: 320px; overflow-y: auto; padding-top: 8px; }
+.accountPickerMenu > div > button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid transparent; border-radius: 8px; background: #181214; color: #fff; padding: 11px; text-align: left; }
+.accountPickerMenu > div > button:hover, .accountPickerMenu > div > button.active { border-color: #8c3044; background: #291219; }
+.accountPickerMenu span, .accountPickerMenu b, .accountPickerMenu small { display: block; }
+.accountPickerMenu small { margin-top: 4px; color: #99898d; font-size: 8px; }
+.accountPickerMenu em { color: #e66e83; font-size: 8px; font-style: normal; }
+.accountPickerMenu p { margin: 0; color: #a9969b; padding: 18px 10px; text-align: center; }
 .accountEmptyState { display: grid; justify-items: center; gap: 10px; min-height: 360px; place-content: center; padding: 40px 24px; text-align: center; }
 .accountEmptyState i { display: grid; width: 54px; height: 54px; place-items: center; border: 1px solid #63313c; border-radius: 50%; color: #eb526d; font-size: 24px; font-style: normal; }
 .accountEmptyState h3 { margin: 6px 0 0; font-size: 20px; }
@@ -20210,9 +20223,10 @@ label {
 }
 .playbookLayout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 250px;
-  gap: 10px;
+  grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  gap: 14px;
 }
+.playbookLayout > .mergePanel { grid-column: 1 / -1; }
 .playbookLibrary,
 .playbookStage,
 .mergePanel {
@@ -20221,8 +20235,8 @@ label {
 }
 .playbookLibrary header {
   display: grid;
-  gap: 9px;
-  padding: 16px;
+  gap: 12px;
+  padding: 20px;
 }
 .playbookLibrary input,
 .mergePanel input,
@@ -20265,7 +20279,8 @@ label {
   border-top: 1px solid #2c2225;
   background: transparent;
   color: #fff;
-  padding: 13px;
+  min-height: 68px;
+  padding: 15px 17px;
   text-align: left;
 }
 .playbookLibrary > button.active {
@@ -20290,16 +20305,31 @@ label {
   font-style: normal;
 }
 .playbookLibrary b {
-  font-size: 9px;
+  font-size: 10px;
 }
 .playbookLibrary small,
 .playbookLibrary em {
   color: #8f8084;
-  font-size: 7px;
+  font-size: 8px;
   font-style: normal;
 }
 .playbookStage {
-  min-height: 630px;
+  min-height: 560px;
+}
+@media (max-width: 900px) {
+  .playbookLayout { grid-template-columns: 1fr; }
+  .playbookLayout > .mergePanel { grid-column: auto; }
+  .playbookLibrary { max-height: 440px; overflow-y: auto; }
+}
+@media (max-width: 600px) {
+  .accountPickerLabel { min-width: 0; }
+  .accountPickerMenu { position: fixed; top: 20%; left: 14px; width: calc(100vw - 28px); max-height: 65vh; }
+  .playbookHero { align-items: stretch; flex-direction: column; padding: 21px 18px; }
+  .playbookHero aside { flex-wrap: wrap; }
+  .playbookMetrics { grid-template-columns: 1fr 1fr; }
+  .playbookStage > header { align-items: stretch; flex-direction: column; }
+  .playbookStage header > div:last-child { display: grid; grid-template-columns: 1fr; }
+  .playbookStage header button { width: 100%; }
 }
 .playbookStage > header {
   display: flex;
