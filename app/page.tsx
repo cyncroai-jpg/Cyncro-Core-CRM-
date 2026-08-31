@@ -10906,9 +10906,13 @@ function UniversalCRM({
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
     [creating, setCreating] = useState(false),
+    [importing, setImporting] = useState(false),
+    [importRows, setImportRows] = useState<Record<string,string>[]>([]),
+    [importFileName, setImportFileName] = useState(""),
     [aiOpen, setAiOpen] = useState(false),
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
+    [currentAccess,setCurrentAccess]=useState<Record<string,unknown>>({role:"OWNER",manage_users:1,can_create:1,can_edit:1,can_delete:1,can_export:1,compensation_access:1,invoice_access:1,contract_access:1,attribution_access:1,work_access:1}),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
     [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
     [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>(
@@ -10939,6 +10943,7 @@ function UniversalCRM({
   useEffect(() => {
     const saved = window.localStorage.getItem("cyncro-crm-user-name");
     if (saved) setCrmUserName(saved);
+    void fetch("/api/access").then(r=>r.ok?r.json():null).then(data=>data?.member&&setCurrentAccess(data.member));
   }, []);
   const saveCRMUserName = (name: string) => {
     const value = name.trim() || "Team Member";
@@ -11084,6 +11089,16 @@ function UniversalCRM({
     await Promise.all([loadCRMContacts(), loadCRMOverview()]);
     flash("Contact, account, and pipeline lead created");
   };
+  const readLeadFile = async (file: File) => {
+    const text=await file.text(), lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(Boolean);
+    if(lines.length<2)return flash("CSV needs a header and at least one lead");
+    const parse=(line:string)=>{const cells:string[]=[];let value="",quoted=false;for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'&&line[i+1]==='"'){value+='"';i++}else if(char==='"')quoted=!quoted;else if(char===","&&!quoted){cells.push(value.trim());value=""}else value+=char}cells.push(value.trim());return cells};
+    const headers=parse(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,""));
+    const aliases:Record<string,string[]>={fullName:["fullname","name","contactname"],firstName:["firstname","first"],lastName:["lastname","last"],email:["email","emailaddress"],phone:["phone","phonenumber","mobile"],company:["company","companyname","business","businessname","accountname"],address:["address","streetaddress","companyaddress"],website:["website","domain","url"],source:["source","leadsource"],title:["title","jobtitle"],notes:["notes","note"]};
+    const rows=lines.slice(1,1001).map(line=>{const cells=parse(line),row:Record<string,string>={};for(const [key,names] of Object.entries(aliases)){const index=headers.findIndex(h=>names.includes(h));if(index>=0)row[key]=cells[index]||""}return row}).filter(row=>row.fullName||row.firstName||row.email||row.phone);
+    setImportRows(rows);setImportFileName(file.name);flash(`${rows.length} leads ready to review`);
+  };
+  const importLeads=async()=>{const response=await fetch("/api/crm/contacts/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:importRows,source:"CSV_IMPORT",assignedRep:crmUserName})});const data=await response.json() as {error?:string;imported?:number;duplicates?:number;invalid?:number};if(!response.ok)return flash(data.error||"Import failed");setImporting(false);setImportRows([]);await Promise.all([loadCRMContacts(),loadCRMOverview()]);flash(`${data.imported||0} imported · ${data.duplicates||0} duplicates skipped · ${data.invalid||0} invalid`)};
   const completeActivity = async (id: string) => {
     const response = await fetch("/api/crm/activities", {
       method: "PATCH",
@@ -11102,7 +11117,7 @@ function UniversalCRM({
     );
     flash("Task completed everywhere");
   };
-  const views: { name: CRMView; icon: string; count?: string }[] = [
+  const allViews: { name: CRMView; icon: string; count?: string; permission?:string }[] = [
     { name: "Overview", icon: "⌂" },
     {
       name: "Pipeline",
@@ -11118,16 +11133,17 @@ function UniversalCRM({
     { name: "Automations", icon: "⌁" },
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧", count: "5" },
-    { name: "Team Access", icon: "♙" },
-    { name: "Compensation", icon: "%" },
-    { name: "Invoices", icon: "$" },
-    { name: "Contracts", icon: "✎" },
+    { name: "Team Access", icon: "♙", permission:"manage_users" },
+    { name: "Compensation", icon: "%", permission:"compensation_access" },
+    { name: "Invoices", icon: "$", permission:"invoice_access" },
+    { name: "Contracts", icon: "✎", permission:"contract_access" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
-    { name: "Attribution", icon: "⌁", count: "Live" },
-    { name: "Cyncro Work", icon: "✓", count: "Team" },
+    { name: "Attribution", icon: "⌁", count: "Live", permission:"attribution_access" },
+    { name: "Cyncro Work", icon: "✓", count: "Team", permission:"work_access" },
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
+  const views=allViews.filter(item=>!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission]));
   return (
     <section className="crmShell">
       {notice && <div className="crmToast">✓ {notice}</div>}
@@ -11489,7 +11505,8 @@ function UniversalCRM({
                 <div className="listToolbar">
                   <span>{filteredContacts.length} contacts · {selectedContactIds.size} selected</span>
                   <div>
-                    <button onClick={exportContacts}>↓ Download {selectedContactIds.size ? "selected" : "all"}</button>
+                    {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_export))&&<button onClick={exportContacts}>↓ Download {selectedContactIds.size ? "selected" : "all"}</button>}
+                    {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_create))&&<button onClick={() => setImporting(true)}>↑ Import leads</button>}
                     <button
                       onClick={() =>
                         void Promise.all([loadCRMContacts(), loadCRMOverview()])
@@ -11497,12 +11514,12 @@ function UniversalCRM({
                     >
                       ↻ Refresh data
                     </button>
-                    <button
+                    {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_create))&&<button
                       className="crmCreate"
                       onClick={() => setCreating(true)}
                     >
                       ＋ Add contact
-                    </button>
+                    </button>}
                   </div>
                 </div>
                 <div className="contactTableHead">
@@ -11542,7 +11559,7 @@ function UniversalCRM({
                       <a href={item.phone !== "No phone" ? `tel:${item.phone}` : undefined}>{item.phone}</a>
                       <a href={item.email !== "No email" ? `mailto:${item.email}` : undefined}>{item.email}</a>
                       <em>{item.source}</em>
-                      <span className="contactRowActions"><button onClick={() => setSelected(originalIndex)}>Edit</button><button className="dangerText" onClick={() => void deleteContactFromList(item)}>Delete</button></span>
+                      <span className="contactRowActions">{(currentAccess.role==="OWNER"||Boolean(currentAccess.can_edit))&&<button onClick={() => setSelected(originalIndex)}>Edit</button>}{(currentAccess.role==="OWNER"||Boolean(currentAccess.can_delete))&&<button className="dangerText" onClick={() => void deleteContactFromList(item)}>Delete</button>}</span>
                     </div>
                   );
                 })}
@@ -11726,6 +11743,7 @@ function UniversalCRM({
           </div>
         </div>
       )}
+      {importing&&<div className="crmModalBack" onClick={()=>setImporting(false)}><div className="crmModal leadImportModal" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>BULK LEAD IMPORT</label><h2>Move leads into Cyncro</h2><p>Works with exports from GoHighLevel, HubSpot, Salesforce, Zoho, Pipedrive, ClickFunnels, Monday, and other CRMs.</p></div><button onClick={()=>setImporting(false)}>×</button></div><label className="leadDrop"><input type="file" accept=".csv,text/csv" onChange={e=>e.target.files?.[0]&&void readLeadFile(e.target.files[0])}/><b>Choose a CSV export</b><span>Cyncro automatically maps name, company, address, website, phone, email, source, title, and notes.</span></label>{importRows.length>0&&<><div className="importReview"><header><span>Contact</span><span>Company</span><span>Email</span><span>Phone</span></header>{importRows.slice(0,5).map((row,index)=><div key={index}><span>{row.fullName||`${row.firstName||""} ${row.lastName||""}`}</span><span>{row.company||"—"}</span><span>{row.email||"—"}</span><span>{row.phone||"—"}</span></div>)}</div><p className="importSummary"><b>{importRows.length}</b> records recognized from {importFileName}. Existing emails will be skipped automatically.</p><button className="crmCreate" onClick={()=>void importLeads()}>Import {importRows.length} leads</button></>}</div></div>}
       {aiOpen && (
         <div className="aiDrawer">
           <div className="aiDrawerHead">
@@ -16854,6 +16872,8 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     calendar_access: number;
     prospecting_access: number;
     manage_users: number;
+    can_create:number;can_edit:number;can_delete:number;can_export:number;
+    compensation_access:number;invoice_access:number;contract_access:number;attribution_access:number;work_access:number;
     active: number;
     google_calendar_email?: string;
   };
@@ -16869,6 +16889,8 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     calendarAccess: false,
     prospectingAccess: false,
     manageUsers: false,
+    canCreate:true,canEdit:true,canDelete:false,canExport:false,
+    compensationAccess:false,invoiceAccess:false,contractAccess:false,attributionAccess:false,workAccess:true,
     active: true,
   });
   const load = async () => {
@@ -16909,6 +16931,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
       calendarAccess: false,
       prospectingAccess: false,
       manageUsers: false,
+      canCreate:true,canEdit:true,canDelete:false,canExport:false,compensationAccess:false,invoiceAccess:false,contractAccess:false,attributionAccess:false,workAccess:true,
       active: true,
     });
     setEditingEmail("");
@@ -16945,6 +16968,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
             <span>{currentMember.role} · CRM · Calendar · Prospecting · User management</span>
           </div>
         )}
+        <div className="secureAccessNote"><span>SECURE TEAM SIGN-IN</span><div><b>Invite by verified email</b><p>Add the exact email each teammate will use. They sign in privately, and Cyncro applies the permissions you choose below. Passwords are never visible to the owner or stored in readable form.</p></div><button onClick={()=>onFlash("Add the teammate, then send them the Cyncro sign-in link")}>Access steps</button></div>
         <div className="crmForm">
           <label>
             Name
@@ -16995,10 +17019,12 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
             </label>
           ))}
         </div>
+        <div className="permissionMatrix"><div><b>Action controls</b><small>Choose exactly what this person can do inside records.</small></div>{[["canCreate","Create records"],["canEdit","Edit records"],["canDelete","Delete records"],["canExport","Export data"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
+        <div className="permissionMatrix"><div><b>Sensitive workspaces</b><small>Keep financial and executive data owner-only unless granted.</small></div>{[["compensationAccess","Compensation"],["invoiceAccess","Invoices"],["contractAccess","Contracts"],["attributionAccess","Attribution"],["workAccess","Cyncro Work"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
         <button className="crmCreate" onClick={() => void save()}>
           {editingEmail ? "Update team access" : "Save team access"}
         </button>
-        {editingEmail && <button onClick={() => { setEditingEmail(""); setForm({ email:"", displayName:"", role:"MEMBER", crmAccess:true, calendarAccess:false, prospectingAccess:false, manageUsers:false, active:true }); }}>Cancel edit</button>}
+        {editingEmail && <button onClick={() => { setEditingEmail(""); setForm({ email:"", displayName:"", role:"MEMBER", crmAccess:true, calendarAccess:false, prospectingAccess:false, manageUsers:false, active:true,canCreate:true,canEdit:true,canDelete:false,canExport:false,compensationAccess:false,invoiceAccess:false,contractAccess:false,attributionAccess:false,workAccess:true }); }}>Cancel edit</button>}
       </section>
       <section className="crmPanel">
         <div className="crmPanelHead">
@@ -17022,7 +17048,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
               <small>{member.google_calendar_email ? `Google: ${member.google_calendar_email}` : "Google Calendar not connected"}</small>
             </span>
             <div className="memberAccessActions">
-              <button onClick={() => { setEditingEmail(member.email); setForm({ email:member.email, displayName:member.display_name, role:member.role, crmAccess:Boolean(member.crm_access), calendarAccess:Boolean(member.calendar_access), prospectingAccess:Boolean(member.prospecting_access), manageUsers:Boolean(member.manage_users), active:Boolean(member.active) }); }}>Edit</button>
+              <button onClick={() => { setEditingEmail(member.email); setForm({ email:member.email, displayName:member.display_name, role:member.role, crmAccess:Boolean(member.crm_access), calendarAccess:Boolean(member.calendar_access), prospectingAccess:Boolean(member.prospecting_access), manageUsers:Boolean(member.manage_users), active:Boolean(member.active),canCreate:Boolean(member.can_create),canEdit:Boolean(member.can_edit),canDelete:Boolean(member.can_delete),canExport:Boolean(member.can_export),compensationAccess:Boolean(member.compensation_access),invoiceAccess:Boolean(member.invoice_access),contractAccess:Boolean(member.contract_access),attributionAccess:Boolean(member.attribution_access),workAccess:Boolean(member.work_access) }); }}>Edit permissions</button>
               {member.email === currentMember?.email ? <button onClick={() => { window.location.href="/api/integrations/google-calendar/connect"; }}>Connect my Google</button> : <button onClick={() => onFlash(`${member.display_name} must sign in and click Connect my Google Calendar`)}>Calendar setup</button>}
               <button onClick={onOpenCalendar}>Open calendar</button>
             </div>

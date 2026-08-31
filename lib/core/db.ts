@@ -327,6 +327,15 @@ export async function ensureCoreSchema() {
     /* already migrated */
   }
   for (const statement of [
+    "ALTER TABLE workspace_members ADD COLUMN can_create INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE workspace_members ADD COLUMN can_edit INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE workspace_members ADD COLUMN can_delete INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN can_export INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN compensation_access INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN invoice_access INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN contract_access INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN attribution_access INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE workspace_members ADD COLUMN work_access INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE crm_contracts ADD COLUMN opportunity_id TEXT",
     "ALTER TABLE crm_contracts ADD COLUMN invoice_id TEXT",
     "ALTER TABLE crm_contracts ADD COLUMN template_key TEXT",
@@ -458,6 +467,13 @@ export async function isWorkspaceOwner(request: Request) {
               .toLowerCase(),
           ))),
   );
+}
+
+export async function hasCrmAction(request: Request, action: "create"|"edit"|"delete"|"export") {
+  const email=requestUser(request); if(email==="platform-owner") return true;
+  const member=await coreDb().prepare(`SELECT role,active,crm_access,can_${action} allowed FROM workspace_members WHERE email=?`).bind(email).first<{role:string;active:number;crm_access:number;allowed:number}>();
+  if(!member){const count=await coreDb().prepare("SELECT COUNT(*) total FROM workspace_members").first<{total:number}>();if(!Number(count?.total||0))return true;}
+  return Boolean(member?.active&&member.crm_access&&(member.role==="OWNER"||member.allowed));
 }
 
 export function cleanText(value: unknown, max = 500) {

@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
+    if (!(await hasCrmAction(request, "create"))) return Response.json({ error: "Create permission is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const fullName = cleanText(body.fullName, 160);
     const email = normalizeEmail(body.email);
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
+    if (!(await hasCrmAction(request, "edit"))) return Response.json({ error: "Edit permission is required." }, { status: 403 });
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
@@ -128,7 +128,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 }); const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    await ensureCoreSchema(); if (!(await hasCrmAction(request, "delete"))) return Response.json({ error: "Delete permission is required." }, { status: 403 }); const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
     const db = coreDb(); const contact = await db.prepare("SELECT id FROM crm_contacts WHERE id=?").bind(id).first();
     if (!contact) return Response.json({ error: "Contact not found." }, { status: 404 });
