@@ -10873,6 +10873,8 @@ type CRMView =
   | "Invoices"
   | "Contracts"
   | "Sales Playbooks"
+  | "Attribution"
+  | "Cyncro Work"
   | "Intelligence";
 
 type CRMContactCard = {
@@ -11121,6 +11123,8 @@ function UniversalCRM({
     { name: "Invoices", icon: "$" },
     { name: "Contracts", icon: "✎" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
+    { name: "Attribution", icon: "⌁", count: "Live" },
+    { name: "Cyncro Work", icon: "✓", count: "Team" },
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
@@ -11165,7 +11169,7 @@ function UniversalCRM({
             <span>Payments</span>
             <em>$12.9K</em>
           </button>
-          <button onClick={() => flash("Analytics opened")}>
+          <button onClick={() => setView("Attribution")}>
             <i>⌁</i>
             <span>Attribution</span>
           </button>
@@ -11416,7 +11420,7 @@ function UniversalCRM({
                       <small>CALENDAR + TASKS</small>
                       <h2>Next on your desk</h2>
                     </div>
-                    <button onClick={openCRMCalendar}>Open calendar →</button>
+                  <button onClick={openCRMCalendar}>Open calendar →</button>
                   </div>
                   {!recentActivity.some(
                     (item) =>
@@ -11454,6 +11458,16 @@ function UniversalCRM({
                         </button>
                       </div>
                     ))}
+                </article>
+                <article className="crmPanel crmLaunchpad">
+                  <div className="crmPanelHead"><div><small>REVENUE TRUTH</small><h2>Cyncro Attribution</h2></div><button onClick={() => setView("Attribution")}>Open attribution →</button></div>
+                  <p>Connect every click, call, form, booking, invoice, and payment to the revenue it created.</p>
+                  <div><span>FIRST-PARTY TRACKING</span><span>MULTI-TOUCH ROAS</span><span>OFFLINE CONVERSIONS</span></div>
+                </article>
+                <article className="crmPanel crmLaunchpad">
+                  <div className="crmPanelHead"><div><small>TEAM EXECUTION</small><h2>Cyncro Work</h2></div><button onClick={() => setView("Cyncro Work")}>Open workboard →</button></div>
+                  <p>Individual rep queues, shared boards, ownership, deadlines, dependencies, and manager workload in one place.</p>
+                  <div><span>CLAIMABLE WORK</span><span>REP QUEUES</span><span>TEAM CAPACITY</span></div>
                 </article>
               </div>
             </>
@@ -11587,6 +11601,8 @@ function UniversalCRM({
           {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
+          {view === "Attribution" && <CRMAttribution onFlash={flash} />}
+          {view === "Cyncro Work" && <CRMWork onFlash={flash} currentUserName={crmUserName} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
@@ -16594,6 +16610,43 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
       )}
     </div>
   );
+}
+
+type AttributionRow = { id:string; source:string; channel:string; campaign?:string; event_type:string; event_value_cents:number; occurred_at:string; contact_name?:string; landing_page?:string };
+type SpendRow = { id:string; platform:string; campaign:string; spend_cents:number; clicks:number; impressions:number };
+function CRMAttribution({ onFlash }: { onFlash:(message:string)=>void }) {
+  const [touches,setTouches]=useState<AttributionRow[]>([]),[spend,setSpend]=useState<SpendRow[]>([]),[model,setModel]=useState("LAST_TOUCH"),[lookback,setLookback]=useState(90),[setup,setSetup]=useState(false),[adding,setAdding]=useState<"conversion"|"spend"|null>(null);
+  const load=async()=>{const response=await fetch("/api/crm/attribution",{cache:"no-store"});if(!response.ok)return onFlash("Attribution could not load");const data=await response.json() as {touchpoints?:AttributionRow[];spend?:SpendRow[];settings?:{model?:string;lookback_days?:number}};setTouches(data.touchpoints||[]);setSpend(data.spend||[]);setModel(data.settings?.model||"LAST_TOUCH");setLookback(Number(data.settings?.lookback_days||90))};
+  useEffect(()=>{void load()},[]);
+  const revenue=touches.reduce((sum,item)=>sum+Number(item.event_value_cents||0),0),cost=spend.reduce((sum,item)=>sum+Number(item.spend_cents||0),0),conversions=touches.filter(item=>Number(item.event_value_cents)>0||item.event_type==="PURCHASE").length;
+  const sources=Object.values(touches.reduce<Record<string,{name:string,revenue:number,touches:number,conversions:number}>>((acc,item)=>{const key=item.source||"Direct";acc[key]??={name:key,revenue:0,touches:0,conversions:0};acc[key].touches++;acc[key].revenue+=Number(item.event_value_cents||0);if(Number(item.event_value_cents)>0)acc[key].conversions++;return acc},{})).sort((a,b)=>b.revenue-a.revenue);
+  const saveModel=async(next:string)=>{setModel(next);await fetch("/api/crm/attribution",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:next,lookbackDays:lookback,currency:"USD"})});onFlash("Attribution model saved")};
+  const submit=async(event:React.FormEvent<HTMLFormElement>)=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget));const body=adding==="spend"?{kind:"SPEND",platform:values.platform,campaign:values.campaign,spend:values.spend,clicks:values.clicks,impressions:values.impressions,periodStart:values.periodStart,periodEnd:values.periodEnd}:{kind:"TOUCH",source:values.source,channel:values.channel,eventType:"OFFLINE_CONVERSION",value:values.value,campaign:values.campaign};const response=await fetch("/api/crm/attribution",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!response.ok)return onFlash("Record could not be saved");setAdding(null);await load();onFlash("Attribution record saved")};
+  const money=(cents:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(cents/100);
+  return <section className="attributionOS">
+    <div className="attributionHero"><div><label>CYNCRO ATTRIBUTION</label><h2>Know exactly what creates revenue.</h2><p>First-party customer journeys across ads, pages, calls, forms, bookings, opportunities, invoices, and payments.</p></div><div className="attributionActions"><button onClick={()=>setAdding("conversion")}>＋ Offline conversion</button><button onClick={()=>setAdding("spend")}>＋ Import spend</button><button onClick={()=>setSetup(!setup)}>Install tracking</button></div></div>
+    <div className="attributionControls"><label>Attribution model<select value={model} onChange={e=>void saveModel(e.target.value)}><option value="FIRST_TOUCH">First touch</option><option value="LAST_TOUCH">Last touch</option><option value="LINEAR">Linear</option><option value="TIME_DECAY">Time decay</option><option value="POSITION_BASED">Position based</option></select></label><label>Conversion window<select value={lookback} onChange={e=>setLookback(Number(e.target.value))}><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></label><span>● First-party collection active</span></div>
+    <div className="attributionMetrics"><article><small>ATTRIBUTED REVENUE</small><b>{money(revenue)}</b><span>{conversions} conversions</span></article><article><small>TRACKED SPEND</small><b>{money(cost)}</b><span>{spend.length} campaign rows</span></article><article><small>BLENDED ROAS</small><b>{cost?`${(revenue/cost).toFixed(2)}×`:"—"}</b><span>Revenue ÷ ad spend</span></article><article><small>TOUCHPOINTS</small><b>{touches.length}</b><span>Across the full journey</span></article></div>
+    {setup&&<div className="trackingSetup crmPanel"><div><small>WEBSITE TRACKING ENDPOINT</small><h3>Connect Framer, forms, calls, and checkout events</h3><p>Send page views, leads, booked calls, qualified opportunities, and purchases to this endpoint. UTM fields and click IDs stay attached through conversion.</p></div><code>POST {typeof window!=="undefined"?window.location.origin:""}/api/attribution/track</code><button onClick={()=>{void navigator.clipboard.writeText(`${window.location.origin}/api/attribution/track`);onFlash("Tracking endpoint copied")}}>Copy endpoint</button></div>}
+    <div className="attributionGrid"><article className="crmPanel"><div className="crmPanelHead"><div><small>SOURCE PERFORMANCE</small><h2>Revenue by source</h2></div></div><div className="sourceTable"><header><span>Source</span><span>Touches</span><span>Conversions</span><span>Revenue</span></header>{sources.length?sources.map(row=><div key={row.name}><b>{row.name}</b><span>{row.touches}</span><span>{row.conversions}</span><strong>{money(row.revenue)}</strong></div>):<p>No source data yet. Install tracking or add a conversion.</p>}</div></article><article className="crmPanel journeyStream"><div className="crmPanelHead"><div><small>CUSTOMER JOURNEY</small><h2>Latest touchpoints</h2></div></div>{touches.slice(0,8).map(item=><div key={item.id}><i>{item.event_type.slice(0,2)}</i><span><b>{item.contact_name||item.source}</b><small>{item.channel} · {item.campaign||item.landing_page||"Direct journey"}</small></span><strong>{item.event_value_cents?money(item.event_value_cents):new Date(item.occurred_at).toLocaleDateString()}</strong></div>)}{!touches.length&&<p>No journey events recorded yet.</p>}</article></div>
+    <div className="connectorRail">{["Meta Ads","Google Ads","TikTok Ads","Stripe","Call tracking","Framer"].map(name=><button key={name} onClick={()=>onFlash(`${name} is connection-ready in Integrations`)}><span>{name}</span><small>READY TO CONNECT</small></button>)}</div>
+    {adding&&<div className="crmModalBack" onClick={()=>setAdding(null)}><form className="crmModal miniDataForm" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>ATTRIBUTION INPUT</label><h2>{adding==="spend"?"Import campaign spend":"Record offline conversion"}</h2></div><button type="button" onClick={()=>setAdding(null)}>×</button></div>{adding==="spend"?<><input name="platform" placeholder="Platform (Meta, Google…)" required/><input name="campaign" placeholder="Campaign name" required/><input name="spend" type="number" step=".01" placeholder="Spend ($)" required/><input name="clicks" type="number" placeholder="Clicks"/><input name="impressions" type="number" placeholder="Impressions"/><input name="periodStart" type="date" required/><input name="periodEnd" type="date" required/></>:<><input name="source" placeholder="Source" required/><input name="channel" placeholder="Channel" required/><input name="campaign" placeholder="Campaign"/><input name="value" type="number" step=".01" placeholder="Revenue ($)" required/></>}<button className="crmCreate" type="submit">Save record</button></form></div>}
+  </section>
+}
+
+type WorkTask={id:string;title:string;details?:string;status:string;priority:string;assignee?:string;reporter?:string;due_at?:string;contact_name?:string;account_name?:string;opportunity_name?:string;subtask_count?:number;completed_subtasks?:number;estimated_minutes:number};
+function CRMWork({onFlash,currentUserName}:{onFlash:(message:string)=>void;currentUserName:string}){
+  const [tasks,setTasks]=useState<WorkTask[]>([]),[mode,setMode]=useState<"board"|"mine"|"workload">("board"),[creating,setCreating]=useState(false),[selected,setSelected]=useState<WorkTask|null>(null),[assigneeFilter,setAssigneeFilter]=useState("ALL");
+  const load=async()=>{const r=await fetch("/api/crm/tasks",{cache:"no-store"});if(!r.ok)return onFlash("Tasks could not load");const d=await r.json() as {tasks?:WorkTask[]};setTasks(d.tasks||[])};useEffect(()=>{void load()},[]);
+  const update=async(id:string,data:Record<string,unknown>)=>{await fetch("/api/crm/tasks",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...data})});await load()};
+  const submit=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch("/api/crm/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});if(!r.ok)return onFlash("Task could not be created");setCreating(false);await load();onFlash("Task assigned")};
+  const people=Array.from(new Set(tasks.map(t=>t.assignee).filter(Boolean))) as string[],visible=tasks.filter(t=>(mode!=="mine"||t.assignee===currentUserName)&&(assigneeFilter==="ALL"||t.assignee===assigneeFilter));
+  const statuses=["BACKLOG","TODO","IN_PROGRESS","WAITING","DONE"];
+  return <section className="workOS"><div className="workHero"><div><label>CYNCRO WORK</label><h2>Every rep knows the next move.</h2><p>Individual work queues, claimable tasks, team execution, dependencies, customer context, and manager visibility.</p></div><button className="crmCreate" onClick={()=>setCreating(true)}>＋ Assign work</button></div><div className="workToolbar"><div><button className={mode==="board"?"active":""} onClick={()=>setMode("board")}>Team board</button><button className={mode==="mine"?"active":""} onClick={()=>setMode("mine")}>My work</button><button className={mode==="workload"?"active":""} onClick={()=>setMode("workload")}>Workload</button></div><select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)}><option value="ALL">All team members</option>{people.map(p=><option key={p}>{p}</option>)}</select><span>{visible.filter(t=>t.status!=="DONE").length} open · {visible.filter(t=>t.priority==="URGENT").length} urgent</span></div>
+  {mode==="workload"?<div className="workloadGrid">{[...people,"Unassigned"].map(person=>{const rows=tasks.filter(t=>(t.assignee||"Unassigned")===person&&t.status!=="DONE"),minutes=rows.reduce((s,t)=>s+Number(t.estimated_minutes||0),0);return <article className="crmPanel" key={person}><small>TEAM CAPACITY</small><h3>{person}</h3><b>{rows.length} open tasks</b><div><i style={{width:`${Math.min(100,minutes/24)}%`}}/></div><span>{Math.round(minutes/60*10)/10} estimated hours</span></article>})}</div>:<div className="workBoard">{statuses.map(status=><section key={status}><header><b>{status.replaceAll("_"," ")}</b><span>{visible.filter(t=>t.status===status).length}</span></header>{visible.filter(t=>t.status===status).map(task=><article key={task.id} onClick={()=>setSelected(task)}><div><em className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</em>{!task.assignee&&<button onClick={e=>{e.stopPropagation();void update(task.id,{assignee:currentUserName})}}>Claim</button>}</div><h3>{task.title}</h3><p>{task.details||task.contact_name||task.account_name||"Team assignment"}</p><footer><span>{task.assignee||"Unassigned"}</span><time>{task.due_at?new Date(task.due_at).toLocaleDateString():"No due date"}</time></footer><select value={task.status} onClick={e=>e.stopPropagation()} onChange={e=>void update(task.id,{status:e.target.value})}>{statuses.map(s=><option value={s} key={s}>{s.replaceAll("_"," ")}</option>)}</select></article>)}</section>)}</div>}
+  {creating&&<div className="crmModalBack" onClick={()=>setCreating(false)}><form className="crmModal miniDataForm" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>NEW WORK ITEM</label><h2>Assign a revenue task</h2></div><button type="button" onClick={()=>setCreating(false)}>×</button></div><input name="title" placeholder="Task title" required/><textarea name="details" placeholder="Details, definition of done, customer context…"/><div className="formTwo"><select name="priority"><option>MEDIUM</option><option>LOW</option><option>HIGH</option><option>URGENT</option></select><input name="assignee" placeholder="Assign to (name)"/></div><div className="formTwo"><input name="dueAt" type="datetime-local"/><input name="estimatedMinutes" type="number" defaultValue="30" min="0"/></div><input name="recurrence" placeholder="Recurrence (optional, e.g. weekly)"/><button className="crmCreate" type="submit">Create task</button></form></div>}
+  {selected&&<div className="crmModalBack" onClick={()=>setSelected(null)}><div className="crmModal workInspector" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>{selected.priority} PRIORITY</label><h2>{selected.title}</h2></div><button onClick={()=>setSelected(null)}>×</button></div><p>{selected.details||"No task details yet."}</p><div className="workDetailGrid"><label>Owner<input defaultValue={selected.assignee||""} onBlur={e=>void update(selected.id,{assignee:e.target.value})}/></label><label>Due<input type="datetime-local" defaultValue={selected.due_at?.slice(0,16)||""} onBlur={e=>void update(selected.id,{dueAt:e.target.value})}/></label><span>Customer<b>{selected.contact_name||selected.account_name||"Not linked"}</b></span><span>Deal<b>{selected.opportunity_name||"Not linked"}</b></span></div><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("subtask") as HTMLInputElement;void update(selected.id,{action:"SUBTASK",title:input.value});input.value=""}}><input name="subtask" placeholder="Add subtask" required/><button>Add</button></form><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("comment") as HTMLInputElement;void update(selected.id,{action:"COMMENT",body:input.value});input.value=""}}><input name="comment" placeholder="Add manager note or update" required/><button>Comment</button></form><button className="dangerText" onClick={async()=>{if(!confirm("Delete this task?"))return;await fetch(`/api/crm/tasks?id=${selected.id}`,{method:"DELETE"});setSelected(null);await load();onFlash("Task deleted")}}>Delete task</button></div></div>}
+  </section>
 }
 
 function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {

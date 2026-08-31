@@ -256,6 +256,41 @@ export async function ensureCoreSchema() {
       outcome TEXT NOT NULL DEFAULT 'USED', used_by TEXT, created_at TEXT NOT NULL,
       FOREIGN KEY(playbook_id) REFERENCES crm_sales_playbooks(id)
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS attribution_touchpoints (
+      id TEXT PRIMARY KEY, visitor_id TEXT, contact_id TEXT, opportunity_id TEXT, channel TEXT NOT NULL DEFAULT 'DIRECT',
+      source TEXT NOT NULL DEFAULT 'Direct', medium TEXT, campaign TEXT, content TEXT, term TEXT, landing_page TEXT,
+      referrer TEXT, click_id TEXT, event_type TEXT NOT NULL DEFAULT 'PAGE_VIEW', event_value_cents INTEGER NOT NULL DEFAULT 0,
+      occurred_at TEXT NOT NULL, metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_attribution_contact_time ON attribution_touchpoints(contact_id, occurred_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_attribution_source_time ON attribution_touchpoints(source, occurred_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS attribution_spend (
+      id TEXT PRIMARY KEY, platform TEXT NOT NULL, account_name TEXT, campaign TEXT NOT NULL, spend_cents INTEGER NOT NULL DEFAULT 0,
+      impressions INTEGER NOT NULL DEFAULT 0, clicks INTEGER NOT NULL DEFAULT 0, period_start TEXT NOT NULL, period_end TEXT NOT NULL,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_attribution_spend_period ON attribution_spend(period_start, period_end)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS attribution_settings (
+      workspace_key TEXT PRIMARY KEY, model TEXT NOT NULL DEFAULT 'LAST_TOUCH', lookback_days INTEGER NOT NULL DEFAULT 90,
+      currency TEXT NOT NULL DEFAULT 'USD', updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS work_tasks (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, details TEXT, status TEXT NOT NULL DEFAULT 'TODO', priority TEXT NOT NULL DEFAULT 'MEDIUM',
+      assignee TEXT, reporter TEXT, contact_id TEXT, opportunity_id TEXT, account_id TEXT, due_at TEXT, start_at TEXT,
+      estimated_minutes INTEGER NOT NULL DEFAULT 30, recurrence TEXT, dependency_id TEXT, position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, completed_at TEXT
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_work_tasks_assignee_status ON work_tasks(assignee, status)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_work_tasks_due ON work_tasks(status, due_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS work_subtasks (
+      id TEXT PRIMARY KEY, task_id TEXT NOT NULL, title TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0,
+      position INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      FOREIGN KEY(task_id) REFERENCES work_tasks(id)
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS work_comments (
+      id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT, body TEXT NOT NULL, created_at TEXT NOT NULL,
+      FOREIGN KEY(task_id) REFERENCES work_tasks(id)
+    )`),
   ]);
   try {
     await db
