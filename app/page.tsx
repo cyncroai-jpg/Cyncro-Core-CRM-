@@ -10920,6 +10920,7 @@ function UniversalCRM({
     ),
     [contactsLoaded, setContactsLoaded] = useState(false),
     [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set()),
+    [contactRecordOpen,setContactRecordOpen]=useState(false),
     [contactForm, setContactForm] = useState({
       fullName: "",
       company: "",
@@ -11087,6 +11088,7 @@ function UniversalCRM({
       }),
     );
     await Promise.all([loadCRMContacts(), loadCRMOverview()]);
+    setContactRecordOpen(true);
     flash("Contact, account, and pipeline lead created");
   };
   const readLeadFile = async (file: File) => {
@@ -11559,7 +11561,7 @@ function UniversalCRM({
                       <a href={item.phone !== "No phone" ? `tel:${item.phone}` : undefined}>{item.phone}</a>
                       <a href={item.email !== "No email" ? `mailto:${item.email}` : undefined}>{item.email}</a>
                       <em>{item.source}</em>
-                      <span className="contactRowActions">{(currentAccess.role==="OWNER"||Boolean(currentAccess.can_edit))&&<button onClick={() => setSelected(originalIndex)}>Edit</button>}{(currentAccess.role==="OWNER"||Boolean(currentAccess.can_delete))&&<button className="dangerText" onClick={() => void deleteContactFromList(item)}>Delete</button>}</span>
+                      <span className="contactRowActions"><button onClick={() => {setSelected(originalIndex);setContactRecordOpen(true)}}>Open</button>{(currentAccess.role==="OWNER"||Boolean(currentAccess.can_delete))&&<button className="dangerText" onClick={() => void deleteContactFromList(item)}>Delete</button>}</span>
                     </div>
                   );
                 })}
@@ -11569,32 +11571,6 @@ function UniversalCRM({
                   </div>
                 )}
               </div>
-              {contact ? (
-                <CRMContactDetail
-                  contact={contact}
-                  onFlash={flash}
-                  onUpdated={() =>
-                    void Promise.all([loadCRMContacts(), loadCRMOverview()])
-                  }
-                  onDeleted={() => {
-                    setSelected(0);
-                    void Promise.all([loadCRMContacts(), loadCRMOverview()]);
-                  }}
-                  onBook={openCRMCalendar}
-                />
-              ) : (
-                <aside className="contactDetail crmPanel">
-                  <div className="contactHero">
-                    <div>
-                      <small>LIVE CRM</small>
-                      <h2>Select or create a contact</h2>
-                      <p>
-                        Prospects converted to CRM appear here automatically.
-                      </p>
-                    </div>
-                  </div>
-                </aside>
-              )}
             </div>
           )}
           {view === "Calendar" && (
@@ -11744,6 +11720,7 @@ function UniversalCRM({
         </div>
       )}
       {importing&&<div className="crmModalBack" onClick={()=>setImporting(false)}><div className="crmModal leadImportModal" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>BULK LEAD IMPORT</label><h2>Move leads into Cyncro</h2><p>Works with exports from GoHighLevel, HubSpot, Salesforce, Zoho, Pipedrive, ClickFunnels, Monday, and other CRMs.</p></div><button onClick={()=>setImporting(false)}>×</button></div><label className="leadDrop"><input type="file" accept=".csv,text/csv" onChange={e=>e.target.files?.[0]&&void readLeadFile(e.target.files[0])}/><b>Choose a CSV export</b><span>Cyncro automatically maps name, company, address, website, phone, email, source, title, and notes.</span></label>{importRows.length>0&&<><div className="importReview"><header><span>Contact</span><span>Company</span><span>Email</span><span>Phone</span></header>{importRows.slice(0,5).map((row,index)=><div key={index}><span>{row.fullName||`${row.firstName||""} ${row.lastName||""}`}</span><span>{row.company||"—"}</span><span>{row.email||"—"}</span><span>{row.phone||"—"}</span></div>)}</div><p className="importSummary"><b>{importRows.length}</b> records recognized from {importFileName}. Existing emails will be skipped automatically.</p><button className="crmCreate" onClick={()=>void importLeads()}>Import {importRows.length} leads</button></>}</div></div>}
+      {contactRecordOpen&&contact&&<div className="crmModalBack contactRecordBack" onClick={()=>setContactRecordOpen(false)}><div className="contactRecordModal" onClick={e=>e.stopPropagation()}><button className="contactRecordClose" onClick={()=>setContactRecordOpen(false)}>×</button><CRMContactDetail contact={contact} onFlash={flash} onUpdated={()=>void Promise.all([loadCRMContacts(),loadCRMOverview()])} onDeleted={()=>{setSelected(0);setContactRecordOpen(false);void Promise.all([loadCRMContacts(),loadCRMOverview()])}} onBook={openCRMCalendar}/></div></div>}
       {aiOpen && (
         <div className="aiDrawer">
           <div className="aiDrawerHead">
