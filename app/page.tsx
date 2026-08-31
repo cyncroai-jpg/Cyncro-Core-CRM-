@@ -10887,6 +10887,8 @@ type CRMContactCard = {
   intent: number;
   last: string;
   notes: string;
+  address: string;
+  website: string;
 };
 
 function UniversalCRM({
@@ -10911,6 +10913,7 @@ function UniversalCRM({
       [],
     ),
     [contactsLoaded, setContactsLoaded] = useState(false),
+    [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set()),
     [contactForm, setContactForm] = useState({
       fullName: "",
       company: "",
@@ -10969,6 +10972,8 @@ function UniversalCRM({
           intent: 50,
           last: "CRM record updated",
           notes: String(item.notes || ""),
+          address: String(item.company_address || "No address"),
+          website: String(item.company_domain || "No website"),
         })),
       );
     } catch (error) {
@@ -11025,6 +11030,29 @@ function UniversalCRM({
       .includes(query.toLowerCase()),
   );
   const contact = liveContacts[selected];
+  const toggleContact = (id: string) => setSelectedContactIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const exportContacts = () => {
+    const chosen = selectedContactIds.size
+      ? liveContacts.filter((item) => item.id && selectedContactIds.has(item.id))
+      : filteredContacts;
+    const rows = [["Contact","Business","Address","Website","Phone","Email","Source"], ...chosen.map((item) => [item.name,item.company,item.address,item.website,item.phone,item.email,item.source])];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"','""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `cyncro-contacts-${new Date().toISOString().slice(0,10)}.csv`; anchor.click(); URL.revokeObjectURL(url);
+    flash(`${chosen.length} contacts downloaded`);
+  };
+  const deleteContactFromList = async (item: CRMContactCard) => {
+    if (!item.id || !window.confirm(`Delete ${item.name}?`)) return;
+    const response = await fetch(`/api/crm/contacts?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
+    if (!response.ok) return flash("Contact could not be deleted");
+    setSelectedContactIds((current) => { const next = new Set(current); next.delete(item.id!); return next; });
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]);
+    flash("Contact deleted");
+  };
   const createContact = async () => {
     const response = await fetch("/api/crm/contacts", {
       method: "POST",
@@ -11442,11 +11470,12 @@ function UniversalCRM({
             />
           )}
           {view === "Contacts" && (
-            <div className="contactWorkspace">
-              <div className="contactList crmPanel">
+            <div className="contactWorkspace contactWorkspaceFull">
+              <div className="contactList crmPanel contactDirectory">
                 <div className="listToolbar">
-                  <span>{filteredContacts.length} contacts</span>
+                  <span>{filteredContacts.length} contacts · {selectedContactIds.size} selected</span>
                   <div>
+                    <button onClick={exportContacts}>↓ Download {selectedContactIds.size ? "selected" : "all"}</button>
                     <button
                       onClick={() =>
                         void Promise.all([loadCRMContacts(), loadCRMOverview()])
@@ -11463,20 +11492,24 @@ function UniversalCRM({
                   </div>
                 </div>
                 <div className="contactTableHead">
+                  <span>SELECT</span>
                   <span>CONTACT</span>
-                  <span>STAGE</span>
-                  <span>VALUE</span>
-                  <span>INTENT</span>
+                  <span>BUSINESS</span>
+                  <span>ADDRESS</span>
+                  <span>WEBSITE</span>
+                  <span>PHONE</span>
+                  <span>EMAIL</span>
+                  <span>SOURCE</span>
                   <span>ACTION</span>
                 </div>
                 {filteredContacts.map((item) => {
                   const originalIndex = liveContacts.indexOf(item);
                   return (
-                    <button
+                    <div
                       className={`contactRow ${selected === originalIndex ? "active" : ""}`}
-                      onClick={() => setSelected(originalIndex)}
                       key={item.id || item.email}
                     >
+                      <input aria-label={`Select ${item.name}`} type="checkbox" checked={Boolean(item.id && selectedContactIds.has(item.id))} onChange={() => item.id && toggleContact(item.id)} />
                       <span>
                         <i>
                           {item.name
@@ -11486,14 +11519,17 @@ function UniversalCRM({
                         </i>
                         <div>
                           <b>{item.name}</b>
-                          <small>{item.company}</small>
+                          <small>{item.stage}</small>
                         </div>
                       </span>
-                      <em>{item.stage}</em>
-                      <strong>{item.value}</strong>
-                      <span className="intentScore">{item.intent}</span>
-                      <em>Open contact</em>
-                    </button>
+                      <span><b>{item.company}</b></span>
+                      <span>{item.address}</span>
+                      <span>{item.website !== "No website" ? <a href={item.website.startsWith("http") ? item.website : `https://${item.website}`} target="_blank">{item.website}</a> : item.website}</span>
+                      <a href={item.phone !== "No phone" ? `tel:${item.phone}` : undefined}>{item.phone}</a>
+                      <a href={item.email !== "No email" ? `mailto:${item.email}` : undefined}>{item.email}</a>
+                      <em>{item.source}</em>
+                      <span className="contactRowActions"><button onClick={() => setSelected(originalIndex)}>Edit</button><button className="dangerText" onClick={() => void deleteContactFromList(item)}>Delete</button></span>
+                    </div>
                   );
                 })}
                 {contactsLoaded && !filteredContacts.length && (
@@ -11544,11 +11580,11 @@ function UniversalCRM({
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
-          {view === "Team Access" && <CRMTeamAccess onFlash={flash} />}
+          {view === "Team Access" && <CRMTeamAccess onFlash={flash} onOpenCalendar={() => setView("Calendar")} />}
           {view === "Compensation" && (
             <CRMCompensation onFlash={flash} isOwner={isOwner} />
           )}
-          {view === "Invoices" && <CRMInvoices onFlash={flash} />}
+          {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
@@ -12809,6 +12845,9 @@ function CRMContactDetail({
   const [activities, setActivities] = useState<Activity[]>([]);
   const [draft, setDraft] = useState({
     fullName: contact.name,
+    company: contact.company,
+    address: contact.address === "No address" ? "" : contact.address,
+    website: contact.website === "No website" ? "" : contact.website,
     email: contact.email === "No email" ? "" : contact.email,
     phone: contact.phone === "No phone" ? "" : contact.phone,
     lifecycle: contact.stage,
@@ -12818,6 +12857,9 @@ function CRMContactDetail({
     () =>
       setDraft({
         fullName: contact.name,
+        company: contact.company,
+        address: contact.address === "No address" ? "" : contact.address,
+        website: contact.website === "No website" ? "" : contact.website,
         email: contact.email === "No email" ? "" : contact.email,
         phone: contact.phone === "No phone" ? "" : contact.phone,
         lifecycle: contact.stage,
@@ -12983,6 +13025,18 @@ function CRMContactDetail({
                 setDraft({ ...draft, fullName: event.target.value })
               }
             />
+          </label>
+          <label>
+            Business name
+            <input value={draft.company} onChange={(event) => setDraft({ ...draft, company: event.target.value })} />
+          </label>
+          <label>
+            Address
+            <input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} />
+          </label>
+          <label>
+            Website
+            <input value={draft.website} onChange={(event) => setDraft({ ...draft, website: event.target.value })} />
           </label>
           <label>
             Email
@@ -15267,7 +15321,7 @@ function CRMCompensation({
   );
 }
 
-function CRMInvoices({ onFlash }: { onFlash: (message: string) => void }) {
+function CRMInvoices({ onFlash, onOpenIntegrations }: { onFlash: (message: string) => void; onOpenIntegrations: () => void }) {
   type Invoice = {
     id: string;
     invoice_number: string;
@@ -15280,6 +15334,7 @@ function CRMInvoices({ onFlash }: { onFlash: (message: string) => void }) {
     stripe_url?: string;
   };
   const [rows, setRows] = useState<Invoice[]>([]),
+    [stripeConnected, setStripeConnected] = useState(false),
     [form, setForm] = useState({
       clientName: "",
       clientEmail: "",
@@ -15298,6 +15353,7 @@ function CRMInvoices({ onFlash }: { onFlash: (message: string) => void }) {
   };
   useEffect(() => {
     void load();
+    void fetch("/api/integrations/status").then(async (response) => { if (response.ok) { const data = await response.json() as { connections?: Record<string,boolean> }; setStripeConnected(Boolean(data.connections?.stripe)); } });
   }, []);
   const create = async () => {
     const r = await fetch("/api/crm/invoices", {
@@ -15347,6 +15403,7 @@ function CRMInvoices({ onFlash }: { onFlash: (message: string) => void }) {
             Drafts save now. Connect Stripe to generate secure payment links.
           </p>
         </div>
+        <aside className="merchantConnectCard"><i className={stripeConnected ? "connected" : ""} /><span><b>{stripeConnected ? "Merchant connected" : "Connect your merchant"}</b><small>{stripeConnected ? "Stripe is ready for payment links" : "Add Stripe once, then send invoices immediately"}</small></span><button onClick={onOpenIntegrations}>{stripeConnected ? "Manage Stripe" : "Connect Stripe"}</button></aside>
       </section>
       <section className="crmPanel financeForm">
         <input
@@ -15448,6 +15505,8 @@ function CRMSalesPlaybooks({
     [form, setForm] = useState(empty),
     [contact, setContact] = useState({
       first_name: "Alex",
+      phone: "",
+      email: "",
       rep_name: "Sales Representative",
       company_name: "Cyncro",
       interest: "business systems",
@@ -15534,6 +15593,22 @@ function CRMSalesPlaybooks({
       objection: active.objection || "",
     });
     setEditing(true);
+  };
+  const openChannel = async () => {
+    if (!active) return;
+    const content = merge(active.content);
+    await navigator.clipboard?.writeText(active.channel === "EMAIL" ? `${merge(active.subject || "")}\n\n${content}` : content);
+    if (active.channel === "CALL") {
+      if (!contact.phone) return onFlash("Add the contact phone number first");
+      window.location.href = `tel:${contact.phone}`;
+    } else if (active.channel === "SMS") {
+      if (!contact.phone) return onFlash("Add the contact phone number first");
+      window.location.href = `sms:${contact.phone}?&body=${encodeURIComponent(content)}`;
+    } else {
+      if (!contact.email) return onFlash("Add the contact email first");
+      window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(merge(active.subject || ""))}&body=${encodeURIComponent(content)}`;
+    }
+    onFlash(`${active.channel} opened with the editable script`);
   };
   return (
     <div className="salesPlaybookWorkspace">
@@ -15710,6 +15785,9 @@ function CRMSalesPlaybooks({
                     onClick={() => void useTemplate()}
                   >
                     Personalize + copy
+                  </button>
+                  <button className="primary" onClick={() => void openChannel()}>
+                    {active.channel === "CALL" ? "Start call" : active.channel === "SMS" ? "Open SMS" : "Open email"}
                   </button>
                 </div>
               </header>
@@ -16714,7 +16792,7 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
-function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
+function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string) => void; onOpenCalendar: () => void }) {
   type Member = {
     email: string;
     display_name: string;
@@ -16724,10 +16802,12 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
     prospecting_access: number;
     manage_users: number;
     active: number;
+    google_calendar_email?: string;
   };
   const [members, setMembers] = useState<Member[]>([]);
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [allowed, setAllowed] = useState(false);
+  const [editingEmail, setEditingEmail] = useState("");
   const [form, setForm] = useState({
     email: "",
     displayName: "",
@@ -16778,8 +16858,17 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
       manageUsers: false,
       active: true,
     });
+    setEditingEmail("");
     await load();
     onFlash("Team access updated");
+  };
+  const removeMember = async (member: Member) => {
+    if (!window.confirm(`Delete ${member.display_name} from the team?`)) return;
+    const response = await fetch(`/api/access?email=${encodeURIComponent(member.email)}`, { method: "DELETE" });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) return onFlash(data.error || "Team member could not be deleted");
+    await load();
+    onFlash("Team member deleted");
   };
   if (!allowed)
     return (
@@ -16794,7 +16883,7 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
         <div className="crmPanelHead">
           <div>
             <small>OWNER CONTROLS</small>
-            <h2>Add a team member</h2>
+            <h2>{editingEmail ? "Update team member" : "Add a team member"}</h2>
           </div>
         </div>
         {currentMember && (
@@ -16817,6 +16906,7 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
             Login email
             <input
               type="email"
+              disabled={Boolean(editingEmail)}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
@@ -16853,8 +16943,9 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
           ))}
         </div>
         <button className="crmCreate" onClick={() => void save()}>
-          Save team access
+          {editingEmail ? "Update team access" : "Save team access"}
         </button>
+        {editingEmail && <button onClick={() => { setEditingEmail(""); setForm({ email:"", displayName:"", role:"MEMBER", crmAccess:true, calendarAccess:false, prospectingAccess:false, manageUsers:false, active:true }); }}>Cancel edit</button>}
       </section>
       <section className="crmPanel">
         <div className="crmPanelHead">
@@ -16875,24 +16966,19 @@ function CRMTeamAccess({ onFlash }: { onFlash: (message: string) => void }) {
               {member.crm_access ? "CRM " : ""}
               {member.calendar_access ? "Calendar " : ""}
               {member.prospecting_access ? "Prospecting" : ""}
+              <small>{member.google_calendar_email ? `Google: ${member.google_calendar_email}` : "Google Calendar not connected"}</small>
             </span>
+            <div className="memberAccessActions">
+              <button onClick={() => { setEditingEmail(member.email); setForm({ email:member.email, displayName:member.display_name, role:member.role, crmAccess:Boolean(member.crm_access), calendarAccess:Boolean(member.calendar_access), prospectingAccess:Boolean(member.prospecting_access), manageUsers:Boolean(member.manage_users), active:Boolean(member.active) }); }}>Edit</button>
+              {member.email === currentMember?.email ? <button onClick={() => { window.location.href="/api/integrations/google-calendar/connect"; }}>Connect my Google</button> : <button onClick={() => onFlash(`${member.display_name} must sign in and click Connect my Google Calendar`)}>Calendar setup</button>}
+              <button onClick={onOpenCalendar}>Open calendar</button>
+            </div>
             <button
               className="dangerText"
               disabled={member.role === "OWNER"}
-              onClick={() =>
-                void save({
-                  email: member.email,
-                  displayName: member.display_name,
-                  role: member.role,
-                  crmAccess: Boolean(member.crm_access),
-                  calendarAccess: Boolean(member.calendar_access),
-                  prospectingAccess: Boolean(member.prospecting_access),
-                  manageUsers: Boolean(member.manage_users),
-                  active: false,
-                })
-              }
+              onClick={() => void removeMember(member)}
             >
-              Remove access
+              Delete user
             </button>
           </div>
         ))}

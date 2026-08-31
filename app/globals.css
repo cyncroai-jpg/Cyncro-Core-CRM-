@@ -894,6 +894,19 @@
     display: none;
   }
 }
+.memberAccessActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.memberAccessActions button { padding: 7px 9px; font-size: 8px; }
+.memberAccessRow > span:nth-child(2) { display: grid; gap: 5px; }
+.memberAccessRow > span:nth-child(2) small { color: #8f8185; }
+.merchantConnectCard { display: flex; align-items: center; gap: 12px; min-width: 310px; border: 1px solid #4a3037; border-radius: 12px; background: #171113; padding: 14px; }
+.merchantConnectCard i { width: 10px; height: 10px; border-radius: 50%; background: #6d2936; box-shadow: 0 0 0 5px #44131e55; }
+.merchantConnectCard i.connected { background: #36b36f; box-shadow: 0 0 0 5px #36b36f22; }
+.merchantConnectCard span { display: grid; flex: 1; gap: 4px; }
+.merchantConnectCard small { color: #9a8c90; font-size: 8px; }
+@media (max-width: 760px) {
+  .memberAccessRow { grid-template-columns: 1fr !important; gap: 10px; }
+  .merchantConnectCard { min-width: 0; width: 100%; box-sizing: border-box; }
+}
 
 /* Account command v3 — one calm profile, no portfolio wall */
 .accountUnifiedCommand .accountPortfolio {
@@ -20522,6 +20535,33 @@ label {
 .payoutAssignmentFields { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 7px; }
 .payoutAssignmentFields input { font-size: 8px; padding: 7px; }
 .universalSearch > button { border: 0; background: transparent; color: #a89ca0; padding: 0; font-size: 18px; }
+
+/* Full-width contact directory */
+.contactWorkspaceFull { grid-template-columns: 1fr; }
+.contactDirectory { overflow-x: auto; }
+.contactDirectory .contactTableHead,
+.contactDirectory .contactRow {
+  display: grid;
+  grid-template-columns: 48px minmax(175px,1.15fr) minmax(150px,1fr) minmax(180px,1.2fr) minmax(150px,1fr) minmax(125px,.8fr) minmax(190px,1.15fr) minmax(95px,.65fr) 120px;
+  align-items: center;
+  gap: 12px;
+  min-width: 1250px;
+}
+.contactDirectory .contactTableHead { padding: 12px 18px; color: #8f8185; font-size: 8px; letter-spacing: .08em; }
+.contactDirectory .contactRow { min-height: 74px; border-top: 1px solid #30262a; padding: 12px 18px; background: transparent; color: #f7f2f3; text-align: left; }
+.contactDirectory .contactRow:hover { background: #1a1215; }
+.contactDirectory .contactRow > span,
+.contactDirectory .contactRow > a { min-width: 0; overflow: hidden; color: inherit; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.contactDirectory .contactRow > span:first-of-type { display: flex; align-items: center; gap: 10px; }
+.contactDirectory .contactRow > em { border: 1px solid #54313a; border-radius: 99px; padding: 5px 7px; color: #e98697; font-size: 8px; font-style: normal; text-align: center; }
+.contactRowActions { display: flex !important; gap: 6px; overflow: visible !important; }
+.contactRowActions button { padding: 7px 9px; font-size: 8px; }
+.contactDirectory + .contactDetail { margin-top: 0; }
+@media (max-width: 760px) {
+  .contactDirectory { border: 1px solid #35282c; background: #100d0e; }
+  .contactDirectory .contactTableHead { display: grid; }
+  .contactDirectory .contactRow { grid-template-columns: 42px minmax(175px,1.15fr) minmax(145px,1fr) minmax(170px,1.2fr) minmax(140px,1fr) minmax(120px,.8fr) minmax(180px,1.15fr) 90px 115px; }
+}
 .contractListV2,
 .contractDetailV2,
 .contractBuilderV2 {

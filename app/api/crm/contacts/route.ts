@@ -8,13 +8,13 @@ export async function GET(request: Request) {
     const query = cleanText(url.searchParams.get("q"), 100);
     const db = coreDb();
     const statement = query
-      ? db.prepare(`SELECT c.*, a.name AS company_name,
+      ? db.prepare(`SELECT c.*, a.name AS company_name, a.address AS company_address, a.domain AS company_domain,
           COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
           COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
           FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
           WHERE c.full_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR a.name LIKE ? ORDER BY c.updated_at DESC LIMIT 250`)
           .bind(...Array(4).fill(`%${query}%`))
-      : db.prepare(`SELECT c.*, a.name AS company_name,
+      : db.prepare(`SELECT c.*, a.name AS company_name, a.address AS company_address, a.domain AS company_domain,
           COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
           COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
           FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
@@ -101,9 +101,23 @@ export async function PATCH(request: Request) {
     if (updates.lifecycle !== undefined) add("lifecycle", cleanText(updates.lifecycle, 40).toUpperCase());
     if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
     if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
-    if (!fields.length) return Response.json({ error: "No valid contact changes supplied." }, { status: 400 });
-    add("updated_at", new Date().toISOString()); values.push(id);
-    await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+    const hasAccountChanges = updates.company !== undefined || updates.address !== undefined || updates.website !== undefined;
+    if (!fields.length && !hasAccountChanges) return Response.json({ error: "No valid contact changes supplied." }, { status: 400 });
+    if (fields.length) {
+      add("updated_at", new Date().toISOString()); values.push(id);
+      await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+    }
+    if (updates.company !== undefined || updates.address !== undefined || updates.website !== undefined) {
+      const row = await coreDb().prepare("SELECT account_id FROM crm_contacts WHERE id=?").bind(id).first<{account_id?:string}>();
+      if (row?.account_id) {
+        const accountFields: string[] = [], accountValues: unknown[] = [];
+        if (updates.company !== undefined) { accountFields.push("name=?"); accountValues.push(cleanText(updates.company,160)); }
+        if (updates.address !== undefined) { accountFields.push("address=?"); accountValues.push(cleanText(updates.address,300)||null); }
+        if (updates.website !== undefined) { accountFields.push("domain=?"); accountValues.push(cleanText(updates.website,240)||null); }
+        accountFields.push("updated_at=?"); accountValues.push(new Date().toISOString(), row.account_id);
+        await coreDb().prepare(`UPDATE crm_accounts SET ${accountFields.join(",")} WHERE id=?`).bind(...accountValues).run();
+      }
+    }
     const contact = await coreDb().prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id WHERE c.id = ?`).bind(id).first();
     return contact ? Response.json({ contact }) : Response.json({ error: "Contact not found." }, { status: 404 });
   } catch (error) {
