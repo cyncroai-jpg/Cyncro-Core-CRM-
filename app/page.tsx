@@ -11582,12 +11582,6 @@ function UniversalCRM({
                     >
                       <input aria-label={`Select ${item.name}`} type="checkbox" checked={Boolean(item.id && selectedContactIds.has(item.id))} onChange={() => item.id && toggleContact(item.id)} />
                       <span>
-                        <i>
-                          {item.name
-                            .split(" ")
-                            .map((part) => part[0])
-                            .join("")}
-                        </i>
                         <div>
                           <b>{item.name}</b>
                           <small>{item.stage}</small>
@@ -18275,19 +18269,19 @@ function SimpleEventManager({
               }
             />
           </label>
-          <label>
-            Duration (minutes)
-            <input
-              type="number"
-              min="5"
+          <label className="durationEditor">
+            Appointment length
+            <select
               value={form.durationMinutes}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  durationMinutes: Number(event.target.value),
-                })
-              }
-            />
+              onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })}
+            >
+              {[15, 20, 30, 45, 60, 75, 90, 120].map((minutes) => (
+                <option value={minutes} key={minutes}>
+                  {minutes < 60 ? `${minutes} minutes` : minutes === 60 ? "1 hour" : minutes === 120 ? "2 hours" : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`}
+                </option>
+              ))}
+            </select>
+            <small>Choose the duration, then tap Save &amp; publish. The client booking page updates immediately.</small>
           </label>
           <label>
             Capacity

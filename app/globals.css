@@ -20591,10 +20591,31 @@ label {
 .contactRowActions { display: flex !important; gap: 6px; overflow: visible !important; }
 .contactRowActions button { padding: 7px 9px; font-size: 8px; }
 .contactDirectory + .contactDetail { margin-top: 0; }
+.durationEditor small { color: #9c8d91; font-size: 8px; line-height: 1.45; }
+.durationEditor select { min-height: 46px; border-color: #713646; background: #100b0d; color: #fff; font-weight: 800; }
 @media (max-width: 760px) {
-  .contactDirectory { border: 1px solid #35282c; background: #100d0e; }
-  .contactDirectory .contactTableHead { display: grid; }
-  .contactDirectory .contactRow { grid-template-columns: 42px minmax(175px,1.15fr) minmax(145px,1fr) minmax(170px,1.2fr) minmax(140px,1fr) minmax(120px,.8fr) minmax(180px,1.15fr) 90px 115px; }
+  .contactDirectory { overflow: visible; border: 0; background: transparent; }
+  .contactDirectory .contactTableHead { display: none; }
+  .contactDirectory .contactRow {
+    display: grid; min-width: 0; grid-template-columns: 24px minmax(0,1fr) auto;
+    grid-template-areas: "check contact source" ". business business" ". address address" ". website website" ". phone phone" ". email email" ". actions actions";
+    gap: 8px 10px; margin-bottom: 10px; border: 1px solid #392a2f; border-radius: 12px; background: #100d0e; padding: 15px;
+  }
+  .contactDirectory .contactRow > input { grid-area: check; margin-top: 3px; }
+  .contactDirectory .contactRow > span:first-of-type { grid-area: contact; display: block; }
+  .contactDirectory .contactRow > span:nth-of-type(2) { grid-area: business; }
+  .contactDirectory .contactRow > span:nth-of-type(3) { grid-area: address; }
+  .contactDirectory .contactRow > span:nth-of-type(4) { grid-area: website; }
+  .contactDirectory .contactRow > a:nth-of-type(1) { grid-area: phone; }
+  .contactDirectory .contactRow > a:nth-of-type(2) { grid-area: email; }
+  .contactDirectory .contactRow > em { grid-area: source; align-self: start; }
+  .contactDirectory .contactRow > .contactRowActions { grid-area: actions; display: grid !important; grid-template-columns: 1fr 1fr; }
+  .contactDirectory .contactRow > span:not(:first-of-type), .contactDirectory .contactRow > a { white-space: normal; line-height: 1.45; }
+  .contactDirectory .contactRow > span:nth-of-type(2)::before { content: "BUSINESS  "; color: #8f8185; font-size: 7px; }
+  .contactDirectory .contactRow > span:nth-of-type(3)::before { content: "ADDRESS  "; color: #8f8185; font-size: 7px; }
+  .contactDirectory .contactRow > span:nth-of-type(4)::before { content: "WEBSITE  "; color: #8f8185; font-size: 7px; }
+  .contactDirectory .contactRow > a:nth-of-type(1)::before { content: "PHONE  "; color: #8f8185; font-size: 7px; }
+  .contactDirectory .contactRow > a:nth-of-type(2)::before { content: "EMAIL  "; color: #8f8185; font-size: 7px; }
 }
 .contractListV2,
 .contractDetailV2,
