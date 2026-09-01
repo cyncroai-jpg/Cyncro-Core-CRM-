@@ -161,3 +161,18 @@ export async function PATCH(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureCoreSchema();
+    if (!(await hasModuleAccess(request, "crm")))
+      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    if (!id) return Response.json({ error: "Playbook id is required." }, { status: 400 });
+    await coreDb().prepare("UPDATE crm_sales_playbooks SET active=0,updated_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
+    return Response.json({ deleted: true });
+  } catch (error) {
+    console.error("playbooks.delete_failed", error);
+    return Response.json({ error: "Unable to delete sales playbook." }, { status: 500 });
+  }
+}

@@ -15627,6 +15627,24 @@ function CRMSalesPlaybooks({
       /{{([a-z_]+)}}/g,
       (_, key: string) => contact[key as keyof typeof contact] || `{{${key}}}`,
     );
+  const copyText = async (value: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {}
+    const area = document.createElement("textarea");
+    area.value = value;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    return copied;
+  };
   const save = async () => {
     const method = editing && selected ? "PATCH" : "POST",
       payload = editing && selected ? { ...form, id: selected } : form,
@@ -15648,11 +15666,12 @@ function CRMSalesPlaybooks({
   };
   const useTemplate = async () => {
     if (!active) return;
-    await navigator.clipboard?.writeText(
+    const copied = await copyText(
       active.channel === "EMAIL"
         ? `${merge(active.subject || "")}\n\n${merge(active.content)}`
         : merge(active.content),
     );
+    if (!copied) return onFlash("Copy was blocked by this browser—select the script text and copy it manually");
     await fetch("/api/crm/playbooks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -15674,10 +15693,29 @@ function CRMSalesPlaybooks({
     });
     setEditing(true);
   };
+  const selectPlaybook = (row: Playbook) => {
+    setSelected(row.id);
+    setEditing(false);
+  };
+  const duplicateActive = async () => {
+    if (!active) return;
+    const response = await fetch("/api/crm/playbooks", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ name:`${active.name} — Copy`, channel:active.channel, category:active.category, stage:active.stage, subject:active.subject || "", content:active.content, objection:active.objection || "" }) });
+    const data = await response.json() as { id?:string; error?:string };
+    if (!response.ok) return onFlash(data.error || "Playbook could not be duplicated");
+    if (data.id) setSelected(data.id);
+    setEditing(false); await load(); onFlash("Playbook duplicated and ready to edit");
+  };
+  const deleteActive = async () => {
+    if (!active || !window.confirm(`Delete “${active.name}” from the Team Library?`)) return;
+    const response = await fetch(`/api/crm/playbooks?id=${encodeURIComponent(active.id)}`, { method:"DELETE" });
+    const data = await response.json() as { error?:string };
+    if (!response.ok) return onFlash(data.error || "Playbook could not be deleted");
+    setSelected(""); setEditing(false); await load(); onFlash("Playbook deleted from the Team Library");
+  };
   const openChannel = async () => {
     if (!active) return;
     const content = merge(active.content);
-    await navigator.clipboard?.writeText(active.channel === "EMAIL" ? `${merge(active.subject || "")}\n\n${content}` : content);
+    await copyText(active.channel === "EMAIL" ? `${merge(active.subject || "")}\n\n${content}` : content);
     if (active.channel === "CALL") {
       if (!contact.phone) return onFlash("Add the contact phone number first");
       window.location.href = `tel:${contact.phone}`;
@@ -15751,21 +15789,15 @@ function CRMSalesPlaybooks({
             </div>
           </header>
           {rows.map((row) => (
-            <button
-              className={active?.id === row.id ? "active" : ""}
-              onClick={() => setSelected(row.id)}
-              key={row.id}
-            >
-              <span>
-                <i>{row.channel}</i>
-                <b>{row.name}</b>
-                <small>
-                  {row.category} · {row.stage}
-                </small>
-              </span>
-              <em>{row.usage_count} uses</em>
-            </button>
+            <article className={`playbookLibraryCard ${active?.id === row.id ? "active" : ""}`} key={row.id}>
+              <button className="playbookSelect" onClick={() => selectPlaybook(row)}>
+                <span><i>{row.channel}</i><b>{row.name}</b><small>{row.category} · {row.stage}</small></span>
+                <em>{row.usage_count} uses · {row.success_count} wins</em>
+              </button>
+              <div><button onClick={() => { selectPlaybook(row); setForm({ name:row.name, channel:row.channel, category:row.category, stage:row.stage, subject:row.subject || "", content:row.content, objection:row.objection || "" }); setEditing(true); }}>Edit</button><button onClick={async () => { selectPlaybook(row); const copied=await copyText(row.channel === "EMAIL" ? `${merge(row.subject || "")}\n\n${merge(row.content)}` : merge(row.content)); onFlash(copied ? "Script copied" : "Copy was blocked—open the script and copy the text manually"); }}>Copy</button></div>
+            </article>
           ))}
+          {!rows.length && <div className="playbookLibraryEmpty"><b>No scripts found</b><span>Change the filter or create a new team playbook.</span></div>}
         </aside>
         <main className="crmPanel playbookStage">
           {editing ? (
@@ -15860,6 +15892,7 @@ function CRMSalesPlaybooks({
                 </div>
                 <div>
                   <button onClick={editActive}>Edit title + content</button>
+                  <button onClick={() => void duplicateActive()}>Duplicate</button>
                   <button
                     className="primary"
                     onClick={() => void useTemplate()}
@@ -15869,6 +15902,7 @@ function CRMSalesPlaybooks({
                   <button className="primary" onClick={() => void openChannel()}>
                     {active.channel === "CALL" ? "Start call" : active.channel === "SMS" ? "Open SMS" : "Open email"}
                   </button>
+                  <button className="dangerText" onClick={() => void deleteActive()}>Delete</button>
                 </div>
               </header>
               {active.channel === "EMAIL" && (

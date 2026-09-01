@@ -21141,6 +21141,13 @@ label {
 .salesPlaybookWorkspace .playbookLibrary>button b{font-size:17px;line-height:1.35}
 .salesPlaybookWorkspace .playbookLibrary>button small{font-size:13px;line-height:1.5;color:#b4a6aa}
 .salesPlaybookWorkspace .playbookLibrary>button em{font-size:13px;color:#f07b90;text-align:left}
+.salesPlaybookWorkspace .playbookLibraryCard{display:grid;grid-template-rows:1fr auto;min-height:170px;border:1px solid #392c30;border-radius:13px;background:linear-gradient(145deg,#171214,#0c0a0b);overflow:hidden}
+.salesPlaybookWorkspace .playbookLibraryCard:hover{border-color:#7d3040}.salesPlaybookWorkspace .playbookLibraryCard.active{border-color:#d0435c;box-shadow:inset 0 3px #d0435c}
+.salesPlaybookWorkspace .playbookSelect{display:grid;align-content:space-between;gap:16px;width:100%;min-height:130px;padding:20px;border:0;background:transparent;color:#fff;text-align:left}
+.salesPlaybookWorkspace .playbookSelect span{display:grid;gap:8px}.salesPlaybookWorkspace .playbookSelect i{width:max-content;padding:7px 10px;border:1px solid #5d2430;border-radius:999px;background:#321018;color:#ef7b8f;font-size:12px;font-style:normal;font-weight:800;line-height:1}
+.salesPlaybookWorkspace .playbookSelect b{font-size:17px;line-height:1.35}.salesPlaybookWorkspace .playbookSelect small{font-size:13px;line-height:1.5;color:#b4a6aa}.salesPlaybookWorkspace .playbookSelect em{font-size:13px;color:#f07b90;font-style:normal}
+.salesPlaybookWorkspace .playbookLibraryCard>div{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #33272a}.salesPlaybookWorkspace .playbookLibraryCard>div button{min-height:42px;border:0;border-right:1px solid #33272a;background:#120e10;color:#ddd;font-size:13px}.salesPlaybookWorkspace .playbookLibraryCard>div button:hover{background:#2a1117;color:#fff}
+.playbookLibraryEmpty{grid-column:1/-1;display:grid;gap:6px;padding:28px;border:1px dashed #49343a;border-radius:12px;text-align:center}.playbookLibraryEmpty b{font-size:16px}.playbookLibraryEmpty span{color:#9f9295;font-size:14px}
 .salesPlaybookWorkspace .playbookStage{min-height:0}
 .salesPlaybookWorkspace .playbookStage>header{padding:24px}
 .salesPlaybookWorkspace .playbookStage pre{min-height:260px;white-space:pre-wrap;overflow-wrap:anywhere}
