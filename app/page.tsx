@@ -22,6 +22,7 @@ type Tab =
   | "finance"
   | "apex"
   | "sign"
+  | "form"
   | "prime";
 export default function Home() {
   const [tab, setTab] = useState<Tab>("home"),
@@ -72,6 +73,7 @@ export default function Home() {
       "finance",
       "apex",
       "sign",
+      "form",
       "prime",
     ];
     const syncRoute = () => {
@@ -166,6 +168,8 @@ export default function Home() {
         <ApexFunds />
       ) : tab === "sign" ? (
         <ContractSigning />
+      ) : tab === "form" ? (
+        <CyncroFormClient />
       ) : tab === "prime" ? (
         <CyncroPrime />
       ) : tab === "admin" ? (
@@ -351,6 +355,38 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+type CyncroFormField={id:string;label:string;type:string;required:boolean;options:string[]};
+type CyncroFormRow={id:string;title:string;description?:string;status:string;public_token:string;fields_json:string;requires_signature:number;submission_count?:number};
+
+function CRMForms({onFlash}:{onFlash:(message:string)=>void}){
+  const empty={title:"New client questionnaire",description:"Complete the information below so our team can prepare your next step.",status:"DRAFT",requiresSignature:true,fields:[{id:crypto.randomUUID(),label:"What can we help you accomplish?",type:"LONG",required:true,options:[]}] as CyncroFormField[]};
+  const [forms,setForms]=useState<CyncroFormRow[]>([]),[selected,setSelected]=useState(""),[editId,setEditId]=useState(""),[editing,setEditing]=useState(false),[draft,setDraft]=useState(empty),[submissions,setSubmissions]=useState<Record<string,unknown>[]>([]);
+  const active=forms.find(f=>f.id===selected);
+  const load=async()=>{const r=await fetch(`/api/crm/forms?fresh=${Date.now()}`,{cache:"no-store"}),d=await r.json() as {forms?:CyncroFormRow[];error?:string};if(!r.ok)return onFlash(d.error||"Forms could not load");setForms(d.forms||[]);if(!selected&&d.forms?.[0])setSelected(d.forms[0].id)};
+  useEffect(()=>{void load()},[]);
+  useEffect(()=>{if(!selected){setSubmissions([]);return}void fetch(`/api/crm/forms?id=${selected}`).then(r=>r.json()).then(d=>setSubmissions(d.submissions||[]))},[selected]);
+  const openEdit=(row?:CyncroFormRow)=>{setEditId(row?.id||"");if(row){setDraft({title:row.title,description:row.description||"",status:row.status,requiresSignature:Boolean(row.requires_signature),fields:JSON.parse(row.fields_json||"[]")})}else setDraft({...empty,fields:empty.fields.map(x=>({...x,id:crypto.randomUUID()}))});setEditing(true)};
+  const save=async()=>{const method=editId?"PATCH":"POST",body=editId?{id:editId,...draft}:draft;const r=await fetch("/api/crm/forms",{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json() as {id?:string;error?:string};if(!r.ok)return onFlash(d.error||"Form could not save");setEditing(false);if(d.id)setSelected(d.id);await load();onFlash("Form saved")};
+  const share=async(row:CyncroFormRow)=>{const url=`${location.origin}${location.pathname}?form=${row.public_token}#form`;await navigator.clipboard?.writeText(url);onFlash("Client form link copied")};
+  const addField=(type:string)=>setDraft({...draft,fields:[...draft.fields,{id:crypto.randomUUID(),label:type==="FILE"?"Upload supporting files":type==="CHECKBOX"?"Select all that apply":"New question",type,required:false,options:type==="SELECT"||type==="CHECKBOX"?["Option 1","Option 2"]:[]}]});
+  return <section className="formsOS">
+    <div className="formsHero"><div><small>CYNCRO FORMS + INTAKE</small><h2>Questionnaires, signatures, and files—connected to the client.</h2><p>Build branded intake forms, collect documents and images, record electronic consent, and keep every response inside Cyncro.</p></div><button onClick={()=>{setSelected("");openEdit()}}>＋ New form</button></div>
+    <div className="formsMetrics">{[[forms.length,"FORMS"],[forms.reduce((n,f)=>n+Number(f.submission_count||0),0),"SUBMISSIONS"],[forms.filter(f=>f.status==="PUBLISHED").length,"LIVE LINKS"],["20MB","PER FILE"]].map(x=><article key={x[1]}><b>{x[0]}</b><span>{x[1]}</span></article>)}</div>
+    <div className="formsLayout"><aside className="formsList"><header><b>Form library</b><button onClick={()=>void load()}>↻</button></header>{forms.map(row=><button className={selected===row.id?"active":""} key={row.id} onClick={()=>setSelected(row.id)}><span><b>{row.title}</b><small>{row.status} · {row.submission_count||0} responses</small></span><em>→</em></button>)}{!forms.length&&<p>Create your first questionnaire.</p>}</aside>
+      <main className="formsStage">{editing?<><header><div><small>FORM BUILDER</small><h3>Edit every question and requirement</h3></div><button onClick={()=>setEditing(false)}>Close</button></header><div className="formSettings"><input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} placeholder="Form title"/><textarea value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})} placeholder="Client instructions"/><div className="fieldTools">{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><button key={t} onClick={()=>addField(t)}>＋ {t.toLowerCase()}</button>)}</div>{draft.fields.map((field,index)=><article className="fieldEditor" key={field.id}><i>{index+1}</i><input value={field.label} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,label:e.target.value};setDraft({...draft,fields})}}/><select value={field.type} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,type:e.target.value};setDraft({...draft,fields})}}>{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><option key={t}>{t}</option>)}</select><label><input type="checkbox" checked={field.required} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,required:e.target.checked};setDraft({...draft,fields})}}/> Required</label><button className="dangerText" onClick={()=>setDraft({...draft,fields:draft.fields.filter(x=>x.id!==field.id)})}>Delete</button>{["SELECT","CHECKBOX"].includes(field.type)&&<input className="fieldOptions" value={field.options.join(", ")} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,options:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)};setDraft({...draft,fields})}} placeholder="Options separated by commas"/>}</article>)}<div className="formPublish"><label><input type="checkbox" checked={draft.requiresSignature} onChange={e=>setDraft({...draft,requiresSignature:e.target.checked})}/> Require electronic signature</label><select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>DRAFT</option><option>PUBLISHED</option><option>ARCHIVED</option></select><button onClick={()=>void save()}>Save form</button></div></div></>:active?<><header><div><small>{active.status}</small><h3>{active.title}</h3></div><div><button onClick={()=>openEdit(active)}>Edit form</button><button onClick={()=>void share(active)}>Copy client link</button><button className="dangerText" onClick={async()=>{if(!confirm("Delete this form and its responses?"))return;await fetch(`/api/crm/forms?id=${active.id}`,{method:"DELETE"});setSelected("");await load();onFlash("Form deleted")}}>Delete</button></div></header><div className="formSummary"><p>{active.description}</p><div>{(JSON.parse(active.fields_json||"[]") as CyncroFormField[]).map((f,i)=><span key={f.id}><i>{i+1}</i><b>{f.label}</b><small>{f.type}{f.required?" · REQUIRED":""}</small></span>)}</div></div><section className="submissionLedger"><header><b>Client responses</b><span>{submissions.length} received</span></header>{submissions.map(s=><article key={String(s.id)}><div><b>{String(s.respondent_name)}</b><small>{String(s.respondent_email)}</small></div><span>{new Date(String(s.submitted_at)).toLocaleString()}</span><em>{Number(s.file_count||0)} files</em><strong>{s.signature_name?"SIGNED":"SUBMITTED"}</strong></article>)}{!submissions.length&&<p>No responses yet. Publish and share the client link.</p>}</section></>:<div className="formEmpty"><i>▤</i><h3>Build your first client intake</h3><p>Add questions, uploads, and a signature, then send one clean link.</p><button onClick={()=>openEdit()}>Create form</button></div>}</main></div>
+  </section>
+}
+
+function CyncroFormClient(){
+  const token=typeof window!=="undefined"?new URLSearchParams(location.search).get("form")||"":"";
+  const [form,setForm]=useState<Record<string,unknown>|null>(null),[answers,setAnswers]=useState<Record<string,unknown>>({}),[name,setName]=useState(""),[email,setEmail]=useState(""),[signature,setSignature]=useState(""),[accepted,setAccepted]=useState(false),[files,setFiles]=useState<Record<string,File[]>>({}),[error,setError]=useState(""),[saving,setSaving]=useState(false),[done,setDone]=useState(false);
+  useEffect(()=>{if(!token)return setError("Form link is missing.");void fetch(`/api/crm/forms?token=${encodeURIComponent(token)}`).then(async r=>{const d=await r.json();if(!r.ok)setError(d.error||"Form unavailable");else setForm(d.form)})},[token]);
+  const fields:CyncroFormField[]=form?JSON.parse(String(form.fields_json||"[]")):[];
+  const submit=async()=>{setError("");for(const f of fields)if(f.required&&!answers[f.id]&&!(files[f.id]?.length))return setError(`Please complete: ${f.label}`);if(Number(form?.requires_signature)===1&&(!signature.trim()||!accepted))return setError("Type your signature and accept the electronic consent.");setSaving(true);const r=await fetch("/api/crm/forms",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"SUBMIT",token,respondentName:name,respondentEmail:email,answers,signatureName:signature})}),d=await r.json() as {submissionId?:string;error?:string};if(!r.ok){setSaving(false);return setError(d.error||"Submission failed")};for(const [questionId,list] of Object.entries(files))for(const file of list){const data=new FormData();data.append("token",token);data.append("submissionId",d.submissionId||"");data.append("questionId",questionId);data.append("file",file);const up=await fetch("/api/crm/forms/uploads",{method:"POST",body:data});if(!up.ok){setSaving(false);return setError("Your answers were saved, but one file could not upload.")}}setSaving(false);setDone(true)};
+  if(done)return <section className="publicForm"><main className="formThankYou"><i>✓</i><small>SUBMISSION RECEIVED</small><h1>Everything is safely with our team.</h1><p>Your answers, signature, and uploaded files were recorded.</p></main></section>;
+  return <section className="publicForm"><main><header><small>CYNCRO SECURE INTAKE</small><h1>{String(form?.title||"Loading form…")}</h1><p>{String(form?.description||"")}</p></header>{error&&<div className="bookingError">{error}</div>}{form&&<div className="publicFormBody"><div className="respondentGrid"><label>Your full name<input value={name} onChange={e=>setName(e.target.value)} required/></label><label>Email address<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label></div>{fields.map((f,index)=><label className="publicQuestion" key={f.id}><span><i>{index+1}</i><b>{f.label}</b>{f.required&&<em>Required</em>}</span>{f.type==="LONG"?<textarea onChange={e=>setAnswers({...answers,[f.id]:e.target.value})}/>:f.type==="SELECT"?<select onChange={e=>setAnswers({...answers,[f.id]:e.target.value})}><option value="">Choose one…</option>{f.options.map(o=><option key={o}>{o}</option>)}</select>:f.type==="CHECKBOX"?<div className="checkChoices">{f.options.map(o=><label key={o}><input type="checkbox" onChange={e=>{const old=Array.isArray(answers[f.id])?answers[f.id] as string[]:[];setAnswers({...answers,[f.id]:e.target.checked?[...old,o]:old.filter(x=>x!==o)})}}/>{o}</label>)}</div>:f.type==="FILE"?<div className="uploadZone"><input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={e=>setFiles({...files,[f.id]:Array.from(e.target.files||[])})}/><b>Choose pictures or documents</b><small>{files[f.id]?.map(x=>x.name).join(", ")||"Up to 20MB per file"}</small></div>:<input type={f.type==="EMAIL"?"email":f.type==="PHONE"?"tel":f.type.toLowerCase()} onChange={e=>setAnswers({...answers,[f.id]:e.target.value})}/>}</label>)}{Number(form.requires_signature)===1&&<section className="formSignature"><small>ELECTRONIC SIGNATURE</small><label>Type your full legal name<input value={signature} onChange={e=>setSignature(e.target.value)}/></label><label><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I confirm my responses are accurate and adopt my typed name as my electronic signature.</label></section>}<button className="formSubmit" disabled={saving} onClick={()=>void submit()}>{saving?"Securely submitting…":"Submit questionnaire →"}</button></div>}</main></section>
 }
 
 function ApexFunds() {
@@ -10872,6 +10908,7 @@ type CRMView =
   | "Compensation"
   | "Invoices"
   | "Contracts"
+  | "Forms"
   | "Sales Playbooks"
   | "Attribution"
   | "Cyncro Work"
@@ -11139,6 +11176,7 @@ function UniversalCRM({
     { name: "Compensation", icon: "%", permission:"compensation_access" },
     { name: "Invoices", icon: "$", permission:"invoice_access" },
     { name: "Contracts", icon: "✎", permission:"contract_access" },
+    { name: "Forms", icon: "▤", count: "Build" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
     { name: "Attribution", icon: "⌁", count: "Live", permission:"attribution_access" },
     { name: "Cyncro Work", icon: "✓", count: "Team", permission:"work_access" },
@@ -11593,6 +11631,7 @@ function UniversalCRM({
           )}
           {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
+          {view === "Forms" && <CRMForms onFlash={flash} />}
           {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
           {view === "Attribution" && <CRMAttribution onFlash={flash} />}
           {view === "Cyncro Work" && <CRMWork onFlash={flash} currentUserName={crmUserName} />}

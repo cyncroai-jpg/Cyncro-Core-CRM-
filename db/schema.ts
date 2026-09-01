@@ -216,3 +216,18 @@ export const calendarOauthConnections = sqliteTable("calendar_oauth_connections"
 export const calendarExternalEvents = sqliteTable("calendar_external_events", {
   bookingId: text("booking_id").primaryKey().references(() => calendarBookings.id), provider: text("provider").notNull().default("GOOGLE"), externalEventId: text("external_event_id").notNull(), owner: text("owner").notNull(), updatedAt: text("updated_at").notNull(),
 });
+
+export const crmForms = sqliteTable("crm_forms", {
+  id: text("id").primaryKey(), title: text("title").notNull(), description: text("description"), status: text("status").notNull().default("DRAFT"),
+  publicToken: text("public_token").notNull().unique(), fieldsJson: text("fields_json").notNull().default("[]"), requiresSignature: integer("requires_signature").notNull().default(0),
+  createdBy: text("created_by"), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+export const crmFormSubmissions = sqliteTable("crm_form_submissions", {
+  id: text("id").primaryKey(), formId: text("form_id").notNull().references(() => crmForms.id), contactId: text("contact_id").references(() => crmContacts.id),
+  respondentName: text("respondent_name").notNull(), respondentEmail: text("respondent_email").notNull(), answersJson: text("answers_json").notNull().default("{}"),
+  signatureName: text("signature_name"), consentText: text("consent_text"), signerIp: text("signer_ip"), status: text("status").notNull().default("SUBMITTED"), submittedAt: text("submitted_at").notNull(),
+}, (table) => [index("idx_form_submissions_form_id").on(table.formId), index("idx_form_submissions_email").on(table.respondentEmail)]);
+export const crmFormFiles = sqliteTable("crm_form_files", {
+  id: text("id").primaryKey(), submissionId: text("submission_id").notNull().references(() => crmFormSubmissions.id), questionId: text("question_id"), filename: text("filename").notNull(),
+  contentType: text("content_type").notNull(), objectKey: text("object_key").notNull(), sizeBytes: integer("size_bytes").notNull(), createdAt: text("created_at").notNull(),
+}, (table) => [index("idx_form_files_submission_id").on(table.submissionId)]);
