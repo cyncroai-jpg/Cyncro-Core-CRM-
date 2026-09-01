@@ -20593,6 +20593,8 @@ label {
 .contactDirectory + .contactDetail { margin-top: 0; }
 .durationEditor small { color: #9c8d91; font-size: 8px; line-height: 1.45; }
 .durationEditor select { min-height: 46px; border-color: #713646; background: #100b0d; color: #fff; font-weight: 800; }
+.dealCard > div { grid-template-columns: 1fr; }
+.dealCard > div > span { min-width: 0; }
 @media (max-width: 760px) {
   .contactDirectory { overflow: visible; border: 0; background: transparent; }
   .contactDirectory .contactTableHead { display: none; }

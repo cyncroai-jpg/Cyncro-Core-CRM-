@@ -12276,7 +12276,6 @@ function CRMPipeline({
                     key={deal.id}
                   >
                     <div>
-                      <i>{deal.account_name.slice(0, 2).toUpperCase()}</i>
                       <span>
                         <b>{deal.name}</b>
                         <small>{deal.account_name}</small>
@@ -18111,6 +18110,24 @@ function SimpleEventManager({
         ? current[key].filter((item) => item !== value)
         : [...current[key], value],
     }));
+  const updateDuration = async (minutes: number) => {
+    setForm((current) => ({ ...current, durationMinutes: minutes }));
+    if (!form.id) return;
+    const response = await fetch("/api/calendar/event-types", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: form.id, durationMinutes: minutes }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      onFlash(data.error || "Appointment length could not be updated");
+      await load();
+      return;
+    }
+    await load();
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "event-type", action: "duration-updated" } }));
+    onFlash(`Appointment length updated to ${minutes} minutes`);
+  };
   const save = async () => {
     if (!form.name.trim() || !form.slug.trim()) {
       onFlash("Event name and booking link are required");
@@ -18273,7 +18290,7 @@ function SimpleEventManager({
             Appointment length
             <select
               value={form.durationMinutes}
-              onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })}
+              onChange={(event) => void updateDuration(Number(event.target.value))}
             >
               {[15, 20, 30, 45, 60, 75, 90, 120].map((minutes) => (
                 <option value={minutes} key={minutes}>
@@ -18281,7 +18298,7 @@ function SimpleEventManager({
                 </option>
               ))}
             </select>
-            <small>Choose the duration, then tap Save &amp; publish. The client booking page updates immediately.</small>
+            <small>{form.id ? "Choose a new length. It saves immediately and updates the client booking page." : "Choose the appointment length, then create the event with Save & publish."}</small>
           </label>
           <label>
             Capacity
