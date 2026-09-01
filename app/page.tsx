@@ -15224,13 +15224,18 @@ function CRMCompensation({
     commission_rate_bps?: number;
     commission_status?: string;
   };
+  type CommissionRule = { id:string; service_name:string; applies_to:string; percentage_bps:number; active:number };
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [rules, setRules] = useState<CommissionRule[]>([]);
+  const [newRule, setNewRule] = useState({ serviceName:"", appliesTo:"", percentage:"" });
   const [service, setService] = useState<Record<string, string>>({});
   const load = async () => {
-    const r = await fetch("/api/crm/opportunities?compensation=1", { cache: "no-store" });
+    const [r, rr] = await Promise.all([fetch("/api/crm/opportunities?compensation=1", { cache: "no-store" }), fetch("/api/crm/commission-rules", { cache:"no-store" })]);
     const d = (await r.json()) as { opportunities?: Deal[]; error?: string };
+    const rd = (await rr.json()) as { rules?: CommissionRule[]; error?: string };
     if (!r.ok) return onFlash(d.error || "Commissions could not load");
     setDeals(d.opportunities || []);
+    if (rr.ok) setRules(rd.rules || []);
   };
   useEffect(() => { void load(); }, [isOwner]);
   const rate = (deal: Deal) => {
@@ -15290,6 +15295,24 @@ function CRMCompensation({
     await load();
     onFlash("Commission and payout saved");
   };
+  const saveRule = async (rule: CommissionRule) => {
+    const response = await fetch("/api/crm/commission-rules", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:rule.id, serviceName:rule.service_name, appliesTo:rule.applies_to, percentage:rule.percentage_bps/100, active:Boolean(rule.active) }) });
+    const data = await response.json() as { error?:string };
+    if (!response.ok) return onFlash(data.error || "Rule could not be saved");
+    await load(); onFlash("Commission service updated");
+  };
+  const addRule = async () => {
+    const response = await fetch("/api/crm/commission-rules", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ ...newRule, percentage:Number(newRule.percentage) }) });
+    const data = await response.json() as { error?:string };
+    if (!response.ok) return onFlash(data.error || "Service could not be added");
+    setNewRule({ serviceName:"", appliesTo:"", percentage:"" }); await load(); onFlash("Commission service added");
+  };
+  const removeRule = async (id:string) => {
+    if (!window.confirm("Delete this commission service?")) return;
+    const response = await fetch(`/api/crm/commission-rules?id=${encodeURIComponent(id)}`, { method:"DELETE" });
+    if (!response.ok) return onFlash("Service could not be deleted");
+    await load(); onFlash("Commission service deleted");
+  };
   return (
     <div className="financeWorkspace">
       <section className="financeHero crmPanel">
@@ -15303,22 +15326,22 @@ function CRMCompensation({
         </div>
         <button onClick={exportCsv}>↓ Download payout data</button>
       </section>
-      <section className="crmPanel payoutRules">
-        <div>
-          <b>20%</b>
-          <span>Under $5,000</span>
+      <section className="crmPanel commissionRuleStudio">
+        <header><div><small>SERVICE PAYOUT RULES</small><h3>Edit every service, percentage, and purpose</h3></div><span>{rules.filter(r=>r.active).length} active rules</span></header>
+        <div className="commissionRuleList">
+          {rules.map((rule,index)=><article key={rule.id}>
+            <label><span>Service</span><input value={rule.service_name} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,service_name:e.target.value}:item))}/></label>
+            <label className="rulePurpose"><span>What this payout is for</span><input value={rule.applies_to} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,applies_to:e.target.value}:item))}/></label>
+            <label><span>Percentage</span><div className="percentageInput"><input type="number" min="0" max="100" step="0.25" value={rule.percentage_bps/100} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,percentage_bps:Math.round(Number(e.target.value)*100)}:item))}/><b>%</b></div></label>
+            <label className="ruleToggle"><input type="checkbox" checked={Boolean(rule.active)} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,active:e.target.checked?1:0}:item))}/><span>Active</span></label>
+            <div className="ruleActions"><button onClick={()=>void saveRule(rule)}>Save</button><button className="dangerText" onClick={()=>void removeRule(rule.id)}>Delete</button></div>
+          </article>)}
         </div>
-        <div>
-          <b>25%</b>
-          <span>$5,000–$9,999</span>
-        </div>
-        <div>
-          <b>30%</b>
-          <span>$10,000+</span>
-        </div>
-        <div>
-          <b>50%</b>
-          <span>Website/landing page · month one</span>
+        <div className="commissionRuleAdd">
+          <input placeholder="New service name" value={newRule.serviceName} onChange={e=>setNewRule({...newRule,serviceName:e.target.value})}/>
+          <input placeholder="What the commission is for" value={newRule.appliesTo} onChange={e=>setNewRule({...newRule,appliesTo:e.target.value})}/>
+          <input aria-label="New commission percentage" type="number" min="0" max="100" placeholder="%" value={newRule.percentage} onChange={e=>setNewRule({...newRule,percentage:e.target.value})}/>
+          <button onClick={()=>void addRule()}>＋ Add service</button>
         </div>
       </section>
       <section className="crmPanel payoutLedger">
@@ -15734,7 +15757,7 @@ function CRMSalesPlaybooks({
               key={row.id}
             >
               <span>
-                <i>{row.channel[0]}</i>
+                <i>{row.channel}</i>
                 <b>{row.name}</b>
                 <small>
                   {row.category} · {row.stage}
@@ -16992,6 +17015,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
           <div>
             <small>OWNER CONTROLS</small>
             <h2>{editingEmail ? "Update team member" : "Add a team member"}</h2>
+            <p>Set role, workspace visibility, record actions, and calendar access in one place.</p>
           </div>
         </div>
         {currentMember && (
@@ -17065,20 +17089,13 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
             <h2>Who can access what</h2>
           </div>
         </div>
-        {members.map((member) => (
-          <div className="memberAccessRow" key={member.email}>
-            <span>
-              <b>{member.display_name}</b>
-              <small>
-                {member.email} · {member.role}
-              </small>
-            </span>
-            <span>
-              {member.crm_access ? "CRM " : ""}
-              {member.calendar_access ? "Calendar " : ""}
-              {member.prospecting_access ? "Prospecting" : ""}
-              <small>{member.google_calendar_email ? `Google: ${member.google_calendar_email}` : "Google Calendar not connected"}</small>
-            </span>
+        <div className="teamMemberGrid">{members.map((member) => (
+          <article className="memberAccessRow" key={member.email}>
+            <header><span><b>{member.display_name}</b><small>{member.email}</small></span><em>{member.role.replaceAll("_", " ")}</em></header>
+            <div className="memberPermissionBadges">
+              {member.crm_access ? <span>CRM</span> : null}{member.calendar_access ? <span>Calendar</span> : null}{member.prospecting_access ? <span>Prospecting</span> : null}{member.compensation_access ? <span>Compensation</span> : null}{member.manage_users ? <span>Team admin</span> : null}
+            </div>
+            <div className="memberCalendarStatus"><small>CALENDAR CONNECTION</small><b>{member.google_calendar_email || "Not connected"}</b><p>{member.email === currentMember?.email ? "Connect or refresh your calendar now." : "This teammate connects their own Google account after signing in."}</p></div>
             <div className="memberAccessActions">
               <button onClick={() => { setEditingEmail(member.email); setForm({ email:member.email, displayName:member.display_name, role:member.role, crmAccess:Boolean(member.crm_access), calendarAccess:Boolean(member.calendar_access), prospectingAccess:Boolean(member.prospecting_access), manageUsers:Boolean(member.manage_users), active:Boolean(member.active),canCreate:Boolean(member.can_create),canEdit:Boolean(member.can_edit),canDelete:Boolean(member.can_delete),canExport:Boolean(member.can_export),compensationAccess:Boolean(member.compensation_access),invoiceAccess:Boolean(member.invoice_access),contractAccess:Boolean(member.contract_access),attributionAccess:Boolean(member.attribution_access),workAccess:Boolean(member.work_access) }); }}>Edit permissions</button>
               {member.email === currentMember?.email ? <button onClick={() => { window.location.href="/api/integrations/google-calendar/connect"; }}>Connect my Google</button> : <button onClick={() => onFlash(`${member.display_name} must sign in and click Connect my Google Calendar`)}>Calendar setup</button>}
@@ -17091,8 +17108,8 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
             >
               Delete user
             </button>
-          </div>
-        ))}
+          </article>
+        ))}</div>
       </section>
     </div>
   );

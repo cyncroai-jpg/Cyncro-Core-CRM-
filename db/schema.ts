@@ -231,3 +231,14 @@ export const crmFormFiles = sqliteTable("crm_form_files", {
   id: text("id").primaryKey(), submissionId: text("submission_id").notNull().references(() => crmFormSubmissions.id), questionId: text("question_id"), filename: text("filename").notNull(),
   contentType: text("content_type").notNull(), objectKey: text("object_key").notNull(), sizeBytes: integer("size_bytes").notNull(), createdAt: text("created_at").notNull(),
 }, (table) => [index("idx_form_files_submission_id").on(table.submissionId)]);
+
+export const crmCommissionRules = sqliteTable("crm_commission_rules", {
+  id: text("id").primaryKey(),
+  serviceName: text("service_name").notNull(),
+  appliesTo: text("applies_to").notNull(),
+  percentageBps: integer("percentage_bps").notNull(),
+  active: integer("active").notNull().default(1),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [index("idx_commission_rules_sort").on(table.sortOrder)]);
