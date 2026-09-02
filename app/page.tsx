@@ -37,8 +37,10 @@ export default function Home() {
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
+  const roadmapTabs: Tab[] = ["messages","dispatch","dispute","finance","apex","sign","form","prime"];
   const canAccess = (destination: Tab) =>
     destination === "home" ||
+    roadmapTabs.includes(destination) ||
     !permissions ||
     permissions.role === "OWNER" ||
     (destination === "crm" && Boolean(permissions.crm_access)) ||
@@ -103,7 +105,7 @@ export default function Home() {
   }, []);
   return (
     <main
-      className="cyncroApp readable themeDark"
+      className="cyncroApp readable themeDark launchFocused"
     >
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => navigate("home")}>
@@ -112,17 +114,9 @@ export default function Home() {
         <nav>
           {[
             ["home", "Overview"],
-            ["book", "Booking experience"],
-            ["studio", "Core Studio"],
             ["crm", "Cyncro CRM"],
-            ["messages", "Messages"],
+            ["admin", "Calendar"],
             ["prospecting", "Prospecting"],
-            ["dispatch", "Dispatch"],
-            ["dispute", "Dispute"],
-            ["finance", "Finance"],
-            ["apex", "Apex Funds"],
-            ["prime", "Prime AI"],
-            ["admin", "Operations"],
           ]
             .filter((x) => canAccess(x[0] as Tab))
             .map((x) => (
@@ -134,7 +128,7 @@ export default function Home() {
                 {x[1]}
               </button>
             ))}
-          <span>● DEMO LIVE</span>
+          <span>● CORE BETA</span>
         </nav>
       </header>
       {tab === "home" ? (
@@ -155,23 +149,23 @@ export default function Home() {
           isOwner={!permissions || permissions.role === "OWNER"}
         />
       ) : tab === "messages" ? (
-        <CyncroMessagesComingSoon />
+        <CyncroComingSoonGate product="Cyncro Messages + Social Automation" />
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
-        <CyncroDispatch />
+        <CyncroComingSoonGate product="Cyncro Dispatch" />
       ) : tab === "dispute" ? (
-        <CyncroDispute />
+        <CyncroComingSoonGate product="Cyncro Dispute" />
       ) : tab === "finance" ? (
-        <CyncroFinance />
+        <CyncroComingSoonGate product="Cyncro Finance" />
       ) : tab === "apex" ? (
-        <ApexFunds />
+        <CyncroComingSoonGate product="Apex Funds" />
       ) : tab === "sign" ? (
-        <ContractSigning />
+        <CyncroComingSoonGate product="Cyncro Contracts" />
       ) : tab === "form" ? (
-        <CyncroFormClient />
+        <CyncroComingSoonGate product="Cyncro Forms" />
       ) : tab === "prime" ? (
-        <CyncroPrime />
+        <CyncroComingSoonGate product="Cyncro Prime AI" />
       ) : tab === "admin" ? (
         <Admin onCreate={() => navigate("studio")} />
       ) : (
@@ -925,6 +919,27 @@ function ContractSigning() {
   );
 }
 
+function CyncroComingSoonGate({ product }: { product: string }) {
+  return (
+    <section className="comingSoonGate">
+      <div className="comingSoonGateCard">
+        <button className="comingSoonBrand" onClick={() => { window.location.hash = ""; }}><i>Cyncro</i> Core</button>
+        <span className="comingSoonStatus">PRIVATE PRODUCT ROADMAP</span>
+        <h1>{product}</h1>
+        <h2>Coming soon.</h2>
+        <p>This workspace is preserved in Cyncro and remains locked while we launch CRM, Calendar, and Prospecting first.</p>
+        <div className="comingSoonLogin">
+          <label>Private beta email<input type="email" placeholder="Access is not open yet" disabled /></label>
+          <label>Access key<input type="password" placeholder="••••••••••••" disabled /></label>
+          <button disabled>Private beta not open</button>
+        </div>
+        <div className="comingSoonLiveProducts"><small>AVAILABLE NOW</small><span>CRM</span><span>Calendar</span><span>Prospecting</span></div>
+        <button className="comingSoonBack" onClick={() => { window.location.hash = "crm"; }}>← Return to Cyncro Core</button>
+      </div>
+    </section>
+  );
+}
+
 function PublicBookingExperience() {
   type EventType = {
     id: string;
@@ -1357,7 +1372,7 @@ function FrontExperience({
       image: "/module-images/cyncro-crm.webp",
       imageAlt:
         "Customer intelligence command center with pipeline and relationship signals",
-      route: "crm" as Tab,
+      route: "messages" as Tab,
       action: "Open Cyncro CRM",
     },
     {
@@ -1506,6 +1521,7 @@ function FrontExperience({
       action: "See social automation",
     },
   ];
+  const liveLaunchModules = new Set(["Universal Calendar", "Cyncro CRM", "Cyncro Prospecting AI"]);
   const active = journeys[journey];
   const platformComparison = [
     {
@@ -1882,7 +1898,7 @@ function FrontExperience({
               <div className="moduleCardHead">
                 <span>0{index + 1}</span>
                 <small>{module.label}</small>
-                <i>CONNECTED</i>
+                <i>{liveLaunchModules.has(module.name) ? "LIVE BETA" : "COMING SOON"}</i>
               </div>
               <h3>{module.name}</h3>
               <figure className="moduleVisual">
@@ -1892,7 +1908,7 @@ function FrontExperience({
                   decoding="async"
                 />
                 <figcaption>
-                  <span>LIVE PRODUCT ENVIRONMENT</span>
+                  <span>{liveLaunchModules.has(module.name) ? "LIVE PRODUCT ENVIRONMENT" : "PRIVATE ROADMAP PREVIEW"}</span>
                   <i>◆ CYNCRO CORE</i>
                 </figcaption>
               </figure>
@@ -1910,7 +1926,7 @@ function FrontExperience({
                   <span>{module.proofLabel}</span>
                 </div>
                 <button onClick={() => onNavigate(module.route)}>
-                  {module.action} <span>↗</span>
+                  {liveLaunchModules.has(module.name) ? module.action : "View coming soon"} <span>↗</span>
                 </button>
               </div>
             </article>
@@ -11183,7 +11199,8 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const views=allViews.filter(item=>!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission]));
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Access","Forms","Sales Playbooks","Integrations"]);
+  const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
       {notice && <div className="crmToast">✓ {notice}</div>}
@@ -11219,15 +11236,6 @@ function UniversalCRM({
             <i>□</i>
             <span>Calendar</span>
             <em className="liveDot">Live</em>
-          </button>
-          <button onClick={() => flash("Payments opened")}>
-            <i>◇</i>
-            <span>Payments</span>
-            <em>$12.9K</em>
-          </button>
-          <button onClick={() => setView("Attribution")}>
-            <i>⌁</i>
-            <span>Attribution</span>
           </button>
         </nav>
         <button className="crmAgent" onClick={() => setAiOpen(true)}>
@@ -11515,12 +11523,12 @@ function UniversalCRM({
                       </div>
                     ))}
                 </article>
-                <article className="crmPanel crmLaunchpad">
+                <article className="crmPanel crmLaunchpad launchDeferred">
                   <div className="crmPanelHead"><div><small>REVENUE TRUTH</small><h2>Cyncro Attribution</h2></div><button onClick={() => setView("Attribution")}>Open attribution →</button></div>
                   <p>Connect every click, call, form, booking, invoice, and payment to the revenue it created.</p>
                   <div><span>FIRST-PARTY TRACKING</span><span>MULTI-TOUCH ROAS</span><span>OFFLINE CONVERSIONS</span></div>
                 </article>
-                <article className="crmPanel crmLaunchpad">
+                <article className="crmPanel crmLaunchpad launchDeferred">
                   <div className="crmPanelHead"><div><small>TEAM EXECUTION</small><h2>Cyncro Work</h2></div><button onClick={() => setView("Cyncro Work")}>Open workboard →</button></div>
                   <p>Individual rep queues, shared boards, ownership, deadlines, dependencies, and manager workload in one place.</p>
                   <div><span>CLAIMABLE WORK</span><span>REP QUEUES</span><span>TEAM CAPACITY</span></div>
