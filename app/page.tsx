@@ -34,12 +34,14 @@ export default function Home() {
       prospecting_access: number;
     } | null>(null),
     [chatUnreadTotal, setChatUnreadTotal] = useState(0),
+    [homeNotice, setHomeNotice] = useState(""),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
-  const roadmapTabs: Tab[] = ["messages","dispatch","dispute","finance","apex","sign","form","prime"];
+  const homeFlash = (msg: string) => { setHomeNotice(msg); window.setTimeout(() => setHomeNotice(""), 2200); };
+  const roadmapTabs: Tab[] = [];
 
   const canAccess = (destination: Tab) =>
     destination === "home" ||
@@ -134,6 +136,14 @@ export default function Home() {
             ["admin", "Calendar"],
             ["prospecting", "Prospecting"],
             ["chat", "Team Chat"],
+            ["messages", "Messages"],
+            ["dispatch", "Dispatch"],
+            ["dispute", "Dispute"],
+            ["finance", "Finance"],
+            ["apex", "Apex Funds"],
+            ["sign", "Contracts"],
+            ["form", "Forms"],
+            ["prime", "Prime AI"],
           ]
             .filter((x) => canAccess(x[0] as Tab))
             .map((x) => (
@@ -152,12 +162,16 @@ export default function Home() {
         </nav>
       </header>
       {tab === "home" ? (
+        permissions ? (
+          <LiveHomeDashboard onNavigate={navigate} />
+        ) : (
         <FrontExperience
           onExperience={() => navigate("book")}
           onPlatform={() => navigate("studio")}
           onOperations={() => navigate("admin")}
           onNavigate={navigate}
         />
+        )
       ) : tab === "book" ? (
         <PublicBookingExperience />
       ) : tab === "studio" ? (
@@ -171,23 +185,32 @@ export default function Home() {
       ) : tab === "chat" ? (
         <TeamChat />
       ) : tab === "messages" ? (
-        <CyncroComingSoonGate product="Cyncro Messages + Social Automation" />
+        <>
+          {homeNotice && <div className="globalFlash">{homeNotice}</div>}
+          <CRMSocialAutomations onFlash={homeFlash} />
+        </>
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
-        <CyncroComingSoonGate product="Cyncro Dispatch" />
+        <CyncroDispatch />
       ) : tab === "dispute" ? (
-        <CyncroComingSoonGate product="Cyncro Dispute" />
+        <CyncroDispute />
       ) : tab === "finance" ? (
-        <CyncroComingSoonGate product="Cyncro Finance" />
+        <CyncroFinance />
       ) : tab === "apex" ? (
-        <CyncroComingSoonGate product="Apex Funds" />
+        <ApexFunds />
       ) : tab === "sign" ? (
-        <CyncroComingSoonGate product="Cyncro Contracts" />
+        <>
+          {homeNotice && <div className="globalFlash">{homeNotice}</div>}
+          <CRMContracts onFlash={homeFlash} />
+        </>
       ) : tab === "form" ? (
-        <CyncroComingSoonGate product="Cyncro Forms" />
+        <>
+          {homeNotice && <div className="globalFlash">{homeNotice}</div>}
+          <CRMForms onFlash={homeFlash} />
+        </>
       ) : tab === "prime" ? (
-        <CyncroComingSoonGate product="Cyncro Prime AI" />
+        <CyncroPrime />
       ) : tab === "admin" ? (
         <Admin onCreate={() => navigate("studio")} />
       ) : (
@@ -1311,6 +1334,120 @@ function PublicBookingExperience() {
           </>
         )}
       </main>
+    </section>
+  );
+}
+
+function LiveHomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+  type DashData = {
+    crm?: { accounts?: number; contacts?: number; opportunities?: number; pipeline_cents?: number; won_cents?: number; new_contacts_week?: number };
+    bookings?: { today_count?: number; confirmed?: number };
+    tasks?: { open_tasks?: number; done_tasks?: number; overdue?: number };
+    chatUnread?: { total?: number };
+    recentActivity?: { activity_type?: string; title?: string; contact_name?: string; created_at?: string }[];
+    upcomingBookings?: { event_type_name?: string; attendee_name?: string; starts_at?: string; status?: string }[];
+    recentContacts?: { id?: string; full_name?: string; email?: string; lifecycle?: string; company?: string; created_at?: string }[];
+  };
+  const [data, setData] = React.useState<DashData>({});
+  const [loading, setLoading] = React.useState(true);
+  const fmt = (cents: number | undefined) => cents !== undefined ? `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—";
+  const hours = new Date().getHours();
+  const greeting = hours < 12 ? "Good morning." : hours < 17 ? "Good afternoon." : "Good evening.";
+  React.useEffect(() => {
+    void fetch("/api/dashboard").then(async r => {
+      if (!r.ok) { setLoading(false); return; }
+      const d = await r.json() as DashData;
+      setData(d); setLoading(false);
+    });
+    const timer = window.setInterval(() => void fetch("/api/dashboard").then(async r => { if (!r.ok) return; setData(await r.json() as DashData); }), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const modules: { tab: Tab; icon: string; label: string; desc: string }[] = [
+    { tab: "crm", icon: "◎", label: "CRM", desc: "Contacts, pipeline, activities" },
+    { tab: "admin", icon: "◷", label: "Calendar", desc: "Appointments & availability" },
+    { tab: "prospecting", icon: "◫", label: "Prospecting", desc: "AI lead discovery" },
+    { tab: "chat", icon: "◌", label: "Team Chat", desc: "Internal messaging" },
+    { tab: "messages", icon: "⌁", label: "Messages", desc: "Social & email flows" },
+    { tab: "dispatch", icon: "▦", label: "Dispatch", desc: "Jobs & field operations" },
+    { tab: "dispute", icon: "◈", label: "Dispute", desc: "Credit case management" },
+    { tab: "finance", icon: "$", label: "Finance", desc: "Deals, commissions, payouts" },
+    { tab: "apex", icon: "✦", label: "Apex Funds", desc: "Lender deal pipeline" },
+    { tab: "sign", icon: "▤", label: "Contracts", desc: "e-Signatures & agreements" },
+    { tab: "form", icon: "▥", label: "Forms", desc: "Client intake & questionnaires" },
+    { tab: "prime", icon: "⌂", label: "Prime AI", desc: "AI operating system" },
+  ];
+  return (
+    <section className="liveDash">
+      <div className="liveDashHero">
+        <div>
+          <p className="eyebrow">CYNCRO CORE · COMMAND CENTER</p>
+          <h1>{greeting}</h1>
+          <p>{loading ? "Loading your workspace…" : `${data.crm?.contacts ?? 0} contacts · ${data.crm?.opportunities ?? 0} opportunities · ${fmt(data.crm?.pipeline_cents)} pipeline`}</p>
+        </div>
+        <button className="crmPrimaryBtn" onClick={() => onNavigate("crm")}>Open CRM →</button>
+      </div>
+      {!loading && (
+        <div className="liveDashStats">
+          {[
+            { label: "Contacts", value: data.crm?.contacts ?? 0, sub: `+${data.crm?.new_contacts_week ?? 0} this week` },
+            { label: "Pipeline", value: fmt(data.crm?.pipeline_cents), sub: `${fmt(data.crm?.won_cents)} won` },
+            { label: "Today's Bookings", value: data.bookings?.today_count ?? 0, sub: `${data.bookings?.confirmed ?? 0} confirmed` },
+            { label: "Open Tasks", value: data.tasks?.open_tasks ?? 0, sub: `${data.tasks?.overdue ?? 0} overdue` },
+            { label: "Chat Unread", value: data.chatUnread?.total ?? 0, sub: "messages waiting" },
+            { label: "Accounts", value: data.crm?.accounts ?? 0, sub: "companies tracked" },
+          ].map(s => (
+            <article key={s.label} className="liveDashStat">
+              <b>{s.value}</b>
+              <span>{s.label}</span>
+              <small>{s.sub}</small>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="liveDashGrid">
+        <div className="liveDashPanel">
+          <header><b>Recent Activity</b></header>
+          {(data.recentActivity || []).length ? (data.recentActivity || []).map((a, i) => (
+            <div key={i} className="agendaRow">
+              <i style={{ fontSize: 18 }}>◌</i>
+              <div><b>{a.title}</b><small>{a.contact_name} · {a.activity_type}</small></div>
+              <span>{a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</span>
+            </div>
+          )) : <p className="noProspects">No recent activity.</p>}
+        </div>
+        <div className="liveDashPanel">
+          <header><b>Upcoming Bookings</b></header>
+          {(data.upcomingBookings || []).length ? (data.upcomingBookings || []).map((b, i) => (
+            <div key={i} className="agendaRow">
+              <i style={{ fontSize: 18 }}>◷</i>
+              <div><b>{b.attendee_name || "Guest"}</b><small>{b.event_type_name}</small></div>
+              <span>{b.starts_at ? new Date(b.starts_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+            </div>
+          )) : <p className="noProspects">No upcoming bookings.</p>}
+        </div>
+        <div className="liveDashPanel">
+          <header><b>Recent Contacts</b></header>
+          {(data.recentContacts || []).length ? (data.recentContacts || []).map((c, i) => (
+            <div key={i} className="agendaRow">
+              <div className="contactAvatar" style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}>{(c.full_name || "?")[0]}</div>
+              <div><b>{c.full_name}</b><small>{c.company || c.email}</small></div>
+              <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{c.lifecycle || "LEAD"}</span>
+            </div>
+          )) : <p className="noProspects">No contacts yet.</p>}
+        </div>
+      </div>
+      <div className="liveDashModules">
+        <p className="eyebrow" style={{ margin: "0 0 12px" }}>QUICK ACCESS · ALL MODULES</p>
+        <div className="liveDashModuleGrid">
+          {modules.map(m => (
+            <button key={m.tab} className="liveDashModule" onClick={() => onNavigate(m.tab)}>
+              <i>{m.icon}</i>
+              <span>{m.label}</span>
+              <small>{m.desc}</small>
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
