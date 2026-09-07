@@ -192,7 +192,7 @@ export default function Home() {
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
-        <CyncroDispatch />
+        <CyncroDispatch onNavigate={navigate} />
       ) : tab === "dispute" ? (
         <CyncroDispute />
       ) : tab === "finance" ? (
@@ -7767,7 +7767,7 @@ const dispatchJobs = [
   },
 ];
 
-function CyncroDispatch() {
+function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const [authenticated, setAuthenticated] = useState(false);
   const [role, setRole] = useState<DispatchRole>("Owner");
   const [view, setView] = useState<DispatchView>("Dashboard");
@@ -8265,12 +8265,12 @@ function CyncroDispatch() {
         </nav>
         <div className="dispatchSideSystem">
           <small>CONNECTED PLATFORM</small>
-          <button onClick={() => flash("Cyncro CRM opened")}>
+          <button onClick={() => onNavigate ? onNavigate("crm") : (window.location.hash = "#crm")}>
             <i>◫</i>
             <span>Cyncro CRM</span>
             <em>↗</em>
           </button>
-          <button onClick={() => flash("Universal Calendar opened")}>
+          <button onClick={() => onNavigate ? onNavigate("admin") : (window.location.hash = "#admin")}>
             <i>□</i>
             <span>Calendar</span>
             <em>↗</em>
@@ -11189,6 +11189,9 @@ function UniversalCRM({
     [importRows, setImportRows] = useState<Record<string,string>[]>([]),
     [importFileName, setImportFileName] = useState(""),
     [aiOpen, setAiOpen] = useState(false),
+    [aiQuery, setAiQuery] = useState(""),
+    [aiMessages, setAiMessages] = useState<{role:"user"|"assistant";text:string}[]>([{role:"assistant",text:"Ask me anything about your contacts, pipeline, bookings, or tasks."}]),
+    [aiLoading, setAiLoading] = useState(false),
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
     [currentAccess,setCurrentAccess]=useState<Record<string,unknown>>({role:"OWNER",manage_users:1,can_create:1,can_edit:1,can_delete:1,can_export:1,compensation_access:1,invoice_access:1,contract_access:1,attribution_access:1,work_access:1}),
@@ -12046,35 +12049,64 @@ function UniversalCRM({
             </div>
             <button onClick={() => setAiOpen(false)}>×</button>
           </div>
-          <div className="aiConversation">
-            <div className="aiPrompt">What needs my attention today?</div>
-            <div className="aiAnswer">
-              <span>✦</span>
-              <p>
-                You have <b>$62,500</b> in high-intent opportunities. Daniel Kim
-                should be contacted first; his payment activity makes him 3.2×
-                more likely to close today. I can draft the message, create the
-                task, and update the opportunity.
-              </p>
-            </div>
+          <div className="aiConversation" id="aiConvoScroll">
+            {aiMessages.map((m, i) => m.role === "user" ? (
+              <div key={i} className="aiPrompt">{m.text}</div>
+            ) : (
+              <div key={i} className="aiAnswer">
+                <span>✦</span>
+                <p dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>") }} />
+              </div>
+            ))}
+            {aiLoading && <div className="aiAnswer"><span>✦</span><p style={{color:"#666"}}>Analyzing your workspace…</p></div>}
           </div>
           <div className="aiSuggestions">
-            {[
-              "Draft Daniel’s follow-up",
-              "Show at-risk deals",
-              "Build today’s call list",
-            ].map((item) => (
-              <button onClick={() => flash(`${item} · ready`)} key={item}>
+            {["Who should I call today?", "Show at-risk deals", "What’s overdue?"].map((item) => (
+              <button key={item} onClick={() => {
+                setAiQuery(item);
+                const msgs = [...aiMessages, {role:"user" as const,text:item}];
+                setAiMessages(msgs);
+                setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:item})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer right now."}]);})
+                  .finally(()=>setAiLoading(false));
+                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
+              }}>
                 {item}
               </button>
             ))}
           </div>
           <div className="aiComposer">
-            <input placeholder="Ask about any contact, deal, booking, or metric…" />
-            <button onClick={() => flash("Command processed")}>↑</button>
+            <input
+              value={aiQuery}
+              onChange={e => setAiQuery(e.target.value)}
+              placeholder="Ask about any contact, deal, booking, or metric…"
+              onKeyDown={e => {
+                if (e.key !== "Enter" || !aiQuery.trim() || aiLoading) return;
+                const q = aiQuery.trim();
+                const msgs = [...aiMessages, {role:"user" as const,text:q}];
+                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
+                  .finally(()=>setAiLoading(false));
+                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
+              }}
+            />
+            <button
+              disabled={!aiQuery.trim() || aiLoading}
+              onClick={() => {
+                if (!aiQuery.trim() || aiLoading) return;
+                const q = aiQuery.trim();
+                const msgs = [...aiMessages, {role:"user" as const,text:q}];
+                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
+                  .finally(()=>setAiLoading(false));
+              }}
+            >↑</button>
           </div>
           <small className="aiPermission">
-            Cyncro asks before taking external actions.
+            Cyncro reads your live pipeline data to answer.
           </small>
         </div>
       )}
