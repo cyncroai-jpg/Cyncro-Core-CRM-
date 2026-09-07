@@ -33,6 +33,7 @@ export default function Home() {
       calendar_access: number;
       prospecting_access: number;
     } | null>(null),
+    [chatUnreadTotal, setChatUnreadTotal] = useState(0),
     [step, setStep] = useState(1),
     [location, setLocation] = useState(""),
     [time, setTime] = useState(""),
@@ -95,6 +96,17 @@ export default function Home() {
     };
   }, []);
   useEffect(() => {
+    const loadUnread = () => void fetch("/api/chat/channels").then(async r => {
+      if (!r.ok) return;
+      const d = await r.json() as { channels?: { unread_count?: number }[] };
+      setChatUnreadTotal((d.channels || []).reduce((sum, c) => sum + Number(c.unread_count || 0), 0));
+    });
+    loadUnread();
+    const timer = window.setInterval(loadUnread, 15000);
+    window.addEventListener("cyncro:data-changed", loadUnread);
+    return () => { window.clearInterval(timer); window.removeEventListener("cyncro:data-changed", loadUnread); };
+  }, []);
+  useEffect(() => {
     void fetch("/api/access").then(async (response) => {
       const data = (await response.json()) as {
         member?: {
@@ -131,6 +143,9 @@ export default function Home() {
                 key={x[0]}
               >
                 {x[1]}
+                {x[0] === "chat" && chatUnreadTotal > 0 && (
+                  <span className="navUnreadBadge">{chatUnreadTotal > 99 ? "99+" : chatUnreadTotal}</span>
+                )}
               </button>
             ))}
           <span>● CORE BETA</span>
@@ -10953,6 +10968,73 @@ type CRMContactCard = {
   website: string;
 };
 
+function QuickCompanyForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [name, setName] = React.useState(""), [domain, setDomain] = React.useState(""), [address, setAddress] = React.useState(""), [saving, setSaving] = React.useState(false);
+  const submit = async () => {
+    if (!name.trim()) { onFlash("Company name is required"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), domain, address, source: "CRM" }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Company could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "created" } }));
+    onFlash(`${name.trim()} added to your account directory`);
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Company name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Acme Corp" autoFocus/></label><label>Domain / website<input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="acme.com"/></label><label>Business address<input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123 Main St, City, State"/></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Create company"}</button></div></>);
+}
+
+function QuickOpportunityForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [name, setName] = React.useState(""), [company, setCompany] = React.useState(""), [value, setValue] = React.useState(""), [stage, setStage] = React.useState("NEW"), [saving, setSaving] = React.useState(false);
+  const submit = async () => {
+    if (!company.trim()) { onFlash("Company name is required"); return; }
+    setSaving(true);
+    const acctResp = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: company.trim(), source: "CRM" }) });
+    const acctData = await acctResp.json() as { account?: { id: string }; error?: string };
+    if (!acctResp.ok || !acctData.account) { setSaving(false); onFlash(acctData.error || "Account could not be created"); return; }
+    const oppResp = await fetch("/api/crm/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: acctData.account.id, name: name.trim() || `${company.trim()} opportunity`, stage, value: Number(value) || 0, probability: 25, source: "CRM" }) });
+    const oppData = await oppResp.json() as { error?: string };
+    setSaving(false);
+    if (!oppResp.ok) { onFlash(oppData.error || "Opportunity could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "created" } }));
+    onFlash("Opportunity added to pipeline");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Deal name<input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Acme Corp – Q4 Media Package" autoFocus/></label><label>Company<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company name" required/></label><label>Value<input type="number" value={value} onChange={e=>setValue(e.target.value)} placeholder="0"/></label><label>Stage<select value={stage} onChange={e=>setStage(e.target.value)}><option value="NEW">New</option><option value="QUALIFIED">Qualified</option><option value="PROPOSAL">Proposal</option><option value="NEGOTIATION">Negotiation</option><option value="CLOSED WON">Closed Won</option></select></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Add to pipeline"}</button></div></>);
+}
+
+function QuickTaskForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [title, setTitle] = React.useState(""), [details, setDetails] = React.useState(""), [dueAt, setDueAt] = React.useState(""), [saving, setSaving] = React.useState(false);
+  const submit = async () => {
+    if (!title.trim()) { onFlash("Task title is required"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activityType: "TASK", title: title.trim(), details, dueAt }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Task could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created" } }));
+    onFlash("Task added to your work queue");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Task title<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What needs to be done?" autoFocus/></label><label>Details<textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Context, definition of done, customer info…"/></label><label>Due date<input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)}/></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Create task"}</button></div></>);
+}
+
+function QuickNoteForm({ onFlash, contacts, onDone, onCancel }: { onFlash:(m:string)=>void; contacts:CRMContactCard[]; onDone:()=>void; onCancel:()=>void }) {
+  const [body, setBody] = React.useState(""), [contactId, setContactId] = React.useState(""), [saving, setSaving] = React.useState(false);
+  const submit = async () => {
+    if (!body.trim()) { onFlash("Write your note first"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contactId || null, activityType: "NOTE", title: body.trim().slice(0, 80), details: body.trim() }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Note could not be saved"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created" } }));
+    onFlash("Note saved");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Note<textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Write anything about a contact, deal, or call…" autoFocus rows={4}/></label><label>Link to contact (optional)<select value={contactId} onChange={e=>setContactId(e.target.value)}><option value="">No contact</option>{contacts.map(c=><option key={c.id} value={c.id||""}>{c.name} · {c.company}</option>)}</select></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Save note"}</button></div></>);
+}
+
 function UniversalCRM({
   onOpenCalendar,
   onOpenProspecting,
@@ -10981,6 +11063,9 @@ function UniversalCRM({
     [contactsLoaded, setContactsLoaded] = useState(false),
     [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set()),
     [contactRecordOpen,setContactRecordOpen]=useState(false),
+    [createType, setCreateType] = useState<"Contact"|"Company"|"Opportunity"|"Task"|"Note">("Contact"),
+    [notificationsOpen, setNotificationsOpen] = useState(false),
+    [notifications, setNotifications] = useState<{id:string;title:string;body?:string;read_at?:string;created_at:string}[]>([]),
     [contactForm, setContactForm] = useState({
       fullName: "",
       company: "",
@@ -11005,6 +11090,14 @@ function UniversalCRM({
     const saved = window.localStorage.getItem("cyncro-crm-user-name");
     if (saved) setCrmUserName(saved);
     void fetch("/api/access").then(r=>r.ok?r.json():null).then(data=>data?.member&&setCurrentAccess(data.member));
+    const loadNotifications = () => void fetch("/api/notifications").then(async r=>{
+      if(!r.ok)return;
+      const d=await r.json() as {notifications?:typeof notifications};
+      setNotifications(d.notifications||[]);
+    });
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(timer);
   }, []);
   const saveCRMUserName = (name: string) => {
     const value = name.trim() || "Team Member";
@@ -11206,7 +11299,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Access","Forms","Sales Playbooks","Integrations"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Access","Compensation","Invoices","Contracts","Forms","Sales Playbooks","Attribution","Cyncro Work","Integrations","Intelligence"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11289,10 +11382,28 @@ function UniversalCRM({
           </div>
           <button
             className="crmIconButton"
-            onClick={() => flash("No new alerts")}
+            onClick={() => setNotificationsOpen(v=>!v)}
+            style={{position:"relative"}}
           >
-            ◌<i />
+            ◌{notifications.filter(n=>!n.read_at).length > 0 && <i style={{position:"absolute",top:2,right:2,background:"#a30e18",borderRadius:"50%",width:8,height:8,display:"block"}} />}
           </button>
+          {notificationsOpen && (
+            <div className="crmModalBack" onClick={()=>setNotificationsOpen(false)}>
+              <div className="crmModal" style={{maxWidth:420,top:"4rem",right:"1rem",left:"auto",position:"fixed",transform:"none"}} onClick={e=>e.stopPropagation()}>
+                <div className="crmModalHead">
+                  <div><label>ALERTS</label><h2>Notifications</h2></div>
+                  <button onClick={()=>setNotificationsOpen(false)}>×</button>
+                </div>
+                {notifications.length ? notifications.slice(0,10).map(n=>(
+                  <div key={n.id} className="agendaRow" style={{opacity:n.read_at?0.55:1}}>
+                    <i style={{fontSize:18}}>◌</i>
+                    <div><b>{n.title}</b><small>{new Date(n.created_at).toLocaleString()}</small>{n.body&&<p style={{margin:"2px 0 0",fontSize:11}}>{n.body}</p>}</div>
+                    {!n.read_at&&<button onClick={()=>void fetch("/api/notifications",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:n.id,readAt:new Date().toISOString()})}).then(()=>setNotifications(prev=>prev.map(x=>x.id===n.id?{...x,read_at:new Date().toISOString()}:x)))}>Mark read</button>}
+                  </div>
+                )) : <div className="noProspects">No notifications yet.</div>}
+              </div>
+            </div>
+          )}
           <button onClick={openNewAppointment}>＋ New appointment</button>
           <button className="crmCreate" onClick={() => setCreating(true)}>
             ＋ New contact
@@ -11303,7 +11414,7 @@ function UniversalCRM({
           <div className="crmPageHead">
             <div>
               <label>CYNCRO CRM</label>
-              <h1>{view === "Overview" ? "Good afternoon." : view}</h1>
+              <h1>{view === "Overview" ? (()=>{const h=new Date().getHours();return h<12?"Good morning.":h<17?"Good afternoon.":"Good evening."})() : view}</h1>
               <p>
                 {view === "Overview"
                   ? "Every customer signal, opportunity, and next move—organized in real time."
@@ -11663,107 +11774,124 @@ function UniversalCRM({
               <button onClick={() => setCreating(false)}>×</button>
             </div>
             <div className="recordTypes">
-              {["Contact", "Company", "Opportunity", "Task", "Note"].map(
-                (item, index) => (
-                  <button className={index === 0 ? "active" : ""} key={item}>
+              {(["Contact", "Company", "Opportunity", "Task", "Note"] as const).map(
+                (item) => (
+                  <button className={createType === item ? "active" : ""} key={item} onClick={() => setCreateType(item)}>
                     {item}
                   </button>
                 ),
               )}
             </div>
-            <div className="crmForm">
-              <label>
-                Full name
-                <input
-                  value={contactForm.fullName}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      fullName: event.target.value,
-                    })
-                  }
-                  placeholder="Enter contact name"
-                />
-              </label>
-              <label>
-                Company
-                <input
-                  value={contactForm.company}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      company: event.target.value,
-                    })
-                  }
-                  placeholder="Company or organization"
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  value={contactForm.email}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      email: event.target.value,
-                    })
-                  }
-                  placeholder="name@company.com"
-                />
-              </label>
-              <label>
-                Phone
-                <input
-                  value={contactForm.phone}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      phone: event.target.value,
-                    })
-                  }
-                  placeholder="(000) 000-0000"
-                />
-              </label>
-              <label>
-                Source
-                <select
-                  value={contactForm.source}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      source: event.target.value,
-                    })
-                  }
-                >
-                  <option>Booking link</option>
-                  <option>Website</option>
-                  <option>Referral</option>
-                  <option>Manual</option>
-                </select>
-              </label>
-              <label>
-                Lifecycle
-                <select
-                  value={contactForm.lifecycle}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      lifecycle: event.target.value,
-                    })
-                  }
-                >
-                  <option>Lead</option>
-                  <option>Qualified</option>
-                  <option>Customer</option>
-                </select>
-              </label>
-            </div>
+            {createType === "Contact" && (
+              <div className="crmForm">
+                <label>
+                  Full name
+                  <input
+                    value={contactForm.fullName}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        fullName: event.target.value,
+                      })
+                    }
+                    placeholder="Enter contact name"
+                    autoFocus
+                  />
+                </label>
+                <label>
+                  Company
+                  <input
+                    value={contactForm.company}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        company: event.target.value,
+                      })
+                    }
+                    placeholder="Company or organization"
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    value={contactForm.email}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        email: event.target.value,
+                      })
+                    }
+                    placeholder="name@company.com"
+                  />
+                </label>
+                <label>
+                  Phone
+                  <input
+                    value={contactForm.phone}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        phone: event.target.value,
+                      })
+                    }
+                    placeholder="(000) 000-0000"
+                  />
+                </label>
+                <label>
+                  Source
+                  <select
+                    value={contactForm.source}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        source: event.target.value,
+                      })
+                    }
+                  >
+                    <option>Booking link</option>
+                    <option>Website</option>
+                    <option>Referral</option>
+                    <option>Manual</option>
+                  </select>
+                </label>
+                <label>
+                  Lifecycle
+                  <select
+                    value={contactForm.lifecycle}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        lifecycle: event.target.value,
+                      })
+                    }
+                  >
+                    <option>Lead</option>
+                    <option>Qualified</option>
+                    <option>Customer</option>
+                  </select>
+                </label>
+              </div>
+            )}
+            {createType === "Company" && (
+              <QuickCompanyForm onFlash={flash} onDone={() => { setCreating(false); void Promise.all([loadCRMContacts(), loadCRMOverview()]); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Opportunity" && (
+              <QuickOpportunityForm onFlash={flash} onDone={() => { setCreating(false); setView("Pipeline"); void Promise.all([loadCRMContacts(), loadCRMOverview()]); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Task" && (
+              <QuickTaskForm onFlash={flash} onDone={() => { setCreating(false); void loadCRMOverview(); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Note" && (
+              <QuickNoteForm onFlash={flash} contacts={liveContacts} onDone={() => { setCreating(false); void loadCRMOverview(); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Contact" && (
             <div className="crmModalActions">
               <button onClick={() => setCreating(false)}>Cancel</button>
               <button onClick={() => void createContact()}>
                 Create + enrich record
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -16874,7 +17002,7 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
           </ol>
         </div>
         <button className="googleConnectButton" onClick={connectGoogle}>
-          {status?.connections.googleCalendar ? "Connect Google Calendar" : "Set up Google Calendar"}
+          {status?.connections.googleCalendar ? "✓ Connected — Reconnect Google Calendar" : "Connect Google Calendar"}
         </button>
       </section>
       <div className="integrationGrid">
