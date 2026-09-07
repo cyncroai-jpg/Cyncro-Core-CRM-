@@ -15,6 +15,7 @@ type Tab =
   | "admin"
   | "studio"
   | "crm"
+  | "chat"
   | "messages"
   | "prospecting"
   | "dispatch"
@@ -38,12 +39,14 @@ export default function Home() {
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
   const roadmapTabs: Tab[] = ["messages","dispatch","dispute","finance","apex","sign","form","prime"];
+
   const canAccess = (destination: Tab) =>
     destination === "home" ||
     roadmapTabs.includes(destination) ||
     !permissions ||
     permissions.role === "OWNER" ||
     (destination === "crm" && Boolean(permissions.crm_access)) ||
+    (destination === "chat" && Boolean(permissions.crm_access)) ||
     (["book", "admin", "studio"].includes(destination) &&
       Boolean(permissions.calendar_access)) ||
     (destination === "prospecting" && Boolean(permissions.prospecting_access));
@@ -68,6 +71,7 @@ export default function Home() {
       "admin",
       "studio",
       "crm",
+      "chat",
       "messages",
       "prospecting",
       "dispatch",
@@ -117,6 +121,7 @@ export default function Home() {
             ["crm", "Cyncro CRM"],
             ["admin", "Calendar"],
             ["prospecting", "Prospecting"],
+            ["chat", "Team Chat"],
           ]
             .filter((x) => canAccess(x[0] as Tab))
             .map((x) => (
@@ -148,6 +153,8 @@ export default function Home() {
           onOpenProspecting={() => navigate("prospecting")}
           isOwner={!permissions || permissions.role === "OWNER"}
         />
+      ) : tab === "chat" ? (
+        <TeamChat />
       ) : tab === "messages" ? (
         <CyncroComingSoonGate product="Cyncro Messages + Social Automation" />
       ) : tab === "prospecting" ? (
@@ -19254,5 +19261,796 @@ function Admin({
         </div>
       )}
     </section>
+  );
+}
+
+// ============================================================
+// Cyncro Team Chat
+// ============================================================
+type ChatChannel = {
+  id: string; name: string; type: string; description?: string; created_by: string;
+  my_role?: string; unread_count?: number; last_message?: string; last_message_at?: string; last_message_author?: string;
+};
+type ChatMessage = {
+  id: string; channel_id: string; author_email: string; author_name: string; body: string;
+  thread_parent_id?: string | null; attachments_json: string; crm_link_type?: string | null;
+  crm_link_id?: string | null; edited_at?: string | null; deleted_at?: string | null;
+  created_at: string; updated_at: string; reply_count?: number;
+};
+type ChatAttachment = { key: string; filename: string; contentType: string; sizeBytes: number };
+type WsMember = { email: string; display_name: string; role: string };
+
+function chatInitials(name: string) {
+  return name.split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+}
+function chatFmtTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 60000) return "just now";
+  if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return d.toLocaleDateString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function chatFmtDay(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Today";
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+}
+function chatFmtBytes(n: number) {
+  if (n < 1024) return `${n}B`;
+  if (n < 1048576) return `${(n / 1024).toFixed(1)}KB`;
+  return `${(n / 1048576).toFixed(1)}MB`;
+}
+function chatFileIcon(ct: string) {
+  if (ct.startsWith("image/")) return "🖼";
+  if (ct.startsWith("video/")) return "🎬";
+  if (ct.startsWith("audio/")) return "🎵";
+  if (ct === "application/pdf") return "📄";
+  if (ct.includes("word") || ct.includes("document")) return "📝";
+  if (ct.includes("sheet") || ct.includes("excel")) return "📊";
+  return "📎";
+}
+function insertMentionFormatting(text: string) {
+  // Render @mentions as styled spans (display only)
+  const parts = text.split(/(@[\w.-]+@[\w.-]+|@\w+)/g);
+  return parts.map((part, i) =>
+    part.startsWith("@") ? <span key={i} className="mention">{part}</span> : part
+  );
+}
+
+function ChatMessageItem({
+  msg, myEmail, myRole, channelAdminEmails, onOpenThread, onEdit, onDelete, onFlash
+}: {
+  msg: ChatMessage; myEmail: string; myRole: string; channelAdminEmails: Set<string>;
+  onOpenThread: (msg: ChatMessage) => void; onEdit: (msg: ChatMessage) => void;
+  onDelete: (id: string) => void; onFlash: (s: string) => void;
+}) {
+  const [editMode, setEditMode] = useState(false);
+  const [editBody, setEditBody] = useState(msg.body);
+  const [saving, setSaving] = useState(false);
+  const attachments: ChatAttachment[] = (() => { try { return JSON.parse(msg.attachments_json || "[]") as ChatAttachment[]; } catch { return []; } })();
+  const isAuthor = msg.author_email === myEmail;
+  const canDelete = isAuthor || myRole === "OWNER" || channelAdminEmails.has(myEmail);
+
+  const saveEdit = async () => {
+    if (!editBody.trim() || editBody === msg.body) { setEditMode(false); return; }
+    setSaving(true);
+    const r = await fetch("/api/chat/messages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: msg.id, body: editBody.trim() }) });
+    setSaving(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; onFlash(d.error || "Edit failed"); return; }
+    onEdit({ ...msg, body: editBody.trim(), edited_at: new Date().toISOString() });
+    setEditMode(false);
+  };
+
+  return (
+    <div className={`chatMessage${msg.deleted_at ? " deleted" : ""}`} id={`msg-${msg.id}`}>
+      <div className="chatMessageAvatar">{chatInitials(msg.author_name)}</div>
+      <div>
+        <div className="chatMessageMeta">
+          <b>{msg.author_name}</b>
+          <time>{chatFmtTime(msg.created_at)}</time>
+          {msg.edited_at && <span className="editedBadge">(edited)</span>}
+        </div>
+        {editMode ? (
+          <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+            <textarea
+              className="chatComposerInput"
+              style={{ border: "1px solid #5a3a84", borderRadius: 8, padding: "8px 12px", minHeight: 60 }}
+              value={editBody}
+              onChange={e => setEditBody(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void saveEdit(); } if (e.key === "Escape") { setEditMode(false); setEditBody(msg.body); } }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="chatSendBtn" style={{ fontSize: 10 }} disabled={saving} onClick={() => void saveEdit()}>Save</button>
+              <button className="chatMainHeaderActions" style={{ fontSize: 10, padding: "0 10px" }} onClick={() => { setEditMode(false); setEditBody(msg.body); }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="chatMessageBody">{insertMentionFormatting(msg.body)}</div>
+        )}
+        {attachments.length > 0 && (
+          <div className="chatAttachments">
+            {attachments.map((att, i) => (
+              att.contentType.startsWith("image/") ? (
+                <a key={i} href={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} target="_blank" rel="noopener noreferrer">
+                  <img className="chatImagePreview" src={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} alt={att.filename} />
+                </a>
+              ) : (
+                <a key={i} className="chatAttachmentCard" href={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} target="_blank" rel="noopener noreferrer">
+                  <i>{chatFileIcon(att.contentType)}</i>
+                  <span><b>{att.filename}</b><small>{chatFmtBytes(att.sizeBytes)}</small></span>
+                </a>
+              )
+            ))}
+          </div>
+        )}
+        {msg.crm_link_type && msg.crm_link_id && (
+          <div className="chatCrmLink"><i>⬡</i> Linked to {msg.crm_link_type.toLowerCase()}</div>
+        )}
+        {!editMode && !msg.deleted_at && (
+          <div className="chatMessageActions">
+            {!msg.thread_parent_id && <button onClick={() => onOpenThread(msg)}>💬 {msg.reply_count ? `${msg.reply_count} replies` : "Reply"}</button>}
+            {isAuthor && <button onClick={() => { setEditMode(true); setEditBody(msg.body); }}>Edit</button>}
+            {canDelete && <button className="dangerBtn" onClick={() => onDelete(msg.id)}>Delete</button>}
+          </div>
+        )}
+        {!msg.deleted_at && !msg.thread_parent_id && (msg.reply_count || 0) > 0 && !editMode && (
+          <button className="chatReplyThread" onClick={() => onOpenThread(msg)}>
+            <span className="chatReplyAvatars"><span>{chatInitials(msg.author_name)}</span></span>
+            {msg.reply_count} {msg.reply_count === 1 ? "reply" : "replies"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChatComposer({
+  channelId, replyToId, placeholder, allMembers, onSent, onFlash
+}: {
+  channelId: string; replyToId?: string | null; placeholder?: string;
+  allMembers: WsMember[]; onSent: (msg: ChatMessage) => void; onFlash: (s: string) => void;
+}) {
+  const [body, setBody] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionCaret, setMentionCaret] = useState(0);
+  const textareaRef = { current: null as HTMLTextAreaElement | null };
+
+  const filteredMembers = mentionQuery !== null
+    ? allMembers.filter(m => m.display_name.toLowerCase().includes(mentionQuery.toLowerCase()) || m.email.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+
+  const onBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setBody(val);
+    // Detect @mention trigger
+    const pos = e.target.selectionStart;
+    const before = val.slice(0, pos);
+    const match = before.match(/@(\w*)$/);
+    if (match) { setMentionQuery(match[1]); setMentionCaret(pos); }
+    else { setMentionQuery(null); }
+  };
+
+  const insertMention = (member: WsMember) => {
+    const before = body.slice(0, mentionCaret).replace(/@(\w*)$/, `@${member.display_name.replace(/\s+/g, "")} `);
+    const after = body.slice(mentionCaret);
+    setBody(before + after);
+    setMentionQuery(null);
+  };
+
+  const removeFile = (i: number) => setPendingFiles(pendingFiles.filter((_, j) => j !== i));
+
+  const send = async () => {
+    if (!body.trim() && !pendingFiles.length) return;
+    setSending(true);
+    // Upload files first
+    const attachments: ChatAttachment[] = [];
+    if (pendingFiles.length) {
+      setUploading(true);
+      for (const file of pendingFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("channelId", channelId);
+        const r = await fetch("/api/chat/upload", { method: "POST", body: fd });
+        if (!r.ok) {
+          const d = await r.json() as { error?: string };
+          onFlash(d.error || "File upload failed");
+          setSending(false); setUploading(false); return;
+        }
+        const d = await r.json() as { key: string; filename: string; contentType: string; sizeBytes: number };
+        attachments.push({ key: d.key, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes });
+      }
+      setUploading(false);
+    }
+    const r = await fetch("/api/chat/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId, body: body.trim() || "​", threadParentId: replyToId || null, attachments }),
+    });
+    setSending(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; onFlash(d.error || "Send failed"); return; }
+    const d = await r.json() as { message: ChatMessage };
+    setBody(""); setPendingFiles([]); setMentionQuery(null);
+    onSent(d.message);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredMembers.length) {
+      if (e.key === "Escape") { setMentionQuery(null); e.preventDefault(); return; }
+    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); }
+  };
+
+  return (
+    <div>
+      {mentionQuery !== null && filteredMembers.length > 0 && (
+        <div style={{ border: "1px solid #3a2558", borderRadius: 9, background: "#0d0a1a", marginBottom: 6, overflow: "hidden" }}>
+          {filteredMembers.map(m => (
+            <button key={m.email} className="chatMemberCheckRow" style={{ width: "100%", borderRadius: 0, padding: "8px 12px" }}
+              onMouseDown={e => { e.preventDefault(); insertMention(m); }}>
+              <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+              <span style={{ display: "grid" }}><b style={{ fontSize: 12 }}>{m.display_name}</b><small style={{ fontSize: 9, color: "#7b6994" }}>{m.email}</small></span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className={`chatComposer${focused ? " focused" : ""}`}>
+        {pendingFiles.length > 0 && (
+          <div className="chatComposerAttachPills">
+            {pendingFiles.map((f, i) => (
+              <div key={i} className="chatComposerAttachPill">
+                <span>{chatFileIcon(f.type || "")}</span>
+                <span style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                <button onClick={() => removeFile(i)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <textarea
+          ref={el => { textareaRef.current = el; }}
+          className="chatComposerInput"
+          placeholder={placeholder || "Message…"}
+          value={body}
+          onChange={onBodyChange}
+          onKeyDown={onKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          rows={1}
+        />
+        <div className="chatComposerActions">
+          <div className="chatComposerTools">
+            <label title="Attach file">
+              📎
+              <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/mp4,audio/mpeg"
+                onChange={e => { const files = Array.from(e.target.files || []); setPendingFiles(prev => [...prev, ...files]); e.target.value = ""; }} />
+            </label>
+          </div>
+          <button className="chatSendBtn" disabled={sending || uploading || (!body.trim() && !pendingFiles.length)} onClick={() => void send()}>
+            {uploading ? "Uploading…" : sending ? "Sending…" : "Send"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamChat() {
+  const [channels, setChannels] = useState<ChatChannel[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [allMembers, setAllMembers] = useState<WsMember[]>([]);
+  const [channelMembers, setChannelMembers] = useState<(WsMember & { role?: string })[]>([]);
+  const [myEmail, setMyEmail] = useState("");
+  const [myRole, setMyRole] = useState("MEMBER");
+  const [flashMsg, setFlashMsg] = useState("");
+  const [newModal, setNewModal] = useState(false);
+  const [newForm, setNewForm] = useState({ name: "", type: "PUBLIC", description: "", memberEmails: [] as string[] });
+  const [newLoading, setNewLoading] = useState(false);
+  const [threadMsg, setThreadMsg] = useState<ChatMessage | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ChatMessage[]>([]);
+  const [showMembers, setShowMembers] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchResults, setSearchResults] = useState<Record<string, unknown>[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const messagesEndRef = { current: null as HTMLDivElement | null };
+  const [editedMsgs, setEditedMsgs] = useState<Record<string, ChatMessage>>({});
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 2800); };
+
+  const activeChannel = channels.find(c => c.id === activeId);
+
+  const loadChannels = async () => {
+    const r = await fetch(`/api/chat/channels?t=${Date.now()}`);
+    if (!r.ok) return;
+    const d = await r.json() as { channels?: ChatChannel[] };
+    const list = d.channels || [];
+    setChannels(list);
+    if (!activeId && list.length) setActiveId(list[0].id);
+  };
+
+  useEffect(() => {
+    // Load own identity
+    void fetch("/api/access").then(async r => {
+      if (!r.ok) return;
+      const d = await r.json() as { member?: { email?: string; role?: string } };
+      if (d.member?.email) setMyEmail(d.member.email);
+      if (d.member?.role) setMyRole(d.member.role);
+    });
+    void loadChannels();
+    // Load all workspace members once
+    void fetch("/api/access").then(async r => {
+      if (!r.ok) return;
+      const d = await r.json() as { members?: WsMember[] };
+      setAllMembers(d.members || []);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeId) return;
+    void loadMessages(activeId, false);
+    void markRead(activeId);
+    void loadChannelMembers(activeId);
+    setShowMembers(false);
+    setThreadMsg(null);
+    setSidebarOpen(false);
+  }, [activeId]);
+
+  // Poll for new messages every 6 seconds
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (activeId) void pollNewMessages(activeId);
+    }, 6000);
+    return () => clearInterval(iv);
+  }, [activeId, messages]);
+
+  const loadMessages = async (channelId: string, append: boolean) => {
+    setLoadingMessages(true);
+    const before = append && messages.length ? messages[0].created_at : undefined;
+    const url = `/api/chat/messages?channel=${channelId}&limit=50${before ? `&before=${encodeURIComponent(before)}` : ""}`;
+    const r = await fetch(url);
+    setLoadingMessages(false);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    const msgs = d.messages || [];
+    if (append) {
+      setMessages(prev => [...msgs, ...prev]);
+    } else {
+      setMessages(msgs);
+    }
+    setHasMore(msgs.length >= 50);
+    if (!append) setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "instant" }); }, 50);
+  };
+
+  const pollNewMessages = async (channelId: string) => {
+    const r = await fetch(`/api/chat/messages?channel=${channelId}&limit=20&t=${Date.now()}`);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    const fresh = d.messages || [];
+    if (!fresh.length) return;
+    setMessages(prev => {
+      const existingIds = new Set(prev.map(m => m.id));
+      const newOnes = fresh.filter(m => !existingIds.has(m.id));
+      if (!newOnes.length) return prev;
+      // Also refresh channel list for unread counts
+      void loadChannels();
+      const updated = [...prev, ...newOnes];
+      setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, 50);
+      return updated;
+    });
+  };
+
+  const loadChannelMembers = async (channelId: string) => {
+    const r = await fetch(`/api/chat/members?channel=${channelId}`);
+    if (!r.ok) return;
+    const d = await r.json() as { members?: (WsMember & { role?: string })[]; allMembers?: WsMember[] };
+    setChannelMembers(d.members || []);
+    if (d.allMembers?.length) setAllMembers(d.allMembers);
+  };
+
+  const markRead = async (channelId: string) => {
+    await fetch("/api/chat/reads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId }) });
+    setChannels(prev => prev.map(c => c.id === channelId ? { ...c, unread_count: 0 } : c));
+  };
+
+  const handleNewMessage = (msg: ChatMessage) => {
+    setMessages(prev => [...prev, msg]);
+    void markRead(msg.channel_id);
+    void loadChannels();
+    setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, 50);
+  };
+
+  const handleNewReply = (msg: ChatMessage) => {
+    setThreadMessages(prev => [...prev, msg]);
+    // Update reply count on parent
+    setMessages(prev => prev.map(m => m.id === msg.thread_parent_id ? { ...m, reply_count: (m.reply_count || 0) + 1 } : m));
+  };
+
+  const handleEdit = (updated: ChatMessage) => {
+    setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
+    setEditedMsgs(prev => ({ ...prev, [updated.id]: updated }));
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this message?")) return;
+    const r = await fetch(`/api/chat/messages?id=${id}`, { method: "DELETE" });
+    if (!r.ok) { const d = await r.json() as { error?: string }; flash(d.error || "Delete failed"); return; }
+    setDeletedIds(prev => new Set(prev).add(id));
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted_at: new Date().toISOString(), body: "[message deleted]" } : m));
+  };
+
+  const handleOpenThread = async (msg: ChatMessage) => {
+    setThreadMsg(msg);
+    const r = await fetch(`/api/chat/messages?channel=${msg.channel_id}&thread=${msg.id}&limit=100`);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    setThreadMessages(d.messages || []);
+  };
+
+  const createChannel = async () => {
+    if (!newForm.name.trim()) { flash("Channel name is required."); return; }
+    setNewLoading(true);
+    const r = await fetch("/api/chat/channels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...newForm }),
+    });
+    setNewLoading(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; flash(d.error || "Create failed"); return; }
+    const d = await r.json() as { channel?: { id: string } };
+    setNewModal(false);
+    setNewForm({ name: "", type: "PUBLIC", description: "", memberEmails: [] });
+    await loadChannels();
+    if (d.channel?.id) setActiveId(d.channel.id);
+  };
+
+  const doSearch = async () => {
+    if (!searchQ.trim() || searchQ.length < 2) return;
+    setSearchMode(true);
+    const r = await fetch(`/api/chat/search?q=${encodeURIComponent(searchQ.trim())}`);
+    if (!r.ok) return;
+    const d = await r.json() as { results?: Record<string, unknown>[] };
+    setSearchResults(d.results || []);
+  };
+
+  const channelAdminEmails = new Set(channelMembers.filter(m => m.role === "ADMIN").map(m => m.email));
+  const publicChannels = channels.filter(c => c.type === "PUBLIC");
+  const privateChannels = channels.filter(c => c.type === "PRIVATE");
+  const directChannels = channels.filter(c => c.type === "DIRECT");
+  const totalUnread = channels.reduce((n, c) => n + (c.unread_count || 0), 0);
+
+  const displayMessages = messages.map(m => editedMsgs[m.id] ? { ...m, ...editedMsgs[m.id] } : m)
+    .filter(m => !deletedIds.has(m.id) || m.deleted_at);
+
+  // Group messages by day for dividers
+  const messagesWithDividers: (ChatMessage | { divider: string })[] = [];
+  let lastDay = "";
+  for (const m of displayMessages) {
+    const day = chatFmtDay(m.created_at);
+    if (day !== lastDay) { messagesWithDividers.push({ divider: day }); lastDay = day; }
+    messagesWithDividers.push(m);
+  }
+
+  return (
+    <div className="chatShell" style={{ position: "relative" }}>
+      {/* Mobile overlay */}
+      <div className={`chatSidebarOverlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      {/* Sidebar */}
+      <aside className={`chatSidebar${sidebarOpen ? " open" : ""}`}>
+        <div className="chatSidebarHeader">
+          <b>Team Chat {totalUnread > 0 && <span className="chatChannelBadge" style={{ fontSize: 9 }}>{totalUnread}</span>}</b>
+          <button onClick={() => setNewModal(true)}>＋ New</button>
+        </div>
+        <div className="chatSearch">
+          <input
+            placeholder="Search messages…"
+            value={searchQ}
+            onChange={e => { setSearchQ(e.target.value); if (!e.target.value) setSearchMode(false); }}
+            onKeyDown={e => { if (e.key === "Enter") void doSearch(); }}
+          />
+        </div>
+        <div className="chatChannelList">
+          {publicChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span># Channels</span></div>
+              {publicChannels.map(c => (
+                <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                  <span><em>#</em><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span></span>
+                  {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {privateChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span>🔒 Private</span></div>
+              {privateChannels.map(c => (
+                <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                  <span><em>🔒</em><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span></span>
+                  {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {directChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span>Direct Messages</span></div>
+              {directChannels.map(c => {
+                const otherName = c.name;
+                return (
+                  <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                    <span className="chatUserBtn"><span className="chatAvatar">{chatInitials(otherName)}</span><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{otherName}</span></span>
+                    {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                  </button>
+                );
+              })}
+            </>
+          )}
+          {!channels.length && (
+            <div className="chatEmptyState" style={{ minHeight: 200 }}>
+              <i>💬</i>
+              <h3>No channels yet</h3>
+              <p>Create the first channel for your team.</p>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div className="chatMain" style={{ position: "relative" }}>
+        {searchMode ? (
+          <div className="chatSearchResults">
+            <div className="chatSearchResultsHeader">
+              <h3>Search: &ldquo;{searchQ}&rdquo; — {searchResults.length} results</h3>
+              <button onClick={() => { setSearchMode(false); setSearchQ(""); }}>Clear</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {searchResults.length ? searchResults.map(r => (
+                <div key={String(r.id)} className="chatSearchResult" onClick={() => {
+                  setSearchMode(false); setSearchQ("");
+                  setActiveId(String(r.channel_id));
+                }}>
+                  <b>#{String(r.channel_name)} · {String(r.author_name)}</b>
+                  <p>{String(r.body).slice(0, 200)}</p>
+                  <small>{chatFmtTime(String(r.created_at))}</small>
+                </div>
+              )) : <div className="chatNoResults">No messages found for &ldquo;{searchQ}&rdquo;</div>}
+            </div>
+          </div>
+        ) : activeChannel ? (
+          <>
+            {/* Channel header */}
+            <div className="chatMainHeader">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button className="chatMobileToggle" onClick={() => setSidebarOpen(s => !s)}>☰ Channels</button>
+                <div>
+                  <h2>{activeChannel.type === "PUBLIC" ? "#" : activeChannel.type === "PRIVATE" ? "🔒" : "✉"} {activeChannel.name}</h2>
+                  {activeChannel.description && <p>{activeChannel.description}</p>}
+                </div>
+              </div>
+              <div className="chatMainHeaderActions">
+                <button onClick={() => setShowMembers(s => !s)}>👥 {channelMembers.length}</button>
+                <button onClick={() => { void loadMessages(activeId!, false); flash("Refreshed"); }}>↻</button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="chatMessages">
+              {loadingMessages && !messages.length && (
+                <div style={{ padding: 20, color: "#7b6994", textAlign: "center", fontSize: 12 }}>Loading messages…</div>
+              )}
+              {hasMore && (
+                <div className="chatLoadMore">
+                  <button onClick={() => void loadMessages(activeId!, true)}>Load earlier messages</button>
+                </div>
+              )}
+              {!loadingMessages && messages.length === 0 && (
+                <div className="chatEmptyState">
+                  <i>{activeChannel.type === "PUBLIC" ? "#" : activeChannel.type === "PRIVATE" ? "🔒" : "✉"}</i>
+                  <h3>Welcome to #{activeChannel.name}</h3>
+                  <p>{activeChannel.description || "This is the beginning of this channel. Say something!"}</p>
+                </div>
+              )}
+              {messagesWithDividers.map((item, i) =>
+                "divider" in item ? (
+                  <div key={`div-${i}`} className="chatDayDivider">{item.divider}</div>
+                ) : (
+                  <ChatMessageItem
+                    key={item.id}
+                    msg={item}
+                    myEmail={myEmail}
+                    myRole={myRole}
+                    channelAdminEmails={channelAdminEmails}
+                    onOpenThread={handleOpenThread}
+                    onEdit={handleEdit}
+                    onDelete={id => void handleDelete(id)}
+                    onFlash={flash}
+                  />
+                )
+              )}
+              <div ref={el => { messagesEndRef.current = el; }} />
+            </div>
+
+            {/* Composer */}
+            <div className="chatComposerWrap">
+              <ChatComposer
+                channelId={activeId!}
+                placeholder={`Message #${activeChannel.name}…`}
+                allMembers={allMembers}
+                onSent={handleNewMessage}
+                onFlash={flash}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="chatEmpty">
+            <div className="chatEmptyState">
+              <i>💬</i>
+              <h3>Cyncro Team Chat</h3>
+              <p>Real-time internal messaging for your team. Select a channel or create one to get started.</p>
+              <button className="chatSendBtn" style={{ marginTop: 12 }} onClick={() => setNewModal(true)}>Create first channel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Members panel */}
+        {showMembers && activeChannel && (
+          <div className="chatMembersPanel">
+            <div className="chatMembersHeader">
+              <h3>Members ({channelMembers.length})</h3>
+              <button onClick={() => setShowMembers(false)}>✕</button>
+            </div>
+            <div className="chatMembersList">
+              {channelMembers.map(m => (
+                <div key={m.email} className="chatMemberRow">
+                  <span className="chatAvatar">{chatInitials(m.display_name || m.email)}</span>
+                  <div style={{ flex: 1 }}>
+                    <b>{m.display_name || m.email}</b>
+                    <small style={{ display: "block", color: "#7b6994" }}>{m.email}</small>
+                  </div>
+                  <span>{m.role === "ADMIN" ? "ADMIN" : ""}</span>
+                </div>
+              ))}
+              {!channelMembers.length && <p style={{ color: "#7b6994", fontSize: 12, textAlign: "center", padding: 20 }}>No members loaded.</p>}
+            </div>
+            {(myRole === "OWNER" || channelMembers.find(m => m.email === myEmail)?.role === "ADMIN") && (
+              <div style={{ padding: "12px 14px", borderTop: "1px solid #221829" }}>
+                <p style={{ color: "#9d88bf", fontSize: 10, margin: "0 0 8px" }}>ADD MEMBERS</p>
+                {allMembers.filter(m => !channelMembers.find(cm => cm.email === m.email)).map(m => (
+                  <button key={m.email} className="chatMemberCheckRow" style={{ width: "100%" }}
+                    onClick={async () => {
+                      const r = await fetch("/api/chat/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId: activeId, emails: [m.email] }) });
+                      if (r.ok) { flash(`${m.display_name} added`); void loadChannelMembers(activeId!); }
+                      else { const d = await r.json() as { error?: string }; flash(d.error || "Failed"); }
+                    }}>
+                    <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+                    <span style={{ fontSize: 12 }}>{m.display_name}</span>
+                    <span style={{ marginLeft: "auto", color: "#8b3fc8", fontSize: 10 }}>＋</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Thread panel */}
+      {threadMsg && (
+        <div className="chatThread" onClick={e => { if (e.target === e.currentTarget) setThreadMsg(null); }}>
+          <div className="chatThreadPanel">
+            <div className="chatThreadHeader">
+              <h3>Thread</h3>
+              <button onClick={() => setThreadMsg(null)}>✕</button>
+            </div>
+            <div className="chatThreadMessages">
+              {/* Parent message */}
+              <div style={{ paddingBottom: 12, borderBottom: "1px solid #221829", marginBottom: 12 }}>
+                <ChatMessageItem
+                  msg={threadMsg}
+                  myEmail={myEmail}
+                  myRole={myRole}
+                  channelAdminEmails={channelAdminEmails}
+                  onOpenThread={() => {}}
+                  onEdit={m => { handleEdit(m); setThreadMsg(m); }}
+                  onDelete={id => void handleDelete(id)}
+                  onFlash={flash}
+                />
+              </div>
+              {/* Replies */}
+              {threadMessages.length === 0 && (
+                <p style={{ color: "#7b6994", fontSize: 12, textAlign: "center", padding: "20px 0" }}>No replies yet.</p>
+              )}
+              {threadMessages.map(m => (
+                <ChatMessageItem
+                  key={m.id}
+                  msg={m}
+                  myEmail={myEmail}
+                  myRole={myRole}
+                  channelAdminEmails={channelAdminEmails}
+                  onOpenThread={() => {}}
+                  onEdit={updated => setThreadMessages(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
+                  onDelete={id => { void handleDelete(id); setThreadMessages(prev => prev.map(x => x.id === id ? { ...x, deleted_at: new Date().toISOString(), body: "[message deleted]" } : x)); }}
+                  onFlash={flash}
+                />
+              ))}
+            </div>
+            <div className="chatThreadComposer">
+              <ChatComposer
+                channelId={threadMsg.channel_id}
+                replyToId={threadMsg.id}
+                placeholder="Reply in thread…"
+                allMembers={allMembers}
+                onSent={handleNewReply}
+                onFlash={flash}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Channel modal */}
+      {newModal && (
+        <div className="chatNewModal" onClick={e => { if (e.target === e.currentTarget) setNewModal(false); }}>
+          <div className="chatNewModalCard">
+            <h3>Create Channel</h3>
+            <p>Public channels are visible to all team members. Private channels require an invitation.</p>
+            <label>
+              Channel name
+              <input value={newForm.name} onChange={e => setNewForm({ ...newForm, name: e.target.value })} placeholder="e.g. general, sales-team, project-alpha" />
+            </label>
+            <label>
+              Type
+              <select value={newForm.type} onChange={e => setNewForm({ ...newForm, type: e.target.value })}>
+                <option value="PUBLIC">Public — all team members can join</option>
+                <option value="PRIVATE">Private — invite only</option>
+              </select>
+            </label>
+            <label>
+              Description (optional)
+              <textarea value={newForm.description} onChange={e => setNewForm({ ...newForm, description: e.target.value })} placeholder="What is this channel for?" />
+            </label>
+            {newForm.type === "PRIVATE" && allMembers.length > 0 && (
+              <label>
+                Invite members
+                <div className="chatMemberCheckList">
+                  {allMembers.map(m => (
+                    <label key={m.email} className="chatMemberCheckRow">
+                      <input type="checkbox"
+                        checked={newForm.memberEmails.includes(m.email)}
+                        onChange={e => setNewForm({ ...newForm, memberEmails: e.target.checked ? [...newForm.memberEmails, m.email] : newForm.memberEmails.filter(x => x !== m.email) })} />
+                      <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+                      {m.display_name}
+                    </label>
+                  ))}
+                </div>
+              </label>
+            )}
+            <div className="chatNewModalActions">
+              <button onClick={() => { setNewModal(false); setNewForm({ name: "", type: "PUBLIC", description: "", memberEmails: [] }); }}>Cancel</button>
+              <button className="primary" disabled={newLoading || !newForm.name.trim()} onClick={() => void createChannel()}>
+                {newLoading ? "Creating…" : "Create channel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {flashMsg && <div className="chatFlash">{flashMsg}</div>}
+    </div>
   );
 }

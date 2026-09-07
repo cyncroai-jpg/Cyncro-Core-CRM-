@@ -300,6 +300,53 @@ export async function ensureCoreSchema() {
       id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT, body TEXT NOT NULL, created_at TEXT NOT NULL,
       FOREIGN KEY(task_id) REFERENCES work_tasks(id)
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_channels (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'PUBLIC',
+      description TEXT,
+      created_by TEXT NOT NULL,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_channels_type ON team_chat_channels(type, archived)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_channel_members (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      member_email TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'MEMBER',
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(channel_id) REFERENCES team_chat_channels(id)
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_channel_members_unique ON team_chat_channel_members(channel_id, member_email)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_channel_members_email ON team_chat_channel_members(member_email)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_messages (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      author_email TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      body TEXT NOT NULL,
+      thread_parent_id TEXT,
+      attachments_json TEXT NOT NULL DEFAULT '[]',
+      crm_link_type TEXT,
+      crm_link_id TEXT,
+      edited_at TEXT,
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(channel_id) REFERENCES team_chat_channels(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_channel_time ON team_chat_messages(channel_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON team_chat_messages(thread_parent_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_author ON team_chat_messages(author_email, created_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_reads (
+      channel_id TEXT NOT NULL,
+      member_email TEXT NOT NULL,
+      last_read_at TEXT NOT NULL,
+      PRIMARY KEY(channel_id, member_email)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_reads_email ON team_chat_reads(member_email)"),
   ]);
   try {
     await db
