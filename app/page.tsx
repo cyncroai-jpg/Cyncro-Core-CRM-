@@ -10655,9 +10655,6 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                       key={prospectIdentity(result)}
                     >
                       <div>
-                        <span>
-                          {result.businessName.slice(0, 2).toUpperCase()}
-                        </span>
                         <div>
                           <b>{result.businessName}</b>
                           <small>

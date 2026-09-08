@@ -21937,3 +21937,210 @@ label {
   .pipelineTableSearch { max-width: 100%; }
   .pipelineTableControls { gap: 8px; }
 }
+
+/* Prospecting readability pass: consumer-size text and scannable records. */
+.prospectingSidebar nav > small,
+.prospectingEngine small,
+.prospectingTopbar small,
+.prospectingHead label,
+.prospectingStats small,
+.prospectingSectionHead small,
+.callFirstGrid article > small,
+.callFirstGrid article > em,
+.drawerBrief small,
+.scoreReasons > small,
+.prospectDrawer > header small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.prospectingSidebar nav button,
+.prospectingTopbar b,
+.prospectingTopbar button,
+.prospectingHead p,
+.prospectingSectionHead > span,
+.prospectingSectionHead > button,
+.prospectingConfig,
+.prospectingAlert,
+.prospectingSearchActions p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.prospectingSearchGrid label,
+.drawerManagement label {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.prospectingSearchGrid label em {
+  font-size: 12px;
+}
+.prospectingSearchGrid input,
+.prospectingSearchGrid select,
+.drawerManagement input,
+.drawerManagement select,
+.drawerManagement textarea {
+  min-height: 48px;
+  font: 16px/1.4 Montserrat, sans-serif;
+}
+.prospectingSearchActions button {
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.prospectingSectionHead h2 {
+  font-size: 25px;
+}
+.prospectingStats span {
+  min-width: 108px;
+  padding: 15px;
+}
+.prospectingStats b {
+  font-size: 24px;
+}
+.callFirstGrid article {
+  padding: 22px;
+}
+.callFirstGrid h3 {
+  font-size: 21px;
+  line-height: 1.3;
+}
+.callFirstGrid p,
+.callFirstGrid strong,
+.callFirstGrid .recommended {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.priorityScore span,
+.callFirstGrid button,
+.callFirstGrid a {
+  font-size: 13px;
+  min-height: 42px;
+}
+.emptyQueue p,
+.noProspects {
+  font-size: 14px;
+}
+.prospectTable {
+  margin-top: 18px;
+}
+.prospectTableHead {
+  padding: 10px 16px 12px;
+  font-size: 12px;
+}
+.prospectResultRow {
+  min-height: 96px;
+  padding: 16px;
+  gap: 20px;
+}
+.prospectResultRow > div:first-child {
+  gap: 0;
+}
+.prospectResultRow b {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.prospectResultRow small,
+.prospectResultRow a {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.prospectResultRow button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.rankedProspectHead {
+  padding: 10px 14px 12px;
+  font-size: 12px;
+}
+.rankedProspectList > button {
+  min-height: 96px;
+  padding: 14px;
+}
+.rankedProspectList > button > span {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.rankedProspectList small,
+.rankedProspectList .rankScore small,
+.rankedProspectList i {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.rankedProspectList .rankScore {
+  font-size: 28px;
+}
+.prospectDrawer > header p,
+.drawerScore span,
+.drawerScore strong,
+.drawerAnalyze,
+.drawerContact a,
+.drawerBrief p,
+.scoreReasons p,
+.signalGrid span,
+.drawerManagement > button {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.drawerAnalyze,
+.drawerManagement > button {
+  min-height: 46px;
+  font-weight: 700;
+}
+.drawerContact a {
+  min-height: 46px;
+}
+
+@media (max-width: 760px) {
+  .prospectingContent {
+    padding: 24px 14px 64px;
+  }
+  .prospectingSearchPanel,
+  .callFirstSection,
+  .searchResultsSection,
+  .prospectDatabase {
+    padding: 16px;
+  }
+  .prospectingSearchGrid {
+    grid-template-columns: 1fr;
+  }
+  .prospectingStats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .prospectingStats span {
+    min-width: 0;
+  }
+  .prospectResultRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 12px;
+    border: 1px solid #35282c;
+    border-radius: 12px;
+    background: #0f0d0e;
+    padding: 18px;
+  }
+  .prospectResultRow > div:nth-child(2),
+  .prospectResultRow > div:nth-child(3) {
+    display: block;
+    border-top: 1px solid #2b2325;
+    padding-top: 12px;
+  }
+  .prospectResultRow button {
+    width: 100%;
+  }
+  .rankedProspectList > button {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 14px;
+    padding: 18px 12px;
+  }
+  .rankedProspectList > button > span:nth-child(4) {
+    display: none;
+  }
+  .prospectDrawer {
+    width: 100vw;
+    padding: 20px 16px 40px;
+  }
+}
