@@ -11025,6 +11025,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
 type CRMView =
   | "Overview"
   | "Pipeline"
+  | "Sales Table"
   | "Accounts"
   | "Contacts"
   | "Calendar"
@@ -11376,6 +11377,11 @@ function UniversalCRM({
       icon: "◫",
       count: String(crmSummary.opportunities || 0),
     },
+    {
+      name: "Sales Table",
+      icon: "☷",
+      count: String(crmSummary.opportunities || 0),
+    },
     { name: "Accounts", icon: "▦", count: String(crmSummary.accounts || 0) },
     { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
@@ -11397,7 +11403,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11756,6 +11762,9 @@ function UniversalCRM({
           {view === "Pipeline" && (
             <CRMPipeline onFlash={flash} isOwner={isOwner} />
           )}
+          {view === "Sales Table" && (
+            <CRMPipeline onFlash={flash} isOwner={isOwner} initialView="table" />
+          )}
           {view === "Accounts" && (
             <CRMAccounts
               onFlash={flash}
@@ -12076,9 +12085,11 @@ function UniversalCRM({
 function CRMPipeline({
   onFlash,
   isOwner,
+  initialView = "board",
 }: {
   onFlash: (message: string) => void;
   isOwner: boolean;
+  initialView?: "board" | "table";
 }) {
   type Deal = {
     id: string;
@@ -12126,7 +12137,7 @@ function CRMPipeline({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
-  const [pipelineViewMode, setPipelineViewMode] = useState<"board"|"table">("board");
+  const [pipelineViewMode, setPipelineViewMode] = useState<"board"|"table">(initialView);
   const [tableSort, setTableSort] = useState<{col:string;dir:"asc"|"desc"}>({col:"value_cents",dir:"desc"});
   const [tableFilter, setTableFilter] = useState("");
   const sortedTableDeals = [...deals]
