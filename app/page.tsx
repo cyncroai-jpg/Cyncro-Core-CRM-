@@ -38,6 +38,7 @@ export default function Home() {
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
   const roadmapTabs: Tab[] = ["messages","dispatch","dispute","finance","apex","sign","form","prime"];
+
   const canAccess = (destination: Tab) =>
     destination === "home" ||
     roadmapTabs.includes(destination) ||
@@ -1289,6 +1290,120 @@ function PublicBookingExperience() {
           </>
         )}
       </main>
+    </section>
+  );
+}
+
+function LiveHomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+  type DashData = {
+    crm?: { accounts?: number; contacts?: number; opportunities?: number; pipeline_cents?: number; won_cents?: number; new_contacts_week?: number };
+    bookings?: { today_count?: number; confirmed?: number };
+    tasks?: { open_tasks?: number; done_tasks?: number; overdue?: number };
+    chatUnread?: { total?: number };
+    recentActivity?: { activity_type?: string; title?: string; contact_name?: string; created_at?: string }[];
+    upcomingBookings?: { event_type_name?: string; attendee_name?: string; starts_at?: string; status?: string }[];
+    recentContacts?: { id?: string; full_name?: string; email?: string; lifecycle?: string; company?: string; created_at?: string }[];
+  };
+  const [data, setData] = React.useState<DashData>({});
+  const [loading, setLoading] = React.useState(true);
+  const fmt = (cents: number | undefined) => cents !== undefined ? `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—";
+  const hours = new Date().getHours();
+  const greeting = hours < 12 ? "Good morning." : hours < 17 ? "Good afternoon." : "Good evening.";
+  React.useEffect(() => {
+    void fetch("/api/dashboard").then(async r => {
+      if (!r.ok) { setLoading(false); return; }
+      const d = await r.json() as DashData;
+      setData(d); setLoading(false);
+    });
+    const timer = window.setInterval(() => void fetch("/api/dashboard").then(async r => { if (!r.ok) return; setData(await r.json() as DashData); }), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const modules: { tab: Tab; icon: string; label: string; desc: string }[] = [
+    { tab: "crm", icon: "◎", label: "CRM", desc: "Contacts, pipeline, activities" },
+    { tab: "admin", icon: "◷", label: "Calendar", desc: "Appointments & availability" },
+    { tab: "prospecting", icon: "◫", label: "Prospecting", desc: "AI lead discovery" },
+    { tab: "chat", icon: "◌", label: "Team Chat", desc: "Internal messaging" },
+    { tab: "messages", icon: "⌁", label: "Messages", desc: "Social & email flows" },
+    { tab: "dispatch", icon: "▦", label: "Dispatch", desc: "Jobs & field operations" },
+    { tab: "dispute", icon: "◈", label: "Dispute", desc: "Credit case management" },
+    { tab: "finance", icon: "$", label: "Finance", desc: "Deals, commissions, payouts" },
+    { tab: "apex", icon: "✦", label: "Apex Funds", desc: "Lender deal pipeline" },
+    { tab: "sign", icon: "▤", label: "Contracts", desc: "e-Signatures & agreements" },
+    { tab: "form", icon: "▥", label: "Forms", desc: "Client intake & questionnaires" },
+    { tab: "prime", icon: "⌂", label: "Prime AI", desc: "AI operating system" },
+  ];
+  return (
+    <section className="liveDash">
+      <div className="liveDashHero">
+        <div>
+          <p className="eyebrow">CYNCRO CORE · COMMAND CENTER</p>
+          <h1>{greeting}</h1>
+          <p>{loading ? "Loading your workspace…" : `${data.crm?.contacts ?? 0} contacts · ${data.crm?.opportunities ?? 0} opportunities · ${fmt(data.crm?.pipeline_cents)} pipeline`}</p>
+        </div>
+        <button className="crmPrimaryBtn" onClick={() => onNavigate("crm")}>Open CRM →</button>
+      </div>
+      {!loading && (
+        <div className="liveDashStats">
+          {[
+            { label: "Contacts", value: data.crm?.contacts ?? 0, sub: `+${data.crm?.new_contacts_week ?? 0} this week` },
+            { label: "Pipeline", value: fmt(data.crm?.pipeline_cents), sub: `${fmt(data.crm?.won_cents)} won` },
+            { label: "Today's Bookings", value: data.bookings?.today_count ?? 0, sub: `${data.bookings?.confirmed ?? 0} confirmed` },
+            { label: "Open Tasks", value: data.tasks?.open_tasks ?? 0, sub: `${data.tasks?.overdue ?? 0} overdue` },
+            { label: "Chat Unread", value: data.chatUnread?.total ?? 0, sub: "messages waiting" },
+            { label: "Accounts", value: data.crm?.accounts ?? 0, sub: "companies tracked" },
+          ].map(s => (
+            <article key={s.label} className="liveDashStat">
+              <b>{s.value}</b>
+              <span>{s.label}</span>
+              <small>{s.sub}</small>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="liveDashGrid">
+        <div className="liveDashPanel">
+          <header><b>Recent Activity</b></header>
+          {(data.recentActivity || []).length ? (data.recentActivity || []).map((a, i) => (
+            <div key={i} className="agendaRow">
+              <i style={{ fontSize: 18 }}>◌</i>
+              <div><b>{a.title}</b><small>{a.contact_name} · {a.activity_type}</small></div>
+              <span>{a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</span>
+            </div>
+          )) : <p className="noProspects">No recent activity.</p>}
+        </div>
+        <div className="liveDashPanel">
+          <header><b>Upcoming Bookings</b></header>
+          {(data.upcomingBookings || []).length ? (data.upcomingBookings || []).map((b, i) => (
+            <div key={i} className="agendaRow">
+              <i style={{ fontSize: 18 }}>◷</i>
+              <div><b>{b.attendee_name || "Guest"}</b><small>{b.event_type_name}</small></div>
+              <span>{b.starts_at ? new Date(b.starts_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+            </div>
+          )) : <p className="noProspects">No upcoming bookings.</p>}
+        </div>
+        <div className="liveDashPanel">
+          <header><b>Recent Contacts</b></header>
+          {(data.recentContacts || []).length ? (data.recentContacts || []).map((c, i) => (
+            <div key={i} className="agendaRow">
+              <div className="contactAvatar" style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}>{(c.full_name || "?")[0]}</div>
+              <div><b>{c.full_name}</b><small>{c.company || c.email}</small></div>
+              <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{c.lifecycle || "LEAD"}</span>
+            </div>
+          )) : <p className="noProspects">No contacts yet.</p>}
+        </div>
+      </div>
+      <div className="liveDashModules">
+        <p className="eyebrow" style={{ margin: "0 0 12px" }}>QUICK ACCESS · ALL MODULES</p>
+        <div className="liveDashModuleGrid">
+          {modules.map(m => (
+            <button key={m.tab} className="liveDashModule" onClick={() => onNavigate(m.tab)}>
+              <i>{m.icon}</i>
+              <span>{m.label}</span>
+              <small>{m.desc}</small>
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -7608,7 +7723,7 @@ const dispatchJobs = [
   },
 ];
 
-function CyncroDispatch() {
+function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const [authenticated, setAuthenticated] = useState(false);
   const [role, setRole] = useState<DispatchRole>("Owner");
   const [view, setView] = useState<DispatchView>("Dashboard");
@@ -8106,12 +8221,12 @@ function CyncroDispatch() {
         </nav>
         <div className="dispatchSideSystem">
           <small>CONNECTED PLATFORM</small>
-          <button onClick={() => flash("Cyncro CRM opened")}>
+          <button onClick={() => onNavigate ? onNavigate("crm") : (window.location.hash = "#crm")}>
             <i>◫</i>
             <span>Cyncro CRM</span>
             <em>↗</em>
           </button>
-          <button onClick={() => flash("Universal Calendar opened")}>
+          <button onClick={() => onNavigate ? onNavigate("admin") : (window.location.hash = "#admin")}>
             <i>□</i>
             <span>Calendar</span>
             <em>↗</em>
@@ -10913,6 +11028,7 @@ type CRMView =
   | "Accounts"
   | "Contacts"
   | "Calendar"
+  | "Team Chat"
   | "Conversations"
   | "Social Automations"
   | "Journeys"
@@ -10946,6 +11062,73 @@ type CRMContactCard = {
   website: string;
 };
 
+function QuickCompanyForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [name, setName] = useState(""), [domain, setDomain] = useState(""), [address, setAddress] = useState(""), [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!name.trim()) { onFlash("Company name is required"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), domain, address, source: "CRM" }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Company could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "created" } }));
+    onFlash(`${name.trim()} added to your account directory`);
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Company name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Acme Corp" autoFocus/></label><label>Domain / website<input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="acme.com"/></label><label>Business address<input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123 Main St, City, State"/></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Create company"}</button></div></>);
+}
+
+function QuickOpportunityForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [name, setName] = useState(""), [company, setCompany] = useState(""), [value, setValue] = useState(""), [stage, setStage] = useState("NEW"), [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!company.trim()) { onFlash("Company name is required"); return; }
+    setSaving(true);
+    const acctResp = await fetch("/api/crm/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: company.trim(), source: "CRM" }) });
+    const acctData = await acctResp.json() as { account?: { id: string }; error?: string };
+    if (!acctResp.ok || !acctData.account) { setSaving(false); onFlash(acctData.error || "Account could not be created"); return; }
+    const oppResp = await fetch("/api/crm/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: acctData.account.id, name: name.trim() || `${company.trim()} opportunity`, stage, value: Number(value) || 0, probability: 25, source: "CRM" }) });
+    const oppData = await oppResp.json() as { error?: string };
+    setSaving(false);
+    if (!oppResp.ok) { onFlash(oppData.error || "Opportunity could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "opportunity", action: "created" } }));
+    onFlash("Opportunity added to pipeline");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Deal name<input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Acme Corp – Q4 Media Package" autoFocus/></label><label>Company<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company name" required/></label><label>Value<input type="number" value={value} onChange={e=>setValue(e.target.value)} placeholder="0"/></label><label>Stage<select value={stage} onChange={e=>setStage(e.target.value)}><option value="NEW">New</option><option value="QUALIFIED">Qualified</option><option value="PROPOSAL">Proposal</option><option value="NEGOTIATION">Negotiation</option><option value="CLOSED WON">Closed Won</option></select></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Add to pipeline"}</button></div></>);
+}
+
+function QuickTaskForm({ onFlash, onDone, onCancel }: { onFlash:(m:string)=>void; onDone:()=>void; onCancel:()=>void }) {
+  const [title, setTitle] = useState(""), [details, setDetails] = useState(""), [dueAt, setDueAt] = useState(""), [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!title.trim()) { onFlash("Task title is required"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activityType: "TASK", title: title.trim(), details, dueAt }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Task could not be created"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created" } }));
+    onFlash("Task added to your work queue");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Task title<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What needs to be done?" autoFocus/></label><label>Details<textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Context, definition of done, customer info…"/></label><label>Due date<input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)}/></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Create task"}</button></div></>);
+}
+
+function QuickNoteForm({ onFlash, contacts, onDone, onCancel }: { onFlash:(m:string)=>void; contacts:CRMContactCard[]; onDone:()=>void; onCancel:()=>void }) {
+  const [body, setBody] = useState(""), [contactId, setContactId] = useState(""), [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!body.trim()) { onFlash("Write your note first"); return; }
+    setSaving(true);
+    const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contactId || null, activityType: "NOTE", title: body.trim().slice(0, 80), details: body.trim() }) });
+    const data = await response.json() as { error?: string };
+    setSaving(false);
+    if (!response.ok) { onFlash(data.error || "Note could not be saved"); return; }
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "activity", action: "created" } }));
+    onFlash("Note saved");
+    onDone();
+  };
+  return (<><div className="crmForm"><label>Note<textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Write anything about a contact, deal, or call…" autoFocus rows={4}/></label><label>Link to contact (optional)<select value={contactId} onChange={e=>setContactId(e.target.value)}><option value="">No contact</option>{contacts.map(c=><option key={c.id} value={c.id||""}>{c.name} · {c.company}</option>)}</select></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Save note"}</button></div></>);
+}
+
 function UniversalCRM({
   onOpenCalendar,
   onOpenProspecting,
@@ -10963,6 +11146,9 @@ function UniversalCRM({
     [importRows, setImportRows] = useState<Record<string,string>[]>([]),
     [importFileName, setImportFileName] = useState(""),
     [aiOpen, setAiOpen] = useState(false),
+    [aiQuery, setAiQuery] = useState(""),
+    [aiMessages, setAiMessages] = useState<{role:"user"|"assistant";text:string}[]>([{role:"assistant",text:"Ask me anything about your contacts, pipeline, bookings, or tasks."}]),
+    [aiLoading, setAiLoading] = useState(false),
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
     [currentAccess,setCurrentAccess]=useState<Record<string,unknown>>({role:"OWNER",manage_users:1,can_create:1,can_edit:1,can_delete:1,can_export:1,compensation_access:1,invoice_access:1,contract_access:1,attribution_access:1,work_access:1}),
@@ -10974,6 +11160,9 @@ function UniversalCRM({
     [contactsLoaded, setContactsLoaded] = useState(false),
     [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set()),
     [contactRecordOpen,setContactRecordOpen]=useState(false),
+    [createType, setCreateType] = useState<"Contact"|"Company"|"Opportunity"|"Task"|"Note">("Contact"),
+    [notificationsOpen, setNotificationsOpen] = useState(false),
+    [notifications, setNotifications] = useState<{id:string;title:string;body?:string;read_at?:string;created_at:string}[]>([]),
     [contactForm, setContactForm] = useState({
       fullName: "",
       company: "",
@@ -10998,6 +11187,14 @@ function UniversalCRM({
     const saved = window.localStorage.getItem("cyncro-crm-user-name");
     if (saved) setCrmUserName(saved);
     void fetch("/api/access").then(r=>r.ok?r.json():null).then(data=>data?.member&&setCurrentAccess(data.member));
+    const loadNotifications = () => void fetch("/api/notifications").then(async r=>{
+      if(!r.ok)return;
+      const d=await r.json() as {notifications?:typeof notifications};
+      setNotifications(d.notifications||[]);
+    });
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(timer);
   }, []);
   const saveCRMUserName = (name: string) => {
     const value = name.trim() || "Team Member";
@@ -11182,6 +11379,7 @@ function UniversalCRM({
     { name: "Accounts", icon: "▦", count: String(crmSummary.accounts || 0) },
     { name: "Contacts", icon: "◎", count: String(crmSummary.contacts || 0) },
     { name: "Calendar", icon: "□", count: "Live" },
+    { name: "Team Chat", icon: "#", count: "Team" },
     { name: "Conversations", icon: "◇" },
     { name: "Social Automations", icon: "" },
     { name: "Journeys", icon: "↝" },
@@ -11199,7 +11397,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Access","Forms","Sales Playbooks","Integrations"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11282,11 +11480,29 @@ function UniversalCRM({
           </div>
           <button
             className="crmIconButton"
-            onClick={() => flash("No new alerts")}
+            onClick={() => setNotificationsOpen(v=>!v)}
+            style={{position:"relative"}}
           >
-            ◌<i />
+            ◌{notifications.filter(n=>!n.read_at).length > 0 && <i style={{position:"absolute",top:2,right:2,background:"#a30e18",borderRadius:"50%",width:8,height:8,display:"block"}} />}
           </button>
-          <button onClick={openNewAppointment}>＋ New appointment</button>
+          {notificationsOpen && (
+            <div className="crmModalBack" onClick={()=>setNotificationsOpen(false)}>
+              <div className="crmModal" style={{maxWidth:420,top:"4rem",right:"1rem",left:"auto",position:"fixed",transform:"none"}} onClick={e=>e.stopPropagation()}>
+                <div className="crmModalHead">
+                  <div><label>ALERTS</label><h2>Notifications</h2></div>
+                  <button onClick={()=>setNotificationsOpen(false)}>×</button>
+                </div>
+                {notifications.length ? notifications.slice(0,10).map(n=>(
+                  <div key={n.id} className="agendaRow" style={{opacity:n.read_at?0.55:1}}>
+                    <i style={{fontSize:18}}>◌</i>
+                    <div><b>{n.title}</b><small>{new Date(n.created_at).toLocaleString()}</small>{n.body&&<p style={{margin:"2px 0 0",fontSize:11}}>{n.body}</p>}</div>
+                    {!n.read_at&&<button onClick={()=>void fetch("/api/notifications",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:n.id,readAt:new Date().toISOString()})}).then(()=>setNotifications(prev=>prev.map(x=>x.id===n.id?{...x,read_at:new Date().toISOString()}:x)))}>Mark read</button>}
+                  </div>
+                )) : <div className="noProspects">No notifications yet.</div>}
+              </div>
+            </div>
+          )}
+          <button className="crmSecondaryBtn" onClick={openNewAppointment}>＋ Appointment</button>
           <button className="crmCreate" onClick={() => setCreating(true)}>
             ＋ New contact
           </button>
@@ -11296,7 +11512,7 @@ function UniversalCRM({
           <div className="crmPageHead">
             <div>
               <label>CYNCRO CRM</label>
-              <h1>{view === "Overview" ? "Good afternoon." : view}</h1>
+              <h1>{view === "Overview" ? (()=>{const h=new Date().getHours();return h<12?"Good morning.":h<17?"Good afternoon.":"Good evening."})() : view}</h1>
               <p>
                 {view === "Overview"
                   ? "Every customer signal, opportunity, and next move—organized in real time."
@@ -11619,6 +11835,7 @@ function UniversalCRM({
               currentUserName={crmUserName}
             />
           )}
+          {view === "Team Chat" && <TeamChat />}
           {view === "Conversations" && <CRMConversations onFlash={flash} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
@@ -11656,107 +11873,124 @@ function UniversalCRM({
               <button onClick={() => setCreating(false)}>×</button>
             </div>
             <div className="recordTypes">
-              {["Contact", "Company", "Opportunity", "Task", "Note"].map(
-                (item, index) => (
-                  <button className={index === 0 ? "active" : ""} key={item}>
+              {(["Contact", "Company", "Opportunity", "Task", "Note"] as const).map(
+                (item) => (
+                  <button className={createType === item ? "active" : ""} key={item} onClick={() => setCreateType(item)}>
                     {item}
                   </button>
                 ),
               )}
             </div>
-            <div className="crmForm">
-              <label>
-                Full name
-                <input
-                  value={contactForm.fullName}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      fullName: event.target.value,
-                    })
-                  }
-                  placeholder="Enter contact name"
-                />
-              </label>
-              <label>
-                Company
-                <input
-                  value={contactForm.company}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      company: event.target.value,
-                    })
-                  }
-                  placeholder="Company or organization"
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  value={contactForm.email}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      email: event.target.value,
-                    })
-                  }
-                  placeholder="name@company.com"
-                />
-              </label>
-              <label>
-                Phone
-                <input
-                  value={contactForm.phone}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      phone: event.target.value,
-                    })
-                  }
-                  placeholder="(000) 000-0000"
-                />
-              </label>
-              <label>
-                Source
-                <select
-                  value={contactForm.source}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      source: event.target.value,
-                    })
-                  }
-                >
-                  <option>Booking link</option>
-                  <option>Website</option>
-                  <option>Referral</option>
-                  <option>Manual</option>
-                </select>
-              </label>
-              <label>
-                Lifecycle
-                <select
-                  value={contactForm.lifecycle}
-                  onChange={(event) =>
-                    setContactForm({
-                      ...contactForm,
-                      lifecycle: event.target.value,
-                    })
-                  }
-                >
-                  <option>Lead</option>
-                  <option>Qualified</option>
-                  <option>Customer</option>
-                </select>
-              </label>
-            </div>
+            {createType === "Contact" && (
+              <div className="crmForm">
+                <label>
+                  Full name
+                  <input
+                    value={contactForm.fullName}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        fullName: event.target.value,
+                      })
+                    }
+                    placeholder="Enter contact name"
+                    autoFocus
+                  />
+                </label>
+                <label>
+                  Company
+                  <input
+                    value={contactForm.company}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        company: event.target.value,
+                      })
+                    }
+                    placeholder="Company or organization"
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    value={contactForm.email}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        email: event.target.value,
+                      })
+                    }
+                    placeholder="name@company.com"
+                  />
+                </label>
+                <label>
+                  Phone
+                  <input
+                    value={contactForm.phone}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        phone: event.target.value,
+                      })
+                    }
+                    placeholder="(000) 000-0000"
+                  />
+                </label>
+                <label>
+                  Source
+                  <select
+                    value={contactForm.source}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        source: event.target.value,
+                      })
+                    }
+                  >
+                    <option>Booking link</option>
+                    <option>Website</option>
+                    <option>Referral</option>
+                    <option>Manual</option>
+                  </select>
+                </label>
+                <label>
+                  Lifecycle
+                  <select
+                    value={contactForm.lifecycle}
+                    onChange={(event) =>
+                      setContactForm({
+                        ...contactForm,
+                        lifecycle: event.target.value,
+                      })
+                    }
+                  >
+                    <option>Lead</option>
+                    <option>Qualified</option>
+                    <option>Customer</option>
+                  </select>
+                </label>
+              </div>
+            )}
+            {createType === "Company" && (
+              <QuickCompanyForm onFlash={flash} onDone={() => { setCreating(false); void Promise.all([loadCRMContacts(), loadCRMOverview()]); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Opportunity" && (
+              <QuickOpportunityForm onFlash={flash} onDone={() => { setCreating(false); setView("Pipeline"); void Promise.all([loadCRMContacts(), loadCRMOverview()]); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Task" && (
+              <QuickTaskForm onFlash={flash} onDone={() => { setCreating(false); void loadCRMOverview(); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Note" && (
+              <QuickNoteForm onFlash={flash} contacts={liveContacts} onDone={() => { setCreating(false); void loadCRMOverview(); }} onCancel={() => setCreating(false)} />
+            )}
+            {createType === "Contact" && (
             <div className="crmModalActions">
               <button onClick={() => setCreating(false)}>Cancel</button>
               <button onClick={() => void createContact()}>
                 Create + enrich record
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -11774,35 +12008,64 @@ function UniversalCRM({
             </div>
             <button onClick={() => setAiOpen(false)}>×</button>
           </div>
-          <div className="aiConversation">
-            <div className="aiPrompt">What needs my attention today?</div>
-            <div className="aiAnswer">
-              <span>✦</span>
-              <p>
-                You have <b>$62,500</b> in high-intent opportunities. Daniel Kim
-                should be contacted first; his payment activity makes him 3.2×
-                more likely to close today. I can draft the message, create the
-                task, and update the opportunity.
-              </p>
-            </div>
+          <div className="aiConversation" id="aiConvoScroll">
+            {aiMessages.map((m, i) => m.role === "user" ? (
+              <div key={i} className="aiPrompt">{m.text}</div>
+            ) : (
+              <div key={i} className="aiAnswer">
+                <span>✦</span>
+                <p dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>") }} />
+              </div>
+            ))}
+            {aiLoading && <div className="aiAnswer"><span>✦</span><p style={{color:"#666"}}>Analyzing your workspace…</p></div>}
           </div>
           <div className="aiSuggestions">
-            {[
-              "Draft Daniel’s follow-up",
-              "Show at-risk deals",
-              "Build today’s call list",
-            ].map((item) => (
-              <button onClick={() => flash(`${item} · ready`)} key={item}>
+            {["Who should I call today?", "Show at-risk deals", "What’s overdue?"].map((item) => (
+              <button key={item} onClick={() => {
+                setAiQuery(item);
+                const msgs = [...aiMessages, {role:"user" as const,text:item}];
+                setAiMessages(msgs);
+                setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:item})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer right now."}]);})
+                  .finally(()=>setAiLoading(false));
+                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
+              }}>
                 {item}
               </button>
             ))}
           </div>
           <div className="aiComposer">
-            <input placeholder="Ask about any contact, deal, booking, or metric…" />
-            <button onClick={() => flash("Command processed")}>↑</button>
+            <input
+              value={aiQuery}
+              onChange={e => setAiQuery(e.target.value)}
+              placeholder="Ask about any contact, deal, booking, or metric…"
+              onKeyDown={e => {
+                if (e.key !== "Enter" || !aiQuery.trim() || aiLoading) return;
+                const q = aiQuery.trim();
+                const msgs = [...aiMessages, {role:"user" as const,text:q}];
+                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
+                  .finally(()=>setAiLoading(false));
+                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
+              }}
+            />
+            <button
+              disabled={!aiQuery.trim() || aiLoading}
+              onClick={() => {
+                if (!aiQuery.trim() || aiLoading) return;
+                const q = aiQuery.trim();
+                const msgs = [...aiMessages, {role:"user" as const,text:q}];
+                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
+                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
+                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
+                  .finally(()=>setAiLoading(false));
+              }}
+            >↑</button>
           </div>
           <small className="aiPermission">
-            Cyncro asks before taking external actions.
+            Cyncro reads your live pipeline data to answer.
           </small>
         </div>
       )}
@@ -11863,6 +12126,18 @@ function CRMPipeline({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
+  const [pipelineViewMode, setPipelineViewMode] = useState<"board"|"table">("board");
+  const [tableSort, setTableSort] = useState<{col:string;dir:"asc"|"desc"}>({col:"value_cents",dir:"desc"});
+  const [tableFilter, setTableFilter] = useState("");
+  const sortedTableDeals = [...deals]
+    .filter(d => !tableFilter || `${d.name} ${d.account_name} ${d.contact_name} ${d.stage} ${d.source}`.toLowerCase().includes(tableFilter.toLowerCase()))
+    .sort((a,b) => {
+      const dir = tableSort.dir === "asc" ? 1 : -1;
+      const va = (a as Record<string,unknown>)[tableSort.col]; const vb = (b as Record<string,unknown>)[tableSort.col];
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
+    });
+  const toggleSort = (col:string) => setTableSort(prev => ({ col, dir: prev.col === col && prev.dir === "desc" ? "asc" : "desc" }));
   const [newDeal, setNewDeal] = useState({
     company: "",
     contactName: "",
@@ -12209,6 +12484,10 @@ function CRMPipeline({
           </p>
         </div>
         <div>
+          <div className="pipelineViewToggle">
+            <button className={pipelineViewMode === "board" ? "active" : ""} onClick={() => setPipelineViewMode("board")}>⊞ Board</button>
+            <button className={pipelineViewMode === "table" ? "active" : ""} onClick={() => setPipelineViewMode("table")}>☰ Table</button>
+          </div>
           {pipelines.length > 1 && (
             <select
               value={selectedPipelineId}
@@ -12240,7 +12519,96 @@ function CRMPipeline({
           </button>
         </div>
       </div>
-      <div className="pipelineBoard">
+
+      {pipelineViewMode === "table" && (
+        <div className="pipelineTableWrap">
+          <div className="pipelineTableControls">
+            <div className="pipelineTableSearch">
+              <span>⌕</span>
+              <input value={tableFilter} onChange={e=>setTableFilter(e.target.value)} placeholder="Filter by deal, company, stage, source…" />
+              {tableFilter && <button onClick={()=>setTableFilter("")}>×</button>}
+            </div>
+            <div className="pipelineTableMeta">
+              <span><b>{sortedTableDeals.length}</b> deal{sortedTableDeals.length!==1?"s":""}</span>
+              <span><b>{money(sortedTableDeals.reduce((s,d)=>s+Number(d.value_cents||0),0))}</b> total value</span>
+              <span><b>{money(sortedTableDeals.reduce((s,d)=>s+Math.max(0,Number(d.value_cents||0)-Number(d.cost_cents||0)),0))}</b> est. profit</span>
+            </div>
+            <button className="crmCreate" style={{marginLeft:"auto"}} onClick={()=>setCreateStage(stages[0]||"NEW")}>＋ Add deal</button>
+          </div>
+          <div className="pipelineTableOuter">
+            <table className="pipelineTable">
+              <thead>
+                <tr>
+                  {([
+                    {col:"name",label:"Deal / Company"},
+                    {col:"stage",label:"Stage"},
+                    {col:"value_cents",label:"Value"},
+                    {col:"cost_cents",label:"Cost"},
+                    {col:"probability",label:"Prob."},
+                    {col:"source",label:"Source"},
+                    {col:"assigned_rep",label:"Rep"},
+                    {col:"contact_name",label:"Contact"},
+                  ] as const).map(({col,label})=>(
+                    <th key={col} onClick={()=>toggleSort(col)} className={tableSort.col===col?"sorted":""}>
+                      {label}
+                      <span className="sortIndicator">{tableSort.col===col ? (tableSort.dir==="asc"?"↑":"↓") : "⇅"}</span>
+                    </th>
+                  ))}
+                  <th style={{width:90}}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTableDeals.length===0 && (
+                  <tr><td colSpan={9} className="pipelineTableEmpty">No deals match your filter. <button onClick={()=>setCreateStage(stages[0]||"NEW")}>Add the first one →</button></td></tr>
+                )}
+                {sortedTableDeals.map(deal=>{
+                  const stageSetting = stageSettings.find(s=>s.name===deal.stage);
+                  const profit = Math.max(0, Number(deal.value_cents||0)-Number(deal.cost_cents||0));
+                  return (
+                    <tr key={deal.id} onClick={()=>setSelectedDeal({...deal})} className="pipelineTableRow">
+                      <td>
+                        <div className="pipelineTableDeal">
+                          <b>{deal.name}</b>
+                          <small>{deal.account_name}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="pipelineStageChip" style={{borderColor:stageSetting?.color||"#a30e18",color:stageSetting?.color||"#e08090"}}>
+                          {deal.stage}
+                        </span>
+                      </td>
+                      <td className="pipelineTableNum"><b>{money(deal.value_cents)}</b></td>
+                      <td className="pipelineTableNum">{deal.cost_cents ? money(deal.cost_cents) : "—"}</td>
+                      <td>
+                        <div className="pipelineTableProb">
+                          <div style={{width:`${deal.probability}%`,background:stageSetting?.color||"#a30e18"}}/>
+                          <span>{deal.probability}%</span>
+                        </div>
+                      </td>
+                      <td><span className="pipelineTableTag">{deal.source||"MANUAL"}</span></td>
+                      <td>{deal.assigned_rep||<span style={{color:"#555"}}>—</span>}</td>
+                      <td>
+                        <div>
+                          <span>{deal.contact_name||"—"}</span>
+                          {deal.contact_phone&&<small style={{display:"block",color:"#666",fontSize:10}}>{deal.contact_phone}</small>}
+                        </div>
+                      </td>
+                      <td onClick={e=>e.stopPropagation()}>
+                        <div className="dealCardActions">
+                          <button onClick={()=>setSelectedDeal({...deal})}>Edit</button>
+                          <button className="dangerText" onClick={()=>void deleteDeal(deal)}>Del</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {pipelineViewMode === "board" && <div className="pipelineBoard">
         {stages.map((stage) => {
           const columnDeals = deals.filter((deal) => deal.stage === stage);
           const stageSetting = stageSettings.find(
@@ -12316,7 +12684,7 @@ function CRMPipeline({
             </section>
           );
         })}
-      </div>
+      </div>}
       {settingsOpen && pipelineDraft && (
         <div className="modalback" onClick={() => setSettingsOpen(false)}>
           <div
@@ -16867,7 +17235,7 @@ function CRMIntegrations({ onFlash }: { onFlash: (message: string) => void }) {
           </ol>
         </div>
         <button className="googleConnectButton" onClick={connectGoogle}>
-          {status?.connections.googleCalendar ? "Connect Google Calendar" : "Set up Google Calendar"}
+          {status?.connections.googleCalendar ? "✓ Connected — Reconnect Google Calendar" : "Connect Google Calendar"}
         </button>
       </section>
       <div className="integrationGrid">
@@ -19254,5 +19622,824 @@ function Admin({
         </div>
       )}
     </section>
+  );
+}
+
+// ============================================================
+// Cyncro Team Chat
+// ============================================================
+type ChatChannel = {
+  id: string; name: string; type: string; description?: string; created_by: string;
+  my_role?: string; unread_count?: number; last_message?: string; last_message_at?: string; last_message_author?: string;
+};
+type ChatMessage = {
+  id: string; channel_id: string; author_email: string; author_name: string; body: string;
+  thread_parent_id?: string | null; attachments_json: string; crm_link_type?: string | null;
+  crm_link_id?: string | null; edited_at?: string | null; deleted_at?: string | null;
+  created_at: string; updated_at: string; reply_count?: number;
+};
+type ChatAttachment = { key: string; filename: string; contentType: string; sizeBytes: number };
+type WsMember = { email: string; display_name: string; role: string };
+
+function chatInitials(name: string) {
+  return name.split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+}
+function chatFmtTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 60000) return "just now";
+  if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return d.toLocaleDateString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function chatFmtDay(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Today";
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+}
+function chatFmtBytes(n: number) {
+  if (n < 1024) return `${n}B`;
+  if (n < 1048576) return `${(n / 1024).toFixed(1)}KB`;
+  return `${(n / 1048576).toFixed(1)}MB`;
+}
+function chatFileIcon(ct: string) {
+  if (ct.startsWith("image/")) return "🖼";
+  if (ct.startsWith("video/")) return "🎬";
+  if (ct.startsWith("audio/")) return "🎵";
+  if (ct === "application/pdf") return "📄";
+  if (ct.includes("word") || ct.includes("document")) return "📝";
+  if (ct.includes("sheet") || ct.includes("excel")) return "📊";
+  return "📎";
+}
+function insertMentionFormatting(text: string) {
+  // Render @mentions as styled spans (display only)
+  const parts = text.split(/(@[\w.-]+@[\w.-]+|@\w+)/g);
+  return parts.map((part, i) =>
+    part.startsWith("@") ? <span key={i} className="mention">{part}</span> : part
+  );
+}
+
+function ChatMessageItem({
+  msg, myEmail, myRole, channelAdminEmails, onOpenThread, onEdit, onDelete, onFlash
+}: {
+  msg: ChatMessage; myEmail: string; myRole: string; channelAdminEmails: Set<string>;
+  onOpenThread: (msg: ChatMessage) => void; onEdit: (msg: ChatMessage) => void;
+  onDelete: (id: string) => void; onFlash: (s: string) => void;
+}) {
+  const [editMode, setEditMode] = useState(false);
+  const [editBody, setEditBody] = useState(msg.body);
+  const [saving, setSaving] = useState(false);
+  const attachments: ChatAttachment[] = (() => { try { return JSON.parse(msg.attachments_json || "[]") as ChatAttachment[]; } catch { return []; } })();
+  const isAuthor = msg.author_email === myEmail;
+  const canDelete = isAuthor || myRole === "OWNER" || channelAdminEmails.has(myEmail);
+
+  const saveEdit = async () => {
+    if (!editBody.trim() || editBody === msg.body) { setEditMode(false); return; }
+    setSaving(true);
+    const r = await fetch("/api/chat/messages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: msg.id, body: editBody.trim() }) });
+    setSaving(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; onFlash(d.error || "Edit failed"); return; }
+    onEdit({ ...msg, body: editBody.trim(), edited_at: new Date().toISOString() });
+    setEditMode(false);
+  };
+
+  return (
+    <div className={`chatMessage${msg.deleted_at ? " deleted" : ""}`} id={`msg-${msg.id}`}>
+      <div className="chatMessageAvatar">{chatInitials(msg.author_name)}</div>
+      <div>
+        <div className="chatMessageMeta">
+          <b>{msg.author_name}</b>
+          <time>{chatFmtTime(msg.created_at)}</time>
+          {msg.edited_at && <span className="editedBadge">(edited)</span>}
+        </div>
+        {editMode ? (
+          <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+            <textarea
+              className="chatComposerInput"
+              style={{ border: "1px solid #6a2a35", borderRadius: 8, padding: "8px 12px", minHeight: 60 }}
+              value={editBody}
+              onChange={e => setEditBody(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void saveEdit(); } if (e.key === "Escape") { setEditMode(false); setEditBody(msg.body); } }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="chatSendBtn" style={{ fontSize: 10 }} disabled={saving} onClick={() => void saveEdit()}>Save</button>
+              <button className="chatMainHeaderActions" style={{ fontSize: 10, padding: "0 10px" }} onClick={() => { setEditMode(false); setEditBody(msg.body); }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="chatMessageBody">{insertMentionFormatting(msg.body)}</div>
+        )}
+        {attachments.length > 0 && (
+          <div className="chatAttachments">
+            {attachments.map((att, i) => (
+              att.contentType.startsWith("image/") ? (
+                <a key={i} href={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} target="_blank" rel="noopener noreferrer">
+                  <img className="chatImagePreview" src={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} alt={att.filename} />
+                </a>
+              ) : (
+                <a key={i} className="chatAttachmentCard" href={`/api/chat/upload?key=${encodeURIComponent(att.key)}`} target="_blank" rel="noopener noreferrer">
+                  <i>{chatFileIcon(att.contentType)}</i>
+                  <span><b>{att.filename}</b><small>{chatFmtBytes(att.sizeBytes)}</small></span>
+                </a>
+              )
+            ))}
+          </div>
+        )}
+        {msg.crm_link_type && msg.crm_link_id && (
+          <div className="chatCrmLink"><i>⬡</i> Linked to {msg.crm_link_type.toLowerCase()}</div>
+        )}
+        {!editMode && !msg.deleted_at && (
+          <div className="chatMessageActions">
+            {!msg.thread_parent_id && <button onClick={() => onOpenThread(msg)}>💬 {msg.reply_count ? `${msg.reply_count} replies` : "Reply"}</button>}
+            {isAuthor && <button onClick={() => { setEditMode(true); setEditBody(msg.body); }}>Edit</button>}
+            {canDelete && <button className="dangerBtn" onClick={() => onDelete(msg.id)}>Delete</button>}
+          </div>
+        )}
+        {!msg.deleted_at && !msg.thread_parent_id && (msg.reply_count || 0) > 0 && !editMode && (
+          <button className="chatReplyThread" onClick={() => onOpenThread(msg)}>
+            <span className="chatReplyAvatars"><span>{chatInitials(msg.author_name)}</span></span>
+            {msg.reply_count} {msg.reply_count === 1 ? "reply" : "replies"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChatComposer({
+  channelId, replyToId, placeholder, allMembers, onSent, onFlash
+}: {
+  channelId: string; replyToId?: string | null; placeholder?: string;
+  allMembers: WsMember[]; onSent: (msg: ChatMessage) => void; onFlash: (s: string) => void;
+}) {
+  const [body, setBody] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionCaret, setMentionCaret] = useState(0);
+  const textareaRef = { current: null as HTMLTextAreaElement | null };
+
+  const filteredMembers = mentionQuery !== null
+    ? allMembers.filter(m => m.display_name.toLowerCase().includes(mentionQuery.toLowerCase()) || m.email.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+
+  const onBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setBody(val);
+    // Detect @mention trigger
+    const pos = e.target.selectionStart;
+    const before = val.slice(0, pos);
+    const match = before.match(/@(\w*)$/);
+    if (match) { setMentionQuery(match[1]); setMentionCaret(pos); }
+    else { setMentionQuery(null); }
+  };
+
+  const insertMention = (member: WsMember) => {
+    const before = body.slice(0, mentionCaret).replace(/@(\w*)$/, `@${member.display_name.replace(/\s+/g, "")} `);
+    const after = body.slice(mentionCaret);
+    setBody(before + after);
+    setMentionQuery(null);
+  };
+
+  const removeFile = (i: number) => setPendingFiles(pendingFiles.filter((_, j) => j !== i));
+
+  const send = async () => {
+    if (!body.trim() && !pendingFiles.length) return;
+    setSending(true);
+    // Upload files first
+    const attachments: ChatAttachment[] = [];
+    if (pendingFiles.length) {
+      setUploading(true);
+      for (const file of pendingFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("channelId", channelId);
+        const r = await fetch("/api/chat/upload", { method: "POST", body: fd });
+        if (!r.ok) {
+          const d = await r.json() as { error?: string };
+          onFlash(d.error || "File upload failed");
+          setSending(false); setUploading(false); return;
+        }
+        const d = await r.json() as { key: string; filename: string; contentType: string; sizeBytes: number };
+        attachments.push({ key: d.key, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes });
+      }
+      setUploading(false);
+    }
+    const r = await fetch("/api/chat/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId, body: body.trim() || "​", threadParentId: replyToId || null, attachments }),
+    });
+    setSending(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; onFlash(d.error || "Send failed"); return; }
+    const d = await r.json() as { message: ChatMessage };
+    setBody(""); setPendingFiles([]); setMentionQuery(null);
+    onSent(d.message);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredMembers.length) {
+      if (e.key === "Escape") { setMentionQuery(null); e.preventDefault(); return; }
+    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); }
+  };
+
+  return (
+    <div>
+      {mentionQuery !== null && filteredMembers.length > 0 && (
+        <div style={{ border: "1px solid #4a222b", borderRadius: 9, background: "#0e090b", marginBottom: 6, overflow: "hidden" }}>
+          {filteredMembers.map(m => (
+            <button key={m.email} className="chatMemberCheckRow" style={{ width: "100%", borderRadius: 0, padding: "8px 12px" }}
+              onMouseDown={e => { e.preventDefault(); insertMention(m); }}>
+              <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+              <span style={{ display: "grid" }}><b style={{ fontSize: 12 }}>{m.display_name}</b><small style={{ fontSize: 9, color: "#8f767b" }}>{m.email}</small></span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className={`chatComposer${focused ? " focused" : ""}`}>
+        {pendingFiles.length > 0 && (
+          <div className="chatComposerAttachPills">
+            {pendingFiles.map((f, i) => (
+              <div key={i} className="chatComposerAttachPill">
+                <span>{chatFileIcon(f.type || "")}</span>
+                <span style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                <button onClick={() => removeFile(i)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <textarea
+          ref={el => { textareaRef.current = el; }}
+          className="chatComposerInput"
+          placeholder={placeholder || "Message…"}
+          value={body}
+          onChange={onBodyChange}
+          onKeyDown={onKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          rows={1}
+        />
+        <div className="chatComposerActions">
+          <div className="chatComposerTools">
+            <label title="Attach file">
+              📎
+              <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/mp4,audio/mpeg"
+                onChange={e => { const files = Array.from(e.target.files || []); setPendingFiles(prev => [...prev, ...files]); e.target.value = ""; }} />
+            </label>
+          </div>
+          <button className="chatSendBtn" disabled={sending || uploading || (!body.trim() && !pendingFiles.length)} onClick={() => void send()}>
+            {uploading ? "Uploading…" : sending ? "Sending…" : "Send"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamChat() {
+  const [channels, setChannels] = useState<ChatChannel[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [allMembers, setAllMembers] = useState<WsMember[]>([]);
+  const [channelMembers, setChannelMembers] = useState<(WsMember & { role?: string })[]>([]);
+  const [myEmail, setMyEmail] = useState("");
+  const [myRole, setMyRole] = useState("MEMBER");
+  const [flashMsg, setFlashMsg] = useState("");
+  const [newModal, setNewModal] = useState(false);
+  const [newForm, setNewForm] = useState({ name: "", type: "PUBLIC", description: "", memberEmails: [] as string[] });
+  const [newLoading, setNewLoading] = useState(false);
+  const [threadMsg, setThreadMsg] = useState<ChatMessage | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ChatMessage[]>([]);
+  const [showMembers, setShowMembers] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchResults, setSearchResults] = useState<Record<string, unknown>[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const messagesEndRef = { current: null as HTMLDivElement | null };
+  const [editedMsgs, setEditedMsgs] = useState<Record<string, ChatMessage>>({});
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 2800); };
+
+  const activeChannel = channels.find(c => c.id === activeId);
+
+  const loadChannels = async () => {
+    const r = await fetch(`/api/chat/channels?t=${Date.now()}`);
+    if (!r.ok) return;
+    const d = await r.json() as { channels?: ChatChannel[] };
+    const list = d.channels || [];
+    setChannels(list);
+    if (!activeId && list.length) setActiveId(list[0].id);
+  };
+
+  useEffect(() => {
+    // Load own identity
+    void fetch("/api/access").then(async r => {
+      if (!r.ok) return;
+      const d = await r.json() as { member?: { email?: string; role?: string } };
+      if (d.member?.email) setMyEmail(d.member.email);
+      if (d.member?.role) setMyRole(d.member.role);
+    });
+    void loadChannels();
+    // Load the active CRM team directory for channels and direct messages.
+    void fetch("/api/chat/members").then(async r => {
+      if (!r.ok) return;
+      const d = await r.json() as { allMembers?: WsMember[] };
+      setAllMembers(d.allMembers || []);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeId) return;
+    void loadMessages(activeId, false);
+    void markRead(activeId);
+    void loadChannelMembers(activeId);
+    setShowMembers(false);
+    setThreadMsg(null);
+    setSidebarOpen(false);
+  }, [activeId]);
+
+  // Poll for new messages every 6 seconds
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (activeId) void pollNewMessages(activeId);
+    }, 6000);
+    return () => clearInterval(iv);
+  }, [activeId, messages]);
+
+  const loadMessages = async (channelId: string, append: boolean) => {
+    setLoadingMessages(true);
+    const before = append && messages.length ? messages[0].created_at : undefined;
+    const url = `/api/chat/messages?channel=${channelId}&limit=50${before ? `&before=${encodeURIComponent(before)}` : ""}`;
+    const r = await fetch(url);
+    setLoadingMessages(false);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    const msgs = d.messages || [];
+    if (append) {
+      setMessages(prev => [...msgs, ...prev]);
+    } else {
+      setMessages(msgs);
+    }
+    setHasMore(msgs.length >= 50);
+    if (!append) setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "instant" }); }, 50);
+  };
+
+  const pollNewMessages = async (channelId: string) => {
+    const r = await fetch(`/api/chat/messages?channel=${channelId}&limit=20&t=${Date.now()}`);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    const fresh = d.messages || [];
+    if (!fresh.length) return;
+    setMessages(prev => {
+      const existingIds = new Set(prev.map(m => m.id));
+      const newOnes = fresh.filter(m => !existingIds.has(m.id));
+      if (!newOnes.length) return prev;
+      // Also refresh channel list for unread counts
+      void loadChannels();
+      const updated = [...prev, ...newOnes];
+      setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, 50);
+      return updated;
+    });
+  };
+
+  const loadChannelMembers = async (channelId: string) => {
+    const r = await fetch(`/api/chat/members?channel=${channelId}`);
+    if (!r.ok) return;
+    const d = await r.json() as { members?: (WsMember & { role?: string })[]; allMembers?: WsMember[] };
+    setChannelMembers(d.members || []);
+    if (d.allMembers?.length) setAllMembers(d.allMembers);
+  };
+
+  const markRead = async (channelId: string) => {
+    await fetch("/api/chat/reads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId }) });
+    setChannels(prev => prev.map(c => c.id === channelId ? { ...c, unread_count: 0 } : c));
+  };
+
+  const handleNewMessage = (msg: ChatMessage) => {
+    setMessages(prev => [...prev, msg]);
+    void markRead(msg.channel_id);
+    void loadChannels();
+    setTimeout(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, 50);
+  };
+
+  const handleNewReply = (msg: ChatMessage) => {
+    setThreadMessages(prev => [...prev, msg]);
+    // Update reply count on parent
+    setMessages(prev => prev.map(m => m.id === msg.thread_parent_id ? { ...m, reply_count: (m.reply_count || 0) + 1 } : m));
+  };
+
+  const handleEdit = (updated: ChatMessage) => {
+    setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
+    setEditedMsgs(prev => ({ ...prev, [updated.id]: updated }));
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this message?")) return;
+    const r = await fetch(`/api/chat/messages?id=${id}`, { method: "DELETE" });
+    if (!r.ok) { const d = await r.json() as { error?: string }; flash(d.error || "Delete failed"); return; }
+    setDeletedIds(prev => new Set(prev).add(id));
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted_at: new Date().toISOString(), body: "[message deleted]" } : m));
+  };
+
+  const handleOpenThread = async (msg: ChatMessage) => {
+    setThreadMsg(msg);
+    const r = await fetch(`/api/chat/messages?channel=${msg.channel_id}&thread=${msg.id}&limit=100`);
+    if (!r.ok) return;
+    const d = await r.json() as { messages?: ChatMessage[] };
+    setThreadMessages(d.messages || []);
+  };
+
+  const createChannel = async () => {
+    const selectedDirectMember = allMembers.find((member) => member.email === newForm.memberEmails[0]);
+    if (newForm.type === "DIRECT" && !selectedDirectMember) { flash("Choose one teammate to message."); return; }
+    if (newForm.type !== "DIRECT" && !newForm.name.trim()) { flash("Channel name is required."); return; }
+    setNewLoading(true);
+    const r = await fetch("/api/chat/channels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...newForm,
+        name: newForm.type === "DIRECT" ? selectedDirectMember?.display_name : newForm.name.trim(),
+      }),
+    });
+    setNewLoading(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; flash(d.error || "Create failed"); return; }
+    const d = await r.json() as { channel?: { id: string } };
+    setNewModal(false);
+    setNewForm({ name: "", type: "PUBLIC", description: "", memberEmails: [] });
+    await loadChannels();
+    if (d.channel?.id) setActiveId(d.channel.id);
+  };
+
+  const doSearch = async () => {
+    if (!searchQ.trim() || searchQ.length < 2) return;
+    setSearchMode(true);
+    const r = await fetch(`/api/chat/search?q=${encodeURIComponent(searchQ.trim())}`);
+    if (!r.ok) return;
+    const d = await r.json() as { results?: Record<string, unknown>[] };
+    setSearchResults(d.results || []);
+  };
+
+  const channelAdminEmails = new Set(channelMembers.filter(m => m.role === "ADMIN").map(m => m.email));
+  const publicChannels = channels.filter(c => c.type === "PUBLIC");
+  const privateChannels = channels.filter(c => c.type === "PRIVATE");
+  const directChannels = channels.filter(c => c.type === "DIRECT");
+  const totalUnread = channels.reduce((n, c) => n + (c.unread_count || 0), 0);
+
+  const displayMessages = messages.map(m => editedMsgs[m.id] ? { ...m, ...editedMsgs[m.id] } : m)
+    .filter(m => !deletedIds.has(m.id) || m.deleted_at);
+
+  // Group messages by day for dividers
+  const messagesWithDividers: (ChatMessage | { divider: string })[] = [];
+  let lastDay = "";
+  for (const m of displayMessages) {
+    const day = chatFmtDay(m.created_at);
+    if (day !== lastDay) { messagesWithDividers.push({ divider: day }); lastDay = day; }
+    messagesWithDividers.push(m);
+  }
+
+  return (
+    <div className="chatShell" style={{ position: "relative" }}>
+      {/* Mobile overlay */}
+      <div className={`chatSidebarOverlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      {/* Sidebar */}
+      <aside className={`chatSidebar${sidebarOpen ? " open" : ""}`}>
+        <div className="chatSidebarHeader">
+          <b>Team Chat {totalUnread > 0 && <span className="chatChannelBadge" style={{ fontSize: 9 }}>{totalUnread}</span>}</b>
+          <button onClick={() => setNewModal(true)}>＋ New</button>
+        </div>
+        <div className="chatSearch">
+          <input
+            placeholder="Search messages…"
+            value={searchQ}
+            onChange={e => { setSearchQ(e.target.value); if (!e.target.value) setSearchMode(false); }}
+            onKeyDown={e => { if (e.key === "Enter") void doSearch(); }}
+          />
+        </div>
+        <div className="chatChannelList">
+          {publicChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span># Channels</span></div>
+              {publicChannels.map(c => (
+                <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                  <span><em>#</em><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span></span>
+                  {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {privateChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span>🔒 Private</span></div>
+              {privateChannels.map(c => (
+                <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                  <span><em>🔒</em><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span></span>
+                  {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {directChannels.length > 0 && (
+            <>
+              <div className="chatSectionLabel"><span>Direct Messages</span></div>
+              {directChannels.map(c => {
+                const otherName = c.name;
+                return (
+                  <button key={c.id} className={`chatChannelBtn${activeId === c.id ? " active" : ""}`} onClick={() => setActiveId(c.id)}>
+                    <span className="chatUserBtn"><span className="chatAvatar">{chatInitials(otherName)}</span><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{otherName}</span></span>
+                    {(c.unread_count || 0) > 0 && <span className="chatChannelBadge">{c.unread_count}</span>}
+                  </button>
+                );
+              })}
+            </>
+          )}
+          {!channels.length && (
+            <div className="chatEmptyState" style={{ minHeight: 200 }}>
+              <i>💬</i>
+              <h3>No channels yet</h3>
+              <p>Create the first channel for your team.</p>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div className="chatMain" style={{ position: "relative" }}>
+        {searchMode ? (
+          <div className="chatSearchResults">
+            <div className="chatSearchResultsHeader">
+              <h3>Search: &ldquo;{searchQ}&rdquo; — {searchResults.length} results</h3>
+              <button onClick={() => { setSearchMode(false); setSearchQ(""); }}>Clear</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {searchResults.length ? searchResults.map(r => (
+                <div key={String(r.id)} className="chatSearchResult" onClick={() => {
+                  setSearchMode(false); setSearchQ("");
+                  setActiveId(String(r.channel_id));
+                }}>
+                  <b>#{String(r.channel_name)} · {String(r.author_name)}</b>
+                  <p>{String(r.body).slice(0, 200)}</p>
+                  <small>{chatFmtTime(String(r.created_at))}</small>
+                </div>
+              )) : <div className="chatNoResults">No messages found for &ldquo;{searchQ}&rdquo;</div>}
+            </div>
+          </div>
+        ) : activeChannel ? (
+          <>
+            {/* Channel header */}
+            <div className="chatMainHeader">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button className="chatMobileToggle" onClick={() => setSidebarOpen(s => !s)}>☰ Channels</button>
+                <div>
+                  <h2>{activeChannel.type === "PUBLIC" ? "#" : activeChannel.type === "PRIVATE" ? "🔒" : "✉"} {activeChannel.name}</h2>
+                  {activeChannel.description && <p>{activeChannel.description}</p>}
+                </div>
+              </div>
+              <div className="chatMainHeaderActions">
+                <button onClick={() => setShowMembers(s => !s)}>👥 {channelMembers.length}</button>
+                <button onClick={() => { void loadMessages(activeId!, false); flash("Refreshed"); }}>↻</button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="chatMessages">
+              {loadingMessages && !messages.length && (
+                <div style={{ padding: 20, color: "#8f767b", textAlign: "center", fontSize: 12 }}>Loading messages…</div>
+              )}
+              {hasMore && (
+                <div className="chatLoadMore">
+                  <button onClick={() => void loadMessages(activeId!, true)}>Load earlier messages</button>
+                </div>
+              )}
+              {!loadingMessages && messages.length === 0 && (
+                <div className="chatEmptyState">
+                  <i>{activeChannel.type === "PUBLIC" ? "#" : activeChannel.type === "PRIVATE" ? "🔒" : "✉"}</i>
+                  <h3>Welcome to #{activeChannel.name}</h3>
+                  <p>{activeChannel.description || "This is the beginning of this channel. Say something!"}</p>
+                </div>
+              )}
+              {messagesWithDividers.map((item, i) =>
+                "divider" in item ? (
+                  <div key={`div-${i}`} className="chatDayDivider">{item.divider}</div>
+                ) : (
+                  <ChatMessageItem
+                    key={item.id}
+                    msg={item}
+                    myEmail={myEmail}
+                    myRole={myRole}
+                    channelAdminEmails={channelAdminEmails}
+                    onOpenThread={handleOpenThread}
+                    onEdit={handleEdit}
+                    onDelete={id => void handleDelete(id)}
+                    onFlash={flash}
+                  />
+                )
+              )}
+              <div ref={el => { messagesEndRef.current = el; }} />
+            </div>
+
+            {/* Composer */}
+            <div className="chatComposerWrap">
+              <ChatComposer
+                channelId={activeId!}
+                placeholder={`Message #${activeChannel.name}…`}
+                allMembers={allMembers}
+                onSent={handleNewMessage}
+                onFlash={flash}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="chatEmpty">
+            <div className="chatEmptyState">
+              <i>💬</i>
+              <h3>Cyncro Team Chat</h3>
+              <p>Real-time internal messaging for your team. Select a channel or create one to get started.</p>
+              <button className="chatSendBtn" style={{ marginTop: 12 }} onClick={() => setNewModal(true)}>Create first channel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Members panel */}
+        {showMembers && activeChannel && (
+          <div className="chatMembersPanel">
+            <div className="chatMembersHeader">
+              <h3>Members ({channelMembers.length})</h3>
+              <button onClick={() => setShowMembers(false)}>✕</button>
+            </div>
+            <div className="chatMembersList">
+              {channelMembers.map(m => (
+                <div key={m.email} className="chatMemberRow">
+                  <span className="chatAvatar">{chatInitials(m.display_name || m.email)}</span>
+                  <div style={{ flex: 1 }}>
+                    <b>{m.display_name || m.email}</b>
+                    <small style={{ display: "block", color: "#8f767b" }}>{m.email}</small>
+                  </div>
+                  <span>{m.role === "ADMIN" ? "ADMIN" : ""}</span>
+                </div>
+              ))}
+              {!channelMembers.length && <p style={{ color: "#8f767b", fontSize: 12, textAlign: "center", padding: 20 }}>No members loaded.</p>}
+            </div>
+            {(myRole === "OWNER" || channelMembers.find(m => m.email === myEmail)?.role === "ADMIN") && (
+              <div style={{ padding: "12px 14px", borderTop: "1px solid #2b171b" }}>
+                <p style={{ color: "#c58f99", fontSize: 10, margin: "0 0 8px" }}>ADD MEMBERS</p>
+                {allMembers.filter(m => !channelMembers.find(cm => cm.email === m.email)).map(m => (
+                  <button key={m.email} className="chatMemberCheckRow" style={{ width: "100%" }}
+                    onClick={async () => {
+                      const r = await fetch("/api/chat/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId: activeId, emails: [m.email] }) });
+                      if (r.ok) { flash(`${m.display_name} added`); void loadChannelMembers(activeId!); }
+                      else { const d = await r.json() as { error?: string }; flash(d.error || "Failed"); }
+                    }}>
+                    <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+                    <span style={{ fontSize: 12 }}>{m.display_name}</span>
+                    <span style={{ marginLeft: "auto", color: "#c1283e", fontSize: 10 }}>＋</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Thread panel */}
+      {threadMsg && (
+        <div className="chatThread" onClick={e => { if (e.target === e.currentTarget) setThreadMsg(null); }}>
+          <div className="chatThreadPanel">
+            <div className="chatThreadHeader">
+              <h3>Thread</h3>
+              <button onClick={() => setThreadMsg(null)}>✕</button>
+            </div>
+            <div className="chatThreadMessages">
+              {/* Parent message */}
+              <div style={{ paddingBottom: 12, borderBottom: "1px solid #2b171b", marginBottom: 12 }}>
+                <ChatMessageItem
+                  msg={threadMsg}
+                  myEmail={myEmail}
+                  myRole={myRole}
+                  channelAdminEmails={channelAdminEmails}
+                  onOpenThread={() => {}}
+                  onEdit={m => { handleEdit(m); setThreadMsg(m); }}
+                  onDelete={id => void handleDelete(id)}
+                  onFlash={flash}
+                />
+              </div>
+              {/* Replies */}
+              {threadMessages.length === 0 && (
+                <p style={{ color: "#8f767b", fontSize: 12, textAlign: "center", padding: "20px 0" }}>No replies yet.</p>
+              )}
+              {threadMessages.map(m => (
+                <ChatMessageItem
+                  key={m.id}
+                  msg={m}
+                  myEmail={myEmail}
+                  myRole={myRole}
+                  channelAdminEmails={channelAdminEmails}
+                  onOpenThread={() => {}}
+                  onEdit={updated => setThreadMessages(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
+                  onDelete={id => { void handleDelete(id); setThreadMessages(prev => prev.map(x => x.id === id ? { ...x, deleted_at: new Date().toISOString(), body: "[message deleted]" } : x)); }}
+                  onFlash={flash}
+                />
+              ))}
+            </div>
+            <div className="chatThreadComposer">
+              <ChatComposer
+                channelId={threadMsg.channel_id}
+                replyToId={threadMsg.id}
+                placeholder="Reply in thread…"
+                allMembers={allMembers}
+                onSent={handleNewReply}
+                onFlash={flash}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Channel modal */}
+      {newModal && (
+        <div className="chatNewModal" onClick={e => { if (e.target === e.currentTarget) setNewModal(false); }}>
+          <div className="chatNewModalCard">
+            <h3>Create Channel</h3>
+            <p>Public channels are visible to all team members. Private channels require an invitation.</p>
+            <label>
+              Channel name
+              <input disabled={newForm.type === "DIRECT"} value={newForm.type === "DIRECT" ? "Set from teammate" : newForm.name} onChange={e => setNewForm({ ...newForm, name: e.target.value })} placeholder="e.g. general, sales-team, project-alpha" />
+            </label>
+            <label>
+              Type
+              <select value={newForm.type} onChange={e => setNewForm({ ...newForm, type: e.target.value, memberEmails: [] })}>
+                <option value="PUBLIC">Public — all team members can join</option>
+                <option value="PRIVATE">Private — invite only</option>
+                <option value="DIRECT">Direct message — one teammate</option>
+              </select>
+            </label>
+            <label>
+              Description (optional)
+              <textarea value={newForm.description} onChange={e => setNewForm({ ...newForm, description: e.target.value })} placeholder="What is this channel for?" />
+            </label>
+            {newForm.type === "PRIVATE" && allMembers.length > 0 && (
+              <label>
+                Invite members
+                <div className="chatMemberCheckList">
+                  {allMembers.map(m => (
+                    <label key={m.email} className="chatMemberCheckRow">
+                      <input type="checkbox"
+                        checked={newForm.memberEmails.includes(m.email)}
+                        onChange={e => setNewForm({ ...newForm, memberEmails: e.target.checked ? [...newForm.memberEmails, m.email] : newForm.memberEmails.filter(x => x !== m.email) })} />
+                      <span className="chatAvatar">{chatInitials(m.display_name)}</span>
+                      {m.display_name}
+                    </label>
+                  ))}
+                </div>
+              </label>
+            )}
+            {newForm.type === "DIRECT" && (
+              <label>
+                Choose teammate
+                <div className="chatMemberCheckList">
+                  {allMembers.filter((member) => member.email !== myEmail).map((member) => (
+                    <label key={member.email} className="chatMemberCheckRow">
+                      <input
+                        type="radio"
+                        name="direct-message-member"
+                        checked={newForm.memberEmails[0] === member.email}
+                        onChange={() => setNewForm({ ...newForm, memberEmails: [member.email] })}
+                      />
+                      <span className="chatAvatar">{chatInitials(member.display_name)}</span>
+                      <span><b>{member.display_name}</b><small>{member.role}</small></span>
+                    </label>
+                  ))}
+                  {!allMembers.filter((member) => member.email !== myEmail).length && (
+                    <p className="chatNoResults">Add another CRM team member before starting a direct message.</p>
+                  )}
+                </div>
+              </label>
+            )}
+            <div className="chatNewModalActions">
+              <button onClick={() => { setNewModal(false); setNewForm({ name: "", type: "PUBLIC", description: "", memberEmails: [] }); }}>Cancel</button>
+              <button className="primary" disabled={newLoading || (newForm.type === "DIRECT" ? !newForm.memberEmails.length : !newForm.name.trim())} onClick={() => void createChannel()}>
+                {newLoading ? "Creating…" : "Create channel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {flashMsg && <div className="chatFlash">{flashMsg}</div>}
+    </div>
   );
 }

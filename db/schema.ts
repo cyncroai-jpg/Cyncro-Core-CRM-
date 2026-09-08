@@ -1,6 +1,7 @@
 import {
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
   uniqueIndex,
@@ -242,3 +243,54 @@ export const crmCommissionRules = sqliteTable("crm_commission_rules", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [index("idx_commission_rules_sort").on(table.sortOrder)]);
+
+export const teamChatChannels = sqliteTable("team_chat_channels", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("PUBLIC"),
+  description: text("description"),
+  createdBy: text("created_by").notNull(),
+  archived: integer("archived").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [index("idx_chat_channels_type").on(table.type, table.archived)]);
+
+export const teamChatChannelMembers = sqliteTable("team_chat_channel_members", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull().references(() => teamChatChannels.id),
+  memberEmail: text("member_email").notNull(),
+  role: text("role").notNull().default("MEMBER"),
+  joinedAt: text("joined_at").notNull(),
+}, (table) => [
+  uniqueIndex("idx_chat_channel_members_unique").on(table.channelId, table.memberEmail),
+  index("idx_chat_channel_members_email").on(table.memberEmail),
+]);
+
+export const teamChatMessages = sqliteTable("team_chat_messages", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull().references(() => teamChatChannels.id),
+  authorEmail: text("author_email").notNull(),
+  authorName: text("author_name").notNull(),
+  body: text("body").notNull(),
+  threadParentId: text("thread_parent_id"),
+  attachmentsJson: text("attachments_json").notNull().default("[]"),
+  crmLinkType: text("crm_link_type"),
+  crmLinkId: text("crm_link_id"),
+  editedAt: text("edited_at"),
+  deletedAt: text("deleted_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  index("idx_chat_messages_channel_time").on(table.channelId, table.createdAt),
+  index("idx_chat_messages_thread").on(table.threadParentId),
+  index("idx_chat_messages_author").on(table.authorEmail, table.createdAt),
+]);
+
+export const teamChatReads = sqliteTable("team_chat_reads", {
+  channelId: text("channel_id").notNull(),
+  memberEmail: text("member_email").notNull(),
+  lastReadAt: text("last_read_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.channelId, table.memberEmail] }),
+  index("idx_chat_reads_email").on(table.memberEmail),
+]);
