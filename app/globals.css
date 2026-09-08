@@ -21355,3 +21355,355 @@ label {
 .liveDashModule span{font-size:12px;font-weight:600;color:#f5f0eb}
 .liveDashModule small{font-size:10px;color:#666;line-height:1.4}
 @media(max-width:768px){.liveDashHero{flex-direction:column;align-items:flex-start;gap:16px;padding:24px 20px 16px}.liveDashModules{padding:24px 20px}.liveDashPanel{padding:16px 20px}}
+
+/* ============================================================
+   CRM BUTTON SYSTEM OVERHAUL
+   Primary · Secondary · Ghost · Danger · Icon · Pill · Nav
+   ============================================================ */
+
+/* Primary CTA — red filled */
+.crmCreate {
+  height: 42px !important;
+  border: 1px solid #c43050 !important;
+  border-radius: 9px !important;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%) !important;
+  color: #fff !important;
+  padding: 0 20px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  box-shadow: 0 2px 12px #9a1a3055, inset 0 1px #ffffff1a !important;
+  transition: background .15s, box-shadow .15s, transform .1s !important;
+  white-space: nowrap !important;
+}
+.crmCreate:hover:not(:disabled) {
+  background: linear-gradient(160deg, #d12f47 0%, #ad2038 100%) !important;
+  box-shadow: 0 4px 20px #be1e3a55, inset 0 1px #ffffff22 !important;
+  transform: translateY(-1px) !important;
+}
+.crmCreate:active:not(:disabled) { transform: translateY(0) !important; }
+.crmCreate:disabled { opacity: .5 !important; cursor: not-allowed !important; }
+
+/* Primary button alias used in dashboard / outside CRM */
+.crmPrimaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  border: 1px solid #c43050;
+  border-radius: 9px;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%);
+  color: #fff;
+  padding: 0 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 12px #9a1a3055, inset 0 1px #ffffff1a;
+  transition: background .15s, box-shadow .15s, transform .1s;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.crmPrimaryBtn:hover { background: linear-gradient(160deg, #d12f47 0%, #ad2038 100%); box-shadow: 0 4px 20px #be1e3a55; transform: translateY(-1px); }
+.crmPrimaryBtn:active { transform: translateY(0); }
+
+/* Secondary / outline button */
+.crmSecondaryBtn, .crmModalActions button:not(:last-child) {
+  height: 42px !important;
+  border: 1px solid #3e3135 !important;
+  border-radius: 9px !important;
+  background: #181214 !important;
+  color: #d5cdd0 !important;
+  padding: 0 16px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.crmSecondaryBtn:hover, .crmModalActions button:not(:last-child):hover {
+  border-color: #6a4650 !important;
+  background: #1e1518 !important;
+  color: #fff !important;
+}
+
+/* Modal primary action button */
+.crmModalActions button:last-child {
+  height: 42px !important;
+  border: 1px solid #c43050 !important;
+  border-radius: 9px !important;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%) !important;
+  color: #fff !important;
+  padding: 0 22px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 10px #9a1a3040 !important;
+  transition: background .15s, box-shadow .15s !important;
+}
+.crmModalActions button:last-child:hover {
+  background: linear-gradient(160deg, #d12f47 0%, #ad2038 100%) !important;
+  box-shadow: 0 4px 18px #be1e3a55 !important;
+}
+.crmModalActions { gap: 10px !important; padding: 16px 22px !important; }
+
+/* Icon button (notifications, settings, etc.) */
+.crmIconButton {
+  width: 42px !important;
+  height: 42px !important;
+  border: 1px solid #2e2527 !important;
+  border-radius: 9px !important;
+  background: #111011 !important;
+  color: #c0b5b8 !important;
+  font-size: 16px !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.crmIconButton:hover {
+  border-color: #5a3540 !important;
+  background: #1c1315 !important;
+  color: #fff !important;
+}
+
+/* Record type tab pills */
+.recordTypes button {
+  border: 1px solid #332a2d !important;
+  border-radius: 22px !important;
+  background: #120f10 !important;
+  color: #9e9295 !important;
+  padding: 9px 14px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.recordTypes button:hover {
+  border-color: #6a3a46 !important;
+  color: #e0d0d4 !important;
+}
+.recordTypes button.active {
+  color: #fff !important;
+  border-color: #b82a40 !important;
+  background: #2a141a !important;
+  box-shadow: inset 0 1px #ffffff10 !important;
+}
+
+/* CRM sidebar nav buttons */
+.crmNav button {
+  min-height: 42px !important;
+  font-size: 10px !important;
+  border-radius: 9px !important;
+  transition: background .15s, border-color .15s, color .15s !important;
+}
+.crmNav button:hover,
+.crmNav button.active {
+  background: #1a1114 !important;
+  border-color: #3d2d31 !important;
+  color: #fff !important;
+}
+.crmNav button.active {
+  box-shadow: inset 2px 0 0 #c42d47 !important;
+}
+.crmNav button i { font-size: 14px !important; }
+
+/* AI Intelligence sidebar button */
+.crmAgent {
+  border: 1px solid #6b2a3c !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #261219, #120f11) !important;
+  box-shadow: 0 2px 16px #6b2a3c22 !important;
+  transition: border-color .15s, box-shadow .15s, transform .1s !important;
+  padding: 14px !important;
+  cursor: pointer !important;
+}
+.crmAgent:hover {
+  border-color: #a82a40 !important;
+  box-shadow: 0 4px 24px #a82a4033 !important;
+  transform: translateY(-1px) !important;
+}
+.crmAgent > span {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 12px !important;
+  box-shadow: 0 0 24px #a8223980 !important;
+}
+.crmAgent b {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+.crmAgent small { font-size: 8px !important; letter-spacing: 0.1em !important; }
+
+/* Danger / delete buttons */
+.dangerText {
+  color: #ff5c73 !important;
+  border: 1px solid #4a2530 !important;
+  border-radius: 8px !important;
+  background: #180d10 !important;
+  padding: 8px 12px !important;
+  font-size: 10px !important;
+  transition: border-color .15s, background .15s !important;
+}
+.dangerText:hover {
+  border-color: #8b2535 !important;
+  background: #221015 !important;
+}
+
+/* Contact hero action buttons */
+.contactHero > button:not(.dangerText) {
+  height: 38px !important;
+  border: 1px solid #3e3135 !important;
+  border-radius: 9px !important;
+  background: #181214 !important;
+  color: #d5cdd0 !important;
+  padding: 0 14px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  transition: border-color .15s, background .15s !important;
+}
+.contactHero > button:not(.dangerText):hover {
+  border-color: #6a4650 !important;
+  background: #1e1518 !important;
+  color: #fff !important;
+}
+
+/* Pipeline card action buttons */
+.dealCardActions button {
+  padding: 7px 10px !important;
+  font-size: 9px !important;
+  border-radius: 7px !important;
+  border: 1px solid #3e3135 !important;
+  background: #181214 !important;
+  color: #d5cdd0 !important;
+  transition: border-color .15s, background .15s !important;
+}
+.dealCardActions button:hover { border-color: #6a4650 !important; color: #fff !important; }
+
+/* CRM panel header buttons */
+.crmPanelHead button {
+  height: 34px !important;
+  border: 1px solid #3a2f32 !important;
+  border-radius: 8px !important;
+  background: #141213 !important;
+  color: #c0b5b8 !important;
+  padding: 0 13px !important;
+  font-size: 10px !important;
+  transition: border-color .15s, background .15s !important;
+}
+.crmPanelHead button:hover { border-color: #6a4650 !important; background: #1c1518 !important; color: #fff !important; }
+
+/* AI drawer suggestion chips */
+.aiSuggestions button {
+  border: 1px solid #4a2e37 !important;
+  border-radius: 20px !important;
+  background: #1a1115 !important;
+  color: #d5c0c6 !important;
+  padding: 9px 14px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.aiSuggestions button:hover {
+  border-color: #a82a40 !important;
+  background: #241318 !important;
+  color: #fff !important;
+}
+
+/* AI composer submit button */
+.aiComposer button {
+  min-width: 40px !important;
+  height: 40px !important;
+  border: 1px solid #a82a40 !important;
+  border-radius: 9px !important;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%) !important;
+  color: #fff !important;
+  font-size: 16px !important;
+  transition: background .15s, box-shadow .15s !important;
+}
+.aiComposer button:hover:not(:disabled) { box-shadow: 0 2px 12px #9a1a3060 !important; }
+.aiComposer button:disabled { opacity: .4 !important; cursor: not-allowed !important; }
+
+/* Topbar action buttons (import, export, filter, etc.) */
+.crmTopbar > button:not(.crmIconButton):not(.crmCreate) {
+  height: 42px !important;
+  border: 1px solid #2e2527 !important;
+  border-radius: 9px !important;
+  background: #111011 !important;
+  color: #c0b5b8 !important;
+  padding: 0 16px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.crmTopbar > button:not(.crmIconButton):not(.crmCreate):hover {
+  border-color: #5a3540 !important;
+  background: #1a1315 !important;
+  color: #fff !important;
+}
+
+/* Activity / filter tab strip */
+.activityTypeBtn, .filterBtn {
+  height: 34px;
+  border: 1px solid #322a2d;
+  border-radius: 20px;
+  background: transparent;
+  color: #9e9295;
+  padding: 0 13px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: border-color .15s, background .15s, color .15s;
+  cursor: pointer;
+}
+.activityTypeBtn:hover, .filterBtn:hover { border-color: #6a4650; color: #e0d0d4; }
+.activityTypeBtn.active, .filterBtn.active { border-color: #b82a40; background: #2a141a; color: #fff; }
+
+
+/* Upgrade shared .modalactions buttons to match CRM system */
+.modalactions button {
+  height: 40px !important;
+  border: 1px solid #3e3135 !important;
+  background: #181214 !important;
+  color: #d5cdd0 !important;
+  border-radius: 9px !important;
+  padding: 0 16px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  transition: border-color .15s, background .15s, color .15s !important;
+}
+.modalactions button:hover { border-color: #6a4650 !important; background: #1e1518 !important; color: #fff !important; }
+.modalactions button:last-child:not(.dangerText) {
+  border-color: #c43050 !important;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 10px #9a1a3040 !important;
+}
+.modalactions button:last-child:not(.dangerText):hover { background: linear-gradient(160deg, #d12f47 0%, #ad2038 100%) !important; }
+.modalactions .dangerText { margin-right: auto !important; }
+.modalactions { gap: 10px !important; }
+
+/* Make all CRM save/confirm buttons inside panels consistent */
+.accountPortfolio > button:not(.crmPanelHead button),
+.contactDetail .crmForm > button {
+  height: 42px !important;
+  border: 1px solid #c43050 !important;
+  border-radius: 9px !important;
+  background: linear-gradient(160deg, #c1283e 0%, #9a1a30 100%) !important;
+  color: #fff !important;
+  padding: 0 20px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 10px #9a1a3040 !important;
+  transition: background .15s, box-shadow .15s !important;
+}
+.accountPortfolio > button:not(.crmPanelHead button):hover,
+.contactDetail .crmForm > button:hover {
+  background: linear-gradient(160deg, #d12f47 0%, #ad2038 100%) !important;
+}
+
+/* Notifications mark-read mini button */
+.agendaRow button {
+  height: 30px !important;
+  border: 1px solid #3e3135 !important;
+  border-radius: 7px !important;
+  background: #181214 !important;
+  color: #c0b5b8 !important;
+  padding: 0 10px !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+  transition: border-color .15s, color .15s !important;
+}
+.agendaRow button:hover { border-color: #6a4650 !important; color: #fff !important; }

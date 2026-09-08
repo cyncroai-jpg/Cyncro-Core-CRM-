@@ -11544,7 +11544,7 @@ function UniversalCRM({
               </div>
             </div>
           )}
-          <button onClick={openNewAppointment}>＋ New appointment</button>
+          <button className="crmSecondaryBtn" onClick={openNewAppointment}>＋ Appointment</button>
           <button className="crmCreate" onClick={() => setCreating(true)}>
             ＋ New contact
           </button>
