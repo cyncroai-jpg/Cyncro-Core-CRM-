@@ -21707,3 +21707,213 @@ label {
   transition: border-color .15s, color .15s !important;
 }
 .agendaRow button:hover { border-color: #6a4650 !important; color: #fff !important; }
+
+/* ============================================================
+   PIPELINE VIEW TOGGLE + TABLE VIEW
+   ============================================================ */
+
+/* Board / Table toggle */
+.pipelineViewToggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid #2e2527;
+  border-radius: 9px;
+  background: #0d0b0c;
+  padding: 3px;
+}
+.pipelineViewToggle button {
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #8a7d80;
+  padding: 0 14px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: background .15s, border-color .15s, color .15s;
+  cursor: pointer;
+}
+.pipelineViewToggle button:hover { color: #d0c5c8; }
+.pipelineViewToggle button.active {
+  border-color: #3e3135;
+  background: #1c1518;
+  color: #fff;
+}
+
+/* Table wrapper */
+.pipelineTableWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 60px;
+}
+.pipelineTableControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 14px;
+  flex-wrap: wrap;
+}
+.pipelineTableSearch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  border: 1px solid #2e2527;
+  border-radius: 9px;
+  background: #0f0d0e;
+  padding: 0 13px;
+  min-width: 280px;
+  flex: 1;
+  max-width: 460px;
+}
+.pipelineTableSearch span { color: #6a5f62; font-size: 14px; }
+.pipelineTableSearch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+}
+.pipelineTableSearch button {
+  border: 0;
+  background: transparent;
+  color: #6a5f62;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+.pipelineTableMeta {
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.pipelineTableMeta span {
+  font-size: 11px;
+  color: #7a6d70;
+}
+.pipelineTableMeta b {
+  color: #e0d5d8;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* Table outer scroll container */
+.pipelineTableOuter {
+  overflow-x: auto;
+  border: 1px solid #231e20;
+  border-radius: 12px;
+  background: #0c0b0b;
+}
+
+/* Table */
+.pipelineTable {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.pipelineTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #111011;
+}
+.pipelineTable th {
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7a6d70;
+  border-bottom: 1px solid #231e20;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: color .15s;
+}
+.pipelineTable th:hover { color: #d0c5c8; }
+.pipelineTable th.sorted { color: #d08090; }
+.sortIndicator { margin-left: 5px; font-size: 8px; opacity: .6; }
+
+/* Body rows */
+.pipelineTable tbody tr { border-bottom: 1px solid #1a1618; transition: background .12s; }
+.pipelineTable tbody tr:last-child { border-bottom: 0; }
+.pipelineTableRow { cursor: pointer; }
+.pipelineTableRow:hover { background: #141214; }
+.pipelineTable td { padding: 13px 16px; color: #c8bdbf; vertical-align: middle; }
+
+/* Deal name cell */
+.pipelineTableDeal b { display: block; color: #f0e8ea; font-size: 12px; font-weight: 600; }
+.pipelineTableDeal small { color: #7a6d70; font-size: 10px; margin-top: 2px; display: block; }
+
+/* Stage chip */
+.pipelineStageChip {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: transparent;
+}
+
+/* Numeric columns */
+.pipelineTableNum { font-variant-numeric: tabular-nums; }
+.pipelineTableNum b { color: #f0e8ea; font-size: 13px; font-weight: 600; }
+
+/* Probability bar */
+.pipelineTableProb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 90px;
+}
+.pipelineTableProb > div {
+  height: 4px;
+  border-radius: 4px;
+  flex: 1;
+  max-width: 60px;
+  opacity: .8;
+}
+.pipelineTableProb span { font-size: 10px; color: #9e9295; width: 28px; flex-shrink: 0; }
+
+/* Source / tag pill */
+.pipelineTableTag {
+  display: inline-block;
+  border: 1px solid #2e2527;
+  border-radius: 6px;
+  background: #151213;
+  padding: 3px 8px;
+  font-size: 9px;
+  color: #9e9295;
+  white-space: nowrap;
+}
+
+/* Empty state */
+.pipelineTableEmpty {
+  text-align: center;
+  padding: 52px 20px !important;
+  color: #5a5055;
+  font-size: 12px;
+}
+.pipelineTableEmpty button {
+  color: #c0404f;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 800px) {
+  .pipelineTableMeta { display: none; }
+  .pipelineTableSearch { max-width: 100%; }
+  .pipelineTableControls { gap: 8px; }
+}

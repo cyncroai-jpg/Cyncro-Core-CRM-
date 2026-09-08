@@ -12167,6 +12167,18 @@ function CRMPipeline({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createStage, setCreateStage] = useState<string | null>(null);
+  const [pipelineViewMode, setPipelineViewMode] = useState<"board"|"table">("board");
+  const [tableSort, setTableSort] = useState<{col:string;dir:"asc"|"desc"}>({col:"value_cents",dir:"desc"});
+  const [tableFilter, setTableFilter] = useState("");
+  const sortedTableDeals = [...deals]
+    .filter(d => !tableFilter || `${d.name} ${d.account_name} ${d.contact_name} ${d.stage} ${d.source}`.toLowerCase().includes(tableFilter.toLowerCase()))
+    .sort((a,b) => {
+      const dir = tableSort.dir === "asc" ? 1 : -1;
+      const va = (a as Record<string,unknown>)[tableSort.col]; const vb = (b as Record<string,unknown>)[tableSort.col];
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
+    });
+  const toggleSort = (col:string) => setTableSort(prev => ({ col, dir: prev.col === col && prev.dir === "desc" ? "asc" : "desc" }));
   const [newDeal, setNewDeal] = useState({
     company: "",
     contactName: "",
@@ -12513,6 +12525,10 @@ function CRMPipeline({
           </p>
         </div>
         <div>
+          <div className="pipelineViewToggle">
+            <button className={pipelineViewMode === "board" ? "active" : ""} onClick={() => setPipelineViewMode("board")}>⊞ Board</button>
+            <button className={pipelineViewMode === "table" ? "active" : ""} onClick={() => setPipelineViewMode("table")}>☰ Table</button>
+          </div>
           {pipelines.length > 1 && (
             <select
               value={selectedPipelineId}
@@ -12544,7 +12560,96 @@ function CRMPipeline({
           </button>
         </div>
       </div>
-      <div className="pipelineBoard">
+
+      {pipelineViewMode === "table" && (
+        <div className="pipelineTableWrap">
+          <div className="pipelineTableControls">
+            <div className="pipelineTableSearch">
+              <span>⌕</span>
+              <input value={tableFilter} onChange={e=>setTableFilter(e.target.value)} placeholder="Filter by deal, company, stage, source…" />
+              {tableFilter && <button onClick={()=>setTableFilter("")}>×</button>}
+            </div>
+            <div className="pipelineTableMeta">
+              <span><b>{sortedTableDeals.length}</b> deal{sortedTableDeals.length!==1?"s":""}</span>
+              <span><b>{money(sortedTableDeals.reduce((s,d)=>s+Number(d.value_cents||0),0))}</b> total value</span>
+              <span><b>{money(sortedTableDeals.reduce((s,d)=>s+Math.max(0,Number(d.value_cents||0)-Number(d.cost_cents||0)),0))}</b> est. profit</span>
+            </div>
+            <button className="crmCreate" style={{marginLeft:"auto"}} onClick={()=>setCreateStage(stages[0]||"NEW")}>＋ Add deal</button>
+          </div>
+          <div className="pipelineTableOuter">
+            <table className="pipelineTable">
+              <thead>
+                <tr>
+                  {([
+                    {col:"name",label:"Deal / Company"},
+                    {col:"stage",label:"Stage"},
+                    {col:"value_cents",label:"Value"},
+                    {col:"cost_cents",label:"Cost"},
+                    {col:"probability",label:"Prob."},
+                    {col:"source",label:"Source"},
+                    {col:"assigned_rep",label:"Rep"},
+                    {col:"contact_name",label:"Contact"},
+                  ] as const).map(({col,label})=>(
+                    <th key={col} onClick={()=>toggleSort(col)} className={tableSort.col===col?"sorted":""}>
+                      {label}
+                      <span className="sortIndicator">{tableSort.col===col ? (tableSort.dir==="asc"?"↑":"↓") : "⇅"}</span>
+                    </th>
+                  ))}
+                  <th style={{width:90}}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTableDeals.length===0 && (
+                  <tr><td colSpan={9} className="pipelineTableEmpty">No deals match your filter. <button onClick={()=>setCreateStage(stages[0]||"NEW")}>Add the first one →</button></td></tr>
+                )}
+                {sortedTableDeals.map(deal=>{
+                  const stageSetting = stageSettings.find(s=>s.name===deal.stage);
+                  const profit = Math.max(0, Number(deal.value_cents||0)-Number(deal.cost_cents||0));
+                  return (
+                    <tr key={deal.id} onClick={()=>setSelectedDeal({...deal})} className="pipelineTableRow">
+                      <td>
+                        <div className="pipelineTableDeal">
+                          <b>{deal.name}</b>
+                          <small>{deal.account_name}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="pipelineStageChip" style={{borderColor:stageSetting?.color||"#a30e18",color:stageSetting?.color||"#e08090"}}>
+                          {deal.stage}
+                        </span>
+                      </td>
+                      <td className="pipelineTableNum"><b>{money(deal.value_cents)}</b></td>
+                      <td className="pipelineTableNum">{deal.cost_cents ? money(deal.cost_cents) : "—"}</td>
+                      <td>
+                        <div className="pipelineTableProb">
+                          <div style={{width:`${deal.probability}%`,background:stageSetting?.color||"#a30e18"}}/>
+                          <span>{deal.probability}%</span>
+                        </div>
+                      </td>
+                      <td><span className="pipelineTableTag">{deal.source||"MANUAL"}</span></td>
+                      <td>{deal.assigned_rep||<span style={{color:"#555"}}>—</span>}</td>
+                      <td>
+                        <div>
+                          <span>{deal.contact_name||"—"}</span>
+                          {deal.contact_phone&&<small style={{display:"block",color:"#666",fontSize:10}}>{deal.contact_phone}</small>}
+                        </div>
+                      </td>
+                      <td onClick={e=>e.stopPropagation()}>
+                        <div className="dealCardActions">
+                          <button onClick={()=>setSelectedDeal({...deal})}>Edit</button>
+                          <button className="dangerText" onClick={()=>void deleteDeal(deal)}>Del</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {pipelineViewMode === "board" && <div className="pipelineBoard">
         {stages.map((stage) => {
           const columnDeals = deals.filter((deal) => deal.stage === stage);
           const stageSetting = stageSettings.find(
@@ -12620,7 +12725,7 @@ function CRMPipeline({
             </section>
           );
         })}
-      </div>
+      </div>}
       {settingsOpen && pipelineDraft && (
         <div className="modalback" onClick={() => setSettingsOpen(false)}>
           <div
