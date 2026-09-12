@@ -27,7 +27,12 @@ type Tab =
 type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive" | "apex" | "prime" | "messages";
 
 export default function Home() {
-  const [product, setProduct] = useState<CyncroProduct>("switcher");
+  // ACTIVE products — only Core is currently enabled
+  const activeProducts: CyncroProduct[] = ["core"];
+  // If only one product is active, go straight to it instead of the switcher
+  const [product, setProduct] = useState<CyncroProduct>(
+    activeProducts.length === 1 ? activeProducts[0] : "switcher",
+  );
   const [tab, setTab] = useState<Tab>("home"),
     [permissions, setPermissions] = useState<{
       role: string;
@@ -42,8 +47,6 @@ export default function Home() {
     [date, setDate] = useState(18);
   // apex is the only remaining pure-roadmap gate
   const roadmapTabs: Tab[] = ["apex"];
-  // ACTIVE products — only Core is currently enabled
-  const activeProducts: CyncroProduct[] = ["core"];
 
   const canAccess = (destination: Tab) =>
     destination === "home" ||
@@ -11346,6 +11349,19 @@ function UniversalCRM({
     await Promise.all([loadCRMContacts(), loadCRMOverview()]);
     flash("Contact deleted");
   };
+  const bulkDeleteContacts = async () => {
+    const toDelete = liveContacts.filter((c) => c.id && selectedContactIds.has(c.id));
+    if (!toDelete.length) return flash("Select contacts to delete first");
+    if (!window.confirm(`Permanently delete ${toDelete.length} contact${toDelete.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    let deleted = 0;
+    for (const c of toDelete) {
+      const res = await fetch(`/api/crm/contacts?id=${encodeURIComponent(c.id!)}`, { method: "DELETE" });
+      if (res.ok) deleted++;
+    }
+    setSelectedContactIds(new Set());
+    await Promise.all([loadCRMContacts(), loadCRMOverview()]);
+    flash(`${deleted} contact${deleted !== 1 ? "s" : ""} deleted`);
+  };
   const mergeIntoDuplicate = async () => {
     if (!dupeMergeId) return;
     setDupeMerging(true);
@@ -11847,6 +11863,7 @@ function UniversalCRM({
                   <span>{filteredContacts.length} contacts · {selectedContactIds.size} selected</span>
                   <div>
                     {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_export))&&<button onClick={exportContacts}>↓ Download {selectedContactIds.size ? "selected" : "all"}</button>}
+                    {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_delete))&&selectedContactIds.size>0&&<button className="dangerText" onClick={()=>void bulkDeleteContacts()}>✕ Delete {selectedContactIds.size} selected</button>}
                     {(currentAccess.role==="OWNER"||Boolean(currentAccess.can_create))&&<button onClick={() => setImporting(true)}>↑ Import leads</button>}
                     <button
                       onClick={() =>
@@ -11864,7 +11881,7 @@ function UniversalCRM({
                   </div>
                 </div>
                 <div className="contactTableHead">
-                  <span>SELECT</span>
+                  <span><input type="checkbox" aria-label="Select all" title="Select / deselect all" checked={filteredContacts.length>0&&filteredContacts.every(c=>c.id&&selectedContactIds.has(c.id))} onChange={()=>{const allSelected=filteredContacts.every(c=>c.id&&selectedContactIds.has(c.id));setSelectedContactIds(current=>{const next=new Set(current);if(allSelected){filteredContacts.forEach(c=>c.id&&next.delete(c.id))}else{filteredContacts.forEach(c=>c.id&&next.add(c.id))};return next})}}/></span>
                   <span>CONTACT</span>
                   <span>BUSINESS</span>
                   <span>ADDRESS</span>
