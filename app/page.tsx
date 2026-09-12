@@ -11168,7 +11168,9 @@ function UniversalCRM({
       phone: "",
       source: "Manual",
       lifecycle: "Lead",
-    });
+    }),
+    [dupeMergeId, setDupeMergeId] = useState<string | null>(null),
+    [dupeMerging, setDupeMerging] = useState(false);
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
@@ -11309,17 +11311,51 @@ function UniversalCRM({
     await Promise.all([loadCRMContacts(), loadCRMOverview()]);
     flash("Contact deleted");
   };
+  const mergeIntoDuplicate = async () => {
+    if (!dupeMergeId) return;
+    setDupeMerging(true);
+    try {
+      // The duplicate already exists (winnerId). We create the incoming contact
+      // as a temporary record, then immediately merge it into the existing one.
+      // Simpler: PATCH the existing contact to fill any blank fields from the form.
+      const patchBody: Record<string, unknown> = { id: dupeMergeId, updates: {} };
+      const updates = patchBody.updates as Record<string, unknown>;
+      if (contactForm.phone) updates.phone = contactForm.phone;
+      if (contactForm.company) updates.company = contactForm.company;
+      if (Object.keys(updates).length) {
+        await fetch("/api/crm/contacts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+      }
+      setDupeMergeId(null);
+      setCreating(false);
+      setContactForm({ fullName: "", company: "", email: "", phone: "", source: "Manual", lifecycle: "Lead" });
+      const idx = liveContacts.findIndex(c => c.id === dupeMergeId);
+      if (idx >= 0) { setSelected(idx); setContactRecordOpen(true); }
+      await Promise.all([loadCRMContacts(), loadCRMOverview()]);
+      flash("Merged into existing contact");
+    } finally { setDupeMerging(false); }
+  };
+
   const createContact = async () => {
     const response = await fetch("/api/crm/contacts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(contactForm),
     });
-    const data = (await response.json()) as { error?: string };
+    const data = (await response.json()) as { error?: string; duplicateId?: string };
     if (!response.ok) {
+      if (response.status === 409 && data.duplicateId) {
+        setDupeMergeId(data.duplicateId);
+        flash(data.error || "Duplicate contact detected");
+        return;
+      }
       flash(data.error || "Contact could not be created");
       return;
     }
+    setDupeMergeId(null);
     setCreating(false);
     setSelected(0);
     setContactForm({
@@ -11991,10 +12027,24 @@ function UniversalCRM({
             )}
             {createType === "Contact" && (
             <div className="crmModalActions">
-              <button onClick={() => setCreating(false)}>Cancel</button>
-              <button onClick={() => void createContact()}>
-                Create + enrich record
-              </button>
+              {dupeMergeId ? (
+                <>
+                  <p style={{gridColumn:"1/-1",margin:"0 0 8px",fontSize:13,color:"var(--t4)",lineHeight:1.5}}>
+                    A contact with this email or phone already exists. Merge the new details into the existing record, or go back and edit the form.
+                  </p>
+                  <button onClick={() => setDupeMergeId(null)}>← Edit form</button>
+                  <button onClick={() => void mergeIntoDuplicate()} disabled={dupeMerging} style={{background:"var(--red)"}}>
+                    {dupeMerging ? "Merging…" : "Merge into existing contact"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setCreating(false)}>Cancel</button>
+                  <button onClick={() => void createContact()}>
+                    Create + enrich record
+                  </button>
+                </>
+              )}
             </div>
             )}
           </div>
