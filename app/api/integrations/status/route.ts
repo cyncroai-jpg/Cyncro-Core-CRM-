@@ -17,6 +17,8 @@ export async function GET(request: Request) {
         googleCalendar: Boolean(googleConnection),
         framer: Boolean(values.FRAMER_WEBHOOK_SECRET),
         stripe: Boolean(values.STRIPE_SECRET_KEY),
+        serper: Boolean(values.SERPER_API_KEY),
+        googleMaps: Boolean(values.GOOGLE_MAPS_API_KEY),
       },
       eventTypes: eventTypes.map((item) => ({ ...item, bookingUrl: `${origin}/?event=${encodeURIComponent(String(item.slug))}#book` })),
       framerWebhookUrl: `${origin}/api/integrations/framer`,
