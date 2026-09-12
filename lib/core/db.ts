@@ -493,3 +493,14 @@ export function normalizeEmail(value: unknown) {
   const email = cleanText(value, 254).toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
+
+/** Strip formatting characters and return digits-only E.164-ish phone for deduplication.
+ *  Returns null when the input has fewer than 7 digits (too short to be a real number). */
+export function normalizePhone(value: unknown): string | null {
+  const raw = cleanText(value, 40);
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  // Drop leading country code 1 for North American numbers to allow "+1 (800) 555-1234" == "800-555-1234"
+  const canonical = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  return canonical.length >= 7 ? canonical : null;
+}

@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, hasModuleAccess, normalizeEmail, normalizePhone, requestUser } from "@/lib/core/db";
 
 export async function GET(request: Request) {
   try {
@@ -41,6 +41,11 @@ export async function POST(request: Request) {
     if (email) {
       const duplicate = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = ? LIMIT 1").bind(email).first();
       if (duplicate) return Response.json({ error: "A CRM contact already uses this email.", duplicateId: duplicate.id }, { status: 409 });
+    }
+    const phoneDigits = normalizePhone(phone);
+    if (phoneDigits) {
+      const phoneDupe = await db.prepare("SELECT id, full_name FROM crm_contacts WHERE replace(replace(replace(replace(replace(phone,'+',''),'-',''),' ',''),'(',''),')','') = ? LIMIT 1").bind(phoneDigits).first<{ id: string; full_name: string }>();
+      if (phoneDupe) return Response.json({ error: `Phone number already belongs to ${phoneDupe.full_name}.`, duplicateId: phoneDupe.id }, { status: 409 });
     }
     const now = new Date().toISOString();
     let accountId = cleanText(body.accountId, 80) || null;
