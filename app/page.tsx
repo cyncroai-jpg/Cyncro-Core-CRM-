@@ -17451,6 +17451,8 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [allowed, setAllowed] = useState(false);
   const [editingEmail, setEditingEmail] = useState("");
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteFor, setInviteFor] = useState("");
   const [form, setForm] = useState({
     email: "",
     displayName: "",
@@ -17483,6 +17485,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     return () => window.clearTimeout(timer);
   }, []);
   const save = async (next = form) => {
+    const isNew = !editingEmail;
     const response = await fetch("/api/access", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -17493,6 +17496,8 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
       onFlash(data.error || "Access could not be saved");
       return;
     }
+    const memberEmail = next.email.trim();
+    const memberName = next.displayName.trim();
     setForm({
       email: "",
       displayName: "",
@@ -17505,8 +17510,24 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
       active: true,
     });
     setEditingEmail("");
+    setInviteUrl(null);
     await load();
     onFlash("Team access updated");
+    // For new members, generate an invite link so they can set their password
+    if (isNew && memberEmail) {
+      try {
+        const inv = await fetch("/api/auth/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: memberEmail, displayName: memberName }),
+        });
+        const invData = (await inv.json()) as { inviteUrl?: string };
+        if (invData.inviteUrl) {
+          setInviteUrl(invData.inviteUrl);
+          setInviteFor(memberName || memberEmail);
+        }
+      } catch { /* non-fatal */ }
+    }
   };
   const removeMember = async (member: Member) => {
     if (!window.confirm(`Delete ${member.display_name} from the team?`)) return;
@@ -17593,9 +17614,19 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
         <div className="permissionMatrix"><div><b>Action controls</b><small>Choose exactly what this person can do inside records.</small></div>{[["canCreate","Create records"],["canEdit","Edit records"],["canDelete","Delete records"],["canExport","Export data"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
         <div className="permissionMatrix"><div><b>Sensitive workspaces</b><small>Keep financial and executive data owner-only unless granted.</small></div>{[["compensationAccess","Compensation"],["invoiceAccess","Invoices"],["contractAccess","Contracts"],["attributionAccess","Attribution"],["workAccess","Cyncro Work"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
         <button className="crmCreate" onClick={() => void save()}>
-          {editingEmail ? "Update team access" : "Save team access"}
+          {editingEmail ? "Update team access" : "Save &amp; generate invite link"}
         </button>
-        {editingEmail && <button onClick={() => { setEditingEmail(""); setForm({ email:"", displayName:"", role:"MEMBER", crmAccess:true, calendarAccess:false, prospectingAccess:false, manageUsers:false, active:true,canCreate:true,canEdit:true,canDelete:false,canExport:false,compensationAccess:false,invoiceAccess:false,contractAccess:false,attributionAccess:false,workAccess:true }); }}>Cancel edit</button>}
+        {editingEmail && <button onClick={() => { setEditingEmail(""); setInviteUrl(null); setForm({ email:"", displayName:"", role:"MEMBER", crmAccess:true, calendarAccess:false, prospectingAccess:false, manageUsers:false, active:true,canCreate:true,canEdit:true,canDelete:false,canExport:false,compensationAccess:false,invoiceAccess:false,contractAccess:false,attributionAccess:false,workAccess:true }); }}>Cancel edit</button>}
+        {inviteUrl && (
+          <div className="inviteLinkBanner">
+            <div className="inviteLinkHead">
+              <span>✅ Invite link for <b>{inviteFor}</b></span>
+              <button className="inviteCopyBtn" onClick={() => { void navigator.clipboard.writeText(inviteUrl); onFlash("Invite link copied!"); }}>Copy link</button>
+            </div>
+            <p className="inviteLinkSubtext">Send this link to your team member. It expires in 7 days. When they open it, they&apos;ll set their password and get instant access.</p>
+            <code className="inviteLinkCode">{inviteUrl}</code>
+          </div>
+        )}
       </section>
       <section className="crmPanel">
         <div className="crmPanelHead">
@@ -17615,6 +17646,13 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
               <button onClick={() => { setEditingEmail(member.email); setForm({ email:member.email, displayName:member.display_name, role:member.role, crmAccess:Boolean(member.crm_access), calendarAccess:Boolean(member.calendar_access), prospectingAccess:Boolean(member.prospecting_access), manageUsers:Boolean(member.manage_users), active:Boolean(member.active),canCreate:Boolean(member.can_create),canEdit:Boolean(member.can_edit),canDelete:Boolean(member.can_delete),canExport:Boolean(member.can_export),compensationAccess:Boolean(member.compensation_access),invoiceAccess:Boolean(member.invoice_access),contractAccess:Boolean(member.contract_access),attributionAccess:Boolean(member.attribution_access),workAccess:Boolean(member.work_access) }); }}>Edit permissions</button>
               {member.email === currentMember?.email ? <button onClick={() => { window.location.href="/api/integrations/google-calendar/connect"; }}>Connect my Google</button> : <button onClick={() => onFlash(`${member.display_name} must sign in and click Connect my Google Calendar`)}>Calendar setup</button>}
               <button onClick={onOpenCalendar}>Open calendar</button>
+              {member.email !== currentMember?.email && <button onClick={async () => {
+                try {
+                  const inv = await fetch("/api/auth/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: member.email, displayName: member.display_name }) });
+                  const invData = (await inv.json()) as { inviteUrl?: string };
+                  if (invData.inviteUrl) { setInviteUrl(invData.inviteUrl); setInviteFor(member.display_name); void navigator.clipboard.writeText(invData.inviteUrl); onFlash("Invite link copied!"); }
+                } catch { onFlash("Could not generate invite link"); }
+              }}>Resend invite</button>}
             </div>
             <button
               className="dangerText"

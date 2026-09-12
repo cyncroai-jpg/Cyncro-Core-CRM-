@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 
-type Mode = "login" | "setup";
+type Mode = "login" | "setup" | "invite";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
@@ -15,8 +15,39 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Check if first-run setup is needed
+  // Invite-specific
+  const [inviteToken, setInviteToken] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite")?.trim() ?? "";
+
+    if (token) {
+      setInviteToken(token);
+      // Validate the invite token
+      void fetch(`/api/auth/invite?token=${encodeURIComponent(token)}`)
+        .then((r) => r.json())
+        .then((d: unknown) => {
+          const data = d as { email?: string; displayName?: string; error?: string };
+          if (data.error) {
+            setError(data.error);
+            setMode("login");
+          } else {
+            setInviteEmail(data.email ?? "");
+            setDisplayName(data.displayName ?? "");
+            setMode("invite");
+          }
+        })
+        .catch(() => {
+          setError("Unable to validate your invite link. Please try again.");
+          setMode("login");
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
+    // Check if first-run setup is needed
     void fetch("/api/auth/setup")
       .then((r) => r.json())
       .then((d: unknown) => {
@@ -85,6 +116,41 @@ export default function LoginPage() {
     }
   }
 
+  async function handleAcceptInvite(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: inviteToken,
+          password,
+          displayName: displayName.trim(),
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Failed to accept invite.");
+      } else {
+        window.location.href = "/";
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="loginShell">
@@ -104,7 +170,77 @@ export default function LoginPage() {
           <span className="loginLogoSub">Core</span>
         </div>
 
-        {mode === "setup" ? (
+        {mode === "invite" ? (
+          <>
+            <div className="loginHeading">
+              <p className="loginEyebrow">YOU&apos;VE BEEN INVITED</p>
+              <h1>Set up your account</h1>
+              <p className="loginSubtext">
+                You&apos;re joining the workspace as <strong style={{ color: "#F5F0EB" }}>{inviteEmail}</strong>.
+                Choose a name and create your password to get started.
+              </p>
+            </div>
+
+            <form className="loginForm" onSubmit={(e) => void handleAcceptInvite(e)} noValidate>
+              <div className="loginField">
+                <label htmlFor="displayName">Your name</label>
+                <input
+                  id="displayName"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Full name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="inviteEmailDisplay">Email</label>
+                <input
+                  id="inviteEmailDisplay"
+                  type="email"
+                  value={inviteEmail}
+                  readOnly
+                  disabled
+                  style={{ opacity: 0.6 }}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="password">Create password</label>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="confirmPassword">Confirm password</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              {error && <p className="loginError" role="alert">{error}</p>}
+
+              <button type="submit" className="loginSubmit" disabled={submitting}>
+                {submitting ? <span className="loginBtnSpinner" /> : "Activate account"}
+              </button>
+            </form>
+          </>
+        ) : mode === "setup" ? (
           <>
             <div className="loginHeading">
               <p className="loginEyebrow">WORKSPACE SETUP</p>
@@ -171,16 +307,8 @@ export default function LoginPage() {
 
               {error && <p className="loginError" role="alert">{error}</p>}
 
-              <button
-                type="submit"
-                className="loginSubmit"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <span className="loginBtnSpinner" />
-                ) : (
-                  "Create workspace"
-                )}
+              <button type="submit" className="loginSubmit" disabled={submitting}>
+                {submitting ? <span className="loginBtnSpinner" /> : "Create workspace"}
               </button>
             </form>
           </>
@@ -221,16 +349,8 @@ export default function LoginPage() {
 
               {error && <p className="loginError" role="alert">{error}</p>}
 
-              <button
-                type="submit"
-                className="loginSubmit"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <span className="loginBtnSpinner" />
-                ) : (
-                  "Sign in"
-                )}
+              <button type="submit" className="loginSubmit" disabled={submitting}>
+                {submitting ? <span className="loginBtnSpinner" /> : "Sign in"}
               </button>
             </form>
           </>

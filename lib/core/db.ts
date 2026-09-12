@@ -410,6 +410,13 @@ export async function ensureCoreSchema() {
   ]) {
     try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }
+  // Invite columns on auth_users
+  for (const statement of [
+    "ALTER TABLE auth_users ADD COLUMN invite_token TEXT",
+    "ALTER TABLE auth_users ADD COLUMN invite_expires_at TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  }
   for (const statement of [
     "ALTER TABLE workspace_members ADD COLUMN can_create INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE workspace_members ADD COLUMN can_edit INTEGER NOT NULL DEFAULT 1",
