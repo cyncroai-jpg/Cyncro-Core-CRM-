@@ -24,7 +24,10 @@ type Tab =
   | "sign"
   | "form"
   | "prime";
+type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive" | "apex" | "prime" | "messages";
+
 export default function Home() {
+  const [product, setProduct] = useState<CyncroProduct>("switcher");
   const [tab, setTab] = useState<Tab>("home"),
     [permissions, setPermissions] = useState<{
       role: string;
@@ -39,6 +42,8 @@ export default function Home() {
     [date, setDate] = useState(18);
   // apex is the only remaining pure-roadmap gate
   const roadmapTabs: Tab[] = ["apex"];
+  // ACTIVE products — only Core is currently enabled
+  const activeProducts: CyncroProduct[] = ["core"];
 
   const canAccess = (destination: Tab) =>
     destination === "home" ||
@@ -112,6 +117,15 @@ export default function Home() {
       if (response.ok && data.member) setPermissions(data.member);
     });
   }, []);
+  // Show product switcher
+  if (product === "switcher") {
+    return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={setProduct} />;
+  }
+  // Show gated screen for non-active products
+  if (product !== "core") {
+    return <CyncroProductGate product={product} onBack={() => setProduct("switcher")} />;
+  }
+
   return (
     <main
       className="cyncroApp readable themeDark launchFocused"
@@ -138,6 +152,7 @@ export default function Home() {
               </button>
             ))}
           <span>● CORE BETA</span>
+          <button className="productSwitcherBtn" onClick={() => setProduct("switcher")} title="All products">⬡ Products</button>
         </nav>
       </header>
       {tab === "home" ? (
@@ -21045,6 +21060,190 @@ function CyncroMessagesHub() {
       </div>
       <div style={{ flex: 1 }}>
         {mode === "team" ? <TeamChat /> : <CyncroMessagesComingSoon />}
+      </div>
+    </div>
+  );
+}
+
+// ─── Product Switcher ────────────────────────────────────────────────────────
+
+const CYNCRO_PRODUCTS: {
+  id: CyncroProduct;
+  name: string;
+  tagline: string;
+  color: string;
+  icon: string;
+  badge?: string;
+  features: string[];
+}[] = [
+  {
+    id: "core",
+    name: "Cyncro Core",
+    tagline: "Sales operating system",
+    color: "#C1283E",
+    icon: "◆",
+    features: ["CRM & Pipeline", "Calendar & Booking", "Prospecting AI", "Contracts & Invoices", "Team Access", "Attribution", "Sales Playbooks"],
+  },
+  {
+    id: "dispatch",
+    name: "Cyncro Dispatch",
+    tagline: "Field-service & contractor OS",
+    color: "#1E6FD9",
+    icon: "⬡",
+    badge: "Coming Soon",
+    features: ["Dispatch board", "Work orders", "Technician tracking", "Live map", "Clock in/out", "Photos & signatures", "Job invoicing"],
+  },
+  {
+    id: "dispute",
+    name: "Cyncro Dispute",
+    tagline: "Credit-dispute & client management",
+    color: "#7C3AED",
+    icon: "◈",
+    badge: "Coming Soon",
+    features: ["Bureau intake", "Dispute letters", "Round tracking", "Certified mail", "Client portal", "Score history", "Compliance layer"],
+  },
+  {
+    id: "automotive",
+    name: "Cyncro Automotive",
+    tagline: "Dealership finance & deal OS",
+    color: "#0D7F6E",
+    icon: "◉",
+    badge: "Coming Soon",
+    features: ["Credit applications", "Lender matrix", "Deal structuring", "Finance menu", "Deal jacket", "Funding tracking", "F&I analytics"],
+  },
+  {
+    id: "apex",
+    name: "Apex Funds",
+    tagline: "Lending-broker fintech infrastructure",
+    color: "#B45309",
+    icon: "▲",
+    badge: "Coming Soon",
+    features: ["100+ lender network", "Multi-lender submissions", "Offer comparison", "Decline recovery", "Stipulation tracking", "Broker analytics", "API & webhooks"],
+  },
+  {
+    id: "prime",
+    name: "Cyncro Prime",
+    tagline: "AI workforce & orchestration",
+    color: "#C1283E",
+    icon: "✦",
+    badge: "Coming Soon",
+    features: ["Human + AI agent profiles", "Departments & skills", "Tool permissions", "Approval workflows", "Audit logs", "Performance analytics", "Testing sandbox"],
+  },
+  {
+    id: "messages",
+    name: "Cyncro Messages",
+    tagline: "Unified communication platform",
+    color: "#0369A1",
+    icon: "◎",
+    badge: "Coming Soon",
+    features: ["SMS / MMS / RCS", "Shared inboxes", "AI response drafts", "Bulk campaigns", "Consent records", "CRM sync", "Usage reporting"],
+  },
+];
+
+function CyncroProductSwitcher({
+  activeProducts,
+  onEnter,
+}: {
+  activeProducts: CyncroProduct[];
+  onEnter: (p: CyncroProduct) => void;
+}) {
+  return (
+    <div className="productSwitcherShell">
+      <div className="productSwitcherGlow" aria-hidden="true" />
+      <header className="productSwitcherHeader">
+        <div className="productSwitcherLogo">
+          <span className="psLogoMark">Cyncro</span>
+          <span className="psLogoSub">Platform</span>
+        </div>
+        <p className="productSwitcherEyebrow">SELECT A PRODUCT</p>
+      </header>
+
+      <div className="productSwitcherGrid">
+        {CYNCRO_PRODUCTS.map((p) => {
+          const isActive = activeProducts.includes(p.id);
+          return (
+            <div
+              key={p.id}
+              className={`productCard ${isActive ? "productCardActive" : "productCardGated"}`}
+              style={{ "--product-color": p.color } as React.CSSProperties}
+            >
+              <div className="productCardTop">
+                <div className="productCardIcon" style={{ color: p.color }}>{p.icon}</div>
+                <div className="productCardMeta">
+                  <h3 className="productCardName">{p.name}</h3>
+                  <p className="productCardTagline">{p.tagline}</p>
+                </div>
+                {p.badge && !isActive && (
+                  <span className="productCardBadge">{p.badge}</span>
+                )}
+                {isActive && (
+                  <span className="productCardActiveBadge">ACTIVE</span>
+                )}
+              </div>
+              <ul className="productCardFeatures">
+                {p.features.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              {isActive ? (
+                <button
+                  className="productCardEnter"
+                  style={{ background: p.color }}
+                  onClick={() => onEnter(p.id)}
+                >
+                  Enter {p.name.replace("Cyncro ", "")} →
+                </button>
+              ) : (
+                <button className="productCardRequest" disabled>
+                  Access Required
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <footer className="productSwitcherFooter">
+        Cyncro Platform &mdash; Business operating system &mdash; Contact your administrator to enable additional products
+      </footer>
+    </div>
+  );
+}
+
+// ─── Gated product screen ────────────────────────────────────────────────────
+
+function CyncroProductGate({ product, onBack }: { product: CyncroProduct; onBack: () => void }) {
+  const p = CYNCRO_PRODUCTS.find((x) => x.id === product);
+  if (!p) return null;
+  return (
+    <div className="productGateShell">
+      <div className="productGateGlow" style={{ background: `radial-gradient(circle, ${p.color}18 0%, transparent 65%)` }} aria-hidden="true" />
+      <button className="productGateBack" onClick={onBack}>← All products</button>
+      <div className="productGateContent">
+        <div className="productGateIcon" style={{ color: p.color, borderColor: `${p.color}40` }}>{p.icon}</div>
+        <p className="productGateEyebrow" style={{ color: p.color }}>CYNCRO PLATFORM</p>
+        <h1 className="productGateName">{p.name}</h1>
+        <p className="productGateTagline">{p.tagline}</p>
+        <div className="productGateLock">
+          <span className="productGateLockIcon">🔒</span>
+          <div>
+            <b>Access Required</b>
+            <p>This product requires a separate subscription. Contact your Cyncro administrator or account owner to enable access.</p>
+          </div>
+        </div>
+        <div className="productGateFeatures">
+          <p className="productGateFeatHead">What&apos;s included</p>
+          <ul>
+            {p.features.map((f) => (
+              <li key={f}>
+                <span style={{ color: p.color }}>✓</span> {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="productGateActions">
+          <button className="productGatePrimary" style={{ background: p.color }} onClick={onBack}>← Back to products</button>
+        </div>
       </div>
     </div>
   );
