@@ -18096,6 +18096,9 @@ function CyncroMessagesComingSoon() {
   );
 }
 
+type PrimeAgent = { name: string; action: string; impact: string; priority: string; requires_approval: boolean };
+type PrimePlan = { summary?: string; agents?: PrimeAgent[]; timeline?: string; projected_impact?: string; risk?: string; risk_note?: string };
+
 function CyncroPrime() {
   const [active, setActive] = useState(0);
   const [command, setCommand] = useState(
@@ -18103,17 +18106,44 @@ function CyncroPrime() {
   );
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("System ready · 12 agents connected");
-  const runPrime = () => {
+  const [plan, setPlan] = useState<PrimePlan | null>(null);
+  const [missionHistory, setMissionHistory] = useState<{ id: string; query: string; plan: string; created_at: string }[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const loadHistory = async () => {
+    try {
+      const res = await fetch("/api/prime");
+      if (res.ok) {
+        const data = (await res.json()) as { missions?: { id: string; query: string; plan: string; created_at: string }[] };
+        setMissionHistory(data.missions || []);
+      }
+    } catch { /* non-fatal */ }
+  };
+
+  const runPrime = async () => {
+    if (!command.trim()) return;
     setRunning(true);
-    setMessage(
-      "Cyncro Prime is assigning the mission across EON, ONYX, TITAN, and ORBIT…",
-    );
-    window.setTimeout(() => {
+    setPlan(null);
+    setMessage("Cyncro Prime is reading your business context and coordinating specialist agents…");
+    try {
+      const res = await fetch("/api/prime", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: command }),
+      });
+      const data = (await res.json()) as { plan?: PrimePlan; error?: string };
+      if (data.plan) {
+        setPlan(data.plan);
+        const agentNames = (data.plan.agents || []).map((a) => a.name).join(", ");
+        setMessage(`Mission ready · ${(data.plan.agents || []).length} agents assigned${agentNames ? ` (${agentNames})` : ""} · ${data.plan.projected_impact || ""}`);
+      } else {
+        setMessage(data.error || "Prime AI encountered an error — please retry.");
+      }
+    } catch {
+      setMessage("Connection error — check your network and retry.");
+    } finally {
       setRunning(false);
-      setMessage(
-        "Mission prepared · 4 actions ready for approval · projected recovery $28,400",
-      );
-    }, 900);
+    }
   };
   return (
     <section className="intelligenceShell">
@@ -18155,87 +18185,131 @@ function CyncroPrime() {
           <input
             value={command}
             onChange={(e) => setCommand(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !running && command.trim()) void runPrime(); }}
             aria-label="Command for Cyncro Prime"
+            placeholder="e.g. Find this week's revenue leaks and launch the safest recovery plan"
           />
         </div>
-        <button onClick={runPrime} disabled={running || !command.trim()}>
-          {running ? "Coordinating…" : "Run mission →"}
-        </button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={() => { void loadHistory(); setHistoryOpen(true); }} style={{background:"#1a1315",border:"1px solid #352b2e",borderRadius:8,color:"#b8abad",padding:"0 14px",fontSize:11}}>History</button>
+          <button onClick={() => void runPrime()} disabled={running || !command.trim()}>
+            {running ? "Coordinating…" : "Run mission →"}
+          </button>
+        </div>
       </div>
       <div className={`primeMessage ${running ? "running" : ""}`}>
         <i>✦</i>
         {message}
       </div>
+
+      {plan && (
+        <div className="primeMissionPlan">
+          {plan.summary && <p className="primePlanSummary">{plan.summary}</p>}
+          {plan.projected_impact && (
+            <div className="primePlanMeta">
+              <span><small>PROJECTED IMPACT</small><b>{plan.projected_impact}</b></span>
+              <span><small>TIMELINE</small><b>{plan.timeline || "—"}</b></span>
+              <span style={{color: plan.risk==="HIGH"?"#e05060":plan.risk==="MEDIUM"?"#d4c040":"#3dcc7a"}}>
+                <small>RISK</small><b>{plan.risk || "LOW"}</b>
+              </span>
+            </div>
+          )}
+          {plan.risk_note && <p className="primePlanRiskNote">⚠ {plan.risk_note}</p>}
+          <div className="primePlanAgents">
+            {(plan.agents || []).map((agent) => (
+              <div key={agent.name} className={`primePlanAgent priority-${(agent.priority||"MEDIUM").toLowerCase()}`}>
+                <div className="primePlanAgentHead">
+                  <span className="agentMonogramSm">{agent.name[0]}</span>
+                  <div>
+                    <b>{agent.name}</b>
+                    <small>{primeAgents.find(a=>a[0]===agent.name)?.[1] || "Specialist agent"}</small>
+                  </div>
+                  {agent.requires_approval && <em className="approvalBadge">Needs approval</em>}
+                </div>
+                <p className="primePlanAgentAction">{agent.action}</p>
+                <div className="primePlanAgentImpact">↗ {agent.impact}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="primeWorkspace">
         <div className="agentGrid">
-          {primeAgents.map((agent, index) => (
-            <button
-              className={active === index ? "active" : ""}
-              onClick={() => setActive(index)}
-              key={agent[0]}
-            >
-              <span>{agent[0].slice(0, 1)}</span>
-              <div>
-                <b>{agent[0]}</b>
-                <small>{agent[1]}</small>
-              </div>
-              <em>{agent[3]}</em>
-            </button>
-          ))}
+          {primeAgents.map((agent, index) => {
+            const liveAgent = plan?.agents?.find(a => a.name === agent[0]);
+            return (
+              <button
+                className={`${active === index ? "active" : ""} ${liveAgent ? "assigned" : ""}`}
+                onClick={() => setActive(index)}
+                key={agent[0]}
+              >
+                <span>{agent[0].slice(0, 1)}</span>
+                <div>
+                  <b>{agent[0]}</b>
+                  <small>{agent[1]}</small>
+                </div>
+                <em>{liveAgent ? `⚡ ${liveAgent.priority}` : agent[3]}</em>
+              </button>
+            );
+          })}
         </div>
         <aside className="agentDetail">
           <small>SPECIALIST AGENT</small>
           <div className="agentMonogram">{primeAgents[active][0]}</div>
           <h2>{primeAgents[active][1]}</h2>
-          <p>{primeAgents[active][2]}</p>
+          <p>{plan?.agents?.find(a=>a.name===primeAgents[active][0])?.action || primeAgents[active][2]}</p>
           <div className="agentFacts">
-            <span>
-              Permission mode <b>Approval required</b>
-            </span>
-            <span>
-              Current workload <b>{primeAgents[active][3]}</b>
-            </span>
-            <span>
-              Connected context <b>Live + governed</b>
-            </span>
+            <span>Permission mode <b>Approval required</b></span>
+            <span>Current workload <b>{plan?.agents?.find(a=>a.name===primeAgents[active][0])?.impact || primeAgents[active][3]}</b></span>
+            <span>Connected context <b>Live + governed</b></span>
           </div>
-          <button
-            onClick={() =>
-              setMessage(
-                `${primeAgents[active][0]} opened · context and current assignments loaded`,
-              )
-            }
-          >
+          <button onClick={() => setMessage(`${primeAgents[active][0]} opened · context and current assignments loaded`)}>
             Open agent workspace →
           </button>
         </aside>
       </div>
+
       <div className="primeFlow">
         <article>
           <small>01 · UNDERSTAND</small>
           <b>Reads the whole business</b>
-          <p>
-            Unified context from CRM, calendars, conversations, operations,
-            finance, and campaigns.
-          </p>
+          <p>Unified context from CRM, calendars, conversations, operations, finance, and campaigns.</p>
         </article>
         <article>
           <small>02 · DECIDE</small>
           <b>Builds a coordinated plan</b>
-          <p>
-            Routes each task to the right specialist and forecasts impact before
-            execution.
-          </p>
+          <p>Routes each task to the right specialist and forecasts impact before execution.</p>
         </article>
         <article>
           <small>03 · CONTROL</small>
           <b>You approve the moments that matter</b>
-          <p>
-            Guardrails, permissions, logs, rollback, and accountable human
-            review are built in.
-          </p>
+          <p>Guardrails, permissions, logs, rollback, and accountable human review are built in.</p>
         </article>
       </div>
+
+      {historyOpen && (
+        <div className="modalback" onClick={() => setHistoryOpen(false)}>
+          <div className="bookingmodal" style={{maxWidth:560,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div className="modalhead">
+              <div><label>PRIME AI</label><h2>Mission history</h2></div>
+              <button onClick={() => setHistoryOpen(false)}>×</button>
+            </div>
+            {missionHistory.length === 0 && <p style={{color:"#5a4e52",padding:"20px",fontSize:13}}>No missions run yet.</p>}
+            {missionHistory.map(m => {
+              let mPlan: PrimePlan = {};
+              try { mPlan = JSON.parse(m.plan) as PrimePlan; } catch { /* skip */ }
+              return (
+                <div key={m.id} style={{borderTop:"1px solid #241e21",padding:"14px 20px"}}>
+                  <p style={{fontSize:12,color:"#f0ecee",margin:"0 0 4px"}}>{m.query}</p>
+                  <p style={{fontSize:10,color:"#7a6e70",margin:"0 0 6px"}}>{new Date(m.created_at).toLocaleString()}</p>
+                  {mPlan.projected_impact && <p style={{fontSize:11,color:"#3dcc7a",margin:0}}>↗ {mPlan.projected_impact}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -22467,3 +22467,120 @@ label {
   .calSlotTimeCol { width: 40px; }
   .calSlotHourLabel { font-size: 7px; padding: 0 4px; }
 }
+
+/* ── Cyncro Prime: Live Mission Plan ─────────────────────────── */
+.primeMissionPlan {
+  border: 1px solid #3a1f2a;
+  border-radius: 12px;
+  background: #0e0a0c;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.primePlanSummary {
+  font-size: 14px;
+  color: #e8e2e5;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+.primePlanMeta {
+  display: flex;
+  gap: 1px;
+  background: #1e1519;
+  border: 1px solid #2e2025;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.primePlanMeta > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #120e11;
+}
+.primePlanMeta > span small {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #6a5e62;
+}
+.primePlanMeta > span b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.primePlanRiskNote {
+  font-size: 11px;
+  color: #c09040;
+  background: #1a1308;
+  border: 1px solid #4a3810;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
+}
+.primePlanAgents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.primePlanAgent {
+  border: 1px solid #2c2225;
+  border-radius: 10px;
+  background: #110d0f;
+  padding: 14px;
+}
+.primePlanAgent.priority-high { border-color: #4a1c28; }
+.primePlanAgent.priority-medium { border-color: #2a2214; }
+.primePlanAgent.priority-low { border-color: #1a2020; }
+.primePlanAgentHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.primePlanAgentHead > div { flex: 1; }
+.primePlanAgentHead b { display: block; font-size: 12px; font-weight: 700; color: #f0ecee; }
+.primePlanAgentHead small { font-size: 9px; color: #7a6e70; }
+.agentMonogramSm {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3a1520;
+  color: #e07080;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.approvalBadge {
+  display: inline-block;
+  background: #2a1018;
+  border: 1px solid #7a2030;
+  border-radius: 20px;
+  color: #e06070;
+  font-size: 8px;
+  font-weight: 700;
+  font-style: normal;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.primePlanAgentAction {
+  font-size: 11px;
+  color: #c0b8ba;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+.primePlanAgentImpact {
+  font-size: 10px;
+  font-weight: 600;
+  color: #3dcc7a;
+}
+.agentGrid .assigned em {
+  color: #e8c040 !important;
+}
+
+@media (max-width: 800px) {
+  .primePlanMeta { flex-direction: column; gap: 0; }
+  .primePlanAgents { grid-template-columns: 1fr; }
+}

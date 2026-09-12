@@ -348,6 +348,14 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(booking_id) REFERENCES calendar_bookings(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_booking_reminders_booking ON calendar_booking_reminders(booking_id, reminder_type)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS prime_missions (
+      id TEXT PRIMARY KEY,
+      created_by TEXT NOT NULL,
+      query TEXT NOT NULL,
+      plan TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_prime_missions_created ON prime_missions(created_at DESC)"),
   ]);
   try {
     await db
