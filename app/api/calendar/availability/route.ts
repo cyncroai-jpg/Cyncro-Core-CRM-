@@ -16,8 +16,17 @@ export async function GET(request: Request) {
     const { results: bookings } = await db.prepare(`SELECT starts_at, ends_at FROM calendar_bookings
       WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
       .bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
+    // Blocked times that affect all event types or this specific event type
+    const { results: blocked } = await db.prepare(`SELECT starts_at, ends_at FROM calendar_blocked_times
+      WHERE (event_type_id = ? OR event_type_id IS NULL) AND starts_at < ? AND ends_at > ?`)
+      .bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
     const duration = Number(eventType.duration_minutes);
     const capacity = Number(eventType.capacity || 1);
+    const minNoticeMs = Number(eventType.min_notice_hours || 1) * 3_600_000;
+    const maxAdvanceDays = Number(eventType.max_advance_days || 60);
+    const earliest = new Date(Date.now() + minNoticeMs);
+    const latest = new Date(Date.now() + maxAdvanceDays * 86_400_000);
+    const slotInterval = Number(eventType.slot_interval_minutes || 0) || duration;
     const slots: { startsAt: string; endsAt: string; remaining: number }[] = [];
     for (let offset = 0; offset < days; offset++) {
       const day = new Date(from); day.setUTCDate(day.getUTCDate() + offset);
@@ -28,13 +37,20 @@ export async function GET(request: Request) {
         const dayEnd = new Date(day); dayEnd.setUTCHours(endHour, endMinute, 0, 0);
         while (cursor.getTime() + duration * 60_000 <= dayEnd.getTime()) {
           const slotEnd = new Date(cursor.getTime() + duration * 60_000);
-          const used = bookings.filter((booking) => new Date(booking.starts_at) < slotEnd && new Date(booking.ends_at) > cursor).length;
-          if (used < capacity && cursor > new Date()) slots.push({ startsAt: cursor.toISOString(), endsAt: slotEnd.toISOString(), remaining: capacity - used });
-          cursor.setUTCMinutes(cursor.getUTCMinutes() + duration);
+          // Check notice period and max advance
+          if (cursor >= earliest && cursor <= latest) {
+            // Check blocked times
+            const isBlocked = blocked.some(b => new Date(b.starts_at) < slotEnd && new Date(b.ends_at) > cursor);
+            if (!isBlocked) {
+              const used = bookings.filter((booking) => new Date(booking.starts_at) < slotEnd && new Date(booking.ends_at) > cursor).length;
+              if (used < capacity) slots.push({ startsAt: cursor.toISOString(), endsAt: slotEnd.toISOString(), remaining: capacity - used });
+            }
+          }
+          cursor.setUTCMinutes(cursor.getUTCMinutes() + slotInterval);
         }
       }
     }
-    return Response.json({ slots, timezone: String(rules[0]?.timezone || "UTC") });
+    return Response.json({ slots, timezone: String(rules[0]?.timezone || "UTC"), minNoticeHours: Number(eventType.min_notice_hours || 1), maxAdvanceDays });
   } catch (error) {
     console.error("calendar.availability.failed", error);
     return Response.json({ error: "Unable to calculate availability." }, { status: 500 });

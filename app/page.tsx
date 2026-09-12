@@ -19014,6 +19014,37 @@ function Admin({
     }[]
   >([]);
   const [calendarFeed, setCalendarFeed] = useState("");
+  const [analytics, setAnalytics] = useState<{
+    thisMonth: { total: number; completed: number; noShows: number; cancelled: number; showRate: number; revenueCents: number };
+    thisWeek: number; next7Days: number;
+    byEventType: { event_name: string; color: string; count: number }[];
+    upcomingList: { customer_name: string; starts_at: string; event_name: string; color: string; assigned_to: string }[];
+  } | null>(null);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockForm, setBlockForm] = useState({ startsAt: "", endsAt: "", reason: "", allDay: false });
+  const [blockedTimes, setBlockedTimes] = useState<{ id: string; starts_at: string; ends_at: string; reason?: string; all_day: number }[]>([]);
+  const [eventTypeSettings, setEventTypeSettings] = useState<Record<string, unknown>[]>([]);
+  const [etSettingsOpen, setEtSettingsOpen] = useState(false);
+  const [editingEt, setEditingEt] = useState<Record<string, unknown> | null>(null);
+  const [availRules, setAvailRules] = useState<{ weekday: number; start_time: string; end_time: string }[]>([]);
+  const loadAnalytics = async () => {
+    try {
+      const res = await fetch("/api/calendar/analytics");
+      if (res.ok) setAnalytics((await res.json()) as typeof analytics);
+    } catch { /* non-fatal */ }
+  };
+  const loadBlockedTimes = async () => {
+    try {
+      const res = await fetch("/api/calendar/blocked-times");
+      if (res.ok) setBlockedTimes(((await res.json()) as { blockedTimes?: typeof blockedTimes }).blockedTimes || []);
+    } catch { /* non-fatal */ }
+  };
+  const loadEventTypeSettings = async () => {
+    try {
+      const res = await fetch("/api/calendar/event-types");
+      if (res.ok) setEventTypeSettings(((await res.json()) as { eventTypes?: Record<string, unknown>[] }).eventTypes || []);
+    } catch { /* non-fatal */ }
+  };
   useEffect(() => {
     void fetch("/api/calendar/connections").then(async (response) => {
       const data = (await response.json()) as { feedUrl?: string };
@@ -19058,7 +19089,12 @@ function Admin({
     setLoaded(true);
   };
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadBookings(), 0);
+    const timer = window.setTimeout(() => {
+      void loadBookings();
+      void loadAnalytics();
+      void loadBlockedTimes();
+      void loadEventTypeSettings();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
   const loadCalendarData = async () => {
@@ -19108,6 +19144,8 @@ function Admin({
     const refresh = () => {
       void loadBookings();
       void loadCalendarData();
+      void loadAnalytics();
+      void loadBlockedTimes();
     };
     window.addEventListener("cyncro:data-changed", refresh);
     window.addEventListener("focus", refresh);
@@ -19202,6 +19240,69 @@ function Admin({
       customerPhone: contact?.phone || "",
     });
   };
+  const saveBlockTime = async () => {
+    if (!blockForm.startsAt || !blockForm.endsAt) { setNotice("Start and end times are required."); return; }
+    const res = await fetch("/api/calendar/blocked-times", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startsAt: new Date(blockForm.startsAt).toISOString(), endsAt: new Date(blockForm.endsAt).toISOString(), reason: blockForm.reason, allDay: blockForm.allDay }),
+    });
+    if (!res.ok) { setNotice("Could not block time."); return; }
+    setBlockOpen(false);
+    setBlockForm({ startsAt: "", endsAt: "", reason: "", allDay: false });
+    await loadBlockedTimes();
+    setNotice("Time blocked — it will not appear as available for booking.");
+  };
+  const removeBlockedTime = async (id: string) => {
+    await fetch(`/api/calendar/blocked-times?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    setBlockedTimes(prev => prev.filter(b => b.id !== id));
+  };
+  const openEtSettings = async (et: Record<string, unknown>) => {
+    setEditingEt({ ...et });
+    // Pre-populate default Mon-Fri 9-5 availability rules
+    setAvailRules([
+      {weekday:1,start_time:"09:00",end_time:"17:00"},
+      {weekday:2,start_time:"09:00",end_time:"17:00"},
+      {weekday:3,start_time:"09:00",end_time:"17:00"},
+      {weekday:4,start_time:"09:00",end_time:"17:00"},
+      {weekday:5,start_time:"09:00",end_time:"17:00"},
+    ]);
+    setEtSettingsOpen(true);
+  };
+  const saveEtSettings = async () => {
+    if (!editingEt) return;
+    const res = await fetch("/api/calendar/event-types", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingEt.id,
+        name: editingEt.name,
+        description: editingEt.description,
+        durationMinutes: editingEt.duration_minutes,
+        capacity: editingEt.capacity,
+        color: editingEt.color,
+        priceCents: editingEt.price_cents,
+        minNoticeHours: editingEt.min_notice_hours,
+        maxAdvanceDays: editingEt.max_advance_days,
+        cancellationHours: editingEt.cancellation_hours,
+        maxBookingsPerDay: editingEt.max_bookings_per_day,
+        bufferBeforeMinutes: editingEt.buffer_before_minutes,
+        bufferAfterMinutes: editingEt.buffer_after_minutes,
+      }),
+    });
+    if (!res.ok) { setNotice("Could not save event type settings."); return; }
+    // Save availability rules
+    if (availRules.length) {
+      await fetch("/api/calendar/availability", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventTypeId: editingEt.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, rules: availRules }),
+      });
+    }
+    setEtSettingsOpen(false);
+    await loadEventTypeSettings();
+    setNotice("Event type settings saved.");
+  };
   return (
     <section className="admin">
       <div className="adminhead">
@@ -19217,34 +19318,70 @@ function Admin({
       </div>
       <div className="stats">
         {[
-          ["UPCOMING BOOKINGS", String(upcoming.length)],
+          ["UPCOMING", String(upcoming.length)],
           ["CONFIRMED", String(confirmed)],
-          [
-            "COMPLETED",
-            String(
-              rows.filter((booking) => booking.status === "COMPLETED").length,
-            ),
-          ],
-          [
-            "CANCELLED",
-            String(
-              rows.filter((booking) => booking.status === "CANCELLED").length,
-            ),
-          ],
+          ["COMPLETED", String(rows.filter((booking) => booking.status === "COMPLETED").length)],
+          ["CANCELLED", String(rows.filter((booking) => booking.status === "CANCELLED").length)],
+          ["NO-SHOWS", String(rows.filter((booking) => booking.status === "NO_SHOW").length)],
         ].map((x) => (
           <div key={x[0]}>
             <small>{x[0]}</small>
             <b>{x[1]}</b>
-            <p>Live backend status</p>
+            <p>Live backend</p>
           </div>
         ))}
       </div>
+      {analytics && (
+        <div className="calendarAnalyticsBar">
+          <div className="calAnalyticsStat">
+            <small>SHOW RATE</small>
+            <b style={{color: analytics.thisMonth.showRate >= 80 ? "#3dcc7a" : analytics.thisMonth.showRate >= 60 ? "#d4c040" : "#e05060"}}>
+              {analytics.thisMonth.showRate}%
+            </b>
+            <span>this month</span>
+          </div>
+          <div className="calAnalyticsStat">
+            <small>NEXT 7 DAYS</small>
+            <b>{analytics.next7Days}</b>
+            <span>scheduled</span>
+          </div>
+          <div className="calAnalyticsStat">
+            <small>THIS WEEK</small>
+            <b>{analytics.thisWeek}</b>
+            <span>confirmed</span>
+          </div>
+          <div className="calAnalyticsStat">
+            <small>THIS MONTH</small>
+            <b>{analytics.thisMonth.total}</b>
+            <span>{analytics.thisMonth.completed} completed · {analytics.thisMonth.noShows} no-show</span>
+          </div>
+          {analytics.thisMonth.revenueCents > 0 && (
+            <div className="calAnalyticsStat">
+              <small>REVENUE MTD</small>
+              <b>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:0}).format(analytics.thisMonth.revenueCents/100)}</b>
+              <span>from paid bookings</span>
+            </div>
+          )}
+          {analytics.byEventType.length > 0 && (
+            <div className="calAnalyticsBreakdown">
+              <small>BY EVENT TYPE</small>
+              <div>
+                {analytics.byEventType.map(et => (
+                  <span key={et.event_name} style={{borderColor: et.color||"#C1283E", color: et.color||"#C1283E"}}>
+                    {et.event_name} <b>{et.count}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="calendarCommandBar">
         <div>
-          {(["LIST", "WEEK", "MONTH"] as const).map((item) => (
+          {(["LIST", "WEEK", "MONTH", "SLOTS"] as const).map((item) => (
             <button
-              className={calendarView === item ? "active" : ""}
-              onClick={() => setCalendarView(item)}
+              className={(calendarView as string) === item ? "active" : ""}
+              onClick={() => setCalendarView(item as "LIST"|"WEEK"|"MONTH")}
               key={item}
             >
               {item[0] + item.slice(1).toLowerCase()}
@@ -19287,6 +19424,12 @@ function Admin({
           />{" "}
           My appointments
         </label>
+        <button onClick={() => setBlockOpen(true)} style={{background:"#1a0f12",border:"1px solid #4a2530",color:"#e07080",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+          ⊘ Block time
+        </button>
+        <button onClick={() => { void loadEventTypeSettings(); setEtSettingsOpen(true); }} style={{background:"#0d1018",border:"1px solid #253040",color:"#70a0d0",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+          ⚙ Event types
+        </button>
         <button
           className="crmCreate"
           onClick={() => {
@@ -19322,7 +19465,75 @@ function Admin({
           </button>
         </div>
       </div>
-      {calendarView !== "LIST" && (
+      {(calendarView as string) === "SLOTS" && (
+        <div className="calendarSlotsView">
+          <div className="calendarSlotsHead">
+            <b>Time-slot view — {new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</b>
+            <span>{visibleRows.length} bookings visible</span>
+          </div>
+          <div className="calendarSlotsGrid">
+            <div className="calSlotTimeCol">
+              {Array.from({length:26},(_,i)=>{const h=7+Math.floor(i/2);const m=i%2===0?"00":"30";return(
+                <div key={i} className={`calSlotHourLabel ${i%2===0?"":"half"}`}>
+                  {i%2===0?`${h===12?"12":h>12?h-12:h}${h<12?"am":"pm"}`:""}
+                </div>
+              )})}
+            </div>
+            {Array.from({length:7},(_,di)=>{
+              const day=new Date(`${focusDate}T12:00:00`);
+              day.setDate(day.getDate()-day.getDay()+di);
+              const dayStr=day.toISOString().slice(0,10);
+              const dayBookings=visibleRows.filter(b=>new Date(b.starts_at).toLocaleDateString()===day.toLocaleDateString());
+              const isToday=day.toDateString()===new Date().toDateString();
+              const blocked=blockedTimes.filter(bt=>{const s=new Date(bt.starts_at);const e=new Date(bt.ends_at);return s.toLocaleDateString()===day.toLocaleDateString()||((s<=day)&&(e>=day));});
+              return(
+                <div key={dayStr} className={`calSlotDayCol ${isToday?"today":""}`}>
+                  <div className="calSlotDayHead">
+                    <b>{day.toLocaleDateString(undefined,{weekday:"short"})}</b>
+                    <span className={isToday?"calSlotDateToday":""}>{day.getDate()}</span>
+                  </div>
+                  <div className="calSlotDayBody">
+                    {Array.from({length:26},(_,i)=>(
+                      <div key={i} className={`calSlotCell ${i%2===0?"":"half"}`} />
+                    ))}
+                    {blocked.map(bt=>{
+                      const s=new Date(bt.starts_at);const e=new Date(bt.ends_at);
+                      const startMin=(s.getHours()*60+s.getMinutes()-7*60);const endMin=(e.getHours()*60+e.getMinutes()-7*60);
+                      const top=Math.max(0,(startMin/30)*30);const height=Math.max(15,((endMin-startMin)/30)*30);
+                      return(<div key={bt.id} className="calSlotBlocked" style={{top,height}} title={bt.reason||"Blocked"}><small>{bt.reason||"Blocked"}</small></div>);
+                    })}
+                    {dayBookings.map(b=>{
+                      const s=new Date(b.starts_at);const e=new Date(b.ends_at);
+                      const startMin=(s.getHours()*60+s.getMinutes()-7*60);const endMin=(e.getHours()*60+e.getMinutes()-7*60);
+                      const top=Math.max(0,(startMin/30)*30);const height=Math.max(30,((endMin-startMin)/30)*30);
+                      const statusColor=b.status==="CONFIRMED"?"#3dcc7a":b.status==="COMPLETED"?"#4ab0f5":b.status==="NO_SHOW"?"#c070e0":"#e05060";
+                      return(<button key={b.id} className="calSlotBooking" onClick={()=>setSelectedBooking(b)}
+                        style={{top,height,borderLeftColor:statusColor}}>
+                        <b>{s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b>
+                        <span>{b.customer_name}</span>
+                        <small>{b.event_name}</small>
+                      </button>);
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {blockedTimes.length > 0 && (
+            <div className="calBlockedList">
+              <small>BLOCKED PERIODS</small>
+              {blockedTimes.slice(0,5).map(bt=>(
+                <div key={bt.id}>
+                  <span>{new Date(bt.starts_at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} – {new Date(bt.ends_at).toLocaleString([],{hour:"numeric",minute:"2-digit"})}</span>
+                  <span>{bt.reason||"No reason"}</span>
+                  <button onClick={()=>void removeBlockedTime(bt.id)}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
           <div className="roleCalendarHead">
             <b>
@@ -19580,6 +19791,118 @@ function Admin({
                 Cancel booking
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {blockOpen && (
+        <div className="modalback" onClick={() => setBlockOpen(false)}>
+          <div className="bookingmodal" onClick={e => e.stopPropagation()}>
+            <div className="modalhead">
+              <div><label>BLOCK AVAILABILITY</label><h2>Block time</h2></div>
+              <button onClick={() => setBlockOpen(false)}>×</button>
+            </div>
+            <div className="crmForm">
+              <label>Start<input type="datetime-local" value={blockForm.startsAt} onChange={e=>setBlockForm({...blockForm,startsAt:e.target.value})} /></label>
+              <label>End<input type="datetime-local" value={blockForm.endsAt} onChange={e=>setBlockForm({...blockForm,endsAt:e.target.value})} /></label>
+              <label>Reason (optional)<input value={blockForm.reason} onChange={e=>setBlockForm({...blockForm,reason:e.target.value})} placeholder="Vacation, holiday, meeting…" /></label>
+              <label style={{flexDirection:"row",alignItems:"center",gap:8}}>
+                <input type="checkbox" checked={blockForm.allDay} onChange={e=>setBlockForm({...blockForm,allDay:e.target.checked})} />
+                All day
+              </label>
+            </div>
+            {blockedTimes.length > 0 && (
+              <div style={{margin:"16px 0"}}>
+                <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70"}}>EXISTING BLOCKS</small>
+                {blockedTimes.slice(0,5).map(bt=>(
+                  <div key={bt.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #2a2225",fontSize:11,color:"#b8abad"}}>
+                    <span>{new Date(bt.starts_at).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} – {new Date(bt.ends_at).toLocaleString([],{hour:"numeric",minute:"2-digit"})} {bt.reason ? `· ${bt.reason}` : ""}</span>
+                    <button onClick={()=>void removeBlockedTime(bt.id)} style={{color:"#e05060",background:"none",border:"none",cursor:"pointer",fontSize:11}}>Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="modalactions">
+              <button onClick={() => setBlockOpen(false)}>Cancel</button>
+              <button onClick={() => void saveBlockTime()}>Block this time</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {etSettingsOpen && (
+        <div className="modalback" onClick={() => setEtSettingsOpen(false)}>
+          <div className="bookingmodal pipelineSettings" style={{maxWidth:640,maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div className="modalhead">
+              <div><label>PREMIUM CALENDAR SETTINGS</label><h2>{editingEt ? String(editingEt.name) : "Event types"}</h2></div>
+              <button onClick={() => { setEtSettingsOpen(false); setEditingEt(null); }}>×</button>
+            </div>
+            {!editingEt ? (
+              <>
+                <p style={{fontSize:13,color:"#b8abad",margin:"0 0 16px"}}>Select an event type to configure its advanced settings, pricing, availability rules, and capacity.</p>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {eventTypeSettings.map(et=>(
+                    <button key={String(et.id)} onClick={()=>void openEtSettings(et)}
+                      style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#100e0f",border:"1px solid #2e2527",borderRadius:10,color:"#f5f0eb",textAlign:"left",cursor:"pointer"}}>
+                      <span style={{width:12,height:12,borderRadius:"50%",background:String(et.color||"#C1283E"),flexShrink:0}} />
+                      <div style={{flex:1}}>
+                        <b style={{display:"block",fontSize:13}}>{String(et.name)}</b>
+                        <small style={{fontSize:10,color:"#7a6e70"}}>{String(et.duration_minutes)}min · capacity {String(et.capacity||1)} · {Number(et.price_cents||0)>0?`$${(Number(et.price_cents)/100).toFixed(2)}`:"Free"}</small>
+                      </div>
+                      <span style={{color:"#7a6e70",fontSize:11}}>Configure →</span>
+                    </button>
+                  ))}
+                  {!eventTypeSettings.length && <p style={{color:"#5a4e51",fontSize:13}}>No event types yet.</p>}
+                </div>
+                <div className="modalactions"><button onClick={()=>setEtSettingsOpen(false)}>Done</button></div>
+              </>
+            ) : (
+              <>
+                <div className="crmForm">
+                  <label>Name<input value={String(editingEt.name||"")} onChange={e=>setEditingEt({...editingEt,name:e.target.value})} /></label>
+                  <label>Description<input value={String(editingEt.description||"")} onChange={e=>setEditingEt({...editingEt,description:e.target.value})} /></label>
+                  <label>Color (accent)
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <input type="color" value={String(editingEt.color||"#C1283E")} onChange={e=>setEditingEt({...editingEt,color:e.target.value})} style={{width:40,height:36,border:"none",background:"none",cursor:"pointer"}} />
+                      <input value={String(editingEt.color||"#C1283E")} onChange={e=>setEditingEt({...editingEt,color:e.target.value})} style={{flex:1}} />
+                    </div>
+                  </label>
+                  <label>Duration (minutes)<input type="number" min="5" max="480" value={Number(editingEt.duration_minutes||30)} onChange={e=>setEditingEt({...editingEt,duration_minutes:Number(e.target.value)})} /></label>
+                  <label>Max capacity per slot<input type="number" min="1" max="500" value={Number(editingEt.capacity||1)} onChange={e=>setEditingEt({...editingEt,capacity:Number(e.target.value)})} /></label>
+                  <label>Price (USD, 0 = free)<input type="number" min="0" step="0.01" value={(Number(editingEt.price_cents||0)/100).toFixed(2)} onChange={e=>setEditingEt({...editingEt,price_cents:Math.round(Number(e.target.value)*100)})} /></label>
+                  <label>Min notice (hours)<input type="number" min="0" max="168" value={Number(editingEt.min_notice_hours||1)} onChange={e=>setEditingEt({...editingEt,min_notice_hours:Number(e.target.value)})} /></label>
+                  <label>Max advance booking (days)<input type="number" min="1" max="365" value={Number(editingEt.max_advance_days||60)} onChange={e=>setEditingEt({...editingEt,max_advance_days:Number(e.target.value)})} /></label>
+                  <label>Cancellation window (hours)<input type="number" min="0" max="168" value={Number(editingEt.cancellation_hours||24)} onChange={e=>setEditingEt({...editingEt,cancellation_hours:Number(e.target.value)})} /></label>
+                  <label>Buffer before (minutes)<input type="number" min="0" max="120" value={Number(editingEt.buffer_before_minutes||0)} onChange={e=>setEditingEt({...editingEt,buffer_before_minutes:Number(e.target.value)})} /></label>
+                  <label>Buffer after (minutes)<input type="number" min="0" max="120" value={Number(editingEt.buffer_after_minutes||0)} onChange={e=>setEditingEt({...editingEt,buffer_after_minutes:Number(e.target.value)})} /></label>
+                </div>
+                <div style={{margin:"20px 0 12px"}}>
+                  <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70",display:"block",marginBottom:12}}>WEEKLY AVAILABILITY</small>
+                  {(["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]).map((day,i)=>{
+                    const weekday=i+1===7?0:i+1;
+                    const rule=availRules.find(r=>r.weekday===weekday);
+                    return(
+                      <div key={day} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                        <label style={{width:30,fontSize:11,color:"#b8abad"}}>{day}</label>
+                        <input type="checkbox" checked={!!rule} onChange={e=>{
+                          if(e.target.checked) setAvailRules([...availRules,{weekday,start_time:"09:00",end_time:"17:00"}]);
+                          else setAvailRules(availRules.filter(r=>r.weekday!==weekday));
+                        }} />
+                        {rule && (
+                          <>
+                            <input type="time" value={rule.start_time} style={{flex:1,fontSize:11}} onChange={e=>setAvailRules(availRules.map(r=>r.weekday===weekday?{...r,start_time:e.target.value}:r))} />
+                            <span style={{fontSize:11,color:"#7a6e70"}}>to</span>
+                            <input type="time" value={rule.end_time} style={{flex:1,fontSize:11}} onChange={e=>setAvailRules(availRules.map(r=>r.weekday===weekday?{...r,end_time:e.target.value}:r))} />
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="modalactions">
+                  <button onClick={()=>setEditingEt(null)}>← Back</button>
+                  <button onClick={()=>void saveEtSettings()}>Save settings</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

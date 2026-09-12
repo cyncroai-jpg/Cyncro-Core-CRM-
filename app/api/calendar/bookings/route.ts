@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
+import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
 
 export async function GET(request: Request) {
   try {
@@ -79,6 +80,21 @@ export async function POST(request: Request) {
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
     if (createdBooking) await syncGoogleBooking(requestUser(request), createdBooking);
+    // Send confirmation email (fire-and-forget)
+    try {
+      const { subject, html } = bookingConfirmationEmail({
+        customerName,
+        eventName: String(eventType.name),
+        startsAt: starts.toISOString(),
+        timezone,
+        locationMode,
+        videoPlatform,
+        meetingAddress,
+        assignedTo,
+        notes: cleanText(body.notes, 500) || null,
+      });
+      void sendEmail({ to: customerEmail, subject, html });
+    } catch { /* non-fatal */ }
     return Response.json({ booking: { id: bookingId, startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED" } }, { status: 201 });
   } catch (error) {
     console.error("calendar.bookings.create_failed", error);
@@ -124,8 +140,27 @@ export async function PATCH(request: Request) {
     const recipient = cleanText(body.assignedTo,160) || String(booking.assigned_to || booking.created_by || requestUser(request));
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
-    const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first();
+    const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first<Record<string,unknown>>();
     if (updated) await syncGoogleBooking(requestUser(request), { ...updated, event_name: booking.event_name || "Cyncro appointment" });
+    // Send transactional email
+    try {
+      const customerEmail = String(booking.customer_email || "");
+      const customerName = String(booking.customer_name || "");
+      const eventName = String(booking.event_name || "Appointment");
+      const tz = String(booking.timezone || "UTC");
+      const locationMode = String(booking.location_mode || "VIDEO");
+      const videoPlatform = String(booking.video_platform || "") || null;
+      const meetingAddress = String(booking.meeting_address || "") || null;
+      if (customerEmail) {
+        if (action === "CANCEL") {
+          const { subject, html } = bookingCancellationEmail({ customerName, eventName, startsAt: String(booking.starts_at), timezone: tz });
+          void sendEmail({ to: customerEmail, subject, html });
+        } else if (action === "RESCHEDULE" && updated) {
+          const { subject, html } = bookingRescheduleEmail({ customerName, eventName, newStartsAt: String(updated.starts_at), timezone: tz, locationMode, videoPlatform, meetingAddress });
+          void sendEmail({ to: customerEmail, subject, html });
+        }
+      }
+    } catch { /* non-fatal */ }
     return Response.json({ booking: updated });
   } catch (error) {
     console.error("calendar.bookings.update_failed", error);

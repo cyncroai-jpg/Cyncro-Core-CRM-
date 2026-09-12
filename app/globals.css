@@ -22227,3 +22227,243 @@ label {
 .bookingStatusChip.status-rescheduled { background: #1a1a00; color: #d4c040; border: 1px solid #5a5010; }
 .bookingStatusChip.status-no_show     { background: #1e0c24; color: #c070e0; border: 1px solid #5a2070; }
 .bookingStatusChip.status-pending     { background: #1a1210; color: #c0a060; border: 1px solid #5a4020; }
+
+/* ── Premium Calendar: Analytics Bar ──────────────────────────── */
+.calendarAnalyticsBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: #1a1416;
+  border: 1px solid #2c2325;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.calAnalyticsStat {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #100d0e;
+}
+.calAnalyticsStat small {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #6a5e62;
+  text-transform: uppercase;
+}
+.calAnalyticsStat b {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0ecee;
+}
+.calAnalyticsBreakdown {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: #100d0e;
+}
+.calAnalyticsBreakdown span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: #b8abad;
+  background: #180f12;
+  border: 1px solid #2e2327;
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+.calAnalyticsBreakdown span i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-style: normal;
+}
+
+/* ── Premium Calendar: Time-Slot View ─────────────────────────── */
+.calendarSlotsView {
+  display: grid;
+  gap: 14px;
+}
+.calendarSlotsGrid {
+  display: flex;
+  border: 1px solid #2c2325;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f0c0d;
+}
+.calSlotTimeCol {
+  width: 52px;
+  flex-shrink: 0;
+  padding-top: 42px; /* align with day header */
+  border-right: 1px solid #242022;
+  background: #0c0a0b;
+}
+.calSlotHourLabel {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 8px;
+  color: #5a5255;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #1c191a;
+}
+.calSlotHourLabel.half {
+  color: #3a3235;
+  border-bottom: 1px dashed #1c191a;
+}
+.calSlotDayCol {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid #1e1b1c;
+}
+.calSlotDayCol:last-child { border-right: none; }
+.calSlotDayCol.today { background: #110e10; }
+.calSlotDayHead {
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-bottom: 1px solid #2a2326;
+  background: #0d0b0c;
+  font-size: 8px;
+  color: #6a5e62;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.calSlotDateToday {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #c1283e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.calSlotDayBody {
+  position: relative;
+}
+.calSlotCell {
+  height: 30px;
+  border-bottom: 1px solid #1c1819;
+}
+.calSlotCell.half {
+  border-bottom: 1px dashed #191617;
+}
+.calSlotBlocked {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  background: #2a0f14;
+  border: 1px solid #5a2030;
+  border-radius: 4px;
+  padding: 2px 5px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.calSlotBlocked small {
+  font-size: 8px;
+  color: #c0606e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.calSlotBooking {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 5px;
+  padding: 3px 6px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  text-align: left;
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  color: #f5f0eb;
+  font-size: 9px;
+  background: #1a1315;
+  transition: filter 0.15s;
+}
+.calSlotBooking:hover { filter: brightness(1.2); }
+.calSlotBooking b {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calSlotBooking small {
+  display: block;
+  font-size: 7px;
+  color: #a09898;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Blocked times list ───────────────────────────────────────── */
+.calBlockedList {
+  border: 1px solid #2c2325;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.calBlockedList > p {
+  color: #5a4e52;
+  font-size: 12px;
+  padding: 16px;
+  text-align: center;
+}
+.calBlockedList > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #221e20;
+  padding: 10px 14px;
+  font-size: 11px;
+}
+.calBlockedList > div:first-child { border-top: none; }
+.calBlockedList > div small {
+  font-size: 9px;
+  color: #7a6e70;
+}
+.calBlockedList > div button {
+  font-size: 9px;
+  color: #e05060;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.calBlockedList > div button:hover { text-decoration: underline; }
+
+@media (max-width: 800px) {
+  .calendarAnalyticsBar { flex-direction: column; gap: 0; }
+  .calAnalyticsStat { padding: 8px 12px; }
+  .calAnalyticsBreakdown { padding: 8px 12px; }
+  .calendarSlotsGrid { font-size: 9px; }
+  .calSlotTimeCol { width: 40px; }
+  .calSlotHourLabel { font-size: 7px; padding: 0 4px; }
+}

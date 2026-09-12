@@ -67,6 +67,14 @@ export async function PATCH(request: Request) {
     if (Array.isArray(body.videoPlatforms)) add("video_platforms", JSON.stringify(body.videoPlatforms));
     if (body.hostName !== undefined) add("host_name", cleanText(body.hostName, 160) || null);
     if (body.active !== undefined) add("active", body.active ? 1 : 0);
+    if (body.color !== undefined) add("color", cleanText(body.color, 20) || "#C1283E");
+    if (body.priceCents !== undefined) add("price_cents", Math.max(0, Number(body.priceCents) || 0));
+    if (body.minNoticeHours !== undefined) add("min_notice_hours", Math.max(0, Math.min(168, Number(body.minNoticeHours) || 1)));
+    if (body.maxAdvanceDays !== undefined) add("max_advance_days", Math.max(1, Math.min(365, Number(body.maxAdvanceDays) || 60)));
+    if (body.cancellationHours !== undefined) add("cancellation_hours", Math.max(0, Math.min(168, Number(body.cancellationHours) || 24)));
+    if (body.maxBookingsPerDay !== undefined) add("max_bookings_per_day", Math.max(0, Number(body.maxBookingsPerDay) || 0));
+    if (body.slotIntervalMinutes !== undefined) add("slot_interval_minutes", Math.max(0, Number(body.slotIntervalMinutes) || 0));
+    if (Array.isArray(body.customQuestions)) add("custom_questions", JSON.stringify(body.customQuestions));
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString());
     values.push(id);

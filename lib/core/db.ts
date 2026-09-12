@@ -329,6 +329,25 @@ export async function ensureCoreSchema() {
       id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT, body TEXT NOT NULL, created_at TEXT NOT NULL,
       FOREIGN KEY(task_id) REFERENCES work_tasks(id)
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_blocked_times (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      reason TEXT,
+      all_day INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_blocked_times_range ON calendar_blocked_times(starts_at, ends_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_booking_reminders (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL,
+      reminder_type TEXT NOT NULL,
+      sent_at TEXT NOT NULL,
+      FOREIGN KEY(booking_id) REFERENCES calendar_bookings(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_booking_reminders_booking ON calendar_booking_reminders(booking_id, reminder_type)"),
   ]);
   try {
     await db
@@ -363,6 +382,25 @@ export async function ensureCoreSchema() {
       .run();
   } catch {
     /* already migrated */
+  }
+  // Premium calendar columns
+  for (const statement of [
+    "ALTER TABLE calendar_event_types ADD COLUMN color TEXT NOT NULL DEFAULT '#C1283E'",
+    "ALTER TABLE calendar_event_types ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_event_types ADD COLUMN min_notice_hours INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE calendar_event_types ADD COLUMN max_advance_days INTEGER NOT NULL DEFAULT 60",
+    "ALTER TABLE calendar_event_types ADD COLUMN cancellation_hours INTEGER NOT NULL DEFAULT 24",
+    "ALTER TABLE calendar_event_types ADD COLUMN custom_questions TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE calendar_event_types ADD COLUMN max_bookings_per_day INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_event_types ADD COLUMN slot_interval_minutes INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_bookings ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_bookings ADD COLUMN custom_answers TEXT NOT NULL DEFAULT '{}'",
+    "ALTER TABLE calendar_bookings ADD COLUMN reminder_24h_sent INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_bookings ADD COLUMN reminder_1h_sent INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_bookings ADD COLUMN cancellation_reason TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN event_name TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }
   for (const statement of [
     "ALTER TABLE workspace_members ADD COLUMN can_create INTEGER NOT NULL DEFAULT 1",
