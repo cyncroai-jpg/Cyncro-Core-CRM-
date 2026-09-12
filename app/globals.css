@@ -23130,3 +23130,82 @@ button.crmUser i {
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* ── Prospecting AI insight block ─────────────────────────────────────────── */
+.aiInsightBlock {
+  background: #0a0c10;
+  border: 1px solid #1e2a3a;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.aiInsightHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.aiInsightHead small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5A4E51;
+  flex: 1;
+}
+.aiInsightBadge {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.aiConfidenceBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.aiConfidenceBadge.high { background: #0d2e1a; color: #3dbe70; border: 1px solid #1a5a35; }
+.aiConfidenceBadge.medium { background: #2a2200; color: #e8c44a; border: 1px solid #5a4400; }
+.aiConfidenceBadge.low { background: #1e1015; color: #9a6070; border: 1px solid #3a2030; }
+.aiInsightSummary {
+  font-size: 13px;
+  color: #C8C0C4;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+.aiPainPoints small {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5A4E51;
+  margin-bottom: 8px;
+}
+.aiPainPoint {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #B8ABAD;
+  line-height: 1.5;
+}
+.aiPainNum {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #C1283E22;
+  border: 1px solid #C1283E55;
+  color: #C1283E;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}

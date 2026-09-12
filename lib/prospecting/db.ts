@@ -49,6 +49,9 @@ export type ProspectRecord = {
   created_at: string;
   updated_at: string;
   analyzed_at: string | null;
+  ai_summary: string | null;
+  pain_points_json: string | null;
+  ai_confidence: string | null;
 };
 
 function database() {
@@ -126,6 +129,9 @@ export async function ensureProspectingSchema() {
     "ALTER TABLE prospects ADD COLUMN estimated_revenue_high_cents INTEGER",
     "ALTER TABLE prospects ADD COLUMN revenue_confidence TEXT",
     "ALTER TABLE prospects ADD COLUMN revenue_methodology TEXT",
+    "ALTER TABLE prospects ADD COLUMN ai_summary TEXT",
+    "ALTER TABLE prospects ADD COLUMN pain_points_json TEXT",
+    "ALTER TABLE prospects ADD COLUMN ai_confidence TEXT",
   ]) try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   await db.prepare(`UPDATE prospects SET
     estimated_revenue_low_cents=CASE WHEN lower(category) LIKE '%dealership%' OR lower(category) LIKE '%hotel%' OR lower(category) LIKE '%manufactur%' THEN 275000000 ELSE 27500000 END,
@@ -197,5 +203,8 @@ export function hydrateProspect(row: ProspectRecord) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     analyzedAt: row.analyzed_at,
+    aiSummary: row.ai_summary,
+    painPoints: row.pain_points_json ? JSON.parse(row.pain_points_json) as string[] : null,
+    aiConfidence: row.ai_confidence as "high" | "medium" | "low" | null,
   };
 }

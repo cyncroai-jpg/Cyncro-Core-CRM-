@@ -1,4 +1,6 @@
 import { enforceRateLimit, RateLimitError } from "@/lib/prospecting/rate-limit";
+import { env } from "cloudflare:workers";
+type CfEnv = Record<string, string | undefined>;
 
 type ProspectResult = { googlePlaceId: string | null; businessName: string; category: string; address: string; phone: string | null; website: string | null; rating: number | null; reviewCount: number; source: string };
 type PlacesResult = { id?: string; displayName?: { text?: string }; primaryTypeDisplayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string };
@@ -167,8 +169,9 @@ export async function POST(request: Request) {
     if (!keyword || !city || !state) return Response.json({ error: "Business type, city, and state are required." }, { status: 400 });
     const area = [city, state, zip].filter(Boolean).join(", ");
     const query = `${keyword} in ${area}${radius ? ` within ${radius} miles` : ""}`;
-    const serperKey = process.env.SERPER_API_KEY;
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const cfEnv = env as CfEnv;
+    const serperKey = cfEnv.SERPER_API_KEY || process.env.SERPER_API_KEY;
+    const apiKey = cfEnv.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
     let results: ProspectResult[] = [], source = "OpenStreetMap", providerNotice: string | null = null;
     if (serperKey) {
       try { results = await searchSerper(serperKey, query, maximum); source = "Live business index"; }

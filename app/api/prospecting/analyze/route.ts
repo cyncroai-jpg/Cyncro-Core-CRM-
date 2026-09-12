@@ -1,4 +1,106 @@
 import { enforceRateLimit, RateLimitError } from "@/lib/prospecting/rate-limit";
+import { env } from "cloudflare:workers";
+type CfEnv = Record<string, string | undefined>;
+
+async function aiLeadIntelligence(params: {
+  businessName: string;
+  category: string;
+  address: string;
+  rating: number;
+  reviewCount: number;
+  signals: Record<string, boolean>;
+  emails: string[];
+  phones: string[];
+  leadership: string[];
+  pageText: string;
+}): Promise<{
+  aiSummary: string;
+  painPoints: string[];
+  coldOpener: string;
+  pitchAngle: string;
+  aiConfidence: "high" | "medium" | "low";
+} | null> {
+  const cfEnv = env as CfEnv;
+  const apiKey = cfEnv.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  const missingFeatures = [
+    !params.signals.booking && "no online booking",
+    !params.signals.chat && "no live chat or chatbot",
+    !params.signals.sms && "no SMS/text channel",
+    !params.signals.contactForm && "no contact form",
+    !params.signals.strongCta && "weak or missing call-to-action",
+  ].filter(Boolean).join(", ");
+
+  const contactContext = [
+    params.emails.length ? `Emails found: ${params.emails.slice(0, 3).join(", ")}` : "",
+    params.phones.length ? `Phones found: ${params.phones.slice(0, 3).join(", ")}` : "",
+    params.leadership.length ? `Leadership/staff: ${params.leadership.slice(0, 3).join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  // Trim page text to first 3000 chars of useful content
+  const snippet = params.pageText
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 3000);
+
+  const prompt = `You are a B2B sales intelligence analyst for Cyncro, a business operating system (CRM, AI receptionist, appointment booking, SMS follow-up).
+
+Analyze this prospect and return a JSON object with these exact keys:
+- aiSummary: 2-sentence plain-English summary of the business and its digital presence
+- painPoints: array of 3 specific pain points this business likely has (based on what's missing from their website and their category)
+- coldOpener: a natural 2-sentence cold call/email opener personalized to THIS business (use their name, category, location; don't be generic)
+- pitchAngle: 1 sentence on the single best Cyncro pitch angle for this specific business
+- aiConfidence: "high" if you have rich data, "medium" if partial, "low" if thin
+
+Business data:
+Name: ${params.businessName}
+Category: ${params.category}
+Location: ${params.address}
+Rating: ${params.rating > 0 ? `${params.rating}★ (${params.reviewCount} reviews)` : "Not rated"}
+Missing digital tools: ${missingFeatures || "none detected"}
+${contactContext}
+
+Website excerpt:
+${snippet || "(no website or website unreachable)"}
+
+Respond with ONLY valid JSON, no explanation or markdown.`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 600,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!response.ok) {
+      console.warn("prospecting.ai.failed", response.status);
+      return null;
+    }
+    type AnthropicResponse = { content?: Array<{ type: string; text?: string }> };
+    const data = (await response.json()) as AnthropicResponse;
+    const text = data.content?.find((b) => b.type === "text")?.text || "";
+    const cleaned = text.replace(/^```json\s*|```\s*$/g, "").trim();
+    return JSON.parse(cleaned) as {
+      aiSummary: string;
+      painPoints: string[];
+      coldOpener: string;
+      pitchAngle: string;
+      aiConfidence: "high" | "medium" | "low";
+    };
+  } catch (err) {
+    console.warn("prospecting.ai.parse_failed", err);
+    return null;
+  }
+}
 
 type Signals = {
   websiteExists: boolean;
@@ -242,25 +344,45 @@ export async function POST(request: Request) {
       "Cyncro CRM",
     ].filter(Boolean) as string[];
 
+    const leadership = publicLeadership(rawHtml);
+
+    // Run AI analysis in parallel with the rest — if ANTHROPIC_API_KEY is set
+    const ai = await aiLeadIntelligence({
+      businessName,
+      category,
+      address: String(body.address || ""),
+      rating,
+      reviewCount,
+      signals: signals as Record<string, boolean>,
+      emails,
+      phones: extractedPhones,
+      leadership,
+      pageText: rawHtml,
+    });
+
     return Response.json({
       score,
       rankLabel: rank(score),
       signals,
       reasons: reasons.slice(0, 5),
-      whyCall: reviewCount
+      whyCall: ai?.pitchAngle || (reviewCount
         ? `${businessName} has visible demand, but its public conversion path leaves revenue on the table.`
-        : `${businessName} has clear room to strengthen lead capture and follow-up.`,
+        : `${businessName} has clear room to strengthen lead capture and follow-up.`),
       whatFound: gaps.length
         ? `${gaps.slice(0, 3).join(", ")} ${gaps.length === 1 ? "is" : "are"} not clearly visible.`
         : "Strong public conversion fundamentals; focus the call on speed-to-lead and CRM follow-up.",
       recommendedSolution: solutions.join(" + "),
-      callOpener: `Hi, I was reviewing ${businessName}'s customer journey. You have a strong ${category.toLowerCase()} presence, and I spotted a few places Cyncro could help convert more inquiries without adding front-desk workload.`,
+      callOpener: ai?.coldOpener || `Hi, I was reviewing ${businessName}'s customer journey. You have a strong ${category.toLowerCase()} presence, and I spotted a few places Cyncro could help convert more inquiries without adding front-desk workload.`,
       nextAction: `Call ${businessName}, confirm the current lead-response process, then offer a 15-minute conversion demo.`,
       emails,
       extractedPhones,
-      leadership: publicLeadership(rawHtml),
+      leadership,
       sourceUrls: [sourceUrl, ...socialUrls].filter(Boolean),
       lastExtractedAt: new Date().toISOString(),
+      // AI fields (present when ANTHROPIC_API_KEY is configured)
+      aiSummary: ai?.aiSummary || null,
+      painPoints: ai?.painPoints || null,
+      aiConfidence: ai?.aiConfidence || null,
     });
   } catch (error) {
     console.error("prospecting.analyze.failed", error);

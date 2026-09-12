@@ -9918,6 +9918,10 @@ type Prospect = {
   status?: string;
   analyzedAt?: string | null;
   source?: string;
+  // AI fields
+  aiSummary?: string | null;
+  painPoints?: string[] | null;
+  aiConfidence?: "high" | "medium" | "low" | null;
 };
 
 const prospectStatuses = [
@@ -10923,6 +10927,29 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                 </section>
               </div>
             ) : null}
+            {selected.aiSummary && (
+              <div className="aiInsightBlock">
+                <div className="aiInsightHead">
+                  <span className="aiInsightBadge">✦ AI</span>
+                  <small>BUSINESS INTELLIGENCE</small>
+                  {selected.aiConfidence && (
+                    <span className={`aiConfidenceBadge ${selected.aiConfidence}`}>{selected.aiConfidence.toUpperCase()}</span>
+                  )}
+                </div>
+                <p className="aiInsightSummary">{selected.aiSummary}</p>
+                {selected.painPoints && selected.painPoints.length > 0 && (
+                  <div className="aiPainPoints">
+                    <small>IDENTIFIED PAIN POINTS</small>
+                    {selected.painPoints.map((pt, i) => (
+                      <div key={i} className="aiPainPoint">
+                        <span className="aiPainNum">{i + 1}</span>
+                        <span>{pt}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="drawerBrief">
               {[
                 ["WHY CALL THEM", selected.whyCall],

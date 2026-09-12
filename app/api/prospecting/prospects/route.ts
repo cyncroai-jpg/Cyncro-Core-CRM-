@@ -43,6 +43,9 @@ const editable = new Set([
   "estimatedRevenueHigh",
   "revenueConfidence",
   "revenueMethodology",
+  "aiSummary",
+  "painPoints",
+  "aiConfidence",
 ]);
 
 function revenueEstimate(category: string, reviewCount: number) {
@@ -211,12 +214,15 @@ export async function PATCH(request: Request) {
       estimatedRevenueHigh: "estimated_revenue_high_cents",
       revenueConfidence: "revenue_confidence",
       revenueMethodology: "revenue_methodology",
+      aiSummary: "ai_summary",
+      painPoints: "pain_points_json",
+      aiConfidence: "ai_confidence",
     };
     for (const [key, value] of Object.entries(updates)) {
       if (!editable.has(key)) continue;
       if (key === "status" && !statuses.has(String(value))) continue;
       sets.push(`${columns[key]} = ?`);
-      values.push(["signals", "reasons", "emails", "extractedPhones", "leadership", "sourceUrls"].includes(key) ? JSON.stringify(value) : ["selfReportedRevenue","estimatedRevenueLow","estimatedRevenueHigh"].includes(key) ? Math.max(0,Math.round(Number(value||0)*100)) : value);
+      values.push(["signals", "reasons", "emails", "extractedPhones", "leadership", "sourceUrls", "painPoints"].includes(key) ? JSON.stringify(value) : ["selfReportedRevenue","estimatedRevenueLow","estimatedRevenueHigh"].includes(key) ? Math.max(0,Math.round(Number(value||0)*100)) : value);
     }
     if ("opportunityScore" in updates) {
       sets.push("analyzed_at = ?");
