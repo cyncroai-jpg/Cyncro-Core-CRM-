@@ -11187,6 +11187,9 @@ function UniversalCRM({
     [aiLoading, setAiLoading] = useState(false),
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
+    [profileOpen, setProfileOpen] = useState(false),
+    [profileForm, setProfileForm] = useState({ displayName: "", currentPassword: "", newPassword: "", confirmPassword: "" }),
+    [profileSaving, setProfileSaving] = useState(false),
     [currentAccess,setCurrentAccess]=useState<Record<string,unknown>>({role:"OWNER",manage_users:1,can_create:1,can_edit:1,can_delete:1,can_export:1,compensation_access:1,invoice_access:1,contract_access:1,attribution_access:1,work_access:1}),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
     [crmSummary, setCrmSummary] = useState<Record<string, number>>({}),
@@ -11224,7 +11227,14 @@ function UniversalCRM({
   useEffect(() => {
     const saved = window.localStorage.getItem("cyncro-crm-user-name");
     if (saved) setCrmUserName(saved);
-    void fetch("/api/access").then(r=>r.ok?r.json():null).then(data=>data?.member&&setCurrentAccess(data.member));
+    void fetch("/api/access").then(r=>r.ok?r.json():null).then(data=>{
+      if(data?.member){
+        setCurrentAccess(data.member);
+        // Pre-fill profile form with real name from the server
+        setProfileForm(f=>({...f,displayName:String(data.member.display_name||"")}));
+        setCrmUserName(String(data.member.display_name||"Account Owner"));
+      }
+    });
     const loadNotifications = () => void fetch("/api/notifications").then(async r=>{
       if(!r.ok)return;
       const d=await r.json() as {notifications?:typeof notifications};
@@ -11239,6 +11249,32 @@ function UniversalCRM({
     setCrmUserName(value);
     window.localStorage.setItem("cyncro-crm-user-name", value);
     flash(`Signed in as ${value}`);
+  };
+  const saveProfile = async () => {
+    const { displayName, currentPassword, newPassword, confirmPassword } = profileForm;
+    if (!displayName.trim()) { flash("Name is required"); return; }
+    if (newPassword && newPassword.length < 8) { flash("New password must be at least 8 characters"); return; }
+    if (newPassword && newPassword !== confirmPassword) { flash("Passwords do not match"); return; }
+    if (newPassword && !currentPassword) { flash("Enter your current password to set a new one"); return; }
+    setProfileSaving(true);
+    try {
+      const body: Record<string,string> = { displayName: displayName.trim() };
+      if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json() as { error?: string; message?: string };
+      if (!res.ok) { flash(data.error || "Profile update failed"); return; }
+      setCrmUserName(displayName.trim());
+      window.localStorage.setItem("cyncro-crm-user-name", displayName.trim());
+      setProfileForm(f => ({ ...f, currentPassword: "", newPassword: "", confirmPassword: "" }));
+      setProfileOpen(false);
+      flash(data.message || "Profile updated");
+    } finally {
+      setProfileSaving(false);
+    }
   };
   const loadCRMContacts = async () => {
     try {
@@ -11534,7 +11570,7 @@ function UniversalCRM({
           </div>
           <i>↗</i>
         </button>
-        <div className="crmUser">
+        <button className="crmUser" onClick={() => { setProfileForm(f=>({...f,displayName:crmUserName})); setProfileOpen(true); }} title="Account settings">
           <span>
             {crmUserName
               .split(" ")
@@ -11544,16 +11580,11 @@ function UniversalCRM({
               .toUpperCase()}
           </span>
           <div>
-            <input
-              aria-label="Your CRM display name"
-              value={crmUserName}
-              onChange={(event) => setCrmUserName(event.target.value)}
-              onBlur={(event) => saveCRMUserName(event.target.value)}
-            />
-            <small>Your CRM name · editable</small>
+            <b>{crmUserName}</b>
+            <small>{String(currentAccess.role||"MEMBER")} · {String(currentAccess.email||"")}</small>
           </div>
-          <i>•••</i>
-        </div>
+          <i>⚙</i>
+        </button>
       </aside>
 
       <main className="crmMain">
@@ -12104,6 +12135,44 @@ function UniversalCRM({
       )}
       {importing&&<div className="crmModalBack" onClick={()=>setImporting(false)}><div className="crmModal leadImportModal" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>BULK LEAD IMPORT</label><h2>Move leads into Cyncro</h2><p>Works with exports from GoHighLevel, HubSpot, Salesforce, Zoho, Pipedrive, ClickFunnels, Monday, and other CRMs.</p></div><button onClick={()=>setImporting(false)}>×</button></div><label className="leadDrop"><input type="file" accept=".csv,text/csv" onChange={e=>e.target.files?.[0]&&void readLeadFile(e.target.files[0])}/><b>Choose a CSV export</b><span>Cyncro automatically maps name, company, address, website, phone, email, source, title, and notes.</span></label>{importRows.length>0&&<><div className="importReview"><header><span>Contact</span><span>Company</span><span>Email</span><span>Phone</span></header>{importRows.slice(0,5).map((row,index)=><div key={index}><span>{row.fullName||`${row.firstName||""} ${row.lastName||""}`}</span><span>{row.company||"—"}</span><span>{row.email||"—"}</span><span>{row.phone||"—"}</span></div>)}</div><p className="importSummary"><b>{importRows.length}</b> records recognized from {importFileName}. Existing emails will be skipped automatically.</p><button className="crmCreate" onClick={()=>void importLeads()}>Import {importRows.length} leads</button></>}</div></div>}
       {contactRecordOpen&&contact&&<div className="crmModalBack contactRecordBack" onClick={()=>setContactRecordOpen(false)}><div className="contactRecordModal" onClick={e=>e.stopPropagation()}><button className="contactRecordClose" onClick={()=>setContactRecordOpen(false)}>×</button><CRMContactDetail contact={contact} onFlash={flash} onUpdated={()=>void Promise.all([loadCRMContacts(),loadCRMOverview()])} onDeleted={()=>{setSelected(0);setContactRecordOpen(false);void Promise.all([loadCRMContacts(),loadCRMOverview()])}} onBook={openCRMCalendar}/></div></div>}
+
+      {/* ── Profile / account settings panel ── */}
+      {profileOpen&&<div className="crmModalBack" onClick={()=>setProfileOpen(false)}><div className="crmModal profileModal" onClick={e=>e.stopPropagation()}>
+        <div className="crmModalHead">
+          <div><label>ACCOUNT</label><h2>Profile &amp; password</h2></div>
+          <button onClick={()=>setProfileOpen(false)}>×</button>
+        </div>
+        <div className="profileForm">
+          <div className="profileAvatar">{crmUserName.split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase()}</div>
+          <label className="profileField">
+            Display name
+            <input type="text" value={profileForm.displayName} onChange={e=>setProfileForm(f=>({...f,displayName:e.target.value}))} placeholder="Your full name" autoFocus />
+          </label>
+          <hr className="profileDivider"/>
+          <p className="profileSectionLabel">CHANGE PASSWORD <small>(leave blank to keep current)</small></p>
+          <label className="profileField">
+            Current password
+            <input type="password" value={profileForm.currentPassword} onChange={e=>setProfileForm(f=>({...f,currentPassword:e.target.value}))} placeholder="Required to change password" autoComplete="current-password" />
+          </label>
+          <label className="profileField">
+            New password
+            <input type="password" value={profileForm.newPassword} onChange={e=>setProfileForm(f=>({...f,newPassword:e.target.value}))} placeholder="At least 8 characters" autoComplete="new-password" />
+          </label>
+          <label className="profileField">
+            Confirm new password
+            <input type="password" value={profileForm.confirmPassword} onChange={e=>setProfileForm(f=>({...f,confirmPassword:e.target.value}))} placeholder="Re-enter new password" autoComplete="new-password" />
+          </label>
+        </div>
+        <div className="crmModalActions">
+          <button onClick={()=>setProfileOpen(false)}>Cancel</button>
+          <button onClick={()=>void saveProfile()} disabled={profileSaving} style={{background:"var(--red)"}}>
+            {profileSaving?"Saving…":"Save changes"}
+          </button>
+        </div>
+        <div className="profileSignOut">
+          <button onClick={()=>{document.cookie="cyncro_session=;Max-Age=0;path=/";window.location.href="/login";}}>Sign out</button>
+        </div>
+      </div></div>}
       {aiOpen && (
         <div className="aiDrawer">
           <div className="aiDrawerHead">

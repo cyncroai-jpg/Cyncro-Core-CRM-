@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { runReminders } from "../app/api/cron/reminders/route";
 
 interface Env {
   ASSETS: Fetcher;
@@ -26,6 +27,15 @@ interface ExecutionContext {
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
+  // Cloudflare Cron Trigger — fires every 30 minutes
+  // Configure in Cloudflare dashboard: Workers → your-worker → Triggers → Cron Triggers
+  // Cron expression: */30 * * * *
+  async scheduled(_event: unknown, _env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runReminders().then((r) => console.info("scheduled.reminders.done", r)),
+    );
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 

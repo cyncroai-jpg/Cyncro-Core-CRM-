@@ -248,3 +248,56 @@ export function bookingReminderEmail(p: {
     `),
   };
 }
+
+// ── Workspace invite ─────────────────────────────────────────────────────────
+
+export function workspaceInviteEmail(p: {
+  displayName: string;
+  inviterName: string;
+  workspaceName: string;
+  inviteUrl: string;
+  expiresAt: string;
+}): { subject: string; html: string } {
+  let expiresStr = "";
+  try {
+    expiresStr = new Date(p.expiresAt).toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric",
+    });
+  } catch { expiresStr = "7 days"; }
+
+  return {
+    subject: `You've been invited to ${p.workspaceName}`,
+    html: wrap(`
+      <div class="card">
+        <div class="logo">Cyncro<span>CORE</span></div>
+        <h1>You&rsquo;re invited, ${p.displayName.split(" ")[0]}!</h1>
+        <p><strong>${p.inviterName}</strong> has invited you to join the <strong>${p.workspaceName}</strong> workspace on Cyncro Core.</p>
+        <p>Click the button below to set your password and activate your account. This link expires on <strong>${expiresStr}</strong>.</p>
+        <a class="btn" href="${p.inviteUrl}">Activate my account →</a>
+        <hr>
+        <p style="font-size:12px;color:#7a6e70">If you weren't expecting this invite, you can ignore this email.</p>
+      </div>
+    `),
+  };
+}
+
+// ── Password reset (placeholder — full flow coming soon) ─────────────────────
+
+export function passwordResetEmail(p: {
+  displayName: string;
+  resetUrl: string;
+}): { subject: string; html: string } {
+  return {
+    subject: "Reset your Cyncro password",
+    html: wrap(`
+      <div class="card">
+        <div class="logo">Cyncro<span>CORE</span></div>
+        <h1>Reset your password</h1>
+        <p>Hi ${p.displayName.split(" ")[0]}, we received a request to reset your Cyncro password.</p>
+        <a class="btn" href="${p.resetUrl}">Reset password →</a>
+        <hr>
+        <p style="font-size:12px;color:#7a6e70">If you didn't request this, ignore this email — your password won't change.</p>
+      </div>
+    `),
+  };
+}

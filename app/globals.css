@@ -23013,3 +23013,120 @@ label {
   .productGateFeatures ul { grid-template-columns: 1fr; }
   .productGateName { font-size: 26px; }
 }
+
+/* ── Profile modal ─────────────────────────────────────────────────────────── */
+.profileModal {
+  max-width: 440px;
+}
+.profileForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 28px 4px;
+}
+.profileAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #C1283E;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.profileField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #7A6E70;
+  text-transform: uppercase;
+}
+.profileField input {
+  background: #100E0F;
+  border: 1px solid #352B2E;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #F5F0EB;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.profileField input:focus {
+  border-color: #C1283E;
+}
+.profileDivider {
+  border: none;
+  border-top: 1px solid #252022;
+  margin: 4px 0;
+}
+.profileSectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5A4E51;
+  text-transform: uppercase;
+  margin: 0;
+}
+.profileSectionLabel small {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #3A3035;
+  text-transform: none;
+}
+.profileSignOut {
+  padding: 0 28px 8px;
+  border-top: 1px solid #1A161A;
+  margin-top: 4px;
+  padding-top: 16px;
+}
+.profileSignOut button {
+  background: none;
+  border: 1px solid #352B2E;
+  border-radius: 8px;
+  color: #7A6E70;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.profileSignOut button:hover {
+  color: #F5F0EB;
+  border-color: #5A4E51;
+}
+/* crmUser button — sidebar bottom */
+button.crmUser {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s;
+}
+button.crmUser:hover {
+  background: #100E0F;
+}
+button.crmUser i {
+  font-style: normal;
+  font-size: 16px;
+  color: #5A4E51;
+  margin-left: auto;
+  flex-shrink: 0;
+}

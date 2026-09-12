@@ -7,6 +7,7 @@
  */
 import { coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { hashPassword, createSession, sessionCookie, requireOwner } from "@/lib/core/auth";
+import { sendEmail, workspaceInviteEmail } from "@/lib/core/email";
 
 /** 32-character random token */
 function makeToken(): string {
@@ -78,7 +79,24 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const inviteUrl = `${origin}/login?invite=${token}`;
 
-    return Response.json({ ok: true, inviteUrl, expiresAt: expires });
+    // Look up the inviter's display name for the email
+    const inviter = await db.prepare("SELECT display_name FROM auth_users WHERE id=?")
+      .bind(authResult.user.id).first<{ display_name: string }>();
+    const inviterName = inviter?.display_name || authResult.user.email;
+
+    // Fire-and-forget — failure does not block the invite from being created
+    try {
+      const { subject, html } = workspaceInviteEmail({
+        displayName: displayName,
+        inviterName,
+        workspaceName: "Cyncro Core",
+        inviteUrl,
+        expiresAt: expires,
+      });
+      void sendEmail({ to: email, subject, html });
+    } catch { /* non-fatal */ }
+
+    return Response.json({ ok: true, inviteUrl, expiresAt: expires, emailSent: true });
   } catch (error) {
     console.error("auth.invite.create_failed", error);
     return Response.json({ error: "Unable to create invite." }, { status: 500 });
