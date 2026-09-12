@@ -209,6 +209,15 @@ export async function ensureCoreSchema() {
     db.prepare(`CREATE TABLE IF NOT EXISTS calendar_feeds (
       id TEXT PRIMARY KEY, owner TEXT NOT NULL UNIQUE, token TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_oauth_states (
+      state TEXT PRIMARY KEY, owner TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_oauth_connections (
+      owner TEXT NOT NULL, provider TEXT NOT NULL, account_email TEXT, calendar_id TEXT,
+      access_token TEXT NOT NULL, refresh_token TEXT, expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      PRIMARY KEY (owner, provider)
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_social_flows (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, channel TEXT NOT NULL, trigger_word TEXT NOT NULL,
       reply_text TEXT NOT NULL, extra_keywords TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'DRAFT',
