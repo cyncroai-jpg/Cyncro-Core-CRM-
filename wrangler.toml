@@ -1,0 +1,31 @@
+name = "cyncro-core-crm"
+main = "dist/worker/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Static assets (Next.js build output)
+[assets]
+directory = "dist/client"
+binding = "ASSETS"
+
+# D1 database — update database_id after running: wrangler d1 create cyncro-core
+[[d1_databases]]
+binding = "DB"
+database_name = "cyncro-core"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Cloudflare Images binding (used for image optimization)
+# Enable in Cloudflare dashboard → Workers → your worker → Settings → Bindings
+# [images]
+# binding = "IMAGES"
+
+# Cron trigger — fires runReminders() every 30 minutes
+[triggers]
+crons = ["*/30 * * * *"]
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# RESEND_API_KEY       — email delivery
+# SERPER_API_KEY       — Google business search (prospecting)
+# ANTHROPIC_API_KEY    — AI lead intelligence
+# CRON_SECRET          — protects manual /api/cron/reminders GET trigger (optional)
+# EMAIL_FROM           — e.g. "Cyncro <noreply@yourdomain.com>"
