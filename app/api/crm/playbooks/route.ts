@@ -98,6 +98,16 @@ export async function PATCH(request: Request) {
         { error: "Playbook id is required." },
         { status: 400 },
       );
+    if (action === "DUPLICATE") {
+      const original = await coreDb().prepare("SELECT * FROM crm_sales_playbooks WHERE id=?").bind(id).first<Record<string,unknown>>();
+      if (!original) return Response.json({ error: "Playbook not found." }, { status: 404 });
+      const newId = crypto.randomUUID(); const now = new Date().toISOString();
+      await coreDb().prepare(`INSERT INTO crm_sales_playbooks (id,name,channel,category,stage,subject,content,objection,tags,active,usage_count,success_count,created_by,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,1,0,0,?,?,?)`)
+        .bind(newId, `${String(original.name||"Playbook")} (copy)`, original.channel, original.category, original.stage, original.subject, original.content, original.objection, original.tags||"[]", requestUser(request), now, now).run();
+      const copy = await coreDb().prepare("SELECT * FROM crm_sales_playbooks WHERE id=?").bind(newId).first();
+      return Response.json({ playbook: copy }, { status: 201 });
+    }
     if (action === "USE" || action === "WON") {
       const outcome = action === "WON" ? "WON" : "USED",
         now = new Date().toISOString();
