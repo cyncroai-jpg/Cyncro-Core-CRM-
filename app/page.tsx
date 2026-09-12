@@ -37,7 +37,8 @@ export default function Home() {
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
-  const roadmapTabs: Tab[] = ["messages","dispatch","dispute","finance","apex","sign","form","prime"];
+  // apex is the only remaining pure-roadmap gate
+  const roadmapTabs: Tab[] = ["apex"];
 
   const canAccess = (destination: Tab) =>
     destination === "home" ||
@@ -47,7 +48,10 @@ export default function Home() {
     (destination === "crm" && Boolean(permissions.crm_access)) ||
     (["book", "admin", "studio"].includes(destination) &&
       Boolean(permissions.calendar_access)) ||
-    (destination === "prospecting" && Boolean(permissions.prospecting_access));
+    (destination === "prospecting" && Boolean(permissions.prospecting_access)) ||
+    // live modules — all authenticated members can access
+    (["messages", "prime", "dispatch", "dispute", "finance", "sign", "form"].includes(destination) &&
+      Boolean(permissions));
   const navigate = (destination: Tab) => {
     if (!canAccess(destination)) {
       setTab("crm");
@@ -154,23 +158,23 @@ export default function Home() {
           isOwner={!permissions || permissions.role === "OWNER"}
         />
       ) : tab === "messages" ? (
-        <CyncroComingSoonGate product="Cyncro Messages + Social Automation" />
+        <CyncroMessagesHub />
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
       ) : tab === "dispatch" ? (
-        <CyncroComingSoonGate product="Cyncro Dispatch" />
+        <CyncroDispatch onNavigate={navigate} />
       ) : tab === "dispute" ? (
-        <CyncroComingSoonGate product="Cyncro Dispute" />
+        <CyncroDispute />
       ) : tab === "finance" ? (
-        <CyncroComingSoonGate product="Cyncro Finance" />
+        <CyncroFinance />
       ) : tab === "apex" ? (
         <CyncroComingSoonGate product="Apex Funds" />
       ) : tab === "sign" ? (
-        <CyncroComingSoonGate product="Cyncro Contracts" />
+        <ContractSigning />
       ) : tab === "form" ? (
-        <CyncroComingSoonGate product="Cyncro Forms" />
+        <CRMFormsStandalone />
       ) : tab === "prime" ? (
-        <CyncroComingSoonGate product="Cyncro Prime AI" />
+        <CyncroPrime />
       ) : tab === "admin" ? (
         <Admin onCreate={() => navigate("studio")} />
       ) : (
@@ -938,7 +942,7 @@ function CyncroComingSoonGate({ product }: { product: string }) {
           <label>Access key<input type="password" placeholder="••••••••••••" disabled /></label>
           <button disabled>Private beta not open</button>
         </div>
-        <div className="comingSoonLiveProducts"><small>AVAILABLE NOW</small><span>CRM</span><span>Calendar</span><span>Prospecting</span></div>
+        <div className="comingSoonLiveProducts"><small>AVAILABLE NOW</small><span>CRM</span><span>Calendar</span><span>Prospecting</span><span>Messages</span><span>Prime AI</span><span>Invoices</span><span>Dispatch</span><span>Finance</span><span>Contracts</span><span>Forms</span></div>
         <button className="comingSoonBack" onClick={() => { window.location.hash = "crm"; }}>← Return to Cyncro Core</button>
       </div>
     </section>
@@ -1640,7 +1644,7 @@ function FrontExperience({
       action: "See social automation",
     },
   ];
-  const liveLaunchModules = new Set(["Universal Calendar", "Cyncro CRM", "Cyncro Prospecting AI"]);
+  const liveLaunchModules = new Set(["Universal Calendar", "Cyncro CRM", "Cyncro Prospecting AI", "Cyncro Prime AI", "Cyncro Messages", "Cyncro Dispatch", "Cyncro Finance", "Cyncro Contracts", "Cyncro Forms"]);
   const active = journeys[journey];
   const platformComparison = [
     {
@@ -20961,6 +20965,49 @@ function TeamChat() {
       )}
 
       {flashMsg && <div className="chatFlash">{flashMsg}</div>}
+    </div>
+  );
+}
+
+// ── Standalone wrappers for modules now wired to top-level tabs ─────────────
+
+/** Forms module usable outside the CRM sidebar — standalone tab */
+function CRMFormsStandalone() {
+  const [flash, setFlash] = useState("");
+  return (
+    <div style={{ minHeight: "100vh", background: "#080808", color: "#f5f0eb", padding: "0 0 60px" }}>
+      {flash && <div className="chatFlash">{flash}</div>}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 18px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <a href="#crm" style={{ color: "#7a6e70", fontSize: 11, textDecoration: "none" }}>← CRM</a>
+          <small style={{ color: "#3a2f32", fontSize: 11 }}>/</small>
+          <small style={{ color: "#b8abad", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>CYNCRO FORMS</small>
+        </div>
+        <CRMForms onFlash={(m) => { setFlash(m); setTimeout(() => setFlash(""), 2800); }} />
+      </div>
+    </div>
+  );
+}
+
+/** Messages hub — internal team chat + external customer messaging in one view */
+function CyncroMessagesHub() {
+  const [mode, setMode] = useState<"team" | "customers">("team");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#080808" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 0, borderBottom: "1px solid #201a1c", background: "#0c0a0b", padding: "0 20px" }}>
+        <a href="#crm" style={{ color: "#7a6e70", fontSize: 11, textDecoration: "none", padding: "14px 0", marginRight: 20 }}>← CRM</a>
+        {(["team", "customers"] as const).map(m => (
+          <button key={m} onClick={() => setMode(m)}
+            style={{ padding: "14px 18px", border: "none", background: "transparent", color: mode === m ? "#f5f0eb" : "#7a6e70",
+              fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+              borderBottom: mode === m ? "2px solid #c1283e" : "2px solid transparent", cursor: "pointer" }}>
+            {m === "team" ? "Team Chat" : "Customer Messaging"}
+          </button>
+        ))}
+      </div>
+      <div style={{ flex: 1 }}>
+        {mode === "team" ? <TeamChat /> : <CyncroMessagesComingSoon />}
+      </div>
     </div>
   );
 }
