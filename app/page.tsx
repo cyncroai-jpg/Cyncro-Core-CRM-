@@ -9936,6 +9936,8 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [providerNotice, setProviderNotice] = useState("");
+  const [freeMode, setFreeMode] = useState(false);
 
   const loadProspects = async () => {
     try {
@@ -10002,12 +10004,17 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
         results?: Prospect[];
         error?: string;
         code?: string;
+        source?: string;
+        providerNotice?: string;
+        freeMode?: boolean;
       };
       if (!response.ok) {
         throw new Error(data.error || "Search failed.");
       }
       setResults(data.results || []);
-      setMessage(`${data.results?.length || 0} real businesses found.`);
+      setProviderNotice(data.providerNotice || "");
+      setFreeMode(data.freeMode || false);
+      setMessage(`${data.results?.length || 0} real businesses found${data.source ? ` via ${data.source}` : ""}.`);
     } catch (searchError) {
       setError(
         searchError instanceof Error ? searchError.message : "Search failed.",
@@ -10574,6 +10581,11 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
             {error && <div className="prospectingAlert error">! {error}</div>}
             {message && (
               <div className="prospectingAlert success">✓ {message}</div>
+            )}
+            {freeMode && providerNotice && (
+              <div className="prospectingAlert" style={{background:"#0d0a00",border:"1px solid #5a4400",color:"#e8c44a"}}>
+                ⚠ {providerNotice}
+              </div>
             )}
           </section>
 
@@ -12582,6 +12594,22 @@ function CRMPipeline({
         </div>
       </div>
 
+      <div className="pipelineSummaryBar">
+        {(()=>{
+          const wonStages = new Set(stageSettings.filter(s=>s.is_won).map(s=>s.name));
+          const activeDeals = deals.filter(d=>!stageSettings.find(s=>s.name===d.stage)?.is_lost);
+          const wonDeals = deals.filter(d=>wonStages.has(d.stage));
+          return [
+            ["TOTAL PIPELINE", money(activeDeals.reduce((s,d)=>s+Number(d.value_cents||0),0))],
+            ["WEIGHTED VALUE", money(activeDeals.reduce((s,d)=>s+Number(d.value_cents||0)*(Number(d.probability||0)/100),0))],
+            ["TOTAL DEALS", String(deals.length)],
+            ["WON VALUE", money(wonDeals.reduce((s,d)=>s+Number(d.value_cents||0),0))],
+          ].map(([label,value])=>(
+            <div key={label}><small>{label}</small><b>{value}</b></div>
+          ));
+        })()}
+      </div>
+
       {pipelineViewMode === "table" && (
         <div className="pipelineTableWrap">
           <div className="pipelineTableControls">
@@ -12712,6 +12740,8 @@ function CRMPipeline({
                       event.dataTransfer.setData("text/plain", deal.id)
                     }
                     key={deal.id}
+                    onClick={() => setSelectedDeal({ ...deal })}
+                    style={{cursor:"pointer"}}
                   >
                     <div>
                       <span>
@@ -12722,8 +12752,17 @@ function CRMPipeline({
                           {deal.contact_phone ? ` · ${deal.contact_phone}` : ""}
                         </small>
                       </span>
+                      {deal.assigned_rep && (
+                        <em className="dealRepBadge" title={deal.assigned_rep}>
+                          {deal.assigned_rep.split(" ").filter(Boolean).map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()}
+                        </em>
+                      )}
                     </div>
                     <strong>{money(deal.value_cents)}</strong>
+                    <div className="dealProbBar">
+                      <div style={{width:`${deal.probability}%`,background:stageSetting?.color||"#a30e18"}}/>
+                      <span>{deal.probability}%</span>
+                    </div>
                     <footer>
                       <span>
                         {deal.source || "MANUAL"} · Profit{" "}
@@ -12735,7 +12774,7 @@ function CRMPipeline({
                           ),
                         )}
                       </span>
-                      <span className="dealCardActions"><button onClick={() => setSelectedDeal({ ...deal })}>Edit</button><button className="dangerText" onClick={() => void deleteDeal(deal)}>Delete</button></span>
+                      <span className="dealCardActions" onClick={e=>e.stopPropagation()}><button onClick={() => setSelectedDeal({ ...deal })}>Edit</button><button className="dangerText" onClick={() => void deleteDeal(deal)}>Delete</button></span>
                     </footer>
                   </article>
                 ))}
@@ -19212,6 +19251,20 @@ function Admin({
             </button>
           ))}
         </div>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={()=>{
+            const d=new Date(`${focusDate}T12:00:00`);
+            if(calendarView==="MONTH") d.setMonth(d.getMonth()-1);
+            else d.setDate(d.getDate()-7);
+            setFocusDate(d.toISOString().slice(0,10));
+          }}>‹ Prev</button>
+          <button onClick={()=>{
+            const d=new Date(`${focusDate}T12:00:00`);
+            if(calendarView==="MONTH") d.setMonth(d.getMonth()+1);
+            else d.setDate(d.getDate()+7);
+            setFocusDate(d.toISOString().slice(0,10));
+          }}>Next ›</button>
+        </div>
         <label className="calendarDatePicker">
           Calendar date
           <input
@@ -19371,7 +19424,7 @@ function Admin({
               </small>
             </span>
             <span>
-              <b>{booking.status}</b>
+              <b className={`bookingStatusChip status-${(booking.status||"").toLowerCase()}`}>{booking.status}</b>
             </span>
             <button onClick={() => setSelectedBooking(booking)}>•••</button>
           </div>
@@ -19510,6 +19563,15 @@ function Admin({
                 }
               >
                 Mark completed
+              </button>
+              <button
+                onClick={() =>
+                  void updateBooking(selectedBooking, "UPDATE", {
+                    status: "NO_SHOW",
+                  })
+                }
+              >
+                No-Show
               </button>
               <button
                 className="danger"
