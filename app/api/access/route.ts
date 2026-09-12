@@ -1,22 +1,87 @@
-import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, resolveRequestEmail } from "@/lib/core/db";
 
 async function currentMember(request: Request) {
-  const db = coreDb(); const email = requestUser(request); const now = new Date().toISOString();
-  let member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
+  const email = await resolveRequestEmail(request);
+  // null means unauthenticated (users exist but no valid session/header)
+  if (email === null) return null;
+
+  const db = coreDb();
+  const now = new Date().toISOString();
+  let member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+
   const protectedOwnerEmails = new Set(["vividpyvette@gmail.com"]);
   if (!member && protectedOwnerEmails.has(email)) {
     await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?) ON CONFLICT(email) DO NOTHING`).bind(email,"Account Owner",now,now).run();
-    member=await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string,unknown>>();
+    member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
   }
+
   const count = await db.prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>();
-  if (!member && Number(count?.total || 0) === 0) { await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?)`).bind(email, email === "platform-owner" ? "Platform Owner" : email.split("@")[0], now, now).run(); member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>(); }
+  if (!member && Number(count?.total || 0) === 0) {
+    await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?)`).bind(email, email === "platform-owner" ? "Platform Owner" : email.split("@")[0], now, now).run();
+    member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+  }
+
   const protectedOwners = new Set(["yvette lomeli", "christopher sydoriak"]);
   if (member && (protectedOwners.has(String(member.display_name || "").trim().toLowerCase()) || protectedOwnerEmails.has(email)) && (member.role !== "OWNER" || !member.active)) {
-    await db.prepare("UPDATE workspace_members SET role='OWNER',manage_users=1,crm_access=1,calendar_access=1,prospecting_access=1,active=1,updated_at=? WHERE email=?").bind(now,email).run();
-    member = await db.prepare("SELECT * FROM workspace_members WHERE email=?").bind(email).first<Record<string, unknown>>();
+    await db.prepare("UPDATE workspace_members SET role='OWNER',manage_users=1,crm_access=1,calendar_access=1,prospecting_access=1,active=1,updated_at=? WHERE lower(email)=lower(?)").bind(now, email).run();
+    member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
   }
   return member;
 }
-export async function GET(request: Request) { try { await ensureCoreSchema(); const member = await currentMember(request); if (!member || !member.active) return Response.json({ error: "You do not have access to this workspace." }, { status: 403 }); const members = member.manage_users ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results : []; return Response.json({ member, members }); } catch (error) { console.error("access.get_failed",error); return Response.json({ error:"Unable to load permissions." },{status:500}); } }
-export async function POST(request: Request) { try { await ensureCoreSchema(); const current = await currentMember(request); if (!current?.manage_users) return Response.json({ error:"Owner permission is required." },{status:403}); const body=await request.json() as Record<string,unknown>; const email=normalizeEmail(body.email); const name=cleanText(body.displayName,160); if(!email||!name)return Response.json({error:"Name and valid email are required."},{status:400}); const now=new Date().toISOString(); await coreDb().prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,can_create,can_edit,can_delete,can_export,compensation_access,invoice_access,contract_access,attribution_access,work_access,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,crm_access=excluded.crm_access,calendar_access=excluded.calendar_access,prospecting_access=excluded.prospecting_access,manage_users=excluded.manage_users,active=excluded.active,can_create=excluded.can_create,can_edit=excluded.can_edit,can_delete=excluded.can_delete,can_export=excluded.can_export,compensation_access=excluded.compensation_access,invoice_access=excluded.invoice_access,contract_access=excluded.contract_access,attribution_access=excluded.attribution_access,work_access=excluded.work_access,updated_at=excluded.updated_at`).bind(email,name,cleanText(body.role,30).toUpperCase()||"MEMBER",body.crmAccess?1:0,body.calendarAccess?1:0,body.prospectingAccess?1:0,body.manageUsers?1:0,body.active===false?0:1,body.canCreate?1:0,body.canEdit?1:0,body.canDelete?1:0,body.canExport?1:0,body.compensationAccess?1:0,body.invoiceAccess?1:0,body.contractAccess?1:0,body.attributionAccess?1:0,body.workAccess?1:0,now,now).run(); return Response.json({saved:true,invite:{email,status:"READY",signInMethod:"Verified email"}}); } catch(error){console.error("access.save_failed",error);return Response.json({error:"Unable to save team access."},{status:500});} }
-export async function DELETE(request: Request) { try { await ensureCoreSchema(); const current=await currentMember(request); if(!current?.manage_users)return Response.json({error:"Owner permission is required."},{status:403}); const email=normalizeEmail(new URL(request.url).searchParams.get("email")); if(!email)return Response.json({error:"Team email is required."},{status:400}); const target=await coreDb().prepare("SELECT role FROM workspace_members WHERE email=?").bind(email).first<{role:string}>(); if(!target)return Response.json({error:"Team member not found."},{status:404}); if(target.role==="OWNER")return Response.json({error:"The workspace owner cannot be deleted."},{status:400}); await coreDb().prepare("DELETE FROM workspace_members WHERE email=?").bind(email).run(); return Response.json({deleted:true}); } catch(error){console.error("access.delete_failed",error);return Response.json({error:"Unable to delete team member."},{status:500});} }
+
+export async function GET(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const email = await resolveRequestEmail(request);
+    if (email === null) {
+      return Response.json({ error: "Authentication required." }, { status: 401 });
+    }
+    const member = await currentMember(request);
+    if (!member || !member.active) return Response.json({ error: "You do not have access to this workspace." }, { status: 403 });
+    const members = member.manage_users
+      ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results
+      : [];
+    return Response.json({ member, members });
+  } catch (error) {
+    console.error("access.get_failed", error);
+    return Response.json({ error: "Unable to load permissions." }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const current = await currentMember(request);
+    if (!current) return Response.json({ error: "Authentication required." }, { status: 401 });
+    if (!current?.manage_users) return Response.json({ error: "Owner permission is required." }, { status: 403 });
+    const body = await request.json() as Record<string, unknown>;
+    const email = normalizeEmail(body.email);
+    const name = cleanText(body.displayName, 160);
+    if (!email || !name) return Response.json({ error: "Name and valid email are required." }, { status: 400 });
+    const now = new Date().toISOString();
+    await coreDb().prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,can_create,can_edit,can_delete,can_export,compensation_access,invoice_access,contract_access,attribution_access,work_access,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,crm_access=excluded.crm_access,calendar_access=excluded.calendar_access,prospecting_access=excluded.prospecting_access,manage_users=excluded.manage_users,active=excluded.active,can_create=excluded.can_create,can_edit=excluded.can_edit,can_delete=excluded.can_delete,can_export=excluded.can_export,compensation_access=excluded.compensation_access,invoice_access=excluded.invoice_access,contract_access=excluded.contract_access,attribution_access=excluded.attribution_access,work_access=excluded.work_access,updated_at=excluded.updated_at`).bind(email, name, cleanText(body.role, 30).toUpperCase() || "MEMBER", body.crmAccess ? 1 : 0, body.calendarAccess ? 1 : 0, body.prospectingAccess ? 1 : 0, body.manageUsers ? 1 : 0, body.active === false ? 0 : 1, body.canCreate ? 1 : 0, body.canEdit ? 1 : 0, body.canDelete ? 1 : 0, body.canExport ? 1 : 0, body.compensationAccess ? 1 : 0, body.invoiceAccess ? 1 : 0, body.contractAccess ? 1 : 0, body.attributionAccess ? 1 : 0, body.workAccess ? 1 : 0, now, now).run();
+    return Response.json({ saved: true, invite: { email, status: "READY", signInMethod: "Verified email" } });
+  } catch (error) {
+    console.error("access.save_failed", error);
+    return Response.json({ error: "Unable to save team access." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const current = await currentMember(request);
+    if (!current) return Response.json({ error: "Authentication required." }, { status: 401 });
+    if (!current?.manage_users) return Response.json({ error: "Owner permission is required." }, { status: 403 });
+    const email = normalizeEmail(new URL(request.url).searchParams.get("email"));
+    if (!email) return Response.json({ error: "Team email is required." }, { status: 400 });
+    const target = await coreDb().prepare("SELECT role FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<{ role: string }>();
+    if (!target) return Response.json({ error: "Team member not found." }, { status: 404 });
+    if (target.role === "OWNER") return Response.json({ error: "The workspace owner cannot be deleted." }, { status: 400 });
+    await coreDb().prepare("DELETE FROM workspace_members WHERE lower(email)=lower(?)").bind(email).run();
+    return Response.json({ deleted: true });
+  } catch (error) {
+    console.error("access.delete_failed", error);
+    return Response.json({ error: "Unable to delete team member." }, { status: 500 });
+  }
+}

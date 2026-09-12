@@ -93,6 +93,10 @@ export default function Home() {
   }, []);
   useEffect(() => {
     void fetch("/api/access").then(async (response) => {
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       const data = (await response.json()) as {
         member?: {
           role: string;

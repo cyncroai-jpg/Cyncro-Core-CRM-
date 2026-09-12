@@ -23,6 +23,26 @@ export async function ensureCoreSchema() {
   if (initialized) return;
   const db = coreDb();
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS auth_users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'MEMBER',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_unique ON auth_users(lower(email))"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS auth_sessions (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES auth_users(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions(user_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS workspace_members (
       email TEXT PRIMARY KEY, display_name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'MEMBER', crm_access INTEGER NOT NULL DEFAULT 1,
       calendar_access INTEGER NOT NULL DEFAULT 0, prospecting_access INTEGER NOT NULL DEFAULT 0, manage_users INTEGER NOT NULL DEFAULT 0,
@@ -441,6 +461,53 @@ export function requestUser(request: Request) {
     ?.trim()
     .toLowerCase();
   return email || "platform-owner";
+}
+
+/**
+ * Resolves the authenticated email for a request.
+ * Checks the Cyncro session cookie first (real auth), then falls back to
+ * the platform-injected header (legacy / platform-level auth).
+ * Returns null if neither is present and users exist in the database.
+ */
+export async function resolveRequestEmail(request: Request): Promise<string | null> {
+  // 1. Check session cookie
+  const cookieHeader = request.headers.get("cookie") || "";
+  let sessionToken = "";
+  for (const part of cookieHeader.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name.trim() === "cyncro_session" && rest.length) {
+      sessionToken = decodeURIComponent(rest.join("=").trim());
+      break;
+    }
+  }
+  if (sessionToken) {
+    try {
+      const session = await coreDb()
+        .prepare(
+          "SELECT s.email, s.expires_at, u.active FROM auth_sessions s JOIN auth_users u ON u.id = s.user_id WHERE s.token=?",
+        )
+        .bind(sessionToken)
+        .first<{ email: string; expires_at: string; active: number }>();
+      if (session && session.active && new Date(session.expires_at) >= new Date()) {
+        return session.email;
+      }
+    } catch {
+      // DB not yet ready — fall through
+    }
+  }
+  // 2. Check platform-injected header
+  const headerEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+  if (headerEmail) return headerEmail;
+  // 3. If no users exist yet (first run before setup), allow as platform-owner
+  try {
+    const count = await coreDb()
+      .prepare("SELECT COUNT(*) AS total FROM auth_users")
+      .first<{ total: number }>();
+    if (Number(count?.total || 0) === 0) return "platform-owner";
+  } catch {
+    return "platform-owner";
+  }
+  return null; // unauthenticated
 }
 
 export async function hasModuleAccess(
