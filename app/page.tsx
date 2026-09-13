@@ -12678,6 +12678,13 @@ function CRMPipeline({
     );
     onFlash(`${deal.name} moved to ${stage}`);
   };
+  const exportDealsCsv = () => {
+    const header = ["Deal Name","Account","Contact","Stage","Value","Collected","Probability","Assigned Rep","Source","Payment Status","Commission Rate %","Notes"];
+    const rows = deals.map(d => [d.name,d.account_name,d.contact_name||"",d.stage,(d.value_cents/100).toFixed(2),((d.collected_cents||0)/100).toFixed(2),d.probability,d.assigned_rep||"",d.source||"",d.payment_status||"",d.commission_rate_bps?(d.commission_rate_bps/100).toFixed(2):"",d.notes||""].map(v=>JSON.stringify(v)).join(","));
+    const csv = [header.join(","),...rows].join("\n");
+    const url = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    const a = document.createElement("a"); a.href=url; a.download=`cyncro-deals-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
   return (
     <>
       <div className="pipelineToolbar">
@@ -12712,6 +12719,7 @@ function CRMPipeline({
               ))}
             </select>
           )}
+          <button onClick={exportDealsCsv}>↓ Export CSV</button>
           <button onClick={() => void createPipeline()}>＋ New pipeline</button>
           <button
             className="crmCreate"
@@ -14872,6 +14880,24 @@ function CRMAccounts({
     await load();
     onFlash("Account created");
   };
+  const deleteAccount = async () => {
+    if (!active) return;
+    if (!confirm(`Delete "${active.name}"? This cannot be undone.`)) return;
+    const response = await fetch(`/api/crm/accounts?id=${active.id}`, { method: "DELETE" });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) { onFlash(data.error || "Delete failed"); return; }
+    setSelectedId("");
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "account", action: "deleted" } }));
+    await load();
+    onFlash("Account deleted");
+  };
+  const exportAccountsCsv = () => {
+    const header = ["Name","Domain","Phone","Address","Category","Account Manager","Sales Director","VP Sales","Status","Contacts","Deals","Pipeline","Collected"];
+    const rows = accounts.map(a => [a.name,a.domain||"",a.phone||"",a.address||"",a.category||"",a.account_manager||"",a.sales_director||"",a.vp_sales||"",a.status,a.contact_count,a.opportunity_count,(a.pipeline_cents/100).toFixed(2),(a.collected_cents/100).toFixed(2)].map(v=>JSON.stringify(v)).join(","));
+    const csv = [header.join(","),...rows].join("\n");
+    const url = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    const a = document.createElement("a"); a.href=url; a.download=`cyncro-accounts-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
   const addAccountNote = async () => {
     if (!active || !accountNote.trim()) {
       onFlash("Type an account note first");
@@ -14940,6 +14966,7 @@ function CRMAccounts({
           </div>}
         </label>
         <button onClick={() => void load()}>↻ Refresh</button>
+        <button onClick={exportAccountsCsv}>↓ Export CSV</button>
         <button className="crmCreate" onClick={() => setCreatingAccount(true)}>＋ New account</button>
       </section>
       {!active && (
@@ -14963,6 +14990,9 @@ function CRMAccounts({
             <div className="accountCommandControls">
               <button className="crmCreate" onClick={beginEdit}>
                 Edit account
+              </button>
+              <button className="dangerText" onClick={() => void deleteAccount()}>
+                Delete
               </button>
             </div>
           </div>
@@ -17353,15 +17383,27 @@ function CRMAttribution({ onFlash }: { onFlash:(message:string)=>void }) {
 type WorkTask={id:string;title:string;details?:string;status:string;priority:string;assignee?:string;reporter?:string;due_at?:string;contact_name?:string;account_name?:string;opportunity_name?:string;subtask_count?:number;completed_subtasks?:number;estimated_minutes:number};
 function CRMWork({onFlash,currentUserName}:{onFlash:(message:string)=>void;currentUserName:string}){
   const [tasks,setTasks]=useState<WorkTask[]>([]),[mode,setMode]=useState<"board"|"mine"|"workload">("board"),[creating,setCreating]=useState(false),[selected,setSelected]=useState<WorkTask|null>(null),[assigneeFilter,setAssigneeFilter]=useState("ALL");
-  const load=async()=>{const r=await fetch("/api/crm/tasks",{cache:"no-store"});if(!r.ok)return onFlash("Tasks could not load");const d=await r.json() as {tasks?:WorkTask[]};setTasks(d.tasks||[])};useEffect(()=>{void load()},[]);
+  const [teamMembers,setTeamMembers]=useState<string[]>([]);
+  const load=async()=>{const r=await fetch("/api/crm/tasks",{cache:"no-store"});if(!r.ok)return onFlash("Tasks could not load");const d=await r.json() as {tasks?:WorkTask[]};setTasks(d.tasks||[])};
+  useEffect(()=>{
+    void load();
+    void fetch("/api/access").then(r=>r.ok?r.json():null).then((data:{ members?: { name?: string; email?: string }[] } | null)=>{
+      if(!data?.members) return;
+      const names=data.members.map((m:{name?:string;email?:string})=>m.name||m.email||"").filter(Boolean);
+      if(!names.includes(currentUserName)) names.unshift(currentUserName);
+      setTeamMembers(names);
+    });
+  },[]);
   const update=async(id:string,data:Record<string,unknown>)=>{await fetch("/api/crm/tasks",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...data})});await load()};
   const submit=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch("/api/crm/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});if(!r.ok)return onFlash("Task could not be created");setCreating(false);await load();onFlash("Task assigned")};
-  const people=Array.from(new Set(tasks.map(t=>t.assignee).filter(Boolean))) as string[],visible=tasks.filter(t=>(mode!=="mine"||t.assignee===currentUserName)&&(assigneeFilter==="ALL"||t.assignee===assigneeFilter));
+  const allPeople=Array.from(new Set([...teamMembers,...tasks.map(t=>t.assignee).filter(Boolean)])) as string[];
+  const people=allPeople.length?allPeople:Array.from(new Set(tasks.map(t=>t.assignee).filter(Boolean))) as string[];
+  const visible=tasks.filter(t=>(mode!=="mine"||t.assignee===currentUserName)&&(assigneeFilter==="ALL"||t.assignee===assigneeFilter));
   const statuses=["BACKLOG","TODO","IN_PROGRESS","WAITING","DONE"];
   return <section className="workOS"><div className="workHero"><div><label>CYNCRO WORK</label><h2>Every rep knows the next move.</h2><p>Individual work queues, claimable tasks, team execution, dependencies, customer context, and manager visibility.</p></div><button className="crmCreate" onClick={()=>setCreating(true)}>＋ Assign work</button></div><div className="workToolbar"><div><button className={mode==="board"?"active":""} onClick={()=>setMode("board")}>Team board</button><button className={mode==="mine"?"active":""} onClick={()=>setMode("mine")}>My work</button><button className={mode==="workload"?"active":""} onClick={()=>setMode("workload")}>Workload</button></div><select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)}><option value="ALL">All team members</option>{people.map(p=><option key={p}>{p}</option>)}</select><span>{visible.filter(t=>t.status!=="DONE").length} open · {visible.filter(t=>t.priority==="URGENT").length} urgent</span></div>
   {mode==="workload"?<div className="workloadGrid">{[...people,"Unassigned"].map(person=>{const rows=tasks.filter(t=>(t.assignee||"Unassigned")===person&&t.status!=="DONE"),minutes=rows.reduce((s,t)=>s+Number(t.estimated_minutes||0),0);return <article className="crmPanel" key={person}><small>TEAM CAPACITY</small><h3>{person}</h3><b>{rows.length} open tasks</b><div><i style={{width:`${Math.min(100,minutes/24)}%`}}/></div><span>{Math.round(minutes/60*10)/10} estimated hours</span></article>})}</div>:<div className="workBoard">{statuses.map(status=><section key={status}><header><b>{status.replaceAll("_"," ")}</b><span>{visible.filter(t=>t.status===status).length}</span></header>{visible.filter(t=>t.status===status).map(task=><article key={task.id} onClick={()=>setSelected(task)}><div><em className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</em>{!task.assignee&&<button onClick={e=>{e.stopPropagation();void update(task.id,{assignee:currentUserName})}}>Claim</button>}</div><h3>{task.title}</h3><p>{task.details||task.contact_name||task.account_name||"Team assignment"}</p><footer><span>{task.assignee||"Unassigned"}</span><time>{task.due_at?new Date(task.due_at).toLocaleDateString():"No due date"}</time></footer><select value={task.status} onClick={e=>e.stopPropagation()} onChange={e=>void update(task.id,{status:e.target.value})}>{statuses.map(s=><option value={s} key={s}>{s.replaceAll("_"," ")}</option>)}</select></article>)}</section>)}</div>}
-  {creating&&<div className="crmModalBack" onClick={()=>setCreating(false)}><form className="crmModal miniDataForm" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>NEW WORK ITEM</label><h2>Assign a revenue task</h2></div><button type="button" onClick={()=>setCreating(false)}>×</button></div><input name="title" placeholder="Task title" required/><textarea name="details" placeholder="Details, definition of done, customer context…"/><div className="formTwo"><select name="priority"><option>MEDIUM</option><option>LOW</option><option>HIGH</option><option>URGENT</option></select><input name="assignee" placeholder="Assign to (name)"/></div><div className="formTwo"><input name="dueAt" type="datetime-local"/><input name="estimatedMinutes" type="number" defaultValue="30" min="0"/></div><input name="recurrence" placeholder="Recurrence (optional, e.g. weekly)"/><button className="crmCreate" type="submit">Create task</button></form></div>}
-  {selected&&<div className="crmModalBack" onClick={()=>setSelected(null)}><div className="crmModal workInspector" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>{selected.priority} PRIORITY</label><h2>{selected.title}</h2></div><button onClick={()=>setSelected(null)}>×</button></div><p>{selected.details||"No task details yet."}</p><div className="workDetailGrid"><label>Owner<input defaultValue={selected.assignee||""} onBlur={e=>void update(selected.id,{assignee:e.target.value})}/></label><label>Due<input type="datetime-local" defaultValue={selected.due_at?.slice(0,16)||""} onBlur={e=>void update(selected.id,{dueAt:e.target.value})}/></label><span>Customer<b>{selected.contact_name||selected.account_name||"Not linked"}</b></span><span>Deal<b>{selected.opportunity_name||"Not linked"}</b></span></div><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("subtask") as HTMLInputElement;void update(selected.id,{action:"SUBTASK",title:input.value});input.value=""}}><input name="subtask" placeholder="Add subtask" required/><button>Add</button></form><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("comment") as HTMLInputElement;void update(selected.id,{action:"COMMENT",body:input.value});input.value=""}}><input name="comment" placeholder="Add manager note or update" required/><button>Comment</button></form><button className="dangerText" onClick={async()=>{if(!confirm("Delete this task?"))return;await fetch(`/api/crm/tasks?id=${selected.id}`,{method:"DELETE"});setSelected(null);await load();onFlash("Task deleted")}}>Delete task</button></div></div>}
+  {creating&&<div className="crmModalBack" onClick={()=>setCreating(false)}><form className="crmModal miniDataForm" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>NEW WORK ITEM</label><h2>Assign a revenue task</h2></div><button type="button" onClick={()=>setCreating(false)}>×</button></div><input name="title" placeholder="Task title" required/><textarea name="details" placeholder="Details, definition of done, customer context…"/><div className="formTwo"><select name="priority"><option>MEDIUM</option><option>LOW</option><option>HIGH</option><option>URGENT</option></select>{people.length>0?<select name="assignee"><option value="">Unassigned</option>{people.map(p=><option key={p} value={p}>{p}</option>)}</select>:<input name="assignee" placeholder="Assign to (name)"/>}</div><div className="formTwo"><input name="dueAt" type="datetime-local"/><input name="estimatedMinutes" type="number" defaultValue="30" min="0"/></div><input name="recurrence" placeholder="Recurrence (optional, e.g. weekly)"/><button className="crmCreate" type="submit">Create task</button></form></div>}
+  {selected&&<div className="crmModalBack" onClick={()=>setSelected(null)}><div className="crmModal workInspector" onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>{selected.priority} PRIORITY</label><h2>{selected.title}</h2></div><button onClick={()=>setSelected(null)}>×</button></div><p>{selected.details||"No task details yet."}</p><div className="workDetailGrid"><label>Owner{people.length>0?<select defaultValue={selected.assignee||""} onChange={e=>void update(selected.id,{assignee:e.target.value})}><option value="">Unassigned</option>{people.map(p=><option key={p} value={p}>{p}</option>)}</select>:<input defaultValue={selected.assignee||""} onBlur={e=>void update(selected.id,{assignee:e.target.value})}/>}</label><label>Due<input type="datetime-local" defaultValue={selected.due_at?.slice(0,16)||""} onBlur={e=>void update(selected.id,{dueAt:e.target.value})}/></label><span>Customer<b>{selected.contact_name||selected.account_name||"Not linked"}</b></span><span>Deal<b>{selected.opportunity_name||"Not linked"}</b></span></div><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("subtask") as HTMLInputElement;void update(selected.id,{action:"SUBTASK",title:input.value});input.value=""}}><input name="subtask" placeholder="Add subtask" required/><button>Add</button></form><form onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("comment") as HTMLInputElement;void update(selected.id,{action:"COMMENT",body:input.value});input.value=""}}><input name="comment" placeholder="Add manager note or update" required/><button>Comment</button></form><button className="dangerText" onClick={async()=>{if(!confirm("Delete this task?"))return;await fetch(`/api/crm/tasks?id=${selected.id}`,{method:"DELETE"});setSelected(null);await load();onFlash("Task deleted")}}>Delete task</button></div></div>}
   </section>
 }
 

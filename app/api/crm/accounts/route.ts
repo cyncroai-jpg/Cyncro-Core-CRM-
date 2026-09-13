@@ -63,3 +63,17 @@ export async function PATCH(request: Request) {
     return Response.json({ saved: true });
   } catch (error) { console.error("crm.accounts.update_failed", error); return Response.json({ error: "Unable to update account." }, { status: 500 }); }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureCoreSchema();
+    const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    if (!id) return Response.json({ error: "Account id is required." }, { status: 400 });
+    const db = coreDb();
+    await db.prepare("DELETE FROM crm_accounts WHERE id=?").bind(id).run();
+    return Response.json({ deleted: true });
+  } catch (error) {
+    console.error("crm.accounts.delete_failed", error);
+    return Response.json({ error: "Unable to delete account." }, { status: 500 });
+  }
+}
