@@ -79,6 +79,22 @@ export async function POST(request: Request) {
         customerName, customerEmail, cleanText(body.customerPhone, 40) || null, starts.toISOString(), ends.toISOString(), timezone,
         locationMode, meetingAddress, videoPlatform, cleanText(body.videoUrl, 500) || null, cleanText(body.notes, 5000) || null,
         requestUser(request), assignedTo, opportunityId, leadScore, customAnswers, holdToken, now, now).run();
+    // Resource bookings — check conflicts then reserve
+    const resourceIds: string[] = Array.isArray(body.resourceIds) ? (body.resourceIds as unknown[]).map(String).filter(Boolean) : [];
+    if (resourceIds.length > 0) {
+      for (const rid of resourceIds) {
+        const conflict = await db.prepare(
+          `SELECT COUNT(*) AS total FROM calendar_resource_bookings WHERE resource_id = ? AND starts_at < ? AND ends_at > ?`
+        ).bind(rid, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
+        if (Number(conflict?.total || 0) > 0) {
+          // Non-blocking: note conflict in audit but don't reject booking
+          console.warn("calendar.resource.conflict", { rid, bookingId });
+        } else {
+          await db.prepare(`INSERT INTO calendar_resource_bookings (id, booking_id, resource_id, starts_at, ends_at, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), bookingId, rid, starts.toISOString(), ends.toISOString(), now).run();
+        }
+      }
+    }
     await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,created_at,updated_at)
       VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),requestUser(request),now,now).run();
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)

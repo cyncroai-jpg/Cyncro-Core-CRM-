@@ -19301,7 +19301,7 @@ function Admin({
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
-  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM" | "WAITLIST">(
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM" | "WAITLIST" | "RESOURCES">(
     "WEEK",
   );
   const [focusDate, setFocusDate] = useState(() =>
@@ -19314,6 +19314,9 @@ function Admin({
   const [resources, setResources] = useState<{id:string;name:string;resource_type:string;capacity:number;location?:string;color:string}[]>([]);
   const [newResource, setNewResource] = useState({name:"",resourceType:"ROOM",capacity:1,location:"",color:"#C1283E"});
   const [routingRules, setRoutingRules] = useState<{id:string;name:string;strategy:string;active:number}[]>([]);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [resourceBookings, setResourceBookings] = useState<{id:string;resource_id:string;resource_name:string;resource_type:string;resource_color:string;starts_at:string;ends_at:string;customer_name:string;event_name:string;event_color:string}[]>([]);
+  const [resourceViewLoaded, setResourceViewLoaded] = useState(false);
   const [recurringEnabled, setRecurringEnabled] = useState(false);
   const [recurForm, setRecurForm] = useState({ frequency:"WEEKLY", intervalCount:1, maxOccurrences:8, endsOn:"", weekdays:[] as number[] });
   const [waitlistEntries, setWaitlistEntries] = useState<{id:string;event_type_id:string;customer_name:string;customer_email:string;status:string;created_at:string;event_name?:string}[]>([]);
@@ -19378,6 +19381,14 @@ function Admin({
     try {
       const res = await fetch("/api/calendar/waitlist?status=WAITING");
       if (res.ok) { setWaitlistEntries(((await res.json()) as {waitlist?:typeof waitlistEntries}).waitlist || []); setWaitlistLoaded(true); }
+    } catch { /* non-fatal */ }
+  };
+  const loadResourceBookings = async () => {
+    try {
+      const from = new Date(); from.setDate(from.getDate() - 7);
+      const to = new Date(); to.setDate(to.getDate() + 30);
+      const res = await fetch(`/api/calendar/resource-bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+      if (res.ok) { setResourceBookings(((await res.json()) as {resourceBookings?:typeof resourceBookings}).resourceBookings || []); setResourceViewLoaded(true); }
     } catch { /* non-fatal */ }
   };
   const loadAuditLog = async (entityId: string) => {
@@ -19564,6 +19575,7 @@ function Admin({
         ...manual,
         startsAt: new Date(manual.startsAt).toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        resourceIds: selectedResourceIds.length ? selectedResourceIds : undefined,
       }),
     });
     const data = (await response.json()) as { error?: string };
@@ -19572,6 +19584,7 @@ function Admin({
       return;
     }
     setManualOpen(false);
+    setSelectedResourceIds([]);
     setManual({
       ...manual,
       eventTypeId: "",
@@ -19742,14 +19755,18 @@ function Admin({
       )}
       <div className="calendarCommandBar">
         <div>
-          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST"] as const).map((item) => (
+          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES"] as const).map((item) => (
             <button
               className={(calendarView as string) === item ? "active" : ""}
-              onClick={() => { setCalendarView(item); if (item === "WAITLIST" && !waitlistLoaded) void loadWaitlist(); }}
+              onClick={() => {
+                setCalendarView(item);
+                if (item === "WAITLIST" && !waitlistLoaded) void loadWaitlist();
+                if (item === "RESOURCES" && !resourceViewLoaded) { void loadResources(); void loadResourceBookings(); }
+              }}
               key={item}
-              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : undefined}
+              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : item === "RESOURCES" ? "Resource Calendar — room and equipment usage" : undefined}
             >
-              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item[0] + item.slice(1).toLowerCase()}
+              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item === "RESOURCES" ? "📦 Resources" : item[0] + item.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -20051,7 +20068,72 @@ function Admin({
           )}
         </div>
       )}
-      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (calendarView as string) !== "WAITLIST" && (
+      {(calendarView as string) === "RESOURCES" && (
+        <div style={{padding:"0 0 24px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div>
+              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70"}}>UNIVERSAL RESOURCE GRAPH™ — OCCUPANCY CALENDAR</small>
+              <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{resources.length} resources · next 30 days</h3>
+            </div>
+            <button onClick={()=>{ void loadResources(); void loadResourceBookings(); }} style={{background:"none",border:"1px solid #2e2527",borderRadius:8,color:"#b8abad",padding:"6px 12px",fontSize:11,cursor:"pointer"}}>↺ Refresh</button>
+          </div>
+          {!resources.length ? (
+            <div style={{padding:"32px",textAlign:"center",color:"#5a4e51",fontSize:13,border:"1px dashed #2e2527",borderRadius:10}}>
+              No resources yet. Add rooms, vehicles, and equipment via the ◈ Resources button to track their usage here.
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {resources.map(r=>{
+                const rbs = resourceBookings.filter(rb=>rb.resource_id===r.id);
+                const today = new Date(); today.setHours(0,0,0,0);
+                const next7: {date:string;bookings:typeof rbs}[] = Array.from({length:14},(_,i)=>{
+                  const d=new Date(today); d.setDate(today.getDate()+i);
+                  const ds=d.toISOString().slice(0,10);
+                  return {date:ds, bookings:rbs.filter(rb=>rb.starts_at.slice(0,10)===ds)};
+                });
+                return (
+                  <div key={r.id} style={{background:"#100e0f",border:"1px solid #2e2527",borderRadius:10,overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:"1px solid #1e1a1b"}}>
+                      <span style={{width:10,height:10,borderRadius:"50%",background:r.color,flexShrink:0}} />
+                      <div style={{flex:1}}>
+                        <b style={{fontSize:12}}>{r.name}</b>
+                        <small style={{fontSize:10,color:"#7a6e70",marginLeft:8}}>{r.resource_type}{r.location?` · ${r.location}`:""} · cap {r.capacity}</small>
+                      </div>
+                      <small style={{fontSize:10,color: rbs.length>0?"#d4c040":"#3dcc7a"}}>{rbs.length} booking{rbs.length!==1?"s":""} upcoming</small>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(14,1fr)",gap:2,padding:8}}>
+                      {next7.map(({date,bookings})=>{
+                        const hasBooking=bookings.length>0;
+                        const isToday=date===today.toISOString().slice(0,10);
+                        return (
+                          <div key={date} title={hasBooking?bookings.map(b=>`${b.customer_name} · ${new Date(b.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`).join("\n"):"Available"}
+                            style={{aspectRatio:"1",borderRadius:4,background:hasBooking?r.color+"55":"#1a1215",border:`1px solid ${isToday?"#C1283E":hasBooking?r.color+"99":"#2e2527"}`,
+                              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,cursor:hasBooking?"pointer":"default"}}
+                            onClick={hasBooking?()=>openBookingDetail(rows.find(b=>b.starts_at.slice(0,10)===date)||(rows[0])):undefined}>
+                            <span style={{fontSize:7,fontWeight:700,color:isToday?"#C1283E":"#7a6e70"}}>{new Date(date+"T12:00:00").toLocaleDateString([],{weekday:"short"})}</span>
+                            <span style={{fontSize:8,color:"#b8abad"}}>{new Date(date+"T12:00:00").getDate()}</span>
+                            {hasBooking&&<span style={{width:4,height:4,borderRadius:"50%",background:r.color,flexShrink:0}} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {rbs.slice(0,3).map(rb=>(
+                      <div key={rb.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 14px",borderTop:"1px solid #1a1215",fontSize:11}}>
+                        <span style={{width:6,height:6,borderRadius:"50%",background:rb.event_color||"#C1283E",flexShrink:0}} />
+                        <span style={{flex:1,color:"#C8C0C4"}}>{rb.customer_name}</span>
+                        <span style={{color:"#7a6e70"}}>{new Date(rb.starts_at).toLocaleDateString([],{month:"short",day:"numeric"})} {new Date(rb.starts_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</span>
+                        <span style={{color:"#5a4e51",fontSize:10}}>{rb.event_name}</span>
+                      </div>
+                    ))}
+                    {rbs.length>3&&<div style={{fontSize:10,color:"#5a4e51",padding:"4px 14px 8px"}}>+{rbs.length-3} more bookings</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (calendarView as string) !== "WAITLIST" && (calendarView as string) !== "RESOURCES" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
           <div className="roleCalendarHead">
             <b>
@@ -20690,6 +20772,26 @@ function Admin({
                 />
               </label>
             </div>
+            {/* Resource selector */}
+            {resources.length > 0 && (
+              <div style={{margin:"16px 0 0",padding:"14px 16px",background:"#0a100a",border:"1px solid #1e2a1e",borderRadius:10}}>
+                <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#70c080",display:"block",marginBottom:10}}>RESERVE RESOURCES (OPTIONAL)</small>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {resources.map(r=>(
+                    <label key={r.id} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontSize:12,color:"#C8C0C4",
+                      padding:"6px 8px",borderRadius:6,background:selectedResourceIds.includes(r.id)?"#0d180d":"transparent",
+                      border:`1px solid ${selectedResourceIds.includes(r.id)?r.color+"66":"transparent"}`}}>
+                      <input type="checkbox" checked={selectedResourceIds.includes(r.id)}
+                        onChange={e=>setSelectedResourceIds(e.target.checked?[...selectedResourceIds,r.id]:selectedResourceIds.filter(x=>x!==r.id))}
+                        style={{accentColor:r.color,width:14,height:14}} />
+                      <span style={{width:8,height:8,borderRadius:"50%",background:r.color,flexShrink:0}} />
+                      <span style={{flex:1}}>{r.name}</span>
+                      <small style={{color:"#5a4e51"}}>{r.resource_type}{r.location?` · ${r.location}`:""}</small>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Recurring booking toggle */}
             <div style={{margin:"16px 0 0",padding:"14px 16px",background:"#0c080a",border:"1px solid #2e2527",borderRadius:10}}>
               <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:0}}>
@@ -20742,7 +20844,7 @@ function Admin({
               )}
             </div>
             <div className="modalactions">
-              <button onClick={() => { setManualOpen(false); setRecurringEnabled(false); }}>Cancel</button>
+              <button onClick={() => { setManualOpen(false); setRecurringEnabled(false); setSelectedResourceIds([]); }}>Cancel</button>
               <button
                 disabled={
                   !manual.eventTypeId ||
