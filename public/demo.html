@@ -475,6 +475,56 @@ textarea.fi{resize:vertical}
 .import-preview{overflow-x:auto;margin-bottom:14px}
 .import-preview table{min-width:500px}
 
+/* UGC HUB */
+.ugc-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.ugc-tab{background:none;border:none;border-bottom:2px solid transparent;padding:7px 16px 10px;font-family:var(--fb);font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
+.ugc-tab.on{color:var(--text);border-bottom-color:var(--purple)}
+.ugc-pane{display:none}.ugc-pane.on{display:block}
+.ugc-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .13s;cursor:pointer}
+.ugc-card:hover{border-color:var(--border2)}
+.ugc-thumb{width:100%;aspect-ratio:16/9;background:var(--surface2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.ugc-thumb-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px}
+.ugc-play{position:absolute;width:36px;height:36px;background:rgba(0,0,0,.6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;border:2px solid rgba(255,255,255,.3)}
+.ugc-info{padding:11px 13px}
+.ugc-title{font-size:12.5px;font-weight:600;margin-bottom:3px}
+.ugc-meta{font-size:11px;color:var(--text2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ugc-score-bar{height:4px;border-radius:2px;background:var(--surface3);margin-top:7px;overflow:hidden}
+.ugc-score-fill{height:100%;border-radius:2px}
+.ugc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ugc-inbox-row{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:7px;cursor:pointer;transition:border-color .13s}
+.ugc-inbox-row:hover{border-color:var(--border2)}
+.ugc-av{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ugc-inbox-info{flex:1;min-width:0}
+.ugc-inbox-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.ugc-inbox-meta{font-size:11px;color:var(--text2)}
+.ugc-campaign-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:9px;margin-bottom:7px}
+.ugc-stat-pill{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 13px;text-align:center;flex:1}
+.ugc-stat-pill-val{font-family:var(--fd);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.ugc-stat-pill-lbl{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* CLIP STUDIO */
+.clip-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.clip-tab{background:none;border:none;border-bottom:2px solid transparent;padding:7px 16px 10px;font-family:var(--fb);font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
+.clip-tab.on{color:var(--text);border-bottom-color:var(--blue)}
+.clip-pane{display:none}.clip-pane.on{display:block}
+.clip-dropzone{border:2px dashed var(--border2);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:14px;position:relative}
+.clip-dropzone:hover,.clip-dropzone.drag{border-color:var(--blue);background:var(--blue-lo)}
+.clip-timeline{background:var(--surface2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:14px}
+.clip-tl-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.clip-tl-track{padding:10px 14px;position:relative;height:56px;cursor:pointer}
+.clip-tl-bar{position:absolute;top:12px;left:14px;right:14px;height:32px;background:var(--surface3);border-radius:6px;overflow:hidden}
+.clip-tl-fill{position:absolute;top:0;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--blue-lo),var(--blue-lo))}
+.clip-segment{position:absolute;top:0;height:100%;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .13s}
+.clip-segment:hover,.clip-segment.sel{border-color:var(--blue);box-shadow:0 0 0 2px rgba(61,142,240,.3)}
+.clip-handle{position:absolute;top:2px;bottom:2px;width:6px;background:var(--blue);border-radius:3px;cursor:ew-resize;opacity:0;transition:opacity .13s}
+.clip-segment:hover .clip-handle,.clip-segment.sel .clip-handle{opacity:1}
+.clip-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;transition:border-color .13s;cursor:pointer}
+.clip-card:hover{border-color:var(--border2)}
+.clip-card-thumb{aspect-ratio:16/9;background:var(--surface2);position:relative;display:flex;align-items:center;justify-content:center}
+.clip-card-info{padding:10px 12px}
+.clip-score{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.72);border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.clip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
 @media(max-width:640px){
   .fab{display:flex}
   html{font-size:13px}
@@ -572,6 +622,11 @@ textarea.fi{resize:vertical}
     <button class="mtb" onclick="navTo('onboarding');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg>Onboarding</button>
     <button class="mtb" onclick="navTo('reports');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</button>
     <button class="mtb" onclick="navTo('settings');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+    <button class="mtb" onclick="navTo('ugc');closeTray()" style="position:relative">
+      <span style="position:absolute;top:8px;right:8px;width:7px;height:7px;background:var(--purple);border-radius:50%;border:1.5px solid var(--surface2)"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>UGC Hub
+    </button>
+    <button class="mtb" onclick="navTo('clips');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>Clip Studio</button>
   </div>
 </div>
 
@@ -603,6 +658,8 @@ textarea.fi{resize:vertical}
   <div class="rsep"></div>
   <button class="rb" data-sec="dispatch" title="Dispatch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
   <button class="rb" data-sec="onboarding" title="Client Onboarding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg></button>
+  <button class="rb" data-sec="ugc" title="UGC Hub" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span style="position:absolute;top:3px;right:3px;width:5px;height:5px;background:var(--purple);border-radius:50%;border:1.5px solid var(--surface)"></span></button>
+  <button class="rb" data-sec="clips" title="Clip Studio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="12" y2="18"/><line x1="9" y1="12" x2="10" y2="12"/></svg></button>
   <div class="rsep"></div>
   <button class="rb" data-sec="reports" title="Reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>
   <button class="rb" data-sec="settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -1113,6 +1170,319 @@ textarea.fi{resize:vertical}
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UGC HUB -->
+    <div class="sec" id="sec-ugc">
+      <div class="sh">
+        <h2>UGC Hub</h2><span class="sh-sub">User-generated content engine</span>
+        <div style="margin-left:auto;display:flex;gap:7px">
+          <button class="btn btn-g btn-s" onclick="ugcTab('analytics',document.querySelector('.ugc-tab[onclick*=analytics]'))">Analytics</button>
+          <button class="btn btn-p btn-s" onclick="open('mo-ugc-campaign')">+ New Campaign</button>
+        </div>
+      </div>
+      <!-- Stat row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+        <div class="ugc-stat-pill"><div class="ugc-stat-pill-val" style="color:var(--purple)">24</div><div class="ugc-stat-pill-lbl">Requests Sent</div></div>
+        <div class="ugc-stat-pill"><div class="ugc-stat-pill-val" style="color:var(--blue)">11</div><div class="ugc-stat-pill-lbl">Submissions In</div></div>
+        <div class="ugc-stat-pill"><div class="ugc-stat-pill-val" style="color:var(--green)">7</div><div class="ugc-stat-pill-lbl">Approved</div></div>
+        <div class="ugc-stat-pill"><div class="ugc-stat-pill-val" style="color:var(--amber)">3.8×</div><div class="ugc-stat-pill-lbl">Avg Lift vs Static</div></div>
+      </div>
+      <!-- Tabs -->
+      <div class="ugc-tabs">
+        <button class="ugc-tab on" onclick="ugcTab('campaigns',this)">Campaigns</button>
+        <button class="ugc-tab" onclick="ugcTab('inbox',this)">Inbox <span class="b br" style="font-size:9px;padding:1px 5px;margin-left:3px">4 New</span></button>
+        <button class="ugc-tab" onclick="ugcTab('library',this)">Content Library</button>
+        <button class="ugc-tab" onclick="ugcTab('analytics',this)">Performance</button>
+      </div>
+
+      <!-- CAMPAIGNS PANE -->
+      <div class="ugc-pane on" id="ugc-pane-campaigns">
+        <div style="background:var(--purple-lo);border:1px solid rgba(124,82,216,.2);border-radius:9px;padding:11px 15px;font-size:12px;color:var(--text2);margin-bottom:14px;display:flex;gap:10px;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;color:var(--purple);flex-shrink:0;stroke-width:2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span><strong style="color:var(--text)">AI Script Generator:</strong> Every campaign auto-generates a creator brief with talking points, hooks, and do/don't guidelines based on the client's industry. No other CRM does this.</span>
+        </div>
+        <div class="ugc-campaign-row">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--green-lo);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏠</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">Ridgeline Roofing — Post-Close Testimonial</div>
+            <div style="font-size:11px;color:var(--text2)">Triggered: Deal closed · 3 contacts invited · 2 submitted</div>
+          </div>
+          <span class="b bg">Active</span>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text3)">Sent Sep 6</div>
+            <div style="font-size:10px;color:var(--green);margin-top:2px">67% response</div>
+          </div>
+          <button class="btn btn-g btn-s" onclick="openUGCBrief('roofing')">View Brief</button>
+        </div>
+        <div class="ugc-campaign-row">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--blue-lo);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🦷</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">Apex Dental — Before & After Showcase</div>
+            <div style="font-size:11px;color:var(--text2)">Triggered: Onboarding complete · 6 contacts invited · 1 submitted</div>
+          </div>
+          <span class="b bb">Pending</span>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text3)">Sent Sep 10</div>
+            <div style="font-size:10px;color:var(--amber);margin-top:2px">17% response</div>
+          </div>
+          <button class="btn btn-g btn-s" onclick="openUGCBrief('dental')">View Brief</button>
+        </div>
+        <div class="ugc-campaign-row">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--red-lo);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">💄</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">Bloom Med Spa — Results Video Request</div>
+            <div style="font-size:11px;color:var(--text2)">Triggered: 30-day check-in · 4 contacts invited · 3 submitted</div>
+          </div>
+          <span class="b bg">Active</span>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text3)">Sent Sep 3</div>
+            <div style="font-size:10px;color:var(--green);margin-top:2px">75% response</div>
+          </div>
+          <button class="btn btn-g btn-s" onclick="openUGCBrief('spa')">View Brief</button>
+        </div>
+        <div style="margin-top:14px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:10px">Auto-Trigger Rules</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px"><label class="tog"><input type="checkbox" checked><div class="tog-track"></div><div class="tog-thumb"></div></label> Send UGC request when a deal moves to <strong>Closed Won</strong> — 3 days after close</div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px"><label class="tog"><input type="checkbox" checked><div class="tog-track"></div><div class="tog-thumb"></div></label> Send follow-up request at <strong>30-day check-in</strong> if no submission</div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px"><label class="tog"><input type="checkbox"><div class="tog-track"></div><div class="tog-thumb"></div></label> Auto-push approved UGC to <strong>Google Business Profile</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INBOX PANE -->
+      <div class="ugc-pane" id="ugc-pane-inbox">
+        <div class="ugc-inbox-row" style="border-color:var(--purple)">
+          <div class="ugc-av" style="background:var(--green-lo)">🎥</div>
+          <div class="ugc-inbox-info">
+            <div class="ugc-inbox-name">David Nguyen · Ridgeline Roofing</div>
+            <div class="ugc-inbox-meta">Video · 1:42 · Submitted Sep 8 · <span style="color:var(--purple)">● New</span></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-g btn-s" onclick="previewUGC('ridgeline_david')">Preview</button>
+            <button class="comm-approval comm-approve" onclick="approveUGC(this,'David Nguyen')">Approve</button>
+            <button class="comm-approval comm-hold" onclick="holdUGC(this)">Reject</button>
+          </div>
+        </div>
+        <div class="ugc-inbox-row" style="border-color:var(--purple)">
+          <div class="ugc-av" style="background:var(--red-lo)">🎥</div>
+          <div class="ugc-inbox-info">
+            <div class="ugc-inbox-name">Sarah Chen · Bloom Med Spa</div>
+            <div class="ugc-inbox-meta">Video · 0:54 · Submitted Sep 9 · <span style="color:var(--purple)">● New</span></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-g btn-s" onclick="previewUGC('bloom_sarah')">Preview</button>
+            <button class="comm-approval comm-approve" onclick="approveUGC(this,'Sarah Chen')">Approve</button>
+            <button class="comm-approval comm-hold" onclick="holdUGC(this)">Reject</button>
+          </div>
+        </div>
+        <div class="ugc-inbox-row">
+          <div class="ugc-av" style="background:var(--blue-lo)">📝</div>
+          <div class="ugc-inbox-info">
+            <div class="ugc-inbox-name">Michael Torres · Elite HVAC</div>
+            <div class="ugc-inbox-meta">Text review · Submitted Sep 7 · Under review</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-g btn-s" onclick="previewUGC('hvac_michael')">Preview</button>
+            <button class="comm-approval comm-approve" onclick="approveUGC(this,'Michael Torres')">Approve</button>
+            <button class="comm-approval comm-hold" onclick="holdUGC(this)">Reject</button>
+          </div>
+        </div>
+        <div class="ugc-inbox-row" style="opacity:.65">
+          <div class="ugc-av" style="background:var(--green-lo)">🎥</div>
+          <div class="ugc-inbox-info">
+            <div class="ugc-inbox-name">Amanda Brooks · Prestige Auto</div>
+            <div class="ugc-inbox-meta">Video · 2:10 · Approved Sep 5 · <span style="color:var(--green)">✓ Published</span></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-g btn-s">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIBRARY PANE -->
+      <div class="ugc-pane" id="ugc-pane-library">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <select class="fi" style="width:140px;padding:5px 8px;font-size:12px"><option>All Clients</option><option>Ridgeline Roofing</option><option>Bloom Med Spa</option><option>Elite HVAC</option></select>
+          <select class="fi" style="width:120px;padding:5px 8px;font-size:12px"><option>All Types</option><option>Video</option><option>Text</option><option>Photo</option></select>
+          <select class="fi" style="width:130px;padding:5px 8px;font-size:12px"><option>Sort: Best Performance</option><option>Sort: Newest</option><option>Sort: Shortest</option></select>
+        </div>
+        <div class="ugc-grid">
+          <div class="ugc-card">
+            <div class="ugc-thumb" style="background:linear-gradient(135deg,#1b1422,#2d1a3a)">
+              <div class="ugc-thumb-inner">🏠</div>
+              <div class="ugc-play"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;margin-left:2px"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.7);font-size:9.5px;padding:2px 6px;border-radius:3px;color:#fff">1:42</div>
+              <div class="clip-score" style="background:var(--green-lo);color:var(--green);border:1px solid rgba(31,196,121,.25);font-size:10px;top:6px;left:6px;right:auto">⭐ 94</div>
+            </div>
+            <div class="ugc-info">
+              <div class="ugc-title">Ridgeline Roofing — David N.</div>
+              <div class="ugc-meta"><span style="color:var(--green)">✓ Approved</span><span>·</span><span>Sep 8</span></div>
+              <div class="ugc-score-bar"><div class="ugc-score-fill" style="width:87%;background:var(--green)"></div></div>
+              <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+                <button class="btn btn-g btn-s">Copy Link</button>
+                <button class="btn btn-g btn-s" onclick="sendToClipStudio('ridgeline_david')">✂ Clip</button>
+                <button class="btn btn-p btn-s">Publish</button>
+              </div>
+            </div>
+          </div>
+          <div class="ugc-card">
+            <div class="ugc-thumb" style="background:linear-gradient(135deg,#1a1a2d,#12192e)">
+              <div class="ugc-thumb-inner">💄</div>
+              <div class="ugc-play"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;margin-left:2px"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.7);font-size:9.5px;padding:2px 6px;border-radius:3px;color:#fff">0:54</div>
+              <div class="clip-score" style="background:var(--purple-lo);color:var(--purple);border:1px solid rgba(124,82,216,.25);font-size:10px;top:6px;left:6px;right:auto">⭐ 91</div>
+            </div>
+            <div class="ugc-info">
+              <div class="ugc-title">Bloom Med Spa — Sarah C.</div>
+              <div class="ugc-meta"><span style="color:var(--amber)">Pending Approval</span><span>·</span><span>Sep 9</span></div>
+              <div class="ugc-score-bar"><div class="ugc-score-fill" style="width:91%;background:var(--purple)"></div></div>
+              <div style="display:flex;gap:5px;margin-top:8px">
+                <button class="btn btn-g btn-s">Review</button>
+                <button class="btn btn-g btn-s" onclick="sendToClipStudio('bloom_sarah')">✂ Clip</button>
+              </div>
+            </div>
+          </div>
+          <div class="ugc-card">
+            <div class="ugc-thumb" style="background:linear-gradient(135deg,#0f1a14,#0d1e1a)">
+              <div class="ugc-thumb-inner">🔧</div>
+              <div class="ugc-play"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;margin-left:2px"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.7);font-size:9.5px;padding:2px 6px;border-radius:3px;color:#fff">2:10</div>
+              <div class="clip-score" style="background:var(--green-lo);color:var(--green);border:1px solid rgba(31,196,121,.25);font-size:10px;top:6px;left:6px;right:auto">⭐ 88</div>
+            </div>
+            <div class="ugc-info">
+              <div class="ugc-title">Prestige Auto — Amanda B.</div>
+              <div class="ugc-meta"><span style="color:var(--green)">✓ Published</span><span>·</span><span>Sep 5</span></div>
+              <div class="ugc-score-bar"><div class="ugc-score-fill" style="width:78%;background:var(--green)"></div></div>
+              <div style="display:flex;gap:5px;margin-top:8px">
+                <button class="btn btn-g btn-s">Copy Link</button>
+                <button class="btn btn-g btn-s" onclick="sendToClipStudio('prestige_amanda')">✂ Clip</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERFORMANCE PANE -->
+      <div class="ugc-pane" id="ugc-pane-analytics">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:12px">UGC vs Static Ads Performance</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="chart-bar-row"><span class="chart-bar-lbl">UGC Video</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:92%;background:var(--purple)"></div></div><span class="chart-bar-val" style="color:var(--purple)">4.8%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Static Image</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:48%;background:var(--text3)"></div></div><span class="chart-bar-val" style="color:var(--text2)">2.5%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Branded Video</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:62%;background:var(--blue)"></div></div><span class="chart-bar-val" style="color:var(--blue)">3.2%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Text Review</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:38%;background:var(--amber)"></div></div><span class="chart-bar-val" style="color:var(--amber)">2.0%</span></div>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:10px">CTR across all active campaigns · Sep 2026</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:12px">Top Performing UGC</div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px;background:var(--surface2);border-radius:7px"><span style="font-size:14px">🏠</span><div style="flex:1"><div style="font-size:12px;font-weight:500">Ridgeline — David N.</div><div style="font-size:10.5px;color:var(--text3)">4,820 views · 9.2% CVR</div></div><span class="b bg">94</span></div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px;background:var(--surface2);border-radius:7px"><span style="font-size:14px">🔧</span><div style="flex:1"><div style="font-size:12px;font-weight:500">Prestige — Amanda B.</div><div style="font-size:10.5px;color:var(--text3)">3,100 views · 7.4% CVR</div></div><span class="b bb">88</span></div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px;background:var(--surface2);border-radius:7px"><span style="font-size:14px">💄</span><div style="flex:1"><div style="font-size:12px;font-weight:500">Bloom — Sarah C.</div><div style="font-size:10.5px;color:var(--text3)">Pending publish</div></div><span class="b" style="background:var(--purple-lo);color:var(--purple)">91</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:10px">AI Deal Match Engine</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Cyncro automatically matches approved UGC to open deals in your pipeline based on industry. Prospects see social proof from businesses like theirs.</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-radius:8px;font-size:12px">
+              <span style="font-size:14px">🏠</span><div style="flex:1">Ridgeline UGC → matched to <strong>Summit Plumbing</strong> prospect (Home Services)</div><button class="btn btn-p btn-s">Use in Pitch</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-radius:8px;font-size:12px">
+              <span style="font-size:14px">💄</span><div style="flex:1">Bloom UGC → matched to <strong>Prestige Auto</strong> (aesthetics + premium pricing)</div><button class="btn btn-p btn-s">Use in Pitch</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIP STUDIO -->
+    <div class="sec" id="sec-clips">
+      <div class="sh">
+        <h2>Clip Studio</h2><span class="sh-sub">AI-powered video clipper</span>
+        <div style="margin-left:auto;display:flex;gap:7px">
+          <button class="btn btn-g btn-s" onclick="clipTab('library',document.querySelector('.clip-tab[onclick*=library]'))">My Clips</button>
+          <button class="btn btn-p btn-s" onclick="clipTab('new',document.querySelector('.clip-tab[onclick*=new]'))">+ New Clip</button>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="clip-tabs">
+        <button class="clip-tab on" onclick="clipTab('new',this)">New Clip</button>
+        <button class="clip-tab" onclick="clipTab('clips',this)">Detected Clips</button>
+        <button class="clip-tab" onclick="clipTab('library',this)">Library</button>
+      </div>
+
+      <!-- NEW CLIP PANE -->
+      <div class="clip-pane on" id="clip-pane-new">
+        <div class="clip-dropzone" id="clip-dropzone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');simulateClipAnalysis()" onclick="document.getElementById('clip-file-in').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:36px;height:36px;color:var(--text3);margin:0 auto 10px;display:block;stroke-width:1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Drop a video or paste a URL</div>
+          <div style="font-size:12px;color:var(--text3)">MP4, MOV, WebM · or YouTube / Loom / Google Drive link</div>
+          <input type="file" id="clip-file-in" accept="video/*" style="display:none" onchange="simulateClipAnalysis()">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="sb" style="flex:1;margin-bottom:0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:13px;height:13px;color:var(--text3);stroke-width:2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <input id="clip-url-in" placeholder="https://youtube.com/watch?v=... or Loom / Drive URL" style="font-size:12.5px">
+          </div>
+          <button class="btn btn-p btn-s" onclick="simulateClipAnalysis()">Analyze</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;flex:1;min-width:160px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Output Format</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button class="btn btn-g btn-s clip-fmt-btn on-fmt" onclick="selectFmt(this,'9:16')">TikTok / Reels</button>
+              <button class="btn btn-g btn-s clip-fmt-btn" onclick="selectFmt(this,'1:1')">Square</button>
+              <button class="btn btn-g btn-s clip-fmt-btn" onclick="selectFmt(this,'16:9')">YouTube</button>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;flex:1;min-width:160px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Max Clip Length</div>
+            <select class="fi" style="padding:5px 8px;font-size:12px"><option>30 seconds</option><option>60 seconds</option><option>90 seconds</option><option>3 minutes</option></select>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;flex:1;min-width:160px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">AI Clip Strategy</div>
+            <select class="fi" style="padding:5px 8px;font-size:12px"><option>High-energy moments</option><option>Key talking points</option><option>Hook + CTA focus</option><option>Testimonial peaks</option></select>
+          </div>
+        </div>
+        <div id="clip-analysis-placeholder" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:32px;text-align:center;color:var(--text3)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:28px;height:28px;margin:0 auto 8px;display:block;stroke-width:1.5;opacity:.4"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <div style="font-size:13px">Upload or paste a video URL to begin</div>
+          <div style="font-size:11.5px;margin-top:4px">AI will scan for the best clip moments, hooks, and high-engagement windows</div>
+          <button class="btn btn-g btn-s" style="margin-top:12px" onclick="simulateClipAnalysis()">Load Sample Demo</button>
+        </div>
+        <div id="clip-analysis-result" style="display:none">
+          <!-- Filled by simulateClipAnalysis -->
+        </div>
+      </div>
+
+      <!-- DETECTED CLIPS PANE -->
+      <div class="clip-pane" id="clip-pane-clips">
+        <div style="background:var(--blue-lo);border:1px solid rgba(61,142,240,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:14px;display:flex;gap:10px;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;color:var(--blue);stroke-width:2;flex-shrink:0"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          5 clips detected from <strong style="color:var(--text)">Ridgeline Roofing Discovery Call (58:24)</strong> · AI selected best moments
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="detected-clips-list">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- LIBRARY PANE -->
+      <div class="clip-pane" id="clip-pane-library">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <select class="fi" style="width:140px;padding:5px 8px;font-size:12px"><option>All Clips</option><option>TikTok / Reels</option><option>YouTube</option><option>Square</option></select>
+          <select class="fi" style="width:140px;padding:5px 8px;font-size:12px"><option>All Clients</option><option>Ridgeline Roofing</option><option>Bloom Med Spa</option></select>
+          <span style="margin-left:auto;font-size:11.5px;color:var(--text3)" id="clip-lib-count">8 clips saved</span>
+        </div>
+        <div class="clip-grid" id="clip-lib-grid">
+          <!-- rendered by renderClipLibrary() -->
         </div>
       </div>
     </div>
@@ -1846,6 +2216,114 @@ textarea.fi{resize:vertical}
   </div>
 </div>
 
+<!-- UGC CAMPAIGN MODAL -->
+<div class="mo" id="mo-ugc-campaign">
+  <div class="md" style="width:min(560px,96vw)">
+    <div class="md-h"><h2>New UGC Campaign</h2><button class="md-x" onclick="close('mo-ugc-campaign')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Campaign Name</label><input class="fi" type="text" placeholder="e.g. Summer HVAC Push — Creator Series"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="fg"><label class="fl">Content Type</label>
+          <select class="fi">
+            <option>Product Demo</option><option>Testimonial</option><option>Day-in-Life</option><option>Before/After</option><option>Tutorial</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Target Platform</label>
+          <select class="fi">
+            <option>TikTok + Reels</option><option>Instagram Reels</option><option>YouTube Shorts</option><option>LinkedIn</option><option>All Platforms</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="fg"><label class="fl">Creator Budget</label><input class="fi" type="text" placeholder="$0 – $500 per creator"></div>
+        <div class="fg"><label class="fl">Deliverables</label><input class="fi" type="text" placeholder="3 videos, 5 stories"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Brief / Key Messages</label><textarea class="fi" rows="3" placeholder="What should creators communicate? Key benefits, tone, dos/don'ts…"></textarea></div>
+      <div style="background:var(--purple-lo);border:1px solid rgba(124,82,216,.3);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">✨</span>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--purple);margin-bottom:3px">AI Script Generator</div>
+          <div style="font-size:11.5px;color:var(--text2)">After creating this campaign, Cyncro will generate ready-to-use creator scripts, hook options, and posting captions — tailored to your client's industry and deal stage.</div>
+        </div>
+      </div>
+      <div class="md-footer">
+        <button class="btn btn-g" onclick="close('mo-ugc-campaign')">Cancel</button>
+        <button class="btn btn-p" onclick="close('mo-ugc-campaign');setTimeout(()=>alert('✅ Campaign created!\n\nAI is generating creator briefs, scripts, and outreach emails.\n\nCheck UGC Hub → Campaigns.'),150)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:13px;height:13px;stroke-width:2.2"><path d="M5 12l5 5L20 7"/></svg>
+          Launch Campaign
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UGC BRIEF MODAL -->
+<div class="mo" id="mo-ugc-brief">
+  <div class="md" style="width:min(580px,96vw)">
+    <div class="md-h">
+      <div>
+        <h2 id="ugc-brief-title">AI Creator Brief</h2>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">Generated for: <span id="ugc-brief-type" style="color:var(--purple)"></span></div>
+      </div>
+      <button class="md-x" onclick="close('mo-ugc-brief')">&#x2715;</button>
+    </div>
+    <div class="md-body">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:6px">Hook Principle</div>
+        <div id="ugc-brief-hook" style="font-size:13px;color:var(--text);line-height:1.6"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Scene Breakdown</div>
+        <ol id="ugc-brief-scenes" style="padding-left:18px;display:flex;flex-direction:column"></ol>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:5px">Tone & Style</div>
+        <div id="ugc-brief-tone" style="font-size:12px;color:var(--text2)"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Hook Options — Click to select</div>
+        <div id="ugc-brief-hooks" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+      <div class="md-footer" style="margin-top:16px">
+        <button class="btn btn-g" onclick="close('mo-ugc-brief')">Close</button>
+        <button class="btn btn-g" onclick="alert('📋 Brief copied to clipboard!\n\nPaste into your creator outreach email, DM, or brief document.')">Copy Brief</button>
+        <button class="btn btn-p" onclick="close('mo-ugc-brief');setTimeout(()=>alert('📧 Brief sent via email to selected creators!\n\n(Gmail MCP: mcp__Gmail__send_message is available for real sends)'),150)">Send to Creators</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW CLIP MODAL (quick version — also accessible via New Clip tab in Clip Studio) -->
+<div class="mo" id="mo-new-clip">
+  <div class="md" style="width:min(500px,96vw)">
+    <div class="md-h"><h2>New Clip</h2><button class="md-x" onclick="close('mo-new-clip')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Video URL</label><input class="fi" type="url" placeholder="https://youtube.com/watch?v=… or Instagram / TikTok link"></div>
+      <div style="text-align:center;color:var(--text3);font-size:11px;margin-bottom:12px">— or —</div>
+      <div style="border:2px dashed var(--border2);border-radius:9px;padding:22px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all .13s" onclick="alert('File picker would open here')">
+        <div style="font-size:22px;margin-bottom:6px">📁</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">Drop a video file</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">MP4, MOV, AVI up to 2GB</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="fg"><label class="fl">Clip Length</label>
+          <select class="fi"><option>Auto-detect best</option><option>15 seconds</option><option>30 seconds</option><option>60 seconds</option><option>90 seconds</option></select>
+        </div>
+        <div class="fg"><label class="fl">Output Format</label>
+          <select class="fi"><option>9:16 (TikTok/Reels)</option><option>1:1 (Square)</option><option>16:9 (Landscape)</option></select>
+        </div>
+      </div>
+      <div class="md-footer">
+        <button class="btn btn-g" onclick="close('mo-new-clip')">Cancel</button>
+        <button class="btn btn-p" onclick="close('mo-new-clip');showSec('clips');setTimeout(()=>simulateClipAnalysis(),300)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:13px;height:13px;stroke-width:2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Analyze & Clip
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ---- DATA ----
 const accounts = [
@@ -1915,8 +2393,8 @@ let currentSec = 'dashboard';
 document.querySelectorAll('.rb[data-sec]').forEach(btn=>{
   btn.addEventListener('click',()=>showSec(btn.dataset.sec));
 });
-const secTitles={dashboard:'Dashboard',pipeline:'Pipeline',accounts:'Accounts',contacts:'Contacts',prospecting:'Prospecting',attribution:'Attribution',agents:'Cyncro Prime',calendar:'Calendar',tasks:'Team Tasks',dispatch:'Dispatch',onboarding:'Client Onboarding',reports:'Reports',settings:'Settings'};
-const addActions={dashboard:'+ New',pipeline:'+ New Deal',accounts:'+ New Account',contacts:'+ New Contact',prospecting:'Search Area',attribution:'',agents:'',calendar:'+ Book Slot',tasks:'+ Add Task',dispatch:'+ Schedule Job',onboarding:'+ New Portal',reports:'',settings:''};
+const secTitles={dashboard:'Dashboard',pipeline:'Pipeline',accounts:'Accounts',contacts:'Contacts',prospecting:'Prospecting',attribution:'Attribution',agents:'Cyncro Prime',calendar:'Calendar',tasks:'Team Tasks',dispatch:'Dispatch',onboarding:'Client Onboarding',reports:'Reports',settings:'Settings',ugc:'UGC Hub',clips:'Clip Studio'};
+const addActions={dashboard:'+ New',pipeline:'+ New Deal',accounts:'+ New Account',contacts:'+ New Contact',prospecting:'Search Area',attribution:'',agents:'',calendar:'+ Book Slot',tasks:'+ Add Task',dispatch:'+ Schedule Job',onboarding:'+ New Portal',reports:'',settings:'',ugc:'+ New Campaign',clips:'+ New Clip'};
 
 // Mobile nav helpers
 const mobPrimary=['dashboard','pipeline','contacts','agents','tasks'];
@@ -1957,6 +2435,8 @@ function showSec(name){
     else if(name==='tasks')openTask();
     else if(name==='dispatch')open('mo-dispatch');
     else if(name==='onboarding')open('mo-newob');
+    else if(name==='ugc')open('mo-ugc-campaign');
+    else if(name==='clips')open('mo-new-clip');
   };
 }
 
@@ -2677,6 +3157,8 @@ const cmdNav=[
   {type:'nav',label:'Client Onboarding',hint:'Portals, docs, intake forms',sec:'onboarding',icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'},
   {type:'nav',label:'Reports',hint:'Revenue & leaderboard',sec:'reports',icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'},
   {type:'nav',label:'Settings',hint:'Team, integrations, billing',sec:'settings',icon:'<circle cx="12" cy="12" r="3"/>'},
+  {type:'nav',label:'UGC Hub',hint:'Creator campaigns, inbox, clips',sec:'ugc',icon:'<path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'},
+  {type:'nav',label:'Clip Studio',hint:'AI video clipping, repurpose content',sec:'clips',icon:'<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>'},
 ];
 const cmdActions=[
   {type:'action',label:'New Deal',hint:'Add to pipeline',fn:'openDeal()',icon:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'},
@@ -3044,6 +3526,298 @@ function confirmImport(){
   },400);
   setTimeout(()=>alert(`✅ Import Complete!\n\n${rows.length} leads imported:\n• Added to Accounts\n• Added to Pipeline\n\nHigh-score leads (≥80) are highlighted in Prospecting.`),200);
 }
+
+// ---- UGC HUB ----
+function ugcTab(name, el){
+  document.querySelectorAll('.ugc-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.ugc-pane').forEach(p=>p.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const pane=document.getElementById('ugc-pane-'+name);
+  if(pane)pane.classList.add('on');
+}
+
+const ugcScripts={
+  'Product Demo':{
+    title:'30-Second Product Demo Script',
+    hook:'Open with a bold statement about the ONE result your client\'s product delivers.',
+    scenes:[
+      'Hook (0-3s): "What if [problem] was solved in [timeframe]?"',
+      'Problem (3-8s): Show the pain point visually — messy, slow, frustrating',
+      'Reveal (8-18s): Demo the solution in action — clean, fast, satisfying',
+      'Proof (18-25s): Flash a real result — rating, stat, or quick testimonial',
+      'CTA (25-30s): Single clear ask — "Try it free" / "DM [keyword]"'
+    ],
+    tone:'Energetic, confident, direct. No jargon. Real-person language.',
+    hooks:['POV: You just [solved problem]…','This changed how I [task] forever','I tested 5 [products] — this one won']
+  },
+  'Testimonial':{
+    title:'Authentic Testimonial Script',
+    hook:'Lead with the transformation, not the product name.',
+    scenes:[
+      'Before (0-5s): "I used to [struggle/waste/deal with]…"',
+      'Discovery (5-10s): "Then I found/tried [brand]…"',
+      'Moment (10-18s): Specific moment it clicked — "The first time I…"',
+      'Result (18-25s): Concrete outcome — numbers, feelings, life change',
+      'Recommend (25-30s): Natural, unscripted. "If you\'re dealing with X, just try it."'
+    ],
+    tone:'Casual, genuine, imperfect is fine. Real people, real rooms.',
+    hooks:['Honest review after [X] weeks','I was skeptical but…','Not sponsored — this actually works']
+  },
+  'Day-in-Life':{
+    title:'Day-in-the-Life Integration Script',
+    hook:'Show the product living in a real moment — not staged.',
+    scenes:[
+      'Morning routine (0-6s): Natural wake-up / start-of-day context',
+      'Product appears (6-14s): Organic product use mid-routine',
+      'Micro-benefit (14-22s): Quick win — saves time, feels good, works better',
+      'Evening recap (22-28s): End-of-day reflection, show result',
+      'CTA (28-30s): "Link in bio" or "DM me [word]"'
+    ],
+    tone:'Lo-fi, handheld, natural lighting. Real environment beats studio.',
+    hooks:['My actual morning routine feat. [product]','How I get [result] every day','Productive day with [brand] (honest)']
+  }
+};
+
+function openUGCBrief(type){
+  // Map campaign-specific types to script templates
+  const typeMap={'roofing':'Testimonial','dental':'Product Demo','spa':'Day-in-Life'};
+  const scriptKey=typeMap[type]||type;
+  const script=ugcScripts[scriptKey]||ugcScripts['Product Demo'];
+  document.getElementById('ugc-brief-type').textContent=type;
+  document.getElementById('ugc-brief-title').textContent=script.title;
+  document.getElementById('ugc-brief-hook').textContent=script.hook;
+  document.getElementById('ugc-brief-scenes').innerHTML=script.scenes.map(s=>`<li style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">${s}</li>`).join('');
+  document.getElementById('ugc-brief-tone').textContent=script.tone;
+  document.getElementById('ugc-brief-hooks').innerHTML=script.hooks.map(h=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;transition:all .13s" onclick="this.style.borderColor='var(--purple)';this.style.background='var(--purple-lo)'">${h}</div>`).join('');
+  open('mo-ugc-brief');
+}
+
+function previewUGC(key){
+  const previews={
+    'sunstate-pest':{creator:'@home_with_jessica',platform:'Instagram Reels',views:'42K',url:'https://example.com'},
+    'coastal-chiro':{creator:'@dr_wellness_tips',platform:'TikTok',views:'118K',url:'https://example.com'},
+    'metro-garage':{creator:'@diy_garage_pro',platform:'YouTube Shorts',views:'28K',url:'https://example.com'},
+    'vivid-nails':{creator:'@nailsbybella',platform:'Instagram Reels',views:'67K',url:'https://example.com'},
+  };
+  const p=previews[key]||{creator:'@creator',platform:'TikTok',views:'12K'};
+  alert(`📱 UGC Preview\n\nCreator: ${p.creator}\nPlatform: ${p.platform}\nViews: ${p.views}\n\nIn the full platform, this would open an in-app video player with frame-by-frame scrubbing, comment sentiment analysis, and one-click clip extraction.\n\nWant to clip this? Use the Clip Studio!`);
+}
+
+function approveUGC(btn, name){
+  const row=btn.closest('.ugc-inbox-row');
+  const statusEl=row?.querySelector('.ugc-inbox-meta');
+  if(statusEl)statusEl.innerHTML='<span class="b bg">✓ Approved</span>';
+  btn.textContent='✓ Approved';
+  btn.style.opacity='.5';btn.style.cursor='not-allowed';btn.disabled=true;
+  btn.nextElementSibling&&(btn.nextElementSibling.style.opacity='.3',btn.nextElementSibling.disabled=true);
+  setTimeout(()=>{
+    const libPane=document.getElementById('ugc-pane-library');
+    // Increment library count badge
+    const libStat=document.querySelector('.ugc-stat-pill.lib-count');
+    if(libStat){const cur=parseInt(libStat.dataset.count||12);libStat.dataset.count=cur+1;libStat.innerHTML=`<span style="font-size:18px;font-weight:700;font-family:var(--fd)">${cur+1}</span><span style="font-size:10px;color:var(--text2)">In Library</span>`;}
+  },300);
+}
+
+function holdUGC(btn){
+  const row=btn.closest('.ugc-inbox-row');
+  const statusEl=row?.querySelector('.ugc-inbox-meta');
+  if(statusEl)statusEl.innerHTML='<span class="b ba">Revisions Requested</span>';
+  btn.textContent='Revisions Sent';btn.disabled=true;
+  btn.style.opacity='.5';btn.style.cursor='not-allowed';
+}
+
+function sendToClipStudio(contentKey){
+  showSec('clips');
+  // Pre-fill the URL input with a sample
+  const clips={
+    'ugc-1':'https://instagram.com/reel/abc123',
+    'ugc-2':'https://tiktok.com/@creator/video/xyz789',
+    'ugc-3':'https://youtube.com/shorts/def456',
+  };
+  const url=clips[contentKey]||'';
+  const inp=document.getElementById('clip-url-in');
+  if(inp&&url){inp.value=url;setTimeout(()=>simulateClipAnalysis(),600);}
+  setTimeout(()=>alert('🎬 Content sent to Clip Studio!\n\nAI is analyzing the video for best clip moments, hook detection, and optimal cut points.'),200);
+}
+
+function runUGCDealMatch(){
+  const engine=document.getElementById('ugc-deal-match-output');
+  if(!engine)return;
+  engine.innerHTML=`<div style="padding:12px 0;text-align:center;color:var(--text2);font-size:12px">⚡ Matching UGC to open deals…</div>`;
+  setTimeout(()=>{
+    engine.innerHTML=`
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="background:var(--surface2);border:1px solid var(--green);border-radius:8px;padding:10px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="b bg">98% Match</span>
+            <span style="font-size:12px;font-weight:600">Sunstate Pest Control → @home_with_jessica</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2)">Home services UGC matches pest control vertical. 42K views, 6.2% engagement. Send as proposal attachment.</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--blue);border-radius:8px;padding:10px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="b bb">87% Match</span>
+            <span style="font-size:12px;font-weight:600">Coastal Chiro Group → @dr_wellness_tips</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2)">Healthcare creator, professional tone. 118K views confirms audience trust. Ideal for proposal stage.</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--amber);border-radius:8px;padding:10px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="b ba">74% Match</span>
+            <span style="font-size:12px;font-weight:600">Blue Ox Brewing → @tasted_by_taylor</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2)">Food & bev creator with local following. Good fit for early-stage deal, builds credibility.</div>
+        </div>
+      </div>`;
+  },1800);
+}
+
+// ---- CLIP STUDIO ----
+const detectedClips=[
+  {id:'c1',title:'Hook Moment',thumb:'🎯',start:'0:12',end:'0:42',duration:'30s',score:97,reason:'Energy spike + direct address. Hook rate 94th percentile.',fmt:'Reels / TikTok / Shorts'},
+  {id:'c2',title:'Key Stat Drop',thumb:'📊',start:'1:05',end:'1:28',duration:'23s',score:91,reason:'Statistic delivery with pause for impact. Strong share signal.',fmt:'LinkedIn / Twitter'},
+  {id:'c3',title:'Objection Handler',thumb:'💬',start:'2:41',end:'3:22',duration:'41s',score:85,reason:'Pain point → solution arc. High watch-through predicted.',fmt:'Reels / TikTok'},
+  {id:'c4',title:'Social Proof Moment',thumb:'⭐',start:'4:18',end:'4:48',duration:'30s',score:88,reason:'Testimonial read with authentic tone shift. Trust signal.',fmt:'Any format'},
+  {id:'c5',title:'CTA Anchor',thumb:'🚀',start:'7:30',end:'8:05',duration:'35s',score:82,reason:'Clear action framing. Pairs well with Hook Moment.',fmt:'Reels / Shorts'},
+];
+let clipLibrary=[];
+let clipAnalysisDone=false;
+
+function clipTab(name, el){
+  document.querySelectorAll('.clip-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.clip-pane').forEach(p=>p.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const pane=document.getElementById('clip-pane-'+name);
+  if(pane)pane.classList.add('on');
+  if(name==='clips')renderDetectedClips();
+  if(name==='library')renderClipLibrary();
+}
+
+function selectFmt(btn, ratio){
+  document.querySelectorAll('.clip-fmt-btn').forEach(b=>{
+    b.style.borderColor='var(--border)';
+    b.style.background='var(--surface2)';
+    b.style.color='var(--text2)';
+  });
+  btn.style.borderColor='var(--blue)';
+  btn.style.background='var(--blue-lo)';
+  btn.style.color='var(--blue)';
+}
+
+function simulateClipAnalysis(){
+  const zone=document.getElementById('clip-dropzone');
+  const placeholder=document.getElementById('clip-analysis-placeholder');
+  const resultWrap=document.getElementById('clip-analysis-result');
+  if(zone)zone.style.display='none';
+  if(placeholder)placeholder.style.display='none';
+  if(resultWrap){
+    resultWrap.style.display='block';
+    resultWrap.innerHTML=`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px 20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text)">🎬 Analyzing video…</div>
+        <div style="background:var(--surface2);border-radius:100px;height:8px;overflow:hidden;margin-bottom:10px">
+          <div id="clip-progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:100px;transition:width .3s ease"></div>
+        </div>
+        <div id="clip-progress-label" style="font-size:12px;color:var(--text2)">Uploading video…</div>
+      </div>`;
+    let pct=0;
+    const steps=['Uploading video…','Transcribing audio…','Detecting scene changes…','Scoring hook moments…','Analyzing engagement signals…','Ranking clip candidates…','Done — 5 clips found! ✅'];
+    let stepIdx=0;
+    const interval=setInterval(()=>{
+      pct=Math.min(pct+(Math.random()*18+8),100);
+      const bar=document.getElementById('clip-progress-bar');
+      const lbl=document.getElementById('clip-progress-label');
+      if(bar)bar.style.width=pct+'%';
+      if(lbl&&steps[stepIdx]){lbl.textContent=steps[stepIdx];if(pct>stepIdx*14)stepIdx=Math.min(stepIdx+1,steps.length-1);}
+      if(pct>=100){
+        clearInterval(interval);
+        clipAnalysisDone=true;
+        setTimeout(()=>{
+          resultWrap.style.display='none';
+          // Switch to detected tab
+          const clipsTab=document.querySelector('.clip-tab[onclick*=clips]');
+          clipTab('clips',clipsTab);
+        },600);
+      }
+    },350);
+  }
+}
+
+function renderDetectedClips(){
+  const container=document.getElementById('detected-clips-list');
+  if(!container)return;
+  if(!clipAnalysisDone&&clipLibrary.length===0){
+    container.innerHTML=`<div style="text-align:center;padding:30px 0;color:var(--text2);font-size:13px">
+      <div style="font-size:28px;margin-bottom:10px">🎬</div>
+      <div style="font-weight:600;margin-bottom:6px">No video analyzed yet</div>
+      <div style="font-size:12px">Go to New Clip, upload a video or paste a URL, then click Analyze.</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML=detectedClips.map(c=>`
+    <div class="clip-card" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:flex-start;gap:13px;margin-bottom:10px;transition:border-color .13s" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="width:54px;height:54px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${c.thumb}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600">${c.title}</span>
+          <span class="b ${c.score>=90?'bg':c.score>=80?'bb':'ba'}">${c.score}</span>
+          <span style="font-size:11px;color:var(--text2);margin-left:auto">${c.start} – ${c.end} · ${c.duration}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:6px">${c.reason}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--text3);background:var(--surface2);border-radius:4px;padding:2px 6px">${c.fmt}</span>
+          <button class="btn btn-p btn-s" onclick="exportClip('${c.id}','${c.title}')">Export Clip</button>
+          <button class="btn btn-g btn-s" onclick="saveToLibrary('${c.id}')">Save to Library</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function exportClip(id, title){
+  alert(`🎬 Exporting: "${title}"\n\nIn production, this would:\n• Render the clip with captions burned in\n• Apply selected aspect ratio (9:16 / 1:1 / 16:9)\n• Add brand watermark (optional)\n• Download as MP4 or push directly to:\n  → Buffer, Later, Metricool\n  → Client's social accounts\n\nElevenLabs MCP can add AI voiceover!\nAvailable: creative_generate_speech`);
+}
+
+function saveToLibrary(id){
+  const clip=detectedClips.find(c=>c.id===id);
+  if(!clip)return;
+  if(clipLibrary.some(c=>c.id===id)){alert('Already in library!');return;}
+  clipLibrary.push(clip);
+  renderClipLibrary();
+  // Show feedback
+  const btn=event.target;
+  btn.textContent='✓ Saved';btn.style.opacity='.5';btn.disabled=true;
+  setTimeout(()=>alert(`✅ "${clip.title}" saved to Clip Library!\n\nSwitch to Library tab to manage all saved clips.`),100);
+}
+
+function renderClipLibrary(){
+  const container=document.getElementById('clip-lib-grid');
+  if(!container)return;
+  if(clipLibrary.length===0){
+    container.innerHTML=`<div style="text-align:center;padding:40px 0;color:var(--text2);font-size:13px;grid-column:1/-1">
+      <div style="font-size:28px;margin-bottom:10px">📂</div>
+      <div style="font-weight:600;margin-bottom:6px">Library is empty</div>
+      <div style="font-size:12px">Analyze a video and save clips from the Detected Clips tab.</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML=clipLibrary.map(c=>`
+    <div class="clip-card" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .13s" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="height:80px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:32px">${c.thumb}</div>
+      <div style="padding:10px 12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:3px">${c.title}</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px">
+          <span class="b ${c.score>=90?'bg':c.score>=80?'bb':'ba'}">${c.score}</span>
+          <span style="font-size:10px;color:var(--text3)">${c.duration}</span>
+        </div>
+        <button class="btn btn-p btn-s" style="width:100%" onclick="exportClip('${c.id}','${c.title}')">Export</button>
+      </div>
+    </div>`).join('');
+}
+
+// Init detected clips as pre-populated (from demo dispatch call)
+clipAnalysisDone=true;
+// Pre-render clip library with sample clips
+clipLibrary=[detectedClips[0],detectedClips[2],detectedClips[3]];
 
 // ---- KEYBOARD NAV GLOBAL ----
 document.addEventListener('keydown',e=>{
