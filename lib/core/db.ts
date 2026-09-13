@@ -451,16 +451,8 @@ export async function ensureCoreSchema() {
       "UPDATE calendar_event_types SET duration_options=json_array(15,30,45,60) WHERE id='cyncro-default-consultation' AND (duration_options IS NULL OR duration_options='')",
     )
     .run();
-  await db
-    .prepare(
-      "UPDATE crm_opportunities SET commission_rate_bps=2000 WHERE commission_rate_bps<2000",
-    )
-    .run();
-  await db
-    .prepare(
-      "UPDATE crm_opportunities SET commission_rate_bps=3000 WHERE commission_rate_bps>3000",
-    )
-    .run();
+  // Add commission_notes column for custom commission overrides/splits
+  try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN commission_notes TEXT").run(); } catch { /* already migrated */ }
   const now = new Date().toISOString();
   await db.batch([
     db

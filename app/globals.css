@@ -23209,3 +23209,61 @@ button.crmUser i {
   justify-content: center;
   margin-top: 1px;
 }
+
+/* Deal edit modal — Commission tab */
+.dealEditModal { width: min(680px, 100%); }
+.dealModalTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #2e1e24;
+  margin: 16px 0 20px;
+  padding-bottom: 0;
+}
+.dealModalTabs button {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #7a6468;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+}
+.dealModalTabs button.active {
+  color: #f0d6da;
+  border-bottom-color: #C1283E;
+}
+.commissionSummary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  border: 1px solid #2e1e24;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  background: #2e1e24;
+}
+.commissionSummary > div {
+  background: #100a0c;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+.commissionSummary small {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #6b5558;
+}
+.commissionSummary b {
+  display: block;
+  font-size: 14px;
+  color: #f5d0d6;
+}
+@media (max-width: 520px) {
+  .commissionSummary { grid-template-columns: 1fr 1fr; }
+}

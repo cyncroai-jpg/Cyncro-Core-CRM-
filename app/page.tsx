@@ -12308,6 +12308,7 @@ function CRMPipeline({
     residual_months?: number;
     residual_flat_cents?: number;
     notes?: string;
+    commission_notes?: string;
   };
   type PipelineStage = {
     id: string;
@@ -12331,6 +12332,7 @@ function CRMPipeline({
   const [pipelineDraft, setPipelineDraft] = useState<Pipeline | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [dealTab, setDealTab] = useState<"DEAL"|"COMMISSION">("DEAL");
   const [createStage, setCreateStage] = useState<string | null>(null);
   const [pipelineViewMode, setPipelineViewMode] = useState<"board"|"table">(initialView);
   const [tableSort, setTableSort] = useState<{col:string;dir:"asc"|"desc"}>({col:"value_cents",dir:"desc"});
@@ -12430,14 +12432,15 @@ function CRMPipeline({
       assignedRep: selectedDeal.assigned_rep || "",
       notes: selectedDeal.notes || "",
     };
-    if (isOwner)
-      Object.assign(updates, {
-        commissionRate: Number(selectedDeal.commission_rate_bps || 2000) / 100,
-        commissionStatus: selectedDeal.commission_status || "PENDING",
-        paymentStatus: selectedDeal.payment_status || "UNPAID",
-        collected: Number(selectedDeal.collected_cents || 0) / 100,
-        residualFlat: Number(selectedDeal.residual_flat_cents || 2500) / 100,
-      });
+    // Always send commission fields — API enforces access control (owner or assigned rep)
+    Object.assign(updates, {
+      commissionRate: Number(selectedDeal.commission_rate_bps || 0) / 100,
+      commissionStatus: selectedDeal.commission_status || "PENDING",
+      paymentStatus: selectedDeal.payment_status || "UNPAID",
+      collected: Number(selectedDeal.collected_cents || 0) / 100,
+      residualFlat: Number(selectedDeal.residual_flat_cents || 0) / 100,
+      commissionNotes: selectedDeal.commission_notes || "",
+    });
     const response = await fetch("/api/crm/opportunities", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -12449,6 +12452,7 @@ function CRMPipeline({
       return;
     }
     setSelectedDeal(null);
+    setDealTab("DEAL");
     await loadDeals();
     window.dispatchEvent(
       new CustomEvent("cyncro:data-changed", {
@@ -13065,246 +13069,158 @@ function CRMPipeline({
         </div>
       )}
       {selectedDeal && (
-        <div className="modalback" onClick={() => setSelectedDeal(null)}>
-          <div
-            className="bookingmodal"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="modalback" onClick={() => { setSelectedDeal(null); setDealTab("DEAL"); }}>
+          <div className="bookingmodal dealEditModal" onClick={(event) => event.stopPropagation()}>
             <div className="modalhead">
               <div>
-                <label>EDIT PIPELINE CARD</label>
+                <label>EDIT PIPELINE DEAL</label>
                 <h2>{selectedDeal.name}</h2>
               </div>
-              <button onClick={() => setSelectedDeal(null)}>×</button>
+              <button onClick={() => { setSelectedDeal(null); setDealTab("DEAL"); }}>×</button>
             </div>
-            <div className="crmForm">
-              <label>
-                Opportunity name
-                <input
-                  value={selectedDeal.name}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      name: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Stage
-                <select
-                  value={selectedDeal.stage}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      stage: event.target.value,
-                    })
-                  }
-                >
-                  {stages.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Deal value
-                <input
-                  type="number"
-                  value={selectedDeal.value_cents / 100}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      value_cents: Number(event.target.value) * 100,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Estimated cost
-                <input
-                  type="number"
-                  min="0"
-                  value={Number(selectedDeal.cost_cents || 0) / 100}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      cost_cents: Number(event.target.value) * 100,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Lead source
-                <input
-                  value={selectedDeal.source || ""}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      source: event.target.value,
-                    })
-                  }
-                  placeholder="Website, referral, prospecting…"
-                />
-              </label>
-              <label>
-                Estimated profit
-                <input
-                  disabled
-                  value={money(
-                    Math.max(
-                      0,
-                      Number(selectedDeal.value_cents || 0) -
-                        Number(selectedDeal.cost_cents || 0),
-                    ),
-                  )}
-                />
-              </label>
-              <label>
-                Probability
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={selectedDeal.probability}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      probability: Number(event.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Assigned rep
-                <input
-                  value={selectedDeal.assigned_rep || ""}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      assigned_rep: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              {isOwner && (
-                <>
-                  <label>
-                    Commission % (20–30)
-                    <input
-                      type="number"
-                      min="20"
-                      max="30"
-                      value={
-                        Number(selectedDeal.commission_rate_bps || 2000) / 100
-                      }
-                      onChange={(event) =>
-                        setSelectedDeal({
-                          ...selectedDeal,
-                          commission_rate_bps: Number(event.target.value) * 100,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Commission status
-                    <select
-                      value={selectedDeal.commission_status}
-                      onChange={(event) =>
-                        setSelectedDeal({
-                          ...selectedDeal,
-                          commission_status: event.target.value,
-                        })
-                      }
-                    >
-                      <option>PENDING</option>
-                      <option>APPROVED</option>
-                      <option>PAID</option>
-                      <option>CLAWBACK</option>
-                    </select>
-                  </label>
-                  <label>
-                    Payment status
-                    <select
-                      value={selectedDeal.payment_status || "UNPAID"}
-                      onChange={(event) =>
-                        setSelectedDeal({
-                          ...selectedDeal,
-                          payment_status: event.target.value,
-                        })
-                      }
-                    >
-                      <option>UNPAID</option>
-                      <option>PARTIAL</option>
-                      <option>PAID</option>
-                      <option>REFUNDED</option>
-                    </select>
-                  </label>
-                  <label>
-                    Amount collected
-                    <input
-                      type="number"
-                      min="0"
-                      value={Number(selectedDeal.collected_cents || 0) / 100}
-                      onChange={(event) =>
-                        setSelectedDeal({
-                          ...selectedDeal,
-                          collected_cents: Number(event.target.value) * 100,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Monthly residual ($25–$50)
-                    <input
-                      type="number"
-                      min="25"
-                      max="50"
-                      value={
-                        Number(selectedDeal.residual_flat_cents || 2500) / 100
-                      }
-                      onChange={(event) =>
-                        setSelectedDeal({
-                          ...selectedDeal,
-                          residual_flat_cents: Number(event.target.value) * 100,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Estimated payout
-                    <input
-                      disabled
-                      value={new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                      }).format(
-                        (Number(selectedDeal.collected_cents || 0) / 100) *
-                          (Number(selectedDeal.commission_rate_bps || 2000) /
-                            10000),
-                      )}
-                    />
-                  </label>
-                </>
-              )}
-              <label>
-                Notes
-                <textarea
-                  value={selectedDeal.notes || ""}
-                  onChange={(event) =>
-                    setSelectedDeal({
-                      ...selectedDeal,
-                      notes: event.target.value,
-                    })
-                  }
-                />
-              </label>
-            </div>
+            {/* Tab navigation */}
+            <nav className="dealModalTabs">
+              <button className={dealTab === "DEAL" ? "active" : ""} onClick={() => setDealTab("DEAL")}>Deal details</button>
+              <button className={dealTab === "COMMISSION" ? "active" : ""} onClick={() => setDealTab("COMMISSION")}>Commission</button>
+            </nav>
+
+            {dealTab === "DEAL" && (
+              <div className="crmForm">
+                <label>
+                  Opportunity name
+                  <input value={selectedDeal.name} onChange={(event) => setSelectedDeal({ ...selectedDeal, name: event.target.value })} />
+                </label>
+                <label>
+                  Stage
+                  <select value={selectedDeal.stage} onChange={(event) => setSelectedDeal({ ...selectedDeal, stage: event.target.value })}>
+                    {stages.map((item) => (<option key={item}>{item}</option>))}
+                  </select>
+                </label>
+                <label>
+                  Deal value
+                  <input type="number" value={selectedDeal.value_cents / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, value_cents: Number(event.target.value) * 100 })} />
+                </label>
+                <label>
+                  Estimated cost
+                  <input type="number" min="0" value={Number(selectedDeal.cost_cents || 0) / 100} onChange={(event) => setSelectedDeal({ ...selectedDeal, cost_cents: Number(event.target.value) * 100 })} />
+                </label>
+                <label>
+                  Estimated profit
+                  <input disabled value={money(Math.max(0, Number(selectedDeal.value_cents || 0) - Number(selectedDeal.cost_cents || 0)))} />
+                </label>
+                <label>
+                  Lead source
+                  <input value={selectedDeal.source || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, source: event.target.value })} placeholder="Website, referral, prospecting…" />
+                </label>
+                <label>
+                  Probability %
+                  <input type="number" min="0" max="100" value={selectedDeal.probability} onChange={(event) => setSelectedDeal({ ...selectedDeal, probability: Number(event.target.value) })} />
+                </label>
+                <label>
+                  Assigned rep
+                  <input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} />
+                </label>
+                <label>
+                  Notes
+                  <textarea value={selectedDeal.notes || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, notes: event.target.value })} />
+                </label>
+              </div>
+            )}
+
+            {dealTab === "COMMISSION" && (
+              <div className="crmForm commissionTab">
+                {/* Commission summary banner */}
+                <div className="commissionSummary">
+                  <div>
+                    <small>DEAL VALUE</small>
+                    <b>{money(selectedDeal.value_cents)}</b>
+                  </div>
+                  <div>
+                    <small>COLLECTED</small>
+                    <b>{money(selectedDeal.collected_cents || 0)}</b>
+                  </div>
+                  <div>
+                    <small>COMMISSION RATE</small>
+                    <b>{(Number(selectedDeal.commission_rate_bps || 0) / 100).toFixed(1)}%</b>
+                  </div>
+                  <div>
+                    <small>ESTIMATED PAYOUT</small>
+                    <b>{money((Number(selectedDeal.collected_cents || 0)) * (Number(selectedDeal.commission_rate_bps || 0) / 10000))}</b>
+                  </div>
+                </div>
+                <label>
+                  Commission rate % (custom — any value)
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={(Number(selectedDeal.commission_rate_bps || 0) / 100).toFixed(1)}
+                    onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_rate_bps: Math.round(Number(event.target.value) * 100) })}
+                  />
+                </label>
+                <label>
+                  Commission status
+                  <select value={selectedDeal.commission_status || "PENDING"} onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_status: event.target.value })}>
+                    <option value="PENDING">PENDING</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="PAID">PAID</option>
+                    <option value="CLAWBACK">CLAWBACK</option>
+                    <option value="DISPUTED">DISPUTED</option>
+                    <option value="HOLD">HOLD</option>
+                  </select>
+                </label>
+                <label>
+                  Payment status
+                  <select value={selectedDeal.payment_status || "UNPAID"} onChange={(event) => setSelectedDeal({ ...selectedDeal, payment_status: event.target.value })}>
+                    <option value="UNPAID">UNPAID</option>
+                    <option value="PARTIAL">PARTIAL</option>
+                    <option value="PAID">PAID</option>
+                    <option value="REFUNDED">REFUNDED</option>
+                    <option value="WRITE_OFF">WRITE OFF</option>
+                  </select>
+                </label>
+                <label>
+                  Amount collected ($)
+                  <input
+                    type="number"
+                    min="0"
+                    value={(Number(selectedDeal.collected_cents || 0) / 100).toFixed(2)}
+                    onChange={(event) => setSelectedDeal({ ...selectedDeal, collected_cents: Math.round(Number(event.target.value) * 100) })}
+                  />
+                </label>
+                <label>
+                  Monthly residual ($)
+                  <input
+                    type="number"
+                    min="0"
+                    step="5"
+                    value={(Number(selectedDeal.residual_flat_cents || 0) / 100).toFixed(2)}
+                    onChange={(event) => setSelectedDeal({ ...selectedDeal, residual_flat_cents: Math.round(Number(event.target.value) * 100) })}
+                  />
+                </label>
+                <label>
+                  Estimated payout (read-only)
+                  <input
+                    disabled
+                    value={money((Number(selectedDeal.collected_cents || 0)) * (Number(selectedDeal.commission_rate_bps || 0) / 10000))}
+                  />
+                </label>
+                <label>
+                  Commission notes / override reason
+                  <textarea
+                    placeholder="Split details, override justification, special conditions…"
+                    value={selectedDeal.commission_notes || ""}
+                    onChange={(event) => setSelectedDeal({ ...selectedDeal, commission_notes: event.target.value })}
+                  />
+                </label>
+              </div>
+            )}
+
             <div className="modalactions">
-              <button className="dangerText" onClick={() => void deleteDeal()}>
-                Delete lead
-              </button>
-              <button onClick={() => setSelectedDeal(null)}>Cancel</button>
-              <button onClick={() => void saveDeal()}>Save changes</button>
+              <button className="dangerText" onClick={() => void deleteDeal()}>Delete lead</button>
+              <button onClick={() => { setSelectedDeal(null); setDealTab("DEAL"); }}>Cancel</button>
+              <button className="crmCreate" onClick={() => void saveDeal()}>Save changes</button>
             </div>
           </div>
         </div>

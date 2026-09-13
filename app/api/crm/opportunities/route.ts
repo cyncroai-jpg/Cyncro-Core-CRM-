@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     const pipelineId = cleanText(body.pipelineId, 80) || null;
     if (!accountId || !name || !stage) return Response.json({ error: "Account, name, and valid stage are required." }, { status: 400 });
     const valueCents = Math.max(0, Math.round(Number(body.value || 0) * 100));
-    const commissionRateBps = Math.min(3000, Math.max(2000, Math.round(Number(body.commissionRate || 20) * 100)));
-    const residualFlatCents = Math.min(5000, Math.max(2500, Math.round(Number(body.residualFlat || 25) * 100)));
+    const commissionRateBps = Math.min(10000, Math.max(0, Math.round(Number(body.commissionRate || 20) * 100)));
+    const residualFlatCents = Math.max(0, Math.round(Number(body.residualFlat || 0) * 100));
     const probability = Math.min(100, Math.max(0, Math.round(Number(body.probability || 10))));
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO crm_opportunities
@@ -62,8 +62,12 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as Record<string, unknown>; const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Opportunity id is required." }, { status: 400 });
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
-    const compensationKeys = ["commissionRate","commissionStatus","residualRate","residualMonths","residualFlat","collected","paymentStatus"];
-    if (compensationKeys.some((key) => updates[key] !== undefined) && !(await isWorkspaceOwner(request))) return Response.json({ error: "Owner permission is required to view or change compensation." }, { status: 403 });
+    const compensationKeys = ["commissionRate","commissionStatus","residualRate","residualMonths","residualFlat","collected","paymentStatus","commissionNotes"];
+    const isOwner = await isWorkspaceOwner(request);
+    const userEmail = requestUser(request);
+    const deal = await coreDb().prepare("SELECT assigned_rep FROM crm_opportunities WHERE id=?").bind(id).first<{assigned_rep:string}>();
+    const isAssignedRep = deal?.assigned_rep && deal.assigned_rep.toLowerCase() === userEmail.toLowerCase();
+    if (compensationKeys.some((key) => updates[key] !== undefined) && !isOwner && !isAssignedRep) return Response.json({ error: "Owner or assigned rep permission is required to change compensation." }, { status: 403 });
     const fields: string[] = []; const values: unknown[] = [];
     const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
     if (updates.name !== undefined) { const name = cleanText(updates.name, 180); if (!name) return Response.json({ error: "Opportunity name is required." }, { status: 400 }); add("name", name); }
@@ -74,14 +78,15 @@ export async function PATCH(request: Request) {
     if (updates.source !== undefined) add("source", cleanText(updates.source, 80) || "MANUAL");
     if (updates.probability !== undefined) add("probability", Math.min(100, Math.max(0, Math.round(Number(updates.probability)))));
     if (updates.assignedRep !== undefined) add("assigned_rep", cleanText(updates.assignedRep, 160) || null);
-    if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(5000, Math.max(2000, Math.round(Number(updates.commissionRate) * 100))));
+    if (updates.commissionRate !== undefined) add("commission_rate_bps", Math.min(10000, Math.max(0, Math.round(Number(updates.commissionRate) * 100))));
     if (updates.commissionStatus !== undefined) add("commission_status", cleanText(updates.commissionStatus, 30).toUpperCase());
     if (updates.paymentStatus !== undefined) { const status = cleanText(updates.paymentStatus, 30).toUpperCase(); add("payment_status", status); if (status === "PAID") add("paid_at", new Date().toISOString()); }
     if (updates.collected !== undefined) add("collected_cents", Math.max(0, Math.round(Number(updates.collected) * 100)));
     if (updates.residualRate !== undefined) add("residual_rate_bps", Math.min(10000, Math.max(0, Math.round(Number(updates.residualRate) * 100))));
     if (updates.residualMonths !== undefined) add("residual_months", Math.max(0, Math.round(Number(updates.residualMonths))));
-    if (updates.residualFlat !== undefined) add("residual_flat_cents", Math.min(5000, Math.max(2500, Math.round(Number(updates.residualFlat) * 100))));
+    if (updates.residualFlat !== undefined) add("residual_flat_cents", Math.max(0, Math.round(Number(updates.residualFlat) * 100)));
     if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
+    if (updates.commissionNotes !== undefined) add("commission_notes", cleanText(updates.commissionNotes, 2000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString()); values.push(id);
     await coreDb().prepare(`UPDATE crm_opportunities SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
