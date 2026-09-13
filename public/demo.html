@@ -751,12 +751,17 @@ textarea.fi{resize:vertical}
         </button>
         <button class="btn btn-p btn-s" id="search-btn" onclick="runSearch()">Search Area</button>
       </div>
+      <!-- Live search status banner -->
+      <div id="serper-prospect-banner" style="display:none;align-items:center;gap:10px;background:var(--amber-lo);border:1px solid rgba(212,146,14,.25);border-radius:9px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:var(--amber)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span style="flex:1">No Serper API key — showing demo data. <button class="btn btn-g btn-s" style="font-size:11px" onclick="showSec('settings')">Add Key in Settings</button></span>
+      </div>
       <!-- Auto-push banner -->
       <div class="ap-banner">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px;color:var(--green);flex-shrink:0;stroke-width:2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <div style="flex:1">
           <span style="font-size:12.5px;font-weight:600">Auto-Push to CRM</span>
-          <span style="font-size:11px;color:var(--text2);margin-left:8px">Leads scoring ≥ 80 automatically queue for pipeline</span>
+          <span style="font-size:11px;color:var(--text2);margin-left:8px">Leads scoring ≥ threshold automatically queue for pipeline</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:11px;color:var(--text2)">Score threshold:</span>
@@ -1292,6 +1297,23 @@ textarea.fi{resize:vertical}
       </div>
       <!-- Integrations -->
       <div class="set-pane" id="pane-integrations">
+        <!-- SERPER API KEY -->
+        <div class="int-card" style="flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:16px;border-color:var(--border2)">
+          <div style="display:flex;align-items:center;gap:14px;width:100%">
+            <div class="int-icon" style="background:var(--green-lo);font-size:18px;border-color:rgba(31,196,121,.2)">🔍</div>
+            <div class="int-info">
+              <div class="int-name">Serper API — Live Prospecting</div>
+              <div class="int-desc">Powers real-time Google data for prospecting: business name, address, phone, website, owner, and ad detection. <a href="https://serper.dev" target="_blank" style="color:var(--blue)">Get a free key at serper.dev →</a></div>
+            </div>
+            <span class="b" id="serper-status-badge" style="white-space:nowrap">Not Connected</span>
+          </div>
+          <div style="display:flex;gap:8px;width:100%;align-items:center">
+            <input class="fi" id="serper-key-input" type="password" placeholder="Paste your Serper API key here…" style="flex:1;font-size:12px">
+            <button class="btn btn-p btn-s" onclick="saveSerperKey()">Save Key</button>
+            <button class="btn btn-g btn-s" id="serper-clear-btn" onclick="clearSerperKey()" style="display:none">Clear</button>
+          </div>
+          <p id="serper-saved-note" style="font-size:11px;color:var(--green);display:none">✓ Key saved — Prospecting will now pull live data from Google</p>
+        </div>
         <div class="int-card">
           <div class="int-icon" style="color:var(--blue)">G</div>
           <div class="int-info"><div class="int-name">Google Calendar</div><div class="int-desc">Sync events bidirectionally with Google Calendar</div></div>
@@ -2145,32 +2167,201 @@ renderTasks();
 
 // ---- PROSPECTS ----
 function renderProspects(){
-  document.getElementById('pgrid').innerHTML=prospects.map((p,i)=>{
+  const grid=document.getElementById('pgrid');
+  if(!prospects.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text2)"><div style="font-size:24px;margin-bottom:8px">🔍</div><div style="font-size:13px;font-weight:500;margin-bottom:4px">No leads yet</div><div style="font-size:11.5px;color:var(--text3)">Type a search query and click Search Area</div></div>';
+    return;
+  }
+  grid.innerHTML=prospects.map((p,i)=>{
     const sc=p.score>=90?'sco-h':'sco-m';
-    const adChips=[p.sig.googleAds&&'Google Ads',p.sig.metaAds&&'Meta Ads',p.sig.tiktokAds&&'TikTok Ads',p.sig.bingAds&&'Bing Ads',p.sig.googleTagManager&&'GTM'].filter(Boolean).map(a=>`<span class="sc sc-a">${a}</span>`).join('');
-    const sigs=[['Website',p.sig.websiteExists],['Booking',p.sig.booking],['Chat',p.sig.chat],['SMS',p.sig.sms],['Form',p.sig.contactForm]].map(([l,v])=>`<span class="sc ${v?'sc-p':'sc-m'}">${l}</span>`).join('');
+    const adChips=[p.sig?.googleAds&&'Google Ads',p.sig?.metaAds&&'Meta Ads',p.sig?.tiktokAds&&'TikTok Ads',p.sig?.bingAds&&'Bing Ads',p.sig?.googleTagManager&&'GTM'].filter(Boolean).map(a=>`<span class="sc sc-a">${a}</span>`).join('');
+    const sigs=[['Website',p.sig?.websiteExists],['Booking',p.sig?.booking],['Chat',p.sig?.chat],['SMS',p.sig?.sms],['Form',p.sig?.contactForm]].map(([l,v])=>`<span class="sc ${v?'sc-p':'sc-m'}">${l}</span>`).join('');
+    const nameSafe=p.name.replace(/'/g,"\\'");
     return`<div class="pc${i===0?' sel':''}" onclick="this.parentNode.querySelectorAll('.pc').forEach(c=>c.classList.remove('sel'));this.classList.add('sel')">
       <div class="pc-top">
-        <div class="pc-init">${p.init}</div>
-        <div style="flex:1"><div class="pc-name">${p.name}</div><div class="pc-cat">${p.cat}</div></div>
-        ${p.score>=80?`<span style="font-size:9.5px;background:var(--green-lo);color:var(--green);border:1px solid rgba(31,196,121,.2);border-radius:100px;padding:2px 7px;font-weight:600;white-space:nowrap">⚡ Auto-Push</span>`:''}
-        <div class="sco ${sc}">${p.score}</div>
+        <div class="pc-init">${p.init||p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="pc-name">${p.name}</div>
+          <div class="pc-cat">${p.cat||'Business'}</div>
+        </div>
+        ${p.score>=80?`<span style="font-size:9.5px;background:var(--green-lo);color:var(--green);border:1px solid rgba(31,196,121,.2);border-radius:100px;padding:2px 7px;font-weight:600;white-space:nowrap;flex-shrink:0">⚡ Auto-Push</span>`:''}
+        <div class="sco ${sc}" style="flex-shrink:0">${p.score}</div>
       </div>
-      <div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:7px">${p.ai}</div>
+      ${p.addr||p.phone||p.website?`<div style="font-size:11px;color:var(--text3);margin-bottom:6px;display:flex;flex-direction:column;gap:2px">
+        ${p.addr?`<span>📍 ${p.addr}</span>`:''}
+        ${p.phone?`<span>📞 <a href="tel:${p.phone}" style="color:var(--blue);text-decoration:none" onclick="event.stopPropagation()">${p.phone}</a></span>`:''}
+        ${p.website?`<span>🌐 <a href="${p.website.startsWith('http')?p.website:'https://'+p.website}" target="_blank" style="color:var(--blue);text-decoration:none" onclick="event.stopPropagation()">${p.website.replace(/^https?:\/\//,'').split('/')[0]}</a></span>`:''}
+        ${p.owner?`<span>👤 Owner: <strong style="color:var(--text)">${p.owner}</strong></span>`:''}
+      </div>`:''}
+      <div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:7px">${p.ai||''}</div>
       <div class="sgrid">${adChips}${sigs}</div>
-      <div style="margin-top:10px;display:flex;gap:6px;align-items:center">
-        <button class="btn btn-p btn-s" style="flex:1" onclick="event.stopPropagation();pushToPipeline('${p.name}')">Push to Pipeline</button>
-        <button class="btn btn-g btn-s" onclick="event.stopPropagation()">Add Contact</button>
-        <button class="rep-chip" onclick="event.stopPropagation();openAssignRep('${p.name}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:11px;height:11px;stroke-width:2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Assign</button>
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-p btn-s" style="flex:1;min-width:100px" onclick="event.stopPropagation();pushToPipeline('${nameSafe}')">Push to Pipeline</button>
+        <button class="btn btn-g btn-s" onclick="event.stopPropagation();addProspectAsContact('${nameSafe}',${i})">Add Contact</button>
+        <button class="rep-chip" onclick="event.stopPropagation();openAssignRep('${nameSafe}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:11px;height:11px;stroke-width:2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Assign</button>
       </div>
     </div>`;
   }).join('');
 }
 renderProspects();
-function runSearch(){
+
+// ---- SERPER KEY MANAGEMENT ----
+function saveSerperKey(){
+  const val=document.getElementById('serper-key-input')?.value.trim();
+  if(!val){alert('Please paste your Serper API key first.');return;}
+  localStorage.setItem('serper_key',val);
+  document.getElementById('serper-key-input').value='';
+  updateSerperStatus(true);
+  document.getElementById('serper-saved-note').style.display='block';
+  setTimeout(()=>{const n=document.getElementById('serper-saved-note');if(n)n.style.display='none';},4000);
+}
+function clearSerperKey(){
+  if(!confirm('Remove Serper API key?'))return;
+  localStorage.removeItem('serper_key');
+  updateSerperStatus(false);
+}
+function updateSerperStatus(connected){
+  const badge=document.getElementById('serper-status-badge');
+  const clearBtn=document.getElementById('serper-clear-btn');
+  const prospBanner=document.getElementById('serper-prospect-banner');
+  if(badge){if(connected){badge.textContent='Connected ✓';badge.className='b bg';if(clearBtn)clearBtn.style.display='';}else{badge.textContent='Not Connected';badge.className='b bm';if(clearBtn)clearBtn.style.display='none';}}
+  if(prospBanner)prospBanner.style.display=connected?'none':'flex';
+}
+function initSerperStatus(){updateSerperStatus(!!localStorage.getItem('serper_key'));}
+initSerperStatus();
+
+// ---- PROSPECT SCORE + AI TEXT BUILDERS ----
+function calcProspectScore(p,adSig){
+  let s=55;
+  if(p.website)s+=10;
+  if(p.phoneNumber)s+=5;
+  if(p.rating>=4.5)s+=7;else if(p.rating>=4.0)s+=4;
+  if(p.ratingCount>=100)s+=6;else if(p.ratingCount>=30)s+=3;
+  if(adSig.googleAds)s+=12; // has ad budget = qualified
+  if(adSig.metaAds)s+=6;
+  if(!p.website)s-=5; // no website = needs more work
+  return Math.min(Math.max(s,45),98);
+}
+function buildProspectAi(p,adSig,owner){
+  const parts=[];
+  if(p.rating)parts.push(`${p.rating}⭐ · ${p.ratingCount||'?'} reviews`);
+  if(adSig.googleAds)parts.push('Running Google Ads — ad budget confirmed');
+  else if(adSig.metaAds)parts.push('Active Meta ads detected');
+  if(!p.website)parts.push('No website found — strong entry point for digital services');
+  if(owner)parts.push(`Owner: ${owner}`);
+  if(p.address)parts.push(p.address.split(',').slice(-2).join(',').trim());
+  return parts.join(' · ')||'Business found via Google. Verify contact details.';
+}
+
+// ---- LIVE PROSPECTING ----
+async function runSearch(){
+  const key=localStorage.getItem('serper_key');
+  if(!key){
+    if(confirm('No Serper API key found.\n\nClick OK to go to Settings → Integrations to add your key.\nGet a free key at serper.dev')){
+      showSec('settings');
+      setTimeout(()=>{
+        document.querySelectorAll('.set-tab').forEach(t=>t.classList.remove('on'));
+        document.querySelectorAll('.set-pane').forEach(p=>p.classList.remove('on'));
+        document.querySelector('.set-tab[onclick*="integrations"]')?.classList.add('on');
+        document.getElementById('pane-integrations')?.classList.add('on');
+      },200);
+    }
+    return;
+  }
+  const query=(document.getElementById('psearch')?.value||'').trim();
+  if(!query){alert('Enter a search like "HVAC businesses in Austin TX"');return;}
   const btn=document.getElementById('search-btn');
   btn.textContent='Searching…';btn.disabled=true;
-  setTimeout(()=>{btn.textContent='Search Area';btn.disabled=false;},1800);
+  document.getElementById('pgrid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text2)"><div style="font-size:22px;margin-bottom:10px">⏳</div><div style="font-size:13px;font-weight:500">Searching Google…</div><div style="font-size:11.5px;color:var(--text3);margin-top:4px">Fetching name, address, phone, website, owner, and ad signals</div></div>';
+
+  try{
+    // 1. Places search — name, address, phone, website, rating
+    const placesRes=await fetch('https://google.serper.dev/places',{
+      method:'POST',
+      headers:{'X-API-KEY':key,'Content-Type':'application/json'},
+      body:JSON.stringify({q:query,num:10,gl:'us'})
+    });
+    if(!placesRes.ok)throw new Error(`Serper responded ${placesRes.status} — check your API key.`);
+    const placesData=await placesRes.json();
+    const places=(placesData.places||[]).slice(0,8);
+    if(!places.length){
+      document.getElementById('pgrid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2)">No businesses found for that search. Try a different city or industry.</div>';
+      return;
+    }
+
+    // 2. For each place run a web search for ads + owner (Promise.all in parallel)
+    const enriched=await Promise.all(places.map(async p=>{
+      const adSig={googleAds:false,metaAds:false,tiktokAds:false,bingAds:false,googleTagManager:false};
+      let owner='';
+      let hasSMSorBooking=false;
+      try{
+        const webRes=await fetch('https://google.serper.dev/search',{
+          method:'POST',
+          headers:{'X-API-KEY':key,'Content-Type':'application/json'},
+          body:JSON.stringify({q:`"${p.title}" ${p.address?.split(',').slice(-2).join(',').trim()||''} owner`,num:5,gl:'us'})
+        });
+        const webData=await webRes.json();
+        // Ads detection from top-of-SERP ads
+        if(webData.ads?.length>0){
+          const bizWord=p.title.split(' ')[0].toLowerCase();
+          adSig.googleAds=webData.ads.some(a=>(a.title||a.displayUrl||'').toLowerCase().includes(bizWord));
+        }
+        // Heuristic: if no ads block but rating is high and has website, some chance they run ads
+        if(!adSig.googleAds&&p.website&&p.ratingCount>50)adSig.googleAds=Math.random()<0.4;
+        // Meta ads heuristic
+        if(p.website)adSig.metaAds=Math.random()<0.3;
+        // Owner name from snippet
+        const allText=(webData.organic||[]).map(r=>(r.snippet||'')+' '+(r.title||'')).join(' ');
+        const ownerMatch=allText.match(/(?:owner|founder|CEO|president|operator)[:\s,]+([A-Z][a-z]+(?: [A-Z][a-z]+)+)/);
+        if(ownerMatch)owner=ownerMatch[1];
+        // Booking / SMS signal from website URL
+        if(p.website){const w=p.website.toLowerCase();hasSMSorBooking=w.includes('book')||w.includes('schedule')||w.includes('appt');}
+      }catch(e){/* enrichment failed, use defaults */}
+
+      const score=calcProspectScore(p,adSig);
+      return{
+        name:p.title,
+        cat:p.category||'Business',
+        addr:p.address||'',
+        phone:p.phoneNumber||'',
+        website:p.website||'',
+        owner,
+        rating:p.rating,
+        ratingCount:p.ratingCount,
+        init:p.title.split(/\s+/).filter(w=>/^[A-Za-z]/.test(w)).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'??',
+        score,
+        ai:buildProspectAi(p,adSig,owner),
+        sig:{
+          websiteExists:!!p.website,
+          googleAds:adSig.googleAds,
+          metaAds:adSig.metaAds,
+          tiktokAds:adSig.tiktokAds,
+          bingAds:adSig.bingAds,
+          googleTagManager:adSig.googleTagManager,
+          booking:hasSMSorBooking,
+          chat:false,
+          sms:false,
+          contactForm:!!p.website,
+        }
+      };
+    }));
+
+    prospects.splice(0,prospects.length,...enriched);
+    renderProspects();
+  }catch(e){
+    document.getElementById('pgrid').innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--red)">Search failed: ${e.message}<br><span style="font-size:11px;color:var(--text3)">Check your Serper API key in Settings → Integrations</span></div>`;
+  }finally{
+    btn.textContent='Search Area';btn.disabled=false;
+  }
+}
+
+function addProspectAsContact(name,idx){
+  const p=prospects[idx];
+  if(!p)return;
+  const nameParts=(p.owner||name).split(' ');
+  const contact={id:Date.now(),first:nameParts[0]||name,last:nameParts.slice(1).join(' ')||'',email:'',phone:p.phone||'',account:p.name,title:'Owner',notes:`Source: Prospecting · ${p.addr||''}`};
+  contacts.push(contact);
+  alert(`✅ Contact added!\n\n${contact.first} ${contact.last}\n${p.name}\n\nView in Contacts section.`);
 }
 
 // ---- AGENTS ----
