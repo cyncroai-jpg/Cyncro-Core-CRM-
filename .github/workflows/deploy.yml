@@ -49,6 +49,30 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Patch generated wrangler config with real D1 database
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'dist/server/wrangler.json';
+            const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+            // Replace any D1 binding named DB with our real database
+            cfg.d1_databases = [{
+              binding: 'DB',
+              database_name: 'cyncro-core',
+              database_id: 'c1aca1f5-a699-458a-95e7-7aa5b879e428'
+            }];
+            fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+            console.log('Patched dist/server/wrangler.json with real D1 database ID');
+          "
+          # Remove D1 from wrangler.toml so there is no duplicate binding
+          node -e "
+            const fs = require('fs');
+            let toml = fs.readFileSync('wrangler.toml', 'utf8');
+            toml = toml.replace(/\[\[d1_databases\]\][\s\S]*?(?=\n\[|\n#|\s*$)/, '');
+            fs.writeFileSync('wrangler.toml', toml);
+            console.log('Removed [[d1_databases]] from wrangler.toml');
+          "
+
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
