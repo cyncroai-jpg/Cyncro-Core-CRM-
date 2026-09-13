@@ -25,30 +25,6 @@ jobs:
       - name: Install dependencies
         run: npm run install:ci
 
-      - name: Create D1 database (skips if already exists)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: 2685fddc3c8d342a98b1adb6a13912ef
-        run: |
-          # Create the database — wrangler exits 0 if it already exists
-          npx wrangler d1 create cyncro-core 2>&1 || true
-
-          # Get the database_id from Cloudflare
-          DB_ID=$(npx wrangler d1 list --json 2>/dev/null | \
-            node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); \
-            const db=JSON.parse(d).find(x=>x.name==='cyncro-core'); \
-            console.log(db?.uuid||db?.id||'')")
-
-          if [ -z "$DB_ID" ]; then
-            echo "ERROR: Could not find D1 database ID. Check that CLOUDFLARE_API_TOKEN has D1 permissions."
-            exit 1
-          fi
-
-          echo "D1 database ID: $DB_ID"
-          # Patch wrangler.toml with the real ID
-          sed -i "s/REPLACE_WITH_YOUR_D1_DATABASE_ID/$DB_ID/" wrangler.toml
-          echo "Updated wrangler.toml with database_id = $DB_ID"
-
       - name: Set secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
