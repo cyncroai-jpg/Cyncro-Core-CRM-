@@ -10975,6 +10975,11 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                   "Strong CTA": selected.signals.strongCta,
                   Facebook: selected.signals.facebook,
                   Instagram: selected.signals.instagram,
+                  "Google Ads": selected.signals.googleAds,
+                  "Meta Ads": selected.signals.metaAds,
+                  "TikTok Ads": selected.signals.tiktokAds,
+                  "Bing Ads": selected.signals.bingAds,
+                  "Tag Manager": selected.signals.googleTagManager,
                 }).map(([label, present]) => (
                   <span key={label} className={present ? "present" : "missing"}>
                     <i>{present ? "✓" : "×"}</i>

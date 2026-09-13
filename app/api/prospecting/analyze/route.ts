@@ -32,6 +32,14 @@ async function aiLeadIntelligence(params: {
     !params.signals.strongCta && "weak or missing call-to-action",
   ].filter(Boolean).join(", ");
 
+  const adPlatforms = [
+    params.signals.googleAds && "Google Ads",
+    params.signals.metaAds && "Meta/Facebook Ads",
+    params.signals.tiktokAds && "TikTok Ads",
+    params.signals.bingAds && "Bing Ads",
+    params.signals.googleTagManager && "Google Tag Manager",
+  ].filter(Boolean).join(", ");
+
   const contactContext = [
     params.emails.length ? `Emails found: ${params.emails.slice(0, 3).join(", ")}` : "",
     params.phones.length ? `Phones found: ${params.phones.slice(0, 3).join(", ")}` : "",
@@ -60,6 +68,7 @@ Category: ${params.category}
 Location: ${params.address}
 Rating: ${params.rating > 0 ? `${params.rating}★ (${params.reviewCount} reviews)` : "Not rated"}
 Missing digital tools: ${missingFeatures || "none detected"}
+Ad platforms detected: ${adPlatforms || "none — not visibly running paid ads"}
 ${contactContext}
 
 Website excerpt:
@@ -111,6 +120,11 @@ type Signals = {
   strongCta: boolean;
   facebook: boolean;
   instagram: boolean;
+  googleAds: boolean;
+  metaAds: boolean;
+  googleTagManager: boolean;
+  tiktokAds: boolean;
+  bingAds: boolean;
 };
 
 function rank(score: number) {
@@ -270,6 +284,12 @@ export async function POST(request: Request) {
       ),
       facebook: has(/facebook\.com|fb\.com/),
       instagram: has(/instagram\.com/),
+      // Ad platform detection — signals the business is spending on paid traffic
+      googleAds: has(/adsbygoogle|googleadservices\.com|googlesyndication\.com|gtag\(["']config["'].*AW-|google_conversion/),
+      metaAds: has(/fbq\(["']init["']|connect\.facebook\.net\/.*\/fbevents|meta\.com\/business\/pixels/),
+      googleTagManager: has(/googletagmanager\.com\/gtm\.js|gtm\.start|googletagmanager\.com\/ns\.html/),
+      tiktokAds: has(/analytics\.tiktok\.com|tiktok\.com\/i18n\/pixel|ttq\.load\(/),
+      bingAds: has(/bat\.bing\.com|microsoft\.com\/clarity|clarity\.ms\/tag/),
     };
 
     let score = 18;
@@ -327,6 +347,21 @@ export async function POST(request: Request) {
     if (signals.facebook || signals.instagram) {
       score += 4;
       reasons.push("Social audience can feed automated follow-up.");
+    }
+    const runningAds = signals.googleAds || signals.metaAds || signals.tiktokAds || signals.bingAds;
+    if (runningAds) {
+      score += 10;
+      const adPlatforms = [
+        signals.googleAds && "Google Ads",
+        signals.metaAds && "Meta/Facebook Ads",
+        signals.tiktokAds && "TikTok Ads",
+        signals.bingAds && "Bing/Microsoft Ads",
+      ].filter(Boolean).join(", ");
+      reasons.push(`Actively running paid ads (${adPlatforms}) — high intent to invest in growth.`);
+    }
+    if (signals.googleTagManager) {
+      score += 3;
+      reasons.push("Google Tag Manager detected — technically set up for conversion tracking.");
     }
     score = Math.min(score, 100);
 
