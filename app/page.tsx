@@ -979,8 +979,9 @@ function PublicBookingExperience() {
     video_platforms: string;
     host_name?: string;
     custom_questions?: string;
+    smartslot_enabled?: number;
   };
-  type Slot = { startsAt: string; endsAt: string; remaining: number };
+  type Slot = { startsAt: string; endsAt: string; remaining: number; score?: number; reasons?: string[] };
   const [events, setEvents] = useState<EventType[]>([]);
   const [eventId, setEventId] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -999,6 +1000,10 @@ function PublicBookingExperience() {
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [waitlistMode, setWaitlistMode] = useState(false);
+  const [waitlistSaved, setWaitlistSaved] = useState(false);
+  const [waitlistForm, setWaitlistForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [smartSlotRecommended, setSmartSlotRecommended] = useState<Slot | null>(null);
   const selected = events.find((item) => item.id === eventId);
   const customQuestions: CustomQuestion[] = selected?.custom_questions ? (() => { try { return JSON.parse(selected.custom_questions) as CustomQuestion[]; } catch { return []; } })() : [];
   const selectedDuration = selected?.duration_minutes || 0;
@@ -1035,22 +1040,33 @@ function PublicBookingExperience() {
   }, []);
   useEffect(() => {
     if (!eventId) return;
+    const ev = events.find(e => e.id === eventId);
     void (async () => {
       setError("");
+      setWaitlistMode(false);
+      setWaitlistSaved(false);
+      setSmartSlotRecommended(null);
       const from = new Date();
       from.setHours(0, 0, 0, 0);
-      const response = await fetch(
-        `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21`,
-      );
-      const data = (await response.json()) as {
-        slots?: Slot[];
-        error?: string;
-      };
-      if (!response.ok) {
-        setError(data.error || "Availability could not be loaded");
-        return;
+      if (ev?.smartslot_enabled) {
+        // SmartSlot™ Engine — ranked, scored slot recommendations
+        const response = await fetch(
+          `/api/calendar/slots?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21&leadScore=50&preferMorning=true`,
+        );
+        const data = (await response.json()) as { slots?: Slot[]; recommended?: Slot | null; error?: string };
+        if (!response.ok) { setError(data.error || "Availability could not be loaded"); return; }
+        const slotList = data.slots || [];
+        setSlots(slotList);
+        setSmartSlotRecommended(data.recommended || null);
+        if (slotList.length > 0 && slotList.every(s => (s.remaining || 0) === 0)) setWaitlistMode(true);
+      } else {
+        const response = await fetch(
+          `/api/calendar/availability?eventTypeId=${encodeURIComponent(eventId)}&from=${encodeURIComponent(from.toISOString())}&days=21`,
+        );
+        const data = (await response.json()) as { slots?: Slot[]; error?: string };
+        if (!response.ok) { setError(data.error || "Availability could not be loaded"); return; }
+        setSlots(data.slots || []);
       }
-      setSlots(data.slots || []);
       setStartsAt("");
     })();
   }, [eventId]);
@@ -1106,10 +1122,40 @@ function PublicBookingExperience() {
       }),
     );
   };
+  const joinWaitlist = async () => {
+    if (!waitlistForm.name.trim() || !waitlistForm.email.trim()) {
+      setError("Enter your name and email to join the waitlist.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const res = await fetch("/api/calendar/waitlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventTypeId: eventId, customerName: waitlistForm.name, customerEmail: waitlistForm.email, customerPhone: waitlistForm.phone, notes: waitlistForm.notes }),
+    });
+    const data = (await res.json()) as { error?: string };
+    setSaving(false);
+    if (!res.ok) { setError(data.error || "Could not join waitlist."); return; }
+    setWaitlistSaved(true);
+  };
   if (loading)
     return (
       <section className="liveBooking">
         <div className="bookingState">Loading live availability…</div>
+      </section>
+    );
+  if (waitlistSaved)
+    return (
+      <section className="liveBooking">
+        <div className="bookingSuccess">
+          <i>⏳</i>
+          <small>WAITLIST CONFIRMED</small>
+          <h1>You’re on the list.</h1>
+          <p>{selected?.name} — we’ll notify you the moment a slot opens.</p>
+          <span>You’ll receive an email when a time becomes available. Book fast — waitlist spots go quickly.</span>
+          <button onClick={() => { setWaitlistSaved(false); setWaitlistMode(false); setWaitlistForm({ name: "", email: "", phone: "", notes: "" }); }}>Go back</button>
+        </div>
       </section>
     );
   if (confirmed)
@@ -1237,34 +1283,59 @@ function PublicBookingExperience() {
               )}
             </div>
             <div className="bookingBlock">
-              <small>CHOOSE A LIVE AVAILABLE TIME</small>
-              <div className="liveSlots">
-                {slots.slice(0, 30).map((slot) => (
-                  <button
-                    className={startsAt === slot.startsAt ? "active" : ""}
-                    onClick={() => setStartsAt(slot.startsAt)}
-                    key={slot.startsAt}
-                  >
-                    <b>
-                      {new Date(slot.startsAt).toLocaleDateString([], {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </b>
-                    <span>
-                      {new Date(slot.startsAt).toLocaleTimeString([], {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
+              <small>{selected?.smartslot_enabled ? "SMARTSLOT™ — RANKED RECOMMENDATIONS" : "CHOOSE A LIVE AVAILABLE TIME"}</small>
+              {waitlistMode ? (
+                <div style={{padding:"16px",background:"#100e0f",border:"1px solid #3e2527",borderRadius:10,marginTop:8}}>
+                  <p style={{fontSize:13,color:"#C8C0C4",margin:"0 0 12px"}}>
+                    <b style={{color:"#d4c040"}}>⚠ All times are currently full.</b> Join the waitlist and we'll notify you when a slot opens.
+                  </p>
+                  <div className="bookingDetails">
+                    <input placeholder="Full name" value={waitlistForm.name} onChange={e=>setWaitlistForm({...waitlistForm,name:e.target.value})} />
+                    <input type="email" placeholder="Email address" value={waitlistForm.email} onChange={e=>setWaitlistForm({...waitlistForm,email:e.target.value})} />
+                    <input placeholder="Phone (optional)" value={waitlistForm.phone} onChange={e=>setWaitlistForm({...waitlistForm,phone:e.target.value})} />
+                    <textarea placeholder="Preferred times or notes (optional)" value={waitlistForm.notes} onChange={e=>setWaitlistForm({...waitlistForm,notes:e.target.value})} rows={2} />
+                  </div>
+                  {error && <div className="bookingError">{error}</div>}
+                  <button className="confirmLiveBooking" style={{marginTop:12}} disabled={saving} onClick={()=>void joinWaitlist()}>
+                    {saving ? "Joining…" : "Join waitlist →"}
                   </button>
-                ))}
-              </div>
-              {!slots.length && (
-                <p className="bookingState">
-                  No open times in the next 21 days.
-                </p>
+                </div>
+              ) : (
+                <>
+                  <div className="liveSlots">
+                    {slots.slice(0, 30).map((slot) => {
+                      const isRec = selected?.smartslot_enabled && smartSlotRecommended?.startsAt === slot.startsAt;
+                      const isFull = (slot.remaining || 1) === 0;
+                      return (
+                        <button
+                          className={startsAt === slot.startsAt ? "active" : isFull ? "slotFull" : ""}
+                          onClick={() => {
+                            if (isFull) { setWaitlistMode(true); return; }
+                            setStartsAt(slot.startsAt);
+                          }}
+                          key={slot.startsAt}
+                          title={slot.reasons?.join(" · ") || ""}
+                          style={isRec ? {borderColor:"#C1283E",position:"relative"} : undefined}
+                        >
+                          {isRec && <span style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",fontSize:9,fontWeight:700,letterSpacing:"0.08em",background:"#C1283E",color:"#fff",padding:"1px 6px",borderRadius:4,whiteSpace:"nowrap"}}>⭐ RECOMMENDED</span>}
+                          <b>
+                            {new Date(slot.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+                          </b>
+                          <span>
+                            {new Date(slot.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                          </span>
+                          {selected?.smartslot_enabled && typeof slot.score === "number" && (
+                            <span style={{fontSize:9,color: slot.score>=80?"#3dcc7a":slot.score>=60?"#d4c040":"#b8abad",marginTop:2}}>
+                              {slot.score}/100
+                            </span>
+                          )}
+                          {isFull && <span style={{fontSize:9,color:"#e05060"}}>Full — join waitlist</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!slots.length && <p className="bookingState">No open times in the next 21 days.</p>}
+                </>
               )}
             </div>
             <div className="bookingBlock">
@@ -19242,6 +19313,7 @@ function Admin({
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<{id:string;name:string;resource_type:string;capacity:number;location?:string;color:string}[]>([]);
   const [newResource, setNewResource] = useState({name:"",resourceType:"ROOM",capacity:1,location:"",color:"#C1283E"});
+  const [routingRules, setRoutingRules] = useState<{id:string;name:string;strategy:string;active:number}[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
   const [manual, setManual] = useState({
@@ -19290,6 +19362,12 @@ function Admin({
     try {
       const res = await fetch("/api/calendar/resources");
       if (res.ok) setResources(((await res.json()) as {resources?:typeof resources}).resources || []);
+    } catch { /* non-fatal */ }
+  };
+  const loadRoutingRules = async () => {
+    try {
+      const res = await fetch("/api/calendar/routing-rules");
+      if (res.ok) setRoutingRules(((await res.json()) as {routingRules?:typeof routingRules}).routingRules || []);
     } catch { /* non-fatal */ }
   };
   const loadAuditLog = async (entityId: string) => {
@@ -19360,6 +19438,7 @@ function Admin({
       void loadBlockedTimes();
       void loadEventTypeSettings();
       void loadResources();
+      void loadRoutingRules();
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -19559,6 +19638,10 @@ function Admin({
         maxBookingsPerDay: editingEt.max_bookings_per_day,
         bufferBeforeMinutes: editingEt.buffer_before_minutes,
         bufferAfterMinutes: editingEt.buffer_after_minutes,
+        smartslotEnabled: editingEt.smartslot_enabled ? true : false,
+        routingRuleId: editingEt.routing_rule_id || null,
+        bookingPageTitle: editingEt.booking_page_title || null,
+        bookingPageDescription: editingEt.booking_page_description || null,
       }),
     });
     if (!res.ok) { setNotice("Could not save event type settings."); return; }
@@ -20288,6 +20371,42 @@ function Admin({
                   <label>Cancellation window (hours)<input type="number" min="0" max="168" value={Number(editingEt.cancellation_hours||24)} onChange={e=>setEditingEt({...editingEt,cancellation_hours:Number(e.target.value)})} /></label>
                   <label>Buffer before (minutes)<input type="number" min="0" max="120" value={Number(editingEt.buffer_before_minutes||0)} onChange={e=>setEditingEt({...editingEt,buffer_before_minutes:Number(e.target.value)})} /></label>
                   <label>Buffer after (minutes)<input type="number" min="0" max="120" value={Number(editingEt.buffer_after_minutes||0)} onChange={e=>setEditingEt({...editingEt,buffer_after_minutes:Number(e.target.value)})} /></label>
+                </div>
+                {/* SmartSlot™ + Outcome Routing™ */}
+                <div style={{margin:"20px 0 0",padding:"16px",background:"#0c080a",border:"1px solid #2e2527",borderRadius:10}}>
+                  <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#C1283E",display:"block",marginBottom:12}}>SMARTSLOT™ ENGINE</small>
+                  <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:0}}>
+                    <input type="checkbox" checked={!!editingEt.smartslot_enabled} onChange={e=>setEditingEt({...editingEt,smartslot_enabled:e.target.checked?1:0})} style={{width:16,height:16,accentColor:"#C1283E"}} />
+                    <span style={{fontSize:12,color:"#C8C0C4"}}>Enable SmartSlot™ ranked recommendations</span>
+                  </label>
+                  <p style={{fontSize:11,color:"#7a6e70",margin:"8px 0 0",lineHeight:1.5}}>
+                    When enabled, the public booking page shows slots ranked by a composite score — time-of-day preference, day demand, lead value, and capacity — with the top pick highlighted as recommended.
+                  </p>
+                </div>
+                <div style={{margin:"12px 0 0",padding:"16px",background:"#0c080a",border:"1px solid #2e2527",borderRadius:10}}>
+                  <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70",display:"block",marginBottom:12}}>OUTCOME ROUTING™</small>
+                  <label style={{display:"flex",flexDirection:"column",gap:4}}>
+                    <span style={{fontSize:11,color:"#C8C0C4",fontWeight:600}}>Routing rule</span>
+                    <select value={String(editingEt.routing_rule_id||"")} onChange={e=>setEditingEt({...editingEt,routing_rule_id:e.target.value||null})}
+                      style={{background:"#100e0f",border:"1px solid #2e2527",borderRadius:6,color:"#f5f0eb",padding:"8px 10px",fontSize:12}}>
+                      <option value="">None — no automatic assignment</option>
+                      {routingRules.filter(r=>r.active).map(r=>(
+                        <option key={r.id} value={r.id}>{r.name} ({r.strategy.replace("_"," ")})</option>
+                      ))}
+                    </select>
+                    {!routingRules.length && <span style={{fontSize:10,color:"#5a4e51",marginTop:4}}>No routing rules yet. Create one from the Routing Rules manager.</span>}
+                  </label>
+                </div>
+                <div style={{margin:"12px 0 0",padding:"16px",background:"#0c080a",border:"1px solid #2e2527",borderRadius:10}}>
+                  <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70",display:"block",marginBottom:12}}>BOOKING PAGE COPY</small>
+                  <div className="crmForm" style={{gap:8}}>
+                    <label style={{fontSize:11}}>Page title (optional override)
+                      <input value={String(editingEt.booking_page_title||"")} onChange={e=>setEditingEt({...editingEt,booking_page_title:e.target.value})} placeholder={String(editingEt.name||"Event name")} />
+                    </label>
+                    <label style={{fontSize:11}}>Page description (optional)
+                      <input value={String(editingEt.booking_page_description||"")} onChange={e=>setEditingEt({...editingEt,booking_page_description:e.target.value})} placeholder="What attendees will see below the title" />
+                    </label>
+                  </div>
                 </div>
                 <div style={{margin:"20px 0 12px"}}>
                   <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70",display:"block",marginBottom:12}}>WEEKLY AVAILABILITY</small>

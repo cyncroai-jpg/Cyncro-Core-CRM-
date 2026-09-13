@@ -75,6 +75,10 @@ export async function PATCH(request: Request) {
     if (body.maxBookingsPerDay !== undefined) add("max_bookings_per_day", Math.max(0, Number(body.maxBookingsPerDay) || 0));
     if (body.slotIntervalMinutes !== undefined) add("slot_interval_minutes", Math.max(0, Number(body.slotIntervalMinutes) || 0));
     if (Array.isArray(body.customQuestions)) add("custom_questions", JSON.stringify(body.customQuestions));
+    if (body.smartslotEnabled !== undefined) add("smartslot_enabled", body.smartslotEnabled ? 1 : 0);
+    if (body.routingRuleId !== undefined) add("routing_rule_id", cleanText(body.routingRuleId, 80) || null);
+    if (body.bookingPageTitle !== undefined) add("booking_page_title", cleanText(body.bookingPageTitle, 200) || null);
+    if (body.bookingPageDescription !== undefined) add("booking_page_description", cleanText(body.bookingPageDescription, 1000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString());
     values.push(id);
