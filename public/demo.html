@@ -373,6 +373,85 @@ textarea.fi{resize:vertical}
 .fab:active{transform:scale(.9)}
 .fab svg{width:22px;height:22px;stroke-width:2}
 
+/* DISPATCH */
+.dispatch-board{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.dcol{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;min-height:200px}
+.dcol-h{padding:9px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.dcol-h .dcn{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;flex:1}
+.djob{margin:7px;padding:10px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;cursor:pointer;transition:border-color .13s}
+.djob:hover{border-color:var(--border2)}
+.djob-name{font-size:12px;font-weight:600;margin-bottom:2px}
+.djob-acc{font-size:11px;color:var(--text2);margin-bottom:6px}
+.djob-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.djob-rep{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);margin-top:5px}
+.dispatch-map{background:var(--surface);border:1px solid var(--border);border-radius:10px;height:180px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;overflow:hidden;position:relative}
+.map-placeholder{width:100%;height:100%;background:linear-gradient(135deg,var(--surface2) 0%,var(--surface3) 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.map-pin{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);cursor:pointer}
+
+/* ONBOARDING */
+.ob-layout{display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start}
+.ob-client-list{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ob-client-item{padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.ob-client-item:last-child{border-bottom:none}
+.ob-client-item:hover{background:var(--surface2)}
+.ob-client-item.on{background:var(--red-lo);border-left:2px solid var(--red);padding-left:12px}
+.ob-progress{height:4px;background:var(--surface3);border-radius:2px;margin-top:5px;overflow:hidden}
+.ob-progress-fill{height:100%;background:var(--green);border-radius:2px}
+.ob-main{display:flex;flex-direction:column;gap:12px}
+.ob-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0}
+.ob-tab{background:none;border:none;border-bottom:2px solid transparent;padding:7px 14px 10px;font-family:var(--fb);font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
+.ob-tab.on{color:var(--text);border-bottom-color:var(--red)}
+.ob-pane{display:none}.ob-pane.on{display:block}
+.upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:12px}
+.upload-zone:hover{border-color:var(--red);background:var(--red-lo)}
+.upload-zone svg{width:28px;height:28px;stroke-width:1.5;color:var(--text3);margin:0 auto 8px;display:block}
+.upload-zone-label{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px}
+.upload-zone-sub{font-size:11px;color:var(--text3)}
+.file-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:6px}
+.file-ico{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.file-info{flex:1}
+.file-name{font-size:12.5px;font-weight:500;margin-bottom:1px}
+.file-meta{font-size:11px;color:var(--text3)}
+.ob-q{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 14px;margin-bottom:8px}
+.ob-q-num{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.ob-q-text{font-size:13px;font-weight:500;margin-bottom:8px}
+.ob-q-ans{font-size:12.5px;color:var(--text2);background:var(--surface3);border-radius:6px;padding:8px 10px;line-height:1.55}
+.ob-check{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.ob-check:last-child{border-bottom:none}
+.ob-check-box{width:18px;height:18px;border-radius:4px;border:2px solid var(--border2);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .13s}
+.ob-check-box.done{background:var(--green);border-color:var(--green)}
+.ob-check-box.done::after{content:'';width:8px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px);display:block}
+.ob-check-lbl{font-size:12.5px;font-weight:500;flex:1}
+.ob-check-lbl.done{text-decoration:line-through;color:var(--text2)}
+.ob-check-who{font-size:11px;color:var(--text3)}
+
+/* CONTRACTS & FORMS */
+.contract-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.contract-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .13s;position:relative}
+.contract-card:hover{border-color:var(--border2)}
+.cc-type{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:6px}
+.cc-name{font-size:14px;font-weight:700;font-family:var(--fd);margin-bottom:4px;line-height:1.3}
+.cc-meta{font-size:11.5px;color:var(--text2);margin-bottom:10px}
+.cc-status-row{display:flex;align-items:center;gap:6px;margin-top:8px}
+.sig-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.sig-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:11px;font-weight:700;flex-shrink:0}
+.sig-info{flex:1}
+.sig-name{font-size:12.5px;font-weight:500;margin-bottom:1px}
+.sig-meta{font-size:11px;color:var(--text3)}
+.sig-status{font-size:10px;font-weight:600;padding:2px 7px;border-radius:100px}
+/* Signature canvas modal */
+.sig-canvas-wrap{border:2px solid var(--border2);border-radius:8px;overflow:hidden;background:var(--surface3);cursor:crosshair}
+#sig-canvas{display:block;touch-action:none}
+.ip-badge{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 13px;font-size:11px;color:var(--text2);display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+.ip-badge svg{width:13px;height:13px;flex-shrink:0;margin-top:1px;stroke-width:2;color:var(--green)}
+.ip-info{flex:1;line-height:1.7}
+.form-builder{display:flex;flex-direction:column;gap:7px}
+.fb-field{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:grab}
+.fb-field:active{cursor:grabbing}
+.fb-field-type{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);width:60px;flex-shrink:0}
+.fb-field-label{font-size:13px;font-weight:500;flex:1}
+.fb-field-req{font-size:10px;color:var(--red);margin-left:4px}
+
 @media(max-width:640px){
   .fab{display:flex}
   html{font-size:13px}
@@ -444,6 +523,14 @@ textarea.fi{resize:vertical}
   .notif-panel{right:-80px;width:calc(100vw - 24px)}
   /* cmd palette */
   .cmd{padding-top:5vh}
+  /* dispatch */
+  .dispatch-board{display:flex;overflow-x:auto;gap:10px;padding-bottom:8px;scroll-snap-type:x mandatory}
+  .dcol{min-width:200px;flex-shrink:0;scroll-snap-align:start}
+  /* onboarding */
+  .ob-layout{grid-template-columns:1fr}
+  .ob-client-list{display:none}
+  /* contracts */
+  .contract-grid{grid-template-columns:1fr}
 }
 </style>
 
@@ -458,6 +545,9 @@ textarea.fi{resize:vertical}
     <button class="mtb" onclick="navTo('prospecting');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Prospects</button>
     <button class="mtb" onclick="navTo('attribution');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Attribution</button>
     <button class="mtb" onclick="navTo('calendar');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</button>
+    <button class="mtb" onclick="navTo('dispatch');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Dispatch</button>
+    <button class="mtb" onclick="navTo('onboarding');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg>Onboarding</button>
+    <button class="mtb" onclick="navTo('contracts');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Contracts</button>
     <button class="mtb" onclick="navTo('reports');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</button>
     <button class="mtb" onclick="navTo('settings');closeTray()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
   </div>
@@ -488,6 +578,10 @@ textarea.fi{resize:vertical}
   <button class="rb" data-sec="agents" title="AI Agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24A2.5 2.5 0 0 0 14.5 2Z"/></svg></button>
   <button class="rb" data-sec="calendar" title="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
   <button class="rb" data-sec="tasks" title="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+  <div class="rsep"></div>
+  <button class="rb" data-sec="dispatch" title="Dispatch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+  <button class="rb" data-sec="onboarding" title="Client Onboarding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg></button>
+  <button class="rb" data-sec="contracts" title="Contracts & Forms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
   <div class="rsep"></div>
   <button class="rb" data-sec="reports" title="Reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>
   <button class="rb" data-sec="settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -719,6 +813,282 @@ textarea.fi{resize:vertical}
         <button class="btn btn-g btn-s">Marcus T.</button>
       </div>
       <div class="tlist" id="task-list"></div>
+    </div>
+
+    <!-- DISPATCH -->
+    <div class="sec" id="sec-dispatch">
+      <div class="sh"><h2>Dispatch</h2><span class="sh-sub">Rep scheduling & field operations</span>
+        <button class="btn btn-p btn-s" style="margin-left:auto" onclick="open('mo-dispatch')">+ Schedule Job</button>
+      </div>
+      <div class="statgrid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="stat"><div class="stat-lbl">Active Today</div><div class="stat-val">7</div><div class="stat-sub">scheduled visits</div></div>
+        <div class="stat"><div class="stat-lbl">En Route</div><div class="stat-val">2</div><div class="stat-sub up">Jordan M., Marcus T.</div></div>
+        <div class="stat"><div class="stat-lbl">Completed</div><div class="stat-val">3</div><div class="stat-sub">of 10 this week</div></div>
+        <div class="stat"><div class="stat-lbl">Utilization</div><div class="stat-val">84%</div><div class="stat-sub up">↑ 6% vs last week</div></div>
+      </div>
+      <div class="dispatch-board">
+        <div class="dcol">
+          <div class="dcol-h"><span class="sdot" style="background:var(--text3)"></span><span class="dcn">Scheduled</span><span class="cc">3</span></div>
+          <div class="djob"><div class="djob-name">Canyon Dental Discovery</div><div class="djob-acc">Canyon Dental · Sep 13, 2:00 PM</div><div class="djob-meta"><span class="b ba">Demo</span><span class="b bm">Google Meet</span></div><div class="djob-rep"><div class="av" style="background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:9px">JM</div>Jordan M.</div></div>
+          <div class="djob"><div class="djob-name">Prestige Auto Walk-through</div><div class="djob-acc">Prestige Auto · Sep 15, 10:00 AM</div><div class="djob-meta"><span class="b bb">Discovery</span><span class="b bm">In Person</span></div><div class="djob-rep"><div class="av" style="background:var(--blue-lo);color:var(--blue);font-family:var(--fd);font-size:9px">SK</div>Sam K.</div></div>
+          <div class="djob"><div class="djob-name">Apex Dental — 6 Locations</div><div class="djob-acc">Apex Dental Group · Sep 18, 2:00 PM</div><div class="djob-meta"><span class="b bb">Discovery</span><span class="b bm">Google Meet</span></div><div class="djob-rep"><div class="av" style="background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:9px">JM</div>Jordan M.</div></div>
+        </div>
+        <div class="dcol">
+          <div class="dcol-h"><span class="sdot" style="background:var(--blue)"></span><span class="dcn">Dispatched</span><span class="cc">2</span></div>
+          <div class="djob"><div class="djob-name">Ridgeline Roofing Onboarding</div><div class="djob-acc">Ridgeline Roofing · Today 10:00 AM</div><div class="djob-meta"><span class="b bg">Onboarding</span><span class="b bm">Zoom</span></div><div class="djob-rep"><div class="av" style="background:var(--purple-lo);color:var(--purple);font-family:var(--fd);font-size:9px">MT</div>Marcus T.</div></div>
+          <div class="djob"><div class="djob-name">Bloom Med Spa Proposal Review</div><div class="djob-acc">Bloom Med Spa · Today 11:00 AM</div><div class="djob-meta"><span class="b bb">Demo</span><span class="b bm">Zoom</span></div><div class="djob-rep"><div class="av" style="background:var(--blue-lo);color:var(--blue);font-family:var(--fd);font-size:9px">SK</div>Sam K.</div></div>
+        </div>
+        <div class="dcol">
+          <div class="dcol-h"><span class="sdot" style="background:var(--amber)"></span><span class="dcn">En Route</span><span class="cc">2</span></div>
+          <div class="djob" style="border-color:var(--amber)"><div class="djob-name">Elite HVAC Full Demo</div><div class="djob-acc">Elite HVAC Solutions · Today 2:30 PM</div><div class="djob-meta"><span class="b bb">Demo</span><span class="b bm">Zoom</span></div><div class="djob-rep"><div class="av" style="background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:9px">JM</div>Jordan M. <span style="color:var(--amber);font-size:10px;margin-left:4px">● Live</span></div></div>
+          <div class="djob" style="border-color:var(--amber)"><div class="djob-name">Summit Plumbing Site Visit</div><div class="djob-acc">Summit Plumbing · Today 3:00 PM</div><div class="djob-meta"><span class="b ba">Follow-up</span><span class="b bm">In Person</span></div><div class="djob-rep"><div class="av" style="background:var(--purple-lo);color:var(--purple);font-family:var(--fd);font-size:9px">MT</div>Marcus T. <span style="color:var(--amber);font-size:10px;margin-left:4px">● Live</span></div></div>
+        </div>
+        <div class="dcol">
+          <div class="dcol-h"><span class="sdot" style="background:var(--green)"></span><span class="dcn">On Site</span><span class="cc">1</span></div>
+          <div class="djob" style="border-color:var(--green)"><div class="djob-name">Team Standup</div><div class="djob-acc">All Reps · Today 4:00 PM</div><div class="djob-meta"><span class="b bm">Internal</span></div><div class="djob-rep"><div class="av" style="background:var(--green-lo);color:var(--green);font-family:var(--fd);font-size:9px">ALL</div>All Reps <span style="color:var(--green);font-size:10px;margin-left:4px">● Active</span></div></div>
+        </div>
+        <div class="dcol">
+          <div class="dcol-h"><span class="sdot" style="background:var(--text3)"></span><span class="dcn">Completed</span><span class="cc">3</span></div>
+          <div class="djob" style="opacity:.65"><div class="djob-name">Canyon Dental — Final Proposal</div><div class="djob-acc">Canyon Dental · Today 9:00 AM</div><div class="djob-meta"><span class="b bg">Done</span></div><div class="djob-rep"><div class="av" style="background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:9px">JM</div>Jordan M.</div></div>
+          <div class="djob" style="opacity:.65"><div class="djob-name">Bloom Med Spa Discovery</div><div class="djob-acc">Bloom Med Spa · Today 11:00 AM</div><div class="djob-meta"><span class="b bg">Done</span></div><div class="djob-rep"><div class="av" style="background:var(--blue-lo);color:var(--blue);font-family:var(--fd);font-size:9px">SK</div>Sam K.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONBOARDING -->
+    <div class="sec" id="sec-onboarding">
+      <div class="sh"><h2>Client Onboarding</h2><span class="sh-sub">Shared drives, uploads, intake forms</span>
+        <button class="btn btn-p btn-s" style="margin-left:auto" onclick="open('mo-newob')">+ New Client Portal</button>
+      </div>
+      <div class="ob-layout">
+        <!-- Client list sidebar -->
+        <div class="ob-client-list">
+          <div class="th2" style="padding:11px 14px"><h3>Active Portals</h3></div>
+          <div class="ob-client-item on" onclick="switchOBClient('ridgeline',this)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+              <strong style="font-size:12.5px">Ridgeline Roofing</strong><span class="b bg" style="font-size:9px">Active</span>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px">Onboarding · Marcus T.</div>
+            <div class="ob-progress"><div class="ob-progress-fill" style="width:72%"></div></div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px">72% complete · 4 tasks left</div>
+          </div>
+          <div class="ob-client-item" onclick="switchOBClient('canyon',this)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+              <strong style="font-size:12.5px">Canyon Dental</strong><span class="b ba" style="font-size:9px">Pending</span>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px">Pre-Onboarding · Jordan M.</div>
+            <div class="ob-progress"><div class="ob-progress-fill" style="width:20%;background:var(--amber)"></div></div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px">20% complete · awaiting signature</div>
+          </div>
+          <div class="ob-client-item" onclick="switchOBClient('bloom',this)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+              <strong style="font-size:12.5px">Bloom Med Spa</strong><span class="b bm" style="font-size:9px">Draft</span>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px">Pre-Onboarding · Sam K.</div>
+            <div class="ob-progress"><div class="ob-progress-fill" style="width:5%;background:var(--text3)"></div></div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px">5% complete · not yet sent</div>
+          </div>
+        </div>
+        <!-- Main onboarding area -->
+        <div class="ob-main">
+          <div class="tw">
+            <div class="th2" style="padding:10px 14px;flex-wrap:wrap;gap:8px">
+              <div>
+                <h3 id="ob-client-name" style="font-size:14px">Ridgeline Roofing</h3>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px">Marcus T. · Onboarding since Sep 5</div>
+              </div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                <div style="font-size:11px;color:var(--text2)">72% complete</div>
+                <div style="width:120px;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden"><div style="width:72%;height:100%;background:var(--green);border-radius:3px"></div></div>
+              </div>
+            </div>
+            <div class="ob-tabs" style="padding:0 14px">
+              <button class="ob-tab on" onclick="switchOBTab('checklist',this)">Checklist</button>
+              <button class="ob-tab" onclick="switchOBTab('documents',this)">Documents</button>
+              <button class="ob-tab" onclick="switchOBTab('intake',this)">Intake Form</button>
+              <button class="ob-tab" onclick="switchOBTab('drive',this)">Shared Drive</button>
+            </div>
+            <!-- CHECKLIST TAB -->
+            <div class="ob-pane on" id="ob-pane-checklist" style="padding:14px">
+              <div id="ob-checklist">
+                <div class="ob-check"><div class="ob-check-box done" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl done">Contract signed &amp; countersigned</div><div class="ob-check-who">Sep 5</div></div>
+                <div class="ob-check"><div class="ob-check-box done" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl done">Initial payment received ($11,000)</div><div class="ob-check-who">Sep 6</div></div>
+                <div class="ob-check"><div class="ob-check-box done" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl done">Business info form submitted</div><div class="ob-check-who">Sep 7</div></div>
+                <div class="ob-check"><div class="ob-check-box done" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl done">Google Business access granted</div><div class="ob-check-who">Sep 8</div></div>
+                <div class="ob-check"><div class="ob-check-box done" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl done">Facebook Ad account connected</div><div class="ob-check-who">Sep 9</div></div>
+                <div class="ob-check"><div class="ob-check-box" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl">CRM workspace configured</div><div class="ob-check-who">Due Sep 14</div></div>
+                <div class="ob-check"><div class="ob-check-box" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl">Lead capture forms live on website</div><div class="ob-check-who">Due Sep 17</div></div>
+                <div class="ob-check"><div class="ob-check-box" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl">AI chat widget installed</div><div class="ob-check-who">Due Sep 19</div></div>
+                <div class="ob-check"><div class="ob-check-box" onclick="toggleOBCheck(this)"></div><div class="ob-check-lbl">Rep training session completed</div><div class="ob-check-who">Due Sep 20</div></div>
+              </div>
+              <button class="btn btn-g btn-s" style="margin-top:12px">+ Add Checklist Item</button>
+            </div>
+            <!-- DOCUMENTS TAB -->
+            <div class="ob-pane" id="ob-pane-documents" style="padding:14px">
+              <div class="upload-zone" onclick="simulateUpload()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div class="upload-zone-label">Drag files here or click to upload</div>
+                <div class="upload-zone-sub">PDF, DOCX, XLSX, PNG, JPG — max 50MB per file</div>
+              </div>
+              <div id="ob-doc-list">
+                <div class="file-row"><div class="file-ico" style="background:var(--red-lo);color:var(--red)">PDF</div><div class="file-info"><div class="file-name">Ridgeline_Roofing_Contract_Signed.pdf</div><div class="file-meta">Uploaded Sep 5 · 1.2 MB · Marcus T.</div></div><button class="btn btn-g btn-s">View</button></div>
+                <div class="file-row"><div class="file-ico" style="background:var(--blue-lo);color:var(--blue)">DOC</div><div class="file-info"><div class="file-name">Onboarding_Questionnaire_Completed.docx</div><div class="file-meta">Uploaded Sep 7 · 348 KB · Client</div></div><button class="btn btn-g btn-s">View</button></div>
+                <div class="file-row"><div class="file-ico" style="background:var(--green-lo);color:var(--green)">IMG</div><div class="file-info"><div class="file-name">Logo_Primary_RidgelineRoofing.png</div><div class="file-meta">Uploaded Sep 7 · 220 KB · Client</div></div><button class="btn btn-g btn-s">View</button></div>
+                <div class="file-row"><div class="file-ico" style="background:var(--amber-lo);color:var(--amber)">XLS</div><div class="file-info"><div class="file-name">Lead_Import_Template_Filled.xlsx</div><div class="file-meta">Uploaded Sep 9 · 82 KB · Client</div></div><button class="btn btn-g btn-s">View</button></div>
+              </div>
+            </div>
+            <!-- INTAKE FORM TAB -->
+            <div class="ob-pane" id="ob-pane-intake" style="padding:14px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <span class="b bg">Submitted</span>
+                <span style="font-size:12px;color:var(--text2)">Completed Sep 7, 2026 by David Nguyen (COO)</span>
+              </div>
+              <div class="ob-q"><div class="ob-q-num">Q1</div><div class="ob-q-text">What are your primary business goals for the next 6 months?</div><div class="ob-q-ans">We want to generate 40+ leads per month from Google and close 20 of them. We're expanding to a 4th location in Plano in Q1 2027 and need our systems ready.</div></div>
+              <div class="ob-q"><div class="ob-q-num">Q2</div><div class="ob-q-text">What is your current monthly marketing budget and where is it spent?</div><div class="ob-q-ans">About $3,500/mo — split between Google Ads ($2,000) and Yelp ads ($1,500). We haven't tracked ROI before. No Facebook yet.</div></div>
+              <div class="ob-q"><div class="ob-q-num">Q3</div><div class="ob-q-text">How do leads currently contact you and what's your response process?</div><div class="ob-q-ans">Mostly phone calls and the website contact form. We check the form once a day. Calls go to the office line and often get missed after 5 PM.</div></div>
+              <div class="ob-q"><div class="ob-q-num">Q4</div><div class="ob-q-text">Who are your main competitors in your area?</div><div class="ob-q-ans">Top Choice Roofing and Dallas Pro Roofing are the big ones. Top Choice spends heavily on Google. We want to outrank them.</div></div>
+              <div class="ob-q"><div class="ob-q-num">Q5</div><div class="ob-q-text">What does your ideal customer look like?</div><div class="ob-q-ans">Homeowners in Frisco, Allen, McKinney — homes built 2005–2015 in the $350K–$600K range. Insurance claims and storm damage are our bread and butter.</div></div>
+            </div>
+            <!-- SHARED DRIVE TAB -->
+            <div class="ob-pane" id="ob-pane-drive" style="padding:14px">
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .13s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;color:var(--amber);margin:0 auto 7px;display:block"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <div style="font-size:12px;font-weight:500">Contracts</div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:2px">3 files</div>
+                </div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .13s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;color:var(--blue);margin:0 auto 7px;display:block"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <div style="font-size:12px;font-weight:500">Brand Assets</div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:2px">7 files</div>
+                </div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .13s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;color:var(--green);margin:0 auto 7px;display:block"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <div style="font-size:12px;font-weight:500">Ad Creatives</div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:2px">12 files</div>
+                </div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .13s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;color:var(--purple);margin:0 auto 7px;display:block"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <div style="font-size:12px;font-weight:500">Reports</div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:2px">5 files</div>
+                </div>
+              </div>
+              <div class="upload-zone" onclick="simulateUpload()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div class="upload-zone-label">Upload to shared drive</div>
+                <div class="upload-zone-sub">Your client can also upload directly to their portal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTRACTS & FORMS -->
+    <div class="sec" id="sec-contracts">
+      <div class="sh"><h2>Contracts &amp; Forms</h2><span class="sh-sub">IP-tracked digital signing · legally protected</span>
+        <button class="btn btn-g btn-s" style="margin-left:auto" onclick="open('mo-form-builder')">Build Custom Form</button>
+        <button class="btn btn-p btn-s" onclick="open('mo-new-contract')">+ New Contract</button>
+      </div>
+      <!-- Stat tiles -->
+      <div class="statgrid" style="margin-bottom:16px">
+        <div class="stat"><div class="stat-lbl">Contracts Sent</div><div class="stat-val">12</div><div class="stat-sub">this month</div></div>
+        <div class="stat"><div class="stat-lbl">Signed</div><div class="stat-val">9</div><div class="stat-sub up">75% sign rate</div></div>
+        <div class="stat"><div class="stat-lbl">Pending Signature</div><div class="stat-val">2</div><div class="stat-sub warn">avg 3.1 days to sign</div></div>
+        <div class="stat"><div class="stat-lbl">Total Value Protected</div><div class="stat-val">$486K</div><div class="stat-sub up">all signed contracts</div></div>
+      </div>
+      <!-- Active contracts -->
+      <div class="tw" style="margin-bottom:16px">
+        <div class="th2"><h3>Active Contracts</h3><button class="btn btn-g btn-s">Filter</button></div>
+        <table><thead><tr><th>Contract</th><th>Client</th><th>Value</th><th>Sent</th><th>Status</th><th>Signed By</th><th style="width:100px"></th></tr></thead><tbody>
+          <tr>
+            <td><strong>CRM Services Agreement</strong><br><span style="font-size:11px;color:var(--text2)">12-month · Full Suite</span></td>
+            <td>Ridgeline Roofing</td>
+            <td style="font-variant-numeric:tabular-nums;color:var(--green)">$22,000</td>
+            <td>Sep 4</td>
+            <td><span class="b bg">Signed</span></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                <div class="av" style="width:18px;height:18px;background:var(--purple-lo);color:var(--purple);font-family:var(--fd);font-size:8px">DN</div>
+                David Nguyen
+              </div>
+            </td>
+            <td><button class="btn btn-g btn-s" onclick="showContractDetail('ridgeline')">View</button></td>
+          </tr>
+          <tr>
+            <td><strong>CRM Services Agreement</strong><br><span style="font-size:11px;color:var(--text2)">12-month · Enterprise</span></td>
+            <td>Canyon Dental</td>
+            <td style="font-variant-numeric:tabular-nums">$92,000</td>
+            <td>Sep 10</td>
+            <td><span class="b ba">Pending</span></td>
+            <td><span style="color:var(--text3);font-size:11px">Not yet signed</span></td>
+            <td><button class="btn btn-g btn-s" onclick="openSignModal('Canyon Dental','James Okafor','$92,000')">Send Reminder</button></td>
+          </tr>
+          <tr>
+            <td><strong>NDA — Mutual</strong><br><span style="font-size:11px;color:var(--text2)">Pre-proposal</span></td>
+            <td>Bloom Med Spa</td>
+            <td style="font-variant-numeric:tabular-nums;color:var(--text3)">—</td>
+            <td>Sep 11</td>
+            <td><span class="b bg">Signed</span></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                <div class="av" style="width:18px;height:18px;background:var(--blue-lo);color:var(--blue);font-family:var(--fd);font-size:8px">SC</div>
+                Sarah Chen
+              </div>
+            </td>
+            <td><button class="btn btn-g btn-s" onclick="showContractDetail('bloom-nda')">View</button></td>
+          </tr>
+          <tr>
+            <td><strong>Proposal — AI Receptionist</strong><br><span style="font-size:11px;color:var(--text2)">3-month pilot</span></td>
+            <td>Summit Plumbing Co.</td>
+            <td style="font-variant-numeric:tabular-nums">$18,000</td>
+            <td>Sep 8</td>
+            <td><span class="b br">Expired</span></td>
+            <td><span style="color:var(--text3);font-size:11px">Not signed in time</span></td>
+            <td><button class="btn btn-g btn-s">Resend</button></td>
+          </tr>
+        </tbody></table>
+      </div>
+      <!-- Templates -->
+      <div class="sh" style="margin-bottom:10px"><h2 style="font-size:14px">Contract Templates</h2></div>
+      <div class="contract-grid">
+        <div class="contract-card" onclick="openSignModal('Demo Client','Contact Name','$0')">
+          <div class="cc-type">Service Agreement</div>
+          <div class="cc-name">CRM Services Agreement</div>
+          <div class="cc-meta">Full platform · 12 or 24 months · includes commission structure, IP clause, and auto-renewal terms</div>
+          <div class="cc-status-row"><span class="b bg">Most Used</span><span style="font-size:11px;color:var(--text2);margin-left:auto">v3.2 · 8 pages</span></div>
+        </div>
+        <div class="contract-card" onclick="openSignModal('Demo Client','Contact Name','$0')">
+          <div class="cc-type">Non-Disclosure</div>
+          <div class="cc-name">Mutual NDA</div>
+          <div class="cc-meta">Mutual confidentiality · covers all proposal data, pricing, and strategy shared during sales process</div>
+          <div class="cc-status-row"><span class="b bb">Standard</span><span style="font-size:11px;color:var(--text2);margin-left:auto">v2.0 · 2 pages</span></div>
+        </div>
+        <div class="contract-card" onclick="openSignModal('Demo Client','Contact Name','$0')">
+          <div class="cc-type">Proposal</div>
+          <div class="cc-name">AI Receptionist Pilot</div>
+          <div class="cc-meta">3-month pilot agreement · includes SLA, cancellation policy, and performance benchmarks</div>
+          <div class="cc-status-row"><span class="b bm">Template</span><span style="font-size:11px;color:var(--text2);margin-left:auto">v1.5 · 4 pages</span></div>
+        </div>
+        <div class="contract-card" onclick="open('mo-form-builder')">
+          <div class="cc-type">Custom Form</div>
+          <div class="cc-name">Client Intake Form</div>
+          <div class="cc-meta">Branded intake questionnaire sent before onboarding — collects goals, ad accounts, access, and brand assets</div>
+          <div class="cc-status-row"><span class="b" style="background:var(--purple-lo);color:var(--purple);border:1px solid rgba(124,82,216,.25)">Form Builder</span><span style="font-size:11px;color:var(--text2);margin-left:auto">12 fields</span></div>
+        </div>
+        <div class="contract-card" onclick="openSignModal('Demo Client','Contact Name','$0')">
+          <div class="cc-type">Commission</div>
+          <div class="cc-name">Rep Commission Agreement</div>
+          <div class="cc-meta">Internal rep agreement covering rate schedule, clawback policy, approval chain, and payment terms</div>
+          <div class="cc-status-row"><span class="b ba">Internal</span><span style="font-size:11px;color:var(--text2);margin-left:auto">v1.1 · 3 pages</span></div>
+        </div>
+        <div class="contract-card" style="border-style:dashed;cursor:pointer" onclick="open('mo-form-builder')">
+          <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;color:var(--text3)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <div style="font-size:13px;font-weight:500">Create New Template</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- REPORTS -->
@@ -1132,6 +1502,161 @@ textarea.fi{resize:vertical}
   </div>
 </div>
 
+<!-- SIGNATURE / CONTRACT SIGNING MODAL -->
+<div class="mo" id="mo-sig">
+  <div class="md" style="width:min(640px,96vw)">
+    <div class="md-h">
+      <h2 id="sig-modal-title">Sign Contract</h2>
+      <button class="md-x" onclick="close('mo-sig')">&#x2715;</button>
+    </div>
+    <div class="md-body">
+      <div class="fr">
+        <div class="fg"><label class="fl">Full Name</label><input class="fi" id="sig-fullname" placeholder="Signatory full name"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="sig-email" placeholder="signatory@company.com"></div>
+      </div>
+      <div class="fr" style="margin-bottom:14px">
+        <div class="fg"><label class="fl">Company</label><input class="fi" id="sig-company" placeholder="Company name"></div>
+        <div class="fg"><label class="fl">Title / Role</label><input class="fi" id="sig-role" placeholder="e.g. CEO, Owner"></div>
+      </div>
+      <div class="ip-badge" id="sig-ip-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div class="ip-info" id="sig-ip-info">Detecting IP address &amp; device info…</div>
+      </div>
+      <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <label class="fl">Draw Your Signature</label>
+        <button class="btn btn-g btn-s" onclick="clearSig()">Clear</button>
+      </div>
+      <div class="sig-canvas-wrap" style="margin-bottom:14px">
+        <canvas id="sig-canvas" width="560" height="140" style="width:100%;height:140px"></canvas>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:11px 13px;font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        By signing above, you agree to the terms of the contract. Your IP address, device information, browser fingerprint, and timestamp are recorded for legal verification and business protection under applicable e-signature law.
+      </div>
+      <div class="md-footer">
+        <button class="btn btn-g" onclick="close('mo-sig')">Cancel</button>
+        <button class="btn btn-p" id="sig-save-btn" onclick="saveSig()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:13px;height:13px;stroke-width:2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Sign &amp; Protect
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FORM BUILDER MODAL -->
+<div class="mo" id="mo-form-builder">
+  <div class="md" style="width:min(620px,96vw)">
+    <div class="md-h"><h2>Form Builder</h2><button class="md-x" onclick="close('mo-form-builder')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fr">
+        <div class="fg"><label class="fl">Form Name</label><input class="fi" value="Client Intake Form"></div>
+        <div class="fg"><label class="fl">Form Type</label><select class="fi"><option>Intake Questionnaire</option><option>Custom Form</option><option>Survey</option><option>Contract Addendum</option></select></div>
+      </div>
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <label class="fl" style="margin-bottom:0">Fields</label>
+        <button class="btn btn-g btn-s" style="margin-left:auto" onclick="addFormField()">+ Add Field</button>
+      </div>
+      <div class="form-builder" id="form-field-list">
+        <div class="fb-field"><span class="fb-field-type">Text</span><span class="fb-field-label">Business Name<span class="fb-field-req">*</span></span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Email</span><span class="fb-field-label">Owner Email<span class="fb-field-req">*</span></span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Phone</span><span class="fb-field-label">Business Phone<span class="fb-field-req">*</span></span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Select</span><span class="fb-field-label">Industry / Niche</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Number</span><span class="fb-field-label">Monthly Marketing Budget</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Textarea</span><span class="fb-field-label">Primary Business Goals</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">URL</span><span class="fb-field-label">Website URL</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">File</span><span class="fb-field-label">Logo Upload (PNG/SVG)</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+        <div class="fb-field"><span class="fb-field-type">Checkbox</span><span class="fb-field-label">Agree to Terms &amp; Data Use</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button></div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label class="fl" style="margin-bottom:0">Options:</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" checked> IP tracking</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" checked> Require signature</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox"> Auto-send on deal close</label>
+      </div>
+      <div class="md-footer">
+        <button class="btn btn-g" onclick="close('mo-form-builder')">Cancel</button>
+        <button class="btn btn-p">Save &amp; Publish Form</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEDULE DISPATCH JOB MODAL -->
+<div class="mo" id="mo-dispatch">
+  <div class="md">
+    <div class="md-h"><h2>Schedule Job</h2><button class="md-x" onclick="close('mo-dispatch')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fr">
+        <div class="fg"><label class="fl">Job Name</label><input class="fi" id="dj-name" placeholder="e.g. Canyon Dental Discovery Call"></div>
+        <div class="fg"><label class="fl">Account</label><select class="fi" id="dj-account"><option>Canyon Dental</option><option>Elite HVAC Solutions</option><option>Bloom Med Spa</option><option>Ridgeline Roofing</option><option>Summit Plumbing Co.</option><option>Prestige Auto Detail</option></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">Assigned Rep</label><select class="fi" id="dj-rep"><option>Jordan M.</option><option>Sam K.</option><option>Marcus T.</option><option>All Reps</option></select></div>
+        <div class="fg"><label class="fl">Type</label><select class="fi" id="dj-type"><option>Discovery</option><option>Demo</option><option>Proposal Review</option><option>Follow-up</option><option>Onboarding</option><option>In-Person Visit</option><option>Internal</option></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">Date</label><input class="fi" type="date" id="dj-date"></div>
+        <div class="fg"><label class="fl">Time</label><input class="fi" type="time" id="dj-time" value="09:00"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Meeting Type</label><select class="fi" id="dj-meeting"><option>Zoom</option><option>Google Meet</option><option>In Person</option><option>Phone Call</option><option>Teams</option></select></div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Notes</label><textarea class="fi" rows="2" placeholder="Prep notes or agenda…"></textarea></div>
+      <div class="md-footer"><button class="btn btn-g" onclick="close('mo-dispatch')">Cancel</button><button class="btn btn-p" onclick="close('mo-dispatch')">Schedule Job</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW CLIENT PORTAL MODAL -->
+<div class="mo" id="mo-newob">
+  <div class="md">
+    <div class="md-h"><h2>New Client Portal</h2><button class="md-x" onclick="close('mo-newob')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fr">
+        <div class="fg"><label class="fl">Client Name</label><input class="fi" placeholder="e.g. Apex Dental Group"></div>
+        <div class="fg"><label class="fl">Assigned Rep</label><select class="fi"><option>Jordan M.</option><option>Sam K.</option><option>Marcus T.</option></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">Client Email</label><input class="fi" placeholder="owner@business.com"></div>
+        <div class="fg"><label class="fl">Start Date</label><input class="fi" type="date"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Services Purchased</label><select class="fi"><option>Full CRM Suite</option><option>AI Receptionist</option><option>Lead Generation</option><option>Marketing Attribution</option><option>Custom</option></select></div>
+      <div style="margin-bottom:14px">
+        <label class="fl" style="margin-bottom:8px;display:block">Auto-include in portal:</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:7px"><input type="checkbox" checked> Onboarding checklist (9 tasks)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:7px"><input type="checkbox" checked> Client intake form</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:7px"><input type="checkbox" checked> Shared drive folders</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px"><input type="checkbox"> Send contract for signature</label>
+      </div>
+      <div class="md-footer"><button class="btn btn-g" onclick="close('mo-newob')">Cancel</button><button class="btn btn-p" onclick="close('mo-newob')">Create Portal &amp; Send Invite</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW CONTRACT MODAL -->
+<div class="mo" id="mo-new-contract">
+  <div class="md">
+    <div class="md-h"><h2>New Contract</h2><button class="md-x" onclick="close('mo-new-contract')">&#x2715;</button></div>
+    <div class="md-body">
+      <div class="fr">
+        <div class="fg"><label class="fl">Contract Type</label><select class="fi"><option>CRM Services Agreement</option><option>Mutual NDA</option><option>AI Receptionist Pilot</option><option>Rep Commission Agreement</option><option>Custom</option></select></div>
+        <div class="fg"><label class="fl">Client</label><select class="fi"><option>Canyon Dental</option><option>Elite HVAC Solutions</option><option>Bloom Med Spa</option><option>Ridgeline Roofing</option><option>Summit Plumbing Co.</option></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">Contract Value ($)</label><input class="fi" type="number" placeholder="0"></div>
+        <div class="fg"><label class="fl">Term</label><select class="fi"><option>12 months</option><option>24 months</option><option>3 months</option><option>Month-to-month</option><option>One-time</option></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">Signatory Name</label><input class="fi" placeholder="Contact full name"></div>
+        <div class="fg"><label class="fl">Signatory Email</label><input class="fi" placeholder="signer@company.com"></div>
+      </div>
+      <div style="background:var(--green-lo);border:1px solid rgba(31,196,121,.2);border-radius:7px;padding:10px 13px;font-size:11.5px;color:var(--text2);margin-bottom:14px;display:flex;gap:9px;align-items:flex-start">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;color:var(--green);flex-shrink:0;margin-top:1px;stroke-width:2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        IP address, device fingerprint, and timestamp will be captured when the client signs — logged for legal protection.
+      </div>
+      <div class="md-footer"><button class="btn btn-g" onclick="close('mo-new-contract')">Cancel</button><button class="btn btn-p" onclick="close('mo-new-contract')">Generate &amp; Send</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ---- DATA ----
 const accounts = [
@@ -1201,8 +1726,8 @@ let currentSec = 'dashboard';
 document.querySelectorAll('.rb[data-sec]').forEach(btn=>{
   btn.addEventListener('click',()=>showSec(btn.dataset.sec));
 });
-const secTitles={dashboard:'Dashboard',pipeline:'Pipeline',accounts:'Accounts',contacts:'Contacts',prospecting:'Prospecting',attribution:'Attribution',agents:'Cyncro Prime',calendar:'Calendar',tasks:'Team Tasks',reports:'Reports',settings:'Settings'};
-const addActions={dashboard:'+ New',pipeline:'+ New Deal',accounts:'+ New Account',contacts:'+ New Contact',prospecting:'Search Area',attribution:'',agents:'',calendar:'+ Book Slot',tasks:'+ Add Task',reports:'',settings:''};
+const secTitles={dashboard:'Dashboard',pipeline:'Pipeline',accounts:'Accounts',contacts:'Contacts',prospecting:'Prospecting',attribution:'Attribution',agents:'Cyncro Prime',calendar:'Calendar',tasks:'Team Tasks',dispatch:'Dispatch',onboarding:'Client Onboarding',contracts:'Contracts & Forms',reports:'Reports',settings:'Settings'};
+const addActions={dashboard:'+ New',pipeline:'+ New Deal',accounts:'+ New Account',contacts:'+ New Contact',prospecting:'Search Area',attribution:'',agents:'',calendar:'+ Book Slot',tasks:'+ Add Task',dispatch:'+ Schedule Job',onboarding:'+ New Portal',contracts:'+ New Contract',reports:'',settings:''};
 
 // Mobile nav helpers
 const mobPrimary=['dashboard','pipeline','contacts','agents','tasks'];
@@ -1241,6 +1766,9 @@ function showSec(name){
     else if(name==='accounts')openAccount();
     else if(name==='contacts')openContact();
     else if(name==='tasks')openTask();
+    else if(name==='dispatch')open('mo-dispatch');
+    else if(name==='onboarding')open('mo-newob');
+    else if(name==='contracts')open('mo-new-contract');
   };
 }
 
@@ -1786,6 +2314,9 @@ const cmdNav=[
   {type:'nav',label:'Cyncro Prime',hint:'12 AI agents',sec:'agents',icon:'<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58"/>'},
   {type:'nav',label:'Calendar',hint:'16 events this month',sec:'calendar',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>'},
   {type:'nav',label:'Tasks',hint:'18 open tasks',sec:'tasks',icon:'<path d="M9 11l3 3L22 4"/>'},
+  {type:'nav',label:'Dispatch',hint:'Rep scheduling & field ops',sec:'dispatch',icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'},
+  {type:'nav',label:'Client Onboarding',hint:'Portals, docs, intake forms',sec:'onboarding',icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'},
+  {type:'nav',label:'Contracts & Forms',hint:'IP-tracked digital signing',sec:'contracts',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'},
   {type:'nav',label:'Reports',hint:'Revenue & leaderboard',sec:'reports',icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'},
   {type:'nav',label:'Settings',hint:'Team, integrations, billing',sec:'settings',icon:'<circle cx="12" cy="12" r="3"/>'},
 ];
@@ -1905,10 +2436,115 @@ function fabAction(){
     dashboard:openDeal,pipeline:openDeal,accounts:openAccount,contacts:openContact,
     tasks:openTask,calendar:()=>openCalEvent(),prospecting:runSearch,
     agents:()=>document.getElementById('pinput').focus(),
+    dispatch:()=>open('mo-dispatch'),onboarding:()=>open('mo-newob'),contracts:()=>open('mo-new-contract'),
     attribution:()=>{},reports:()=>{},settings:()=>{}
   };
   const fn=actions[currentSec];
   if(fn)fn();
+}
+
+// ---- ONBOARDING ----
+function switchOBClient(key, el){
+  document.querySelectorAll('.ob-client-item').forEach(i=>i.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const names={ridgeline:'Ridgeline Roofing',canyon:'Canyon Dental',bloom:'Bloom Med Spa'};
+  document.getElementById('ob-client-name').textContent=names[key]||key;
+}
+function switchOBTab(tab, el){
+  document.querySelectorAll('.ob-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.ob-pane').forEach(p=>p.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const pane=document.getElementById('ob-pane-'+tab);
+  if(pane)pane.classList.add('on');
+}
+function toggleOBCheck(box){
+  box.classList.toggle('done');
+  const lbl=box.nextElementSibling;
+  if(lbl)lbl.classList.toggle('done',box.classList.contains('done'));
+}
+function simulateUpload(){
+  const list=document.getElementById('ob-doc-list');
+  if(!list)return;
+  const ext=['PDF','IMG','DOC','XLS'][Math.floor(Math.random()*4)];
+  const colors={PDF:'var(--red-lo);color:var(--red)',IMG:'var(--green-lo);color:var(--green)',DOC:'var(--blue-lo);color:var(--blue)',XLS:'var(--amber-lo);color:var(--amber)'};
+  const row=document.createElement('div');
+  row.className='file-row';
+  row.innerHTML=`<div class="file-ico" style="background:${colors[ext]}">${ext}</div><div class="file-info"><div class="file-name">Uploaded_File_${Date.now()}.${ext.toLowerCase()}</div><div class="file-meta">Just now · You</div></div><button class="btn btn-g btn-s">View</button>`;
+  list.prepend(row);
+}
+function addFormField(){
+  const list=document.getElementById('form-field-list');
+  if(!list)return;
+  const types=['Text','Email','Phone','Number','Select','Textarea','Date','File','Checkbox'];
+  const t=types[Math.floor(Math.random()*types.length)];
+  const row=document.createElement('div');
+  row.className='fb-field';
+  row.innerHTML=`<span class="fb-field-type">${t}</span><span class="fb-field-label">New Field</span><button class="btn btn-g btn-s" style="margin-left:auto">Edit</button>`;
+  list.appendChild(row);
+}
+
+// ---- CONTRACTS / SIGNATURE ----
+function openSignModal(company, contact, value){
+  document.getElementById('sig-modal-title').textContent='Sign: '+(company||'Contract');
+  document.getElementById('sig-company').value=company||'';
+  document.getElementById('sig-fullname').value=contact||'';
+  document.getElementById('sig-email').value='';
+  document.getElementById('sig-role').value='';
+  clearSig();
+  // Fetch real IP
+  const info=document.getElementById('sig-ip-info');
+  info.textContent='Detecting IP address…';
+  fetch('https://api.ipify.org?format=json')
+    .then(r=>r.json())
+    .then(d=>{
+      const ts=new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      const ua=navigator.userAgent;
+      const browser=ua.includes('Chrome')?'Chrome':ua.includes('Firefox')?'Firefox':ua.includes('Safari')?'Safari':'Browser';
+      const os=ua.includes('Windows')?'Windows':ua.includes('Mac')?'macOS':ua.includes('iPhone')?'iOS':ua.includes('Android')?'Android':'Unknown OS';
+      info.innerHTML=`<strong style="color:var(--green)">IP: ${d.ip}</strong><br>Browser: ${browser} · OS: ${os}<br>Timestamp: ${ts}<br>Status: <span style="color:var(--green)">● Recording for legal verification</span>`;
+    })
+    .catch(()=>{
+      const ts=new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      info.innerHTML=`<strong style="color:var(--amber)">IP: Logged server-side</strong><br>Timestamp: ${ts}<br>Status: <span style="color:var(--green)">● Recording for legal verification</span>`;
+    });
+  open('mo-sig');
+  setTimeout(initSigCanvas, 80);
+}
+function showContractDetail(key){
+  const details={ridgeline:'Ridgeline Roofing · CRM Services Agreement · $22,000 · Signed Sep 5, 2026 · IP: 73.248.14.92 · David Nguyen (COO) · Chrome / Windows',bloom_nda:'Bloom Med Spa · Mutual NDA · Sep 11, 2026 · IP: 104.35.21.7 · Sarah Chen (Owner) · Safari / iOS'};
+  alert(details[key]||'Contract detail not found.');
+}
+let sigCanvas=null,sigCtx=null,sigDrawing=false,sigLastX=0,sigLastY=0;
+function initSigCanvas(){
+  sigCanvas=document.getElementById('sig-canvas');
+  if(!sigCanvas)return;
+  sigCtx=sigCanvas.getContext('2d');
+  sigCtx.strokeStyle='#dfd0eb';
+  sigCtx.lineWidth=2.2;
+  sigCtx.lineCap='round';
+  sigCtx.lineJoin='round';
+  // Mouse
+  sigCanvas.onmousedown=e=>{sigDrawing=true;const r=sigCanvas.getBoundingClientRect();const sx=sigCanvas.width/r.width;const sy=sigCanvas.height/r.height;sigLastX=(e.clientX-r.left)*sx;sigLastY=(e.clientY-r.top)*sy;};
+  sigCanvas.onmousemove=e=>{if(!sigDrawing)return;const r=sigCanvas.getBoundingClientRect();const sx=sigCanvas.width/r.width;const sy=sigCanvas.height/r.height;const x=(e.clientX-r.left)*sx;const y=(e.clientY-r.top)*sy;sigCtx.beginPath();sigCtx.moveTo(sigLastX,sigLastY);sigCtx.lineTo(x,y);sigCtx.stroke();sigLastX=x;sigLastY=y;};
+  sigCanvas.onmouseup=sigCanvas.onmouseleave=()=>{sigDrawing=false;};
+  // Touch
+  sigCanvas.ontouchstart=e=>{e.preventDefault();sigDrawing=true;const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();const sx=sigCanvas.width/r.width;const sy=sigCanvas.height/r.height;sigLastX=(t.clientX-r.left)*sx;sigLastY=(t.clientY-r.top)*sy;};
+  sigCanvas.ontouchmove=e=>{e.preventDefault();if(!sigDrawing)return;const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();const sx=sigCanvas.width/r.width;const sy=sigCanvas.height/r.height;const x=(t.clientX-r.left)*sx;const y=(t.clientY-r.top)*sy;sigCtx.beginPath();sigCtx.moveTo(sigLastX,sigLastY);sigCtx.lineTo(x,y);sigCtx.stroke();sigLastX=x;sigLastY=y;};
+  sigCanvas.ontouchend=()=>{sigDrawing=false;};
+}
+function clearSig(){
+  if(!sigCtx&&document.getElementById('sig-canvas')){sigCanvas=document.getElementById('sig-canvas');sigCtx=sigCanvas.getContext('2d');}
+  if(sigCtx)sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+}
+function saveSig(){
+  if(!sigCanvas)return;
+  const empty=!sigCtx.getImageData(0,0,sigCanvas.width,sigCanvas.height).data.some(v=>v>0);
+  if(empty){alert('Please draw your signature first.');return;}
+  const name=document.getElementById('sig-fullname').value||'Signatory';
+  const company=document.getElementById('sig-company').value||'Client';
+  close('mo-sig');
+  // Show confirmation toast-like alert
+  setTimeout(()=>alert(`✅ Signature captured!\n\n${name} · ${company}\nIP address & timestamp recorded for legal protection.\n\nContract marked as Signed.`),200);
 }
 
 // ---- KEYBOARD NAV GLOBAL ----
