@@ -452,6 +452,29 @@ textarea.fi{resize:vertical}
 .fb-field-label{font-size:13px;font-weight:500;flex:1}
 .fb-field-req{font-size:10px;color:var(--red);margin-left:4px}
 
+/* REP CHIP */
+.rep-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;padding:2px 7px;border-radius:100px;border:1px solid transparent;transition:all .13s;background:none}
+.rep-chip:hover{background:var(--surface2);border-color:var(--border);color:var(--text)}
+
+/* AUTO-PUSH BANNER */
+.ap-banner{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap}
+
+/* COMMISSION */
+.comm-approval{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .13s}
+.comm-approve{background:var(--green-lo);color:var(--green);border-color:rgba(31,196,121,.25)}
+.comm-approve:hover{background:var(--green);color:#fff}
+.comm-hold{background:var(--amber-lo);color:var(--amber);border-color:rgba(212,146,14,.25)}
+
+/* RPT TABS */
+.rpt-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.rpt-tab{background:none;border:none;border-bottom:2px solid transparent;padding:7px 16px 10px;font-family:var(--fb);font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
+.rpt-tab.on{color:var(--text);border-bottom-color:var(--red)}
+.rpt-pane{display:none}.rpt-pane.on{display:block}
+
+/* IMPORT PREVIEW */
+.import-preview{overflow-x:auto;margin-bottom:14px}
+.import-preview table{min-width:500px}
+
 @media(max-width:640px){
   .fab{display:flex}
   html{font-size:13px}
@@ -722,7 +745,25 @@ textarea.fi{resize:vertical}
     <!-- PROSPECTING -->
     <div class="sec" id="sec-prospecting">
       <div class="sh"><h2>Prospecting</h2><span class="sh-sub">Lead intelligence engine</span>
-        <button class="btn btn-p btn-s" style="margin-left:auto" id="search-btn" onclick="runSearch()">Search Area</button>
+        <button class="btn btn-g btn-s" style="margin-left:auto" onclick="open('mo-crm-import')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:12px;height:12px;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import from CRM
+        </button>
+        <button class="btn btn-p btn-s" id="search-btn" onclick="runSearch()">Search Area</button>
+      </div>
+      <!-- Auto-push banner -->
+      <div class="ap-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px;color:var(--green);flex-shrink:0;stroke-width:2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <div style="flex:1">
+          <span style="font-size:12.5px;font-weight:600">Auto-Push to CRM</span>
+          <span style="font-size:11px;color:var(--text2);margin-left:8px">Leads scoring ≥ 80 automatically queue for pipeline</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--text2)">Score threshold:</span>
+          <select class="fi" style="width:70px;padding:4px 7px;font-size:12px" id="ap-threshold"><option>80</option><option>85</option><option>90</option><option>75</option><option>70</option></select>
+          <label class="tog" style="flex-shrink:0"><input type="checkbox" id="ap-toggle" checked><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <button class="btn btn-g btn-s" onclick="pushHighLeads()">Push All High Leads</button>
       </div>
       <div class="sb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text3)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input id="psearch" placeholder="e.g. HVAC businesses in Austin TX"></div>
       <div class="pgrid" id="pgrid"></div>
@@ -1076,69 +1117,141 @@ textarea.fi{resize:vertical}
       <div class="sh"><h2>Reports</h2><span class="sh-sub">September 2026 · Live</span>
         <button class="btn btn-g btn-s" style="margin-left:auto">Export PDF</button>
       </div>
-      <div class="rpt-statgrid">
-        <div class="stat"><div class="stat-lbl">Total Revenue (MTD)</div><div class="stat-val">$124K</div><div class="stat-sub up">+31% vs last month</div></div>
-        <div class="stat"><div class="stat-lbl">Win Rate</div><div class="stat-val">68%</div><div class="stat-sub up">↑ 8pts vs last month</div></div>
-        <div class="stat"><div class="stat-lbl">Avg Deal Size</div><div class="stat-val">$31K</div><div class="stat-sub up">+12% vs Q2 avg</div></div>
-        <div class="stat"><div class="stat-lbl">Pipeline Velocity</div><div class="stat-val">18d</div><div class="stat-sub">Avg days to close</div></div>
+      <div class="rpt-tabs">
+        <button class="rpt-tab on" onclick="rptTab('overview',this)">Overview</button>
+        <button class="rpt-tab" onclick="rptTab('commission',this)">Commission</button>
       </div>
-      <div class="rpt-cards">
-        <div class="rpt-card">
-          <div class="rpt-card-h"><h3>Revenue by Rep</h3><span class="sh-sub">MTD closed</span></div>
-          <div class="rpt-body">
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Jordan M.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:var(--red)"></div></div><span class="chart-bar-val" style="color:var(--green)">$74K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Sam K.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:54%;background:var(--blue)"></div></div><span class="chart-bar-val" style="color:var(--green)">$40K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Marcus T.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:30%;background:var(--green)"></div></div><span class="chart-bar-val" style="color:var(--green)">$22K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">You</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:16%;background:var(--amber)"></div></div><span class="chart-bar-val" style="color:var(--green)">$12K</span></div>
+
+      <!-- OVERVIEW PANE -->
+      <div class="rpt-pane on" id="rpt-pane-overview">
+        <div class="rpt-statgrid">
+          <div class="stat"><div class="stat-lbl">Total Revenue (MTD)</div><div class="stat-val">$124K</div><div class="stat-sub up">+31% vs last month</div></div>
+          <div class="stat"><div class="stat-lbl">Win Rate</div><div class="stat-val">68%</div><div class="stat-sub up">↑ 8pts vs last month</div></div>
+          <div class="stat"><div class="stat-lbl">Avg Deal Size</div><div class="stat-val">$31K</div><div class="stat-sub up">+12% vs Q2 avg</div></div>
+          <div class="stat"><div class="stat-lbl">Pipeline Velocity</div><div class="stat-val">18d</div><div class="stat-sub">Avg days to close</div></div>
+        </div>
+        <div class="rpt-cards">
+          <div class="rpt-card">
+            <div class="rpt-card-h"><h3>Revenue by Rep</h3><span class="sh-sub">MTD closed</span></div>
+            <div class="rpt-body">
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Jordan M.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:var(--red)"></div></div><span class="chart-bar-val" style="color:var(--green)">$74K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Sam K.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:54%;background:var(--blue)"></div></div><span class="chart-bar-val" style="color:var(--green)">$40K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Marcus T.</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:30%;background:var(--green)"></div></div><span class="chart-bar-val" style="color:var(--green)">$22K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">You</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:16%;background:var(--amber)"></div></div><span class="chart-bar-val" style="color:var(--green)">$12K</span></div>
+            </div>
+          </div>
+          <div class="rpt-card">
+            <div class="rpt-card-h"><h3>Pipeline Funnel</h3><span class="sh-sub">Conversion rates</span></div>
+            <div class="rpt-body">
+              <div class="chart-bar-row"><span class="chart-bar-lbl">New Lead</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:rgba(112,96,176,.5)"></div></div><span class="chart-bar-val">34</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Contacted</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:76%;background:var(--amber)"></div></div><span class="chart-bar-val">26 · 76%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Proposal</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:53%;background:var(--blue)"></div></div><span class="chart-bar-val">18 · 69%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Negotiation</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:29%;background:var(--red)"></div></div><span class="chart-bar-val">10 · 56%</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Closed Won</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:18%;background:var(--green)"></div></div><span class="chart-bar-val">6 · 60%</span></div>
+            </div>
+          </div>
+          <div class="rpt-card">
+            <div class="rpt-card-h"><h3>Revenue by Channel</h3><span class="sh-sub">All-time attributed</span></div>
+            <div class="rpt-body">
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Google Ads</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:var(--red)"></div></div><span class="chart-bar-val" style="color:var(--green)">$52K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Meta Ads</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:73%;background:var(--blue)"></div></div><span class="chart-bar-val" style="color:var(--green)">$38K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">TikTok</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:37%;background:var(--purple)"></div></div><span class="chart-bar-val" style="color:var(--green)">$19K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Referral</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:19%;background:var(--amber)"></div></div><span class="chart-bar-val" style="color:var(--green)">$10K</span></div>
+              <div class="chart-bar-row"><span class="chart-bar-lbl">Direct</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:10%;background:var(--green)"></div></div><span class="chart-bar-val" style="color:var(--green)">$5K</span></div>
+            </div>
+          </div>
+          <div class="rpt-card">
+            <div class="rpt-card-h"><h3>Leaderboard</h3><span class="sh-sub">All-time closed</span></div>
+            <div class="rpt-body">
+              <div class="leader-row"><div class="leader-rank" style="color:var(--amber)">1</div><div class="leader-av" style="background:var(--red-lo);color:var(--red)">JM</div><div class="leader-info"><div class="leader-name">Jordan M.</div><div class="leader-sub">21 deals · Acct Manager</div></div><div class="leader-val">$312K</div></div>
+              <div class="leader-row"><div class="leader-rank" style="color:var(--text2)">2</div><div class="leader-av" style="background:var(--blue-lo);color:var(--blue)">SK</div><div class="leader-info"><div class="leader-name">Sam K.</div><div class="leader-sub">17 deals · Sales Rep</div></div><div class="leader-val">$248K</div></div>
+              <div class="leader-row"><div class="leader-rank" style="color:var(--text3)">3</div><div class="leader-av" style="background:var(--green-lo);color:var(--green)">MT</div><div class="leader-info"><div class="leader-name">Marcus T.</div><div class="leader-sub">12 deals · Senior Rep</div></div><div class="leader-val">$186K</div></div>
+              <div class="leader-row"><div class="leader-rank" style="color:var(--text3)">4</div><div class="leader-av" style="background:var(--purple-lo);color:var(--purple)">V</div><div class="leader-info"><div class="leader-name">You (Director)</div><div class="leader-sub">8 deals closed</div></div><div class="leader-val">$124K</div></div>
+            </div>
           </div>
         </div>
-        <div class="rpt-card">
-          <div class="rpt-card-h"><h3>Pipeline Funnel</h3><span class="sh-sub">Conversion rates</span></div>
-          <div class="rpt-body">
-            <div class="chart-bar-row"><span class="chart-bar-lbl">New Lead</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:var(--surface3);background:rgba(112,96,176,.5)"></div></div><span class="chart-bar-val">34</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Contacted</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:76%;background:var(--amber)"></div></div><span class="chart-bar-val">26 · 76%</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Proposal</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:53%;background:var(--blue)"></div></div><span class="chart-bar-val">18 · 69%</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Negotiation</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:29%;background:var(--red)"></div></div><span class="chart-bar-val">10 · 56%</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Closed Won</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:18%;background:var(--green)"></div></div><span class="chart-bar-val">6 · 60%</span></div>
-          </div>
+      </div>
+
+      <!-- COMMISSION PANE -->
+      <div class="rpt-pane" id="rpt-pane-commission">
+        <!-- Summary tiles -->
+        <div class="statgrid" style="margin-bottom:16px">
+          <div class="stat"><div class="stat-lbl">Total Owed</div><div class="stat-val" id="comm-owed" style="color:var(--amber)">$18,400</div><div class="stat-sub warn">6 deals pending</div></div>
+          <div class="stat"><div class="stat-lbl">Approved & Paid (MTD)</div><div class="stat-val" id="comm-paid" style="color:var(--green)">$9,240</div><div class="stat-sub up">4 payments sent</div></div>
+          <div class="stat"><div class="stat-lbl">On Hold</div><div class="stat-val" style="color:var(--red)">$3,080</div><div class="stat-sub">Awaiting client final pay</div></div>
+          <div class="stat"><div class="stat-lbl">Avg Rate</div><div class="stat-val">14%</div><div class="stat-sub">Across all active deals</div></div>
         </div>
-        <div class="rpt-card">
-          <div class="rpt-card-h"><h3>Revenue by Channel</h3><span class="sh-sub">All-time attributed</span></div>
-          <div class="rpt-body">
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Google Ads</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:100%;background:var(--red)"></div></div><span class="chart-bar-val" style="color:var(--green)">$52K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Meta Ads</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:73%;background:var(--blue)"></div></div><span class="chart-bar-val" style="color:var(--green)">$38K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">TikTok</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:37%;background:var(--purple)"></div></div><span class="chart-bar-val" style="color:var(--green)">$19K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Referral</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:19%;background:var(--amber)"></div></div><span class="chart-bar-val" style="color:var(--green)">$10K</span></div>
-            <div class="chart-bar-row"><span class="chart-bar-lbl">Direct</span><div class="chart-bar-track"><div class="chart-bar-fill" style="width:10%;background:var(--green)"></div></div><span class="chart-bar-val" style="color:var(--green)">$5K</span></div>
-          </div>
+        <!-- Director controls note -->
+        <div style="background:var(--blue-lo);border:1px solid rgba(61,142,240,.2);border-radius:8px;padding:10px 13px;font-size:11.5px;color:var(--text2);margin-bottom:14px;display:flex;gap:9px;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;color:var(--blue);flex-shrink:0;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Directors and Account Managers can approve commissions. Click <strong>Approve</strong> to release payment or <strong>Hold</strong> to flag for review.
         </div>
-        <div class="rpt-card">
-          <div class="rpt-card-h"><h3>Leaderboard</h3><span class="sh-sub">All-time closed</span></div>
-          <div class="rpt-body">
-            <div class="leader-row">
-              <div class="leader-rank" style="color:var(--amber)">1</div>
-              <div class="leader-av" style="background:var(--red-lo);color:var(--red)">JM</div>
-              <div class="leader-info"><div class="leader-name">Jordan M.</div><div class="leader-sub">21 deals closed</div></div>
-              <div class="leader-val">$312K</div>
-            </div>
-            <div class="leader-row">
-              <div class="leader-rank" style="color:var(--text2)">2</div>
-              <div class="leader-av" style="background:var(--blue-lo);color:var(--blue)">SK</div>
-              <div class="leader-info"><div class="leader-name">Sam K.</div><div class="leader-sub">17 deals closed</div></div>
-              <div class="leader-val">$248K</div>
-            </div>
-            <div class="leader-row">
-              <div class="leader-rank" style="color:var(--text3)">3</div>
-              <div class="leader-av" style="background:var(--green-lo);color:var(--green)">MT</div>
-              <div class="leader-info"><div class="leader-name">Marcus T.</div><div class="leader-sub">12 deals closed</div></div>
-              <div class="leader-val">$186K</div>
-            </div>
-            <div class="leader-row">
-              <div class="leader-rank" style="color:var(--text3)">4</div>
-              <div class="leader-av" style="background:var(--purple-lo);color:var(--purple)">V</div>
-              <div class="leader-info"><div class="leader-name">You</div><div class="leader-sub">8 deals closed</div></div>
-              <div class="leader-val">$124K</div>
-            </div>
+        <div class="tw">
+          <div class="th2"><h3>Commission Breakdown by Rep</h3>
+            <select class="fi" style="width:130px;padding:4px 8px;font-size:12px"><option>September 2026</option><option>August 2026</option><option>Q3 2026</option><option>All Time</option></select>
+          </div>
+          <div class="comm-table-wrap">
+          <table><thead><tr><th>Rep</th><th>Role</th><th>Deal</th><th>Deal Value</th><th>Rate</th><th>Commission</th><th>Status</th><th style="width:160px">Action</th></tr></thead><tbody>
+            <tr>
+              <td><button class="rep-chip" onclick="openAssignRep('Ridgeline Roofing — SMS')"><div class="av" style="width:20px;height:20px;background:var(--purple-lo);color:var(--purple);font-family:var(--fd);font-size:8px">MT</div>Marcus T.</button></td>
+              <td><span class="b" style="background:var(--purple-lo);color:var(--purple);border:1px solid rgba(124,82,216,.25)">Senior Rep</span></td>
+              <td>Ridgeline Roofing — SMS</td>
+              <td style="font-variant-numeric:tabular-nums">$22,000</td>
+              <td>14%</td>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600">$3,080</td>
+              <td><span class="b ba">On Hold</span></td>
+              <td style="display:flex;gap:5px">
+                <button class="comm-approval comm-approve" onclick="approveComm(this,'$3,080','Marcus T.')">Approve</button>
+                <button class="comm-approval comm-hold" onclick="holdComm(this)">Hold</button>
+              </td>
+            </tr>
+            <tr>
+              <td><button class="rep-chip" onclick="openAssignRep('Canyon Dental Network')"><div class="av" style="width:20px;height:20px;background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:8px">JM</div>Jordan M.</button></td>
+              <td><span class="b bb">Acct Manager</span></td>
+              <td>Canyon Dental Network</td>
+              <td style="font-variant-numeric:tabular-nums">$92,000</td>
+              <td>14%</td>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600">$12,880</td>
+              <td><span class="b ba">Pending Close</span></td>
+              <td style="display:flex;gap:5px">
+                <button class="comm-approval comm-approve" style="opacity:.45;cursor:not-allowed">Approve</button>
+                <span style="font-size:10px;color:var(--text3);align-self:center">Deal not yet closed</span>
+              </td>
+            </tr>
+            <tr>
+              <td><button class="rep-chip" onclick="openAssignRep('Luxe Salon CRM')"><div class="av" style="width:20px;height:20px;background:var(--blue-lo);color:var(--blue);font-family:var(--fd);font-size:8px">SK</div>Sam K.</button></td>
+              <td><span class="b bg">Sales Rep</span></td>
+              <td>Luxe Salon CRM</td>
+              <td style="font-variant-numeric:tabular-nums">$14,500</td>
+              <td>14%</td>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600">$2,030</td>
+              <td><span class="b bg">Paid</span></td>
+              <td><span style="font-size:11px;color:var(--text3)">Paid Sep 8</span></td>
+            </tr>
+            <tr>
+              <td><button class="rep-chip" onclick="openAssignRep('Elite HVAC CRM Bundle')"><div class="av" style="width:20px;height:20px;background:var(--red-lo);color:var(--red);font-family:var(--fd);font-size:8px">JM</div>Jordan M.</button></td>
+              <td><span class="b bb">Acct Manager</span></td>
+              <td>Elite HVAC CRM Bundle</td>
+              <td style="font-variant-numeric:tabular-nums">$38,500</td>
+              <td>14%</td>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600">$5,390</td>
+              <td><span class="b ba">Pending Close</span></td>
+              <td style="display:flex;gap:5px">
+                <button class="comm-approval comm-approve" style="opacity:.45;cursor:not-allowed">Approve</button>
+                <span style="font-size:10px;color:var(--text3);align-self:center">Awaiting close</span>
+              </td>
+            </tr>
+            <tr>
+              <td><button class="rep-chip" onclick="openAssignRep('Ridgeline Roofing — Full')"><div class="av" style="width:20px;height:20px;background:var(--purple-lo);color:var(--purple);font-family:var(--fd);font-size:8px">MT</div>Marcus T.</button></td>
+              <td><span class="b" style="background:var(--purple-lo);color:var(--purple);border:1px solid rgba(124,82,216,.25)">Senior Rep</span></td>
+              <td>Ridgeline Roofing — Full</td>
+              <td style="font-variant-numeric:tabular-nums">$54,000</td>
+              <td>14%</td>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600">$7,560</td>
+              <td><span class="b bg">Paid</span></td>
+              <td><span style="font-size:11px;color:var(--text3)">Paid Sep 1</span></td>
+            </tr>
+          </tbody></table>
           </div>
         </div>
       </div>
@@ -1163,8 +1276,8 @@ textarea.fi{resize:vertical}
         </div>
         <div class="team-row">
           <div class="team-av" style="background:var(--blue-lo);color:var(--blue)">JM</div>
-          <div class="team-info"><div class="team-name">Jordan Martinez</div><div class="team-role">Sales Rep · jordan@cyncro.ai</div></div>
-          <span class="b bb">Rep</span>
+          <div class="team-info"><div class="team-name">Jordan Martinez</div><div class="team-role">Account Manager · jordan@cyncro.ai</div></div>
+          <span class="b bb">Acct Mgr</span>
         </div>
         <div class="team-row">
           <div class="team-av" style="background:var(--green-lo);color:var(--green)">SK</div>
@@ -1637,6 +1750,80 @@ textarea.fi{resize:vertical}
   </div>
 </div>
 
+<!-- ASSIGN REP MODAL -->
+<div class="mo" id="mo-assign-rep">
+  <div class="md" style="width:min(480px,96vw)">
+    <div class="md-h">
+      <div>
+        <h2>Assign Rep</h2>
+        <p id="ar-deal-name" style="font-size:11.5px;color:var(--text2);margin-top:2px"></p>
+      </div>
+      <button class="md-x" onclick="close('mo-assign-rep')">&#x2715;</button>
+    </div>
+    <div class="md-body" style="padding-top:14px">
+      <p style="font-size:11.5px;color:var(--text2);margin-bottom:12px">Select a team member to assign this deal. Commission and reporting will update automatically.</p>
+      <div style="display:flex;flex-direction:column;gap:6px" id="ar-team-list">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="md-footer" style="margin-top:14px">
+        <button class="btn btn-g" onclick="close('mo-assign-rep')">Cancel</button>
+        <button class="btn btn-p" onclick="confirmAssignRep()">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CRM IMPORT MODAL -->
+<div class="mo" id="mo-crm-import">
+  <div class="md" style="width:min(660px,96vw)">
+    <div class="md-h">
+      <h2>Import Leads from CRM</h2>
+      <button class="md-x" onclick="close('mo-crm-import')">&#x2715;</button>
+    </div>
+    <div class="md-body">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Upload a CSV or Excel export from HubSpot, Salesforce, Pipedrive, or any CRM. Leads will be parsed, scored, and merged into your pipeline and contacts.</p>
+      <!-- Upload zone -->
+      <div id="import-dropzone" style="border:2px dashed var(--border2);border-radius:9px;padding:28px;text-align:center;cursor:pointer;transition:all .13s;margin-bottom:14px" onclick="document.getElementById('import-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--red)'" ondragleave="this.style.borderColor=''" ondrop="event.preventDefault();this.style.borderColor='';handleImportDrop(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:32px;height:32px;color:var(--text3);margin-bottom:8px;stroke-width:1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px">Drop your CRM export here</p>
+        <p style="font-size:11px;color:var(--text3)">CSV or XLSX · HubSpot, Salesforce, Pipedrive, or custom</p>
+        <input type="file" id="import-file-input" accept=".csv,.xlsx" style="display:none" onchange="simulateImport(this)">
+      </div>
+      <!-- Format hint -->
+      <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:10.5px;color:var(--text3)">Supported columns:</span>
+        <span class="b bm">Company Name</span><span class="b bm">Contact</span><span class="b bm">Email</span><span class="b bm">Phone</span><span class="b bm">Deal Value</span><span class="b bm">Stage</span><span class="b bm">Industry</span>
+      </div>
+      <!-- Preview table (hidden until file chosen) -->
+      <div id="import-preview-wrap" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:600">Preview <span id="import-count" style="color:var(--text2);font-weight:400"></span></span>
+          <span id="import-dupe-warn" style="font-size:11px;color:var(--amber);display:none">⚠ 1 duplicate detected — will be skipped</span>
+        </div>
+        <div class="import-preview">
+          <table>
+            <thead><tr>
+              <th>Company</th><th>Contact</th><th>Email</th><th>Value</th><th>Stage</th><th>Industry</th><th>Score</th>
+            </tr></thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+        <div class="md-footer">
+          <button class="btn btn-g" onclick="close('mo-crm-import')">Cancel</button>
+          <button class="btn btn-p" onclick="confirmImport()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:13px;height:13px;stroke-width:2.2"><path d="M5 12l5 5L20 7"/></svg>
+            Import All Leads
+          </button>
+        </div>
+      </div>
+      <div id="import-idle-footer" class="md-footer">
+        <button class="btn btn-g" onclick="close('mo-crm-import')">Cancel</button>
+        <button class="btn btn-g btn-s" onclick="simulateDemoImport()">Load Sample Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ---- DATA ----
 const accounts = [
@@ -1965,14 +2152,16 @@ function renderProspects(){
     return`<div class="pc${i===0?' sel':''}" onclick="this.parentNode.querySelectorAll('.pc').forEach(c=>c.classList.remove('sel'));this.classList.add('sel')">
       <div class="pc-top">
         <div class="pc-init">${p.init}</div>
-        <div><div class="pc-name">${p.name}</div><div class="pc-cat">${p.cat}</div></div>
+        <div style="flex:1"><div class="pc-name">${p.name}</div><div class="pc-cat">${p.cat}</div></div>
+        ${p.score>=80?`<span style="font-size:9.5px;background:var(--green-lo);color:var(--green);border:1px solid rgba(31,196,121,.2);border-radius:100px;padding:2px 7px;font-weight:600;white-space:nowrap">⚡ Auto-Push</span>`:''}
         <div class="sco ${sc}">${p.score}</div>
       </div>
       <div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:7px">${p.ai}</div>
       <div class="sgrid">${adChips}${sigs}</div>
-      <div style="margin-top:10px;display:flex;gap:6px">
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center">
         <button class="btn btn-p btn-s" style="flex:1" onclick="event.stopPropagation();pushToPipeline('${p.name}')">Push to Pipeline</button>
         <button class="btn btn-g btn-s" onclick="event.stopPropagation()">Add Contact</button>
+        <button class="rep-chip" onclick="event.stopPropagation();openAssignRep('${p.name}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:11px;height:11px;stroke-width:2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Assign</button>
       </div>
     </div>`;
   }).join('');
@@ -2523,6 +2712,146 @@ function saveSig(){
   close('mo-sig');
   // Show confirmation toast-like alert
   setTimeout(()=>alert(`✅ Signature captured!\n\n${name} · ${company}\nIP address & timestamp recorded for legal protection.\n\nContract marked as Signed.`),200);
+}
+
+// ---- REPORTS TABS ----
+function rptTab(name, el){
+  document.querySelectorAll('.rpt-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.rpt-pane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('rpt-pane-'+name)?.classList.add('on');
+}
+
+// ---- COMMISSION ACTIONS ----
+function approveComm(btn, amount, rep){
+  const row=btn.closest('tr');
+  const statusCell=row.querySelector('td:nth-child(7)');
+  statusCell.innerHTML='<span class="b bg">Approved</span>';
+  const actionCell=row.querySelector('td:last-child');
+  actionCell.innerHTML='<span style="font-size:11px;color:var(--green)">✓ Approved</span>';
+  // Update stat tiles
+  const owedEl=document.getElementById('comm-owed');
+  const paidEl=document.getElementById('comm-paid');
+  if(owedEl&&paidEl){
+    const val=parseInt(amount.replace(/[$,]/g,''));
+    const curOwed=parseInt(owedEl.textContent.replace(/[$,]/g,''))||18400;
+    const curPaid=parseInt(paidEl.textContent.replace(/[$,]/g,''))||9240;
+    owedEl.textContent='$'+(curOwed-val).toLocaleString();
+    paidEl.textContent='$'+(curPaid+val).toLocaleString();
+  }
+}
+function holdComm(btn){
+  const row=btn.closest('tr');
+  const statusCell=row.querySelector('td:nth-child(7)');
+  statusCell.innerHTML='<span class="b ba">On Hold</span>';
+  btn.style.opacity='.45';btn.style.cursor='not-allowed';
+}
+
+// ---- ASSIGN REP ----
+const teamMembers=[
+  {init:'V',name:'You (Vividpyvette)',role:'Director',color:'var(--red)',bg:'var(--red-lo)'},
+  {init:'JM',name:'Jordan Martinez',role:'Account Manager',color:'var(--blue)',bg:'var(--blue-lo)'},
+  {init:'SK',name:'Sam Kim',role:'Sales Rep',color:'var(--green)',bg:'var(--green-lo)'},
+  {init:'MT',name:'Marcus Thompson',role:'Senior Rep',color:'var(--purple)',bg:'var(--purple-lo)'},
+];
+let assignRepDeal='';
+let selectedRepIdx=null;
+function openAssignRep(dealName){
+  assignRepDeal=dealName;
+  selectedRepIdx=null;
+  document.getElementById('ar-deal-name').textContent=dealName;
+  document.getElementById('ar-team-list').innerHTML=teamMembers.map((m,i)=>`
+    <div class="ar-member" id="ar-m-${i}" onclick="selectRep(${i})" style="display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .13s">
+      <div class="av" style="width:30px;height:30px;background:${m.bg};color:${m.color};font-family:var(--fd);font-size:11px;font-weight:700;flex-shrink:0">${m.init}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${m.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${m.role}</div>
+      </div>
+      <span class="b ${m.role==='Director'?'br':m.role==='Account Manager'?'bb':m.role==='Senior Rep'?'b' :''}" style="${m.role==='Senior Rep'?'background:var(--purple-lo);color:var(--purple);border-color:rgba(124,82,216,.25)':''}">${m.role}</span>
+    </div>`).join('');
+  open('mo-assign-rep');
+}
+function selectRep(idx){
+  selectedRepIdx=idx;
+  document.querySelectorAll('.ar-member').forEach((el,i)=>{
+    el.style.borderColor=i===idx?'var(--red)':'var(--border)';
+    el.style.background=i===idx?'var(--red-lo)':'';
+  });
+}
+function confirmAssignRep(){
+  if(selectedRepIdx===null){alert('Please select a team member.');return;}
+  const m=teamMembers[selectedRepIdx];
+  close('mo-assign-rep');
+  setTimeout(()=>alert(`✅ Rep Assigned!\n\n${m.name} (${m.role}) has been assigned to:\n${assignRepDeal}\n\nCommission tracking and reporting will update automatically.`),150);
+}
+
+// ---- AUTO-PUSH ----
+function pushHighLeads(){
+  const threshold=parseInt(document.getElementById('ap-threshold')?.value||80);
+  const toggled=document.getElementById('ap-toggle')?.checked!==false;
+  const high=prospects.filter(p=>p.score>=threshold);
+  if(high.length===0){alert('No leads currently meet the score threshold.');return;}
+  high.forEach(p=>{
+    if(!deals.some(d=>d.company===p.name)){
+      deals.unshift({id:Date.now()+Math.random(),company:p.name,stage:'Lead',value:Math.round(p.score*340),prob:40,owner:'AI Auto-Push',days:0,color:'var(--amber)'});
+    }
+  });
+  alert(`✅ Auto-Push Complete!\n\n${high.length} lead${high.length>1?'s':''} scoring ≥ ${threshold} pushed to Pipeline.\n\nCheck Pipeline → Lead column.`);
+}
+
+// ---- CRM IMPORT ----
+const sampleImportRows=[
+  {company:'Sunstate Pest Control',contact:'Ron Meyers',email:'ron@sunstatepest.com',value:'$8,500',stage:'Prospect',industry:'Pest Control',score:88},
+  {company:'Vivid Nails & Spa',contact:'Linda Tran',email:'linda@vividnails.com',value:'$4,200',stage:'Lead',industry:'Beauty',score:74},
+  {company:'Coastal Chiro Group',contact:'Dr. James Reed',email:'jreed@coastalchiro.com',value:'$14,000',stage:'Proposal',industry:'Healthcare',score:91},
+  {company:'Metro Garage Doors',contact:'Pete Schultz',email:'pete@metrogd.com',value:'$6,800',stage:'Lead',industry:'Home Services',score:82},
+  {company:'Blue Ox Brewing',contact:'Cassie Holm',email:'cassie@blueoxbrew.com',value:'$3,100',stage:'Lead',industry:'Food & Bev',score:67},
+];
+function simulateDemoImport(){
+  showImportPreview(sampleImportRows);
+}
+function simulateImport(input){
+  // Simulate parse — in real app would parse CSV/XLSX
+  showImportPreview(sampleImportRows);
+}
+function handleImportDrop(e){
+  showImportPreview(sampleImportRows);
+}
+function showImportPreview(rows){
+  document.getElementById('import-dropzone').style.display='none';
+  document.getElementById('import-idle-footer').style.display='none';
+  document.getElementById('import-preview-wrap').style.display='block';
+  document.getElementById('import-count').textContent=`(${rows.length} leads found)`;
+  document.getElementById('import-dupe-warn').style.display='inline';
+  document.getElementById('import-preview-body').innerHTML=rows.map(r=>`
+    <tr>
+      <td style="font-weight:500">${r.company}</td>
+      <td>${r.contact}</td>
+      <td style="color:var(--text2);font-size:11.5px">${r.email}</td>
+      <td style="font-variant-numeric:tabular-nums">${r.value}</td>
+      <td><span class="b bm">${r.stage}</span></td>
+      <td style="color:var(--text2);font-size:11.5px">${r.industry}</td>
+      <td><span class="b ${r.score>=80?'bg':'ba'}">${r.score}</span></td>
+    </tr>`).join('');
+}
+function confirmImport(){
+  const rows=sampleImportRows;
+  rows.forEach(r=>{
+    if(!accounts.some(a=>a.name===r.company)){
+      accounts.push({id:Date.now()+Math.random(),name:r.company,cat:r.industry,domain:'',phone:'',contacts:1,pipeline:parseInt(r.value.replace(/[$,]/g,'')),collected:0,status:'PROSPECT',mgr:'Unassigned',addr:'',notes:'Imported from CRM'});
+    }
+    if(!deals.some(d=>d.company===r.company)){
+      deals.unshift({id:Date.now()+Math.random(),company:r.company,stage:r.stage==='Proposal'?'Proposal':r.stage==='Prospect'?'Discovery':'Lead',value:parseInt(r.value.replace(/[$,]/g,'')),prob:r.score>=80?65:40,owner:'Unassigned',days:0,color:'var(--blue)'});
+    }
+  });
+  close('mo-crm-import');
+  // Reset modal state for next open
+  setTimeout(()=>{
+    document.getElementById('import-dropzone').style.display='';
+    document.getElementById('import-idle-footer').style.display='';
+    document.getElementById('import-preview-wrap').style.display='none';
+  },400);
+  setTimeout(()=>alert(`✅ Import Complete!\n\n${rows.length} leads imported:\n• Added to Accounts\n• Added to Pipeline\n\nHigh-score leads (≥80) are highlighted in Prospecting.`),200);
 }
 
 // ---- KEYBOARD NAV GLOBAL ----
