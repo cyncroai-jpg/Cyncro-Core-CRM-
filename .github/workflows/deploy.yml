@@ -28,6 +28,7 @@ jobs:
       - name: Create D1 database (skips if already exists)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2685fddc3c8d342a98b1adb6a13912ef
         run: |
           # Create the database — wrangler exits 0 if it already exists
           npx wrangler d1 create cyncro-core 2>&1 || true
@@ -51,6 +52,7 @@ jobs:
       - name: Set secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2685fddc3c8d342a98b1adb6a13912ef
         run: |
           # Push each secret — skips if the value is empty
           push_secret() {
@@ -74,4 +76,5 @@ jobs:
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2685fddc3c8d342a98b1adb6a13912ef
         run: npx wrangler deploy
