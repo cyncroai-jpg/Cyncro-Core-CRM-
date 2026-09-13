@@ -19301,7 +19301,7 @@ function Admin({
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
-  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM">(
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM" | "WAITLIST">(
     "WEEK",
   );
   const [focusDate, setFocusDate] = useState(() =>
@@ -19314,6 +19314,10 @@ function Admin({
   const [resources, setResources] = useState<{id:string;name:string;resource_type:string;capacity:number;location?:string;color:string}[]>([]);
   const [newResource, setNewResource] = useState({name:"",resourceType:"ROOM",capacity:1,location:"",color:"#C1283E"});
   const [routingRules, setRoutingRules] = useState<{id:string;name:string;strategy:string;active:number}[]>([]);
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurForm, setRecurForm] = useState({ frequency:"WEEKLY", intervalCount:1, maxOccurrences:8, endsOn:"", weekdays:[] as number[] });
+  const [waitlistEntries, setWaitlistEntries] = useState<{id:string;event_type_id:string;customer_name:string;customer_email:string;status:string;created_at:string;event_name?:string}[]>([]);
+  const [waitlistLoaded, setWaitlistLoaded] = useState(false);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
   const [manual, setManual] = useState({
@@ -19368,6 +19372,12 @@ function Admin({
     try {
       const res = await fetch("/api/calendar/routing-rules");
       if (res.ok) setRoutingRules(((await res.json()) as {routingRules?:typeof routingRules}).routingRules || []);
+    } catch { /* non-fatal */ }
+  };
+  const loadWaitlist = async () => {
+    try {
+      const res = await fetch("/api/calendar/waitlist?status=WAITING");
+      if (res.ok) { setWaitlistEntries(((await res.json()) as {waitlist?:typeof waitlistEntries}).waitlist || []); setWaitlistLoaded(true); }
     } catch { /* non-fatal */ }
   };
   const loadAuditLog = async (entityId: string) => {
@@ -19732,14 +19742,14 @@ function Admin({
       )}
       <div className="calendarCommandBar">
         <div>
-          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM"] as const).map((item) => (
+          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST"] as const).map((item) => (
             <button
               className={(calendarView as string) === item ? "active" : ""}
-              onClick={() => setCalendarView(item)}
+              onClick={() => { setCalendarView(item); if (item === "WAITLIST" && !waitlistLoaded) void loadWaitlist(); }}
               key={item}
-              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : undefined}
+              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : undefined}
             >
-              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item[0] + item.slice(1).toLowerCase()}
+              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item[0] + item.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -19993,7 +20003,55 @@ function Admin({
           })()}
         </div>
       )}
-      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (
+      {(calendarView as string) === "WAITLIST" && (
+        <div style={{padding:"0 0 24px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div>
+              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70"}}>WAITLIST MANAGEMENT</small>
+              <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{waitlistEntries.length} waiting</h3>
+            </div>
+            <button onClick={()=>void loadWaitlist()} style={{background:"none",border:"1px solid #2e2527",borderRadius:8,color:"#b8abad",padding:"6px 12px",fontSize:11,cursor:"pointer"}}>↺ Refresh</button>
+          </div>
+          {waitlistEntries.length === 0 ? (
+            <div style={{padding:"32px",textAlign:"center",color:"#5a4e51",fontSize:13,border:"1px dashed #2e2527",borderRadius:10}}>
+              No one is currently waiting. When visitors join the waitlist on the public booking page, they appear here.
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {waitlistEntries.map(entry=>(
+                <div key={entry.id} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#100e0f",border:"1px solid #2e2527",borderRadius:10}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"#1a1215",border:"1px solid #3e2527",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#C1283E",flexShrink:0}}>
+                    {(entry.customer_name[0]||"?").toUpperCase()}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <b style={{display:"block",fontSize:13}}>{entry.customer_name}</b>
+                    <small style={{fontSize:10,color:"#7a6e70"}}>{entry.customer_email}</small>
+                    {entry.event_name && <small style={{fontSize:10,color:"#5a4e51",display:"block"}}>{entry.event_name}</small>}
+                  </div>
+                  <small style={{fontSize:10,color:"#7a6e70",flexShrink:0}}>{new Date(entry.created_at).toLocaleDateString()}</small>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                    <button onClick={async()=>{
+                      await fetch("/api/calendar/waitlist",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:entry.id,status:"NOTIFIED"})});
+                      void loadWaitlist();
+                      setNotice(`Marked ${entry.customer_name} as notified.`);
+                    }} style={{fontSize:10,padding:"4px 8px",background:"#0a100a",border:"1px solid #253525",color:"#70c080",borderRadius:6,cursor:"pointer"}}>Notify</button>
+                    <button onClick={async()=>{
+                      await fetch("/api/calendar/waitlist",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:entry.id,status:"BOOKED"})});
+                      void loadWaitlist();
+                      setNotice(`${entry.customer_name} marked as booked.`);
+                    }} style={{fontSize:10,padding:"4px 8px",background:"#0d1018",border:"1px solid #253040",color:"#70a0d0",borderRadius:6,cursor:"pointer"}}>Book</button>
+                    <button onClick={async()=>{
+                      await fetch("/api/calendar/waitlist",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:entry.id,status:"CANCELLED"})});
+                      void loadWaitlist();
+                    }} style={{fontSize:10,padding:"4px 8px",background:"none",border:"1px solid #3e2527",color:"#e07080",borderRadius:6,cursor:"pointer"}}>Remove</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (calendarView as string) !== "WAITLIST" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
           <div className="roleCalendarHead">
             <b>
@@ -20632,8 +20690,59 @@ function Admin({
                 />
               </label>
             </div>
+            {/* Recurring booking toggle */}
+            <div style={{margin:"16px 0 0",padding:"14px 16px",background:"#0c080a",border:"1px solid #2e2527",borderRadius:10}}>
+              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:0}}>
+                <input type="checkbox" checked={recurringEnabled} onChange={e=>{setRecurringEnabled(e.target.checked);}} style={{width:15,height:15,accentColor:"#C1283E"}} />
+                <span style={{fontSize:12,fontWeight:600,color:"#C8C0C4"}}>🔁 Make this a recurring series</span>
+              </label>
+              {recurringEnabled && (
+                <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:10}}>
+                  <div style={{display:"flex",gap:10}}>
+                    <label style={{flex:1,fontSize:11}}>Frequency
+                      <select value={recurForm.frequency} onChange={e=>setRecurForm({...recurForm,frequency:e.target.value})}
+                        style={{width:"100%",marginTop:4,background:"#100e0f",border:"1px solid #2e2527",borderRadius:6,color:"#f5f0eb",padding:"6px 8px",fontSize:11}}>
+                        <option value="DAILY">Daily</option>
+                        <option value="WEEKLY">Weekly</option>
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="YEARLY">Yearly</option>
+                      </select>
+                    </label>
+                    <label style={{width:80,fontSize:11}}>Every
+                      <input type="number" min="1" max="52" value={recurForm.intervalCount} onChange={e=>setRecurForm({...recurForm,intervalCount:Number(e.target.value)})}
+                        style={{width:"100%",marginTop:4,background:"#100e0f",border:"1px solid #2e2527",borderRadius:6,color:"#f5f0eb",padding:"6px 8px",fontSize:11}} />
+                    </label>
+                    <label style={{width:80,fontSize:11}}>Times
+                      <input type="number" min="1" max="104" value={recurForm.maxOccurrences} onChange={e=>setRecurForm({...recurForm,maxOccurrences:Number(e.target.value)})}
+                        style={{width:"100%",marginTop:4,background:"#100e0f",border:"1px solid #2e2527",borderRadius:6,color:"#f5f0eb",padding:"6px 8px",fontSize:11}} />
+                    </label>
+                  </div>
+                  {recurForm.frequency === "WEEKLY" && (
+                    <div>
+                      <small style={{fontSize:10,color:"#7a6e70",display:"block",marginBottom:6}}>REPEAT ON</small>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d,i)=>(
+                          <label key={d} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#C8C0C4",cursor:"pointer",
+                            padding:"3px 8px",borderRadius:5,border:`1px solid ${recurForm.weekdays.includes(i)?"#C1283E":"#2e2527"}`,
+                            background:recurForm.weekdays.includes(i)?"#1a0f12":"transparent"}}>
+                            <input type="checkbox" style={{display:"none"}} checked={recurForm.weekdays.includes(i)}
+                              onChange={e=>{const wd=e.target.checked?[...recurForm.weekdays,i]:recurForm.weekdays.filter(x=>x!==i);setRecurForm({...recurForm,weekdays:wd});}} />
+                            {d}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <label style={{fontSize:11}}>End date (optional)
+                    <input type="date" value={recurForm.endsOn} onChange={e=>setRecurForm({...recurForm,endsOn:e.target.value})}
+                      style={{width:"100%",marginTop:4,background:"#100e0f",border:"1px solid #2e2527",borderRadius:6,color:"#f5f0eb",padding:"6px 8px",fontSize:11}} />
+                  </label>
+                  <p style={{fontSize:10,color:"#7a6e70",margin:0}}>Will create up to {recurForm.maxOccurrences} appointments starting {manual.startsAt ? new Date(manual.startsAt).toLocaleDateString() : "the selected date"}.</p>
+                </div>
+              )}
+            </div>
             <div className="modalactions">
-              <button onClick={() => setManualOpen(false)}>Cancel</button>
+              <button onClick={() => { setManualOpen(false); setRecurringEnabled(false); }}>Cancel</button>
               <button
                 disabled={
                   !manual.eventTypeId ||
@@ -20641,9 +20750,42 @@ function Admin({
                   !manual.customerEmail ||
                   !manual.startsAt
                 }
-                onClick={() => void createManualBooking()}
+                onClick={async () => {
+                  if (recurringEnabled) {
+                    // Create recurring series via recurrences API
+                    const startsOn = manual.startsAt ? new Date(manual.startsAt).toISOString() : "";
+                    const res = await fetch("/api/calendar/recurrences", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        eventTypeId: manual.eventTypeId,
+                        customerName: manual.customerName,
+                        customerEmail: manual.customerEmail,
+                        contactId: manual.contactId || null,
+                        frequency: recurForm.frequency,
+                        intervalCount: recurForm.intervalCount,
+                        maxOccurrences: recurForm.maxOccurrences,
+                        weekdays: recurForm.weekdays.length ? recurForm.weekdays : undefined,
+                        endsOn: recurForm.endsOn || null,
+                        startsOn,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        locationMode: manual.locationMode,
+                        notes: manual.notes,
+                      }),
+                    });
+                    const d = (await res.json()) as { bookingsCreated?: number; error?: string };
+                    if (!res.ok) { setNotice(d.error || "Could not create recurring series."); return; }
+                    setManualOpen(false);
+                    setRecurringEnabled(false);
+                    setRecurForm({ frequency:"WEEKLY", intervalCount:1, maxOccurrences:8, endsOn:"", weekdays:[] });
+                    await loadBookings();
+                    setNotice(`Recurring series created — ${d.bookingsCreated || 0} appointments scheduled.`);
+                  } else {
+                    void createManualBooking();
+                  }
+                }}
               >
-                Create appointment
+                {recurringEnabled ? `Create ${recurForm.maxOccurrences} recurring appointments` : "Create appointment"}
               </button>
             </div>
           </div>
