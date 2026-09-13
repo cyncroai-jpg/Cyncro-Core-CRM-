@@ -19522,10 +19522,20 @@ function Admin({
       window.clearInterval(timer);
     };
   }, [currentUserName]);
+  const [contactHistory, setContactHistory] = useState<{id:string;activity_type:string;title:string;details?:string;due_at?:string;status:string;created_at:string}[]>([]);
+  const [postMeetingNote, setPostMeetingNote] = useState("");
   const openBookingDetail = (booking: Booking) => {
     setSelectedBooking(booking);
     setAuditLog([]);
+    setContactHistory([]);
+    setPostMeetingNote("");
     void loadAuditLog(booking.id);
+    // Load contact history for Calendar Intelligence™
+    if (booking.contact_id) {
+      void fetch(`/api/crm/activities?contactId=${encodeURIComponent(booking.contact_id)}&limit=5`)
+        .then(async r => { if (r.ok) setContactHistory(((await r.json()) as {activities?:typeof contactHistory}).activities || []); })
+        .catch(()=>{});
+    }
   };
   const updateBooking = async (
     booking: Booking,
@@ -20351,6 +20361,72 @@ function Admin({
                 </div>
               )}
             </div>
+            {/* Calendar Intelligence™ — Pre-meeting brief */}
+            {(contactHistory.length > 0 || selectedBooking.contact_id) && (
+              <div style={{margin:"16px 0 0",padding:"14px 16px",background:"#09090c",border:"1px solid #1e1e2e",borderRadius:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",color:"#7070d0"}}>⚡ CALENDAR INTELLIGENCE™</span>
+                  <span style={{fontSize:9,color:"#4a4a70",fontStyle:"italic"}}>pre-meeting brief</span>
+                </div>
+                {contactHistory.length > 0 ? (
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {contactHistory.map(act=>{
+                      const icon = act.activity_type==="CALL"?"📞":act.activity_type==="EMAIL"?"✉️":act.activity_type==="CALENDAR"?"📅":act.activity_type==="NOTE"?"📝":"•";
+                      const isPast = new Date(act.due_at||act.created_at) < new Date();
+                      return (
+                        <div key={act.id} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"6px 8px",background:"#0f0f1a",borderRadius:6,border:"1px solid #1e1e2e"}}>
+                          <span style={{fontSize:12,flexShrink:0}}>{icon}</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <span style={{fontSize:11,color:"#C8C0C4",display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{act.title}</span>
+                            {act.details && <span style={{fontSize:10,color:"#5a5a7a",display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{act.details}</span>}
+                          </div>
+                          <span style={{fontSize:9,color:isPast?"#5a5a7a":"#7070d0",flexShrink:0,whiteSpace:"nowrap"}}>
+                            {new Date(act.due_at||act.created_at).toLocaleDateString([],{month:"short",day:"numeric"})}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{fontSize:11,color:"#4a4a70",margin:0}}>No prior interactions on record for this contact.</p>
+                )}
+              </div>
+            )}
+            {/* Calendar Intelligence™ — Post-meeting capture */}
+            {(selectedBooking.status === "CONFIRMED" || selectedBooking.status === "RESCHEDULED") && new Date(selectedBooking.starts_at) <= new Date() && (
+              <div style={{margin:"12px 0 0",padding:"14px 16px",background:"#0c0a08",border:"1px solid #2e2510",borderRadius:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",color:"#c09030"}}>📋 POST-MEETING CAPTURE</span>
+                  <span style={{fontSize:9,color:"#5a4a20",fontStyle:"italic"}}>record outcome now</span>
+                </div>
+                <div style={{display:"flex",gap:6,marginBottom:10}}>
+                  <button onClick={()=>void updateBooking(selectedBooking,"UPDATE",{status:"COMPLETED",notes:postMeetingNote||undefined})}
+                    style={{flex:1,padding:"8px",background:"#0a180a",border:"1px solid #2a4a2a",borderRadius:7,color:"#3dcc7a",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    ✓ Completed
+                  </button>
+                  <button onClick={()=>void updateBooking(selectedBooking,"UPDATE",{status:"NO_SHOW"})}
+                    style={{flex:1,padding:"8px",background:"#180a0a",border:"1px solid #4a2a2a",borderRadius:7,color:"#e05060",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    ✕ No-show
+                  </button>
+                </div>
+                <textarea value={postMeetingNote} onChange={e=>setPostMeetingNote(e.target.value)}
+                  placeholder="Meeting notes, next steps, key outcomes…"
+                  style={{width:"100%",background:"#100e0a",border:"1px solid #2e2510",borderRadius:6,color:"#C8C0C4",padding:"8px 10px",fontSize:11,resize:"vertical",minHeight:60,fontFamily:"inherit",boxSizing:"border-box"}} />
+                {postMeetingNote && (
+                  <button onClick={async()=>{
+                    // Save note as CRM activity and update booking notes
+                    if (selectedBooking.contact_id) {
+                      void fetch("/api/crm/activities",{method:"POST",headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({contactId:selectedBooking.contact_id,activityType:"NOTE",title:`Post-meeting: ${selectedBooking.event_name||"Appointment"}`,details:postMeetingNote,status:"COMPLETED"})});
+                    }
+                    void updateBooking(selectedBooking,"UPDATE",{notes:postMeetingNote});
+                    setPostMeetingNote("");
+                  }} style={{marginTop:8,width:"100%",padding:"7px",background:"#1a140a",border:"1px solid #3a2a10",borderRadius:6,color:"#c09030",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    Save note to CRM
+                  </button>
+                )}
+              </div>
+            )}
             {auditLog.length > 0 && (
               <div className="bookingAuditLog">
                 <small>ACTIVITY LOG</small>
