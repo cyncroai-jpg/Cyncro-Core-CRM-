@@ -968,6 +968,7 @@ function CyncroComingSoonGate({ product }: { product: string }) {
 }
 
 function PublicBookingExperience() {
+  type CustomQuestion = { id: string; label: string; type: string; required: boolean; options?: string[] };
   type EventType = {
     id: string;
     name: string;
@@ -977,6 +978,7 @@ function PublicBookingExperience() {
     location_modes: string;
     video_platforms: string;
     host_name?: string;
+    custom_questions?: string;
   };
   type Slot = { startsAt: string; endsAt: string; remaining: number };
   const [events, setEvents] = useState<EventType[]>([]);
@@ -996,7 +998,9 @@ function PublicBookingExperience() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const selected = events.find((item) => item.id === eventId);
+  const customQuestions: CustomQuestion[] = selected?.custom_questions ? (() => { try { return JSON.parse(selected.custom_questions) as CustomQuestion[]; } catch { return []; } })() : [];
   const selectedDuration = selected?.duration_minutes || 0;
   const modes: string[] = selected
     ? JSON.parse(selected.location_modes || "[]")
@@ -1086,6 +1090,7 @@ function PublicBookingExperience() {
         videoPlatform: locationMode === "VIDEO" ? videoPlatform : null,
         meetingAddress: locationMode === "IN_PERSON" ? form.address : null,
         notes: form.notes,
+        customAnswers: Object.keys(customAnswers).length ? customAnswers : undefined,
       }),
     });
     const data = (await response.json()) as { error?: string };
@@ -1305,6 +1310,43 @@ function PublicBookingExperience() {
                 />
               </div>
             </div>
+            {customQuestions.length > 0 && (
+              <div className="bookingBlock">
+                <small>ADDITIONAL INFORMATION</small>
+                <div className="bookingDetails">
+                  {customQuestions.map(q => (
+                    <div key={q.id} style={{display:"flex",flexDirection:"column",gap:4}}>
+                      <label style={{fontSize:11,fontWeight:600,color:"#C8C0C4",letterSpacing:"0.04em"}}>
+                        {q.label}{q.required && <span style={{color:"#C1283E",marginLeft:2}}>*</span>}
+                      </label>
+                      {q.type === "SELECT" && Array.isArray(q.options) ? (
+                        <select value={customAnswers[q.id]||""} onChange={e=>setCustomAnswers({...customAnswers,[q.id]:e.target.value})}>
+                          <option value="">Select an option</option>
+                          {q.options.map(opt=><option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : q.type === "LONG" ? (
+                        <textarea value={customAnswers[q.id]||""} onChange={e=>setCustomAnswers({...customAnswers,[q.id]:e.target.value})} rows={3} placeholder={q.label} />
+                      ) : q.type === "CHECKBOX" && Array.isArray(q.options) ? (
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                          {q.options.map(opt=>(
+                            <label key={opt} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#C8C0C4",fontWeight:400}}>
+                              <input type="checkbox" checked={(customAnswers[q.id]||"").includes(opt)}
+                                onChange={e=>{const cur=(customAnswers[q.id]||"").split(",").filter(Boolean);const next=e.target.checked?[...cur,opt]:cur.filter(x=>x!==opt);setCustomAnswers({...customAnswers,[q.id]:next.join(",")});}}
+                              />
+                              {opt}
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <input type={q.type==="EMAIL"?"email":q.type==="NUMBER"?"number":q.type==="DATE"?"date":"text"}
+                          value={customAnswers[q.id]||""} onChange={e=>setCustomAnswers({...customAnswers,[q.id]:e.target.value})}
+                          placeholder={q.label} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {error && <div className="bookingError">{error}</div>}
             <button
               className="confirmLiveBooking"
@@ -19188,7 +19230,7 @@ function Admin({
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
-  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK">(
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM">(
     "WEEK",
   );
   const [focusDate, setFocusDate] = useState(() =>
@@ -19196,6 +19238,10 @@ function Admin({
   );
   const [showMine, setShowMine] = useState(true);
   const [manualOpen, setManualOpen] = useState(false);
+  const [auditLog, setAuditLog] = useState<{id:string;action:string;actor:string;created_at:string;before_state?:string;after_state?:string}[]>([]);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [resources, setResources] = useState<{id:string;name:string;resource_type:string;capacity:number;location?:string;color:string}[]>([]);
+  const [newResource, setNewResource] = useState({name:"",resourceType:"ROOM",capacity:1,location:"",color:"#C1283E"});
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
   const [manual, setManual] = useState({
@@ -19238,6 +19284,18 @@ function Admin({
     try {
       const res = await fetch("/api/calendar/analytics");
       if (res.ok) setAnalytics((await res.json()) as typeof analytics);
+    } catch { /* non-fatal */ }
+  };
+  const loadResources = async () => {
+    try {
+      const res = await fetch("/api/calendar/resources");
+      if (res.ok) setResources(((await res.json()) as {resources?:typeof resources}).resources || []);
+    } catch { /* non-fatal */ }
+  };
+  const loadAuditLog = async (entityId: string) => {
+    try {
+      const res = await fetch(`/api/calendar/audit-log?entityId=${encodeURIComponent(entityId)}&limit=10`);
+      if (res.ok) setAuditLog(((await res.json()) as {log?:typeof auditLog}).log || []);
     } catch { /* non-fatal */ }
   };
   const loadBlockedTimes = async () => {
@@ -19301,6 +19359,7 @@ function Admin({
       void loadAnalytics();
       void loadBlockedTimes();
       void loadEventTypeSettings();
+      void loadResources();
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -19363,6 +19422,11 @@ function Admin({
       window.clearInterval(timer);
     };
   }, [currentUserName]);
+  const openBookingDetail = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setAuditLog([]);
+    void loadAuditLog(booking.id);
+  };
   const updateBooking = async (
     booking: Booking,
     action: string,
@@ -19585,13 +19649,14 @@ function Admin({
       )}
       <div className="calendarCommandBar">
         <div>
-          {(["LIST", "WEEK", "MONTH", "SLOTS"] as const).map((item) => (
+          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM"] as const).map((item) => (
             <button
               className={(calendarView as string) === item ? "active" : ""}
-              onClick={() => setCalendarView(item as "LIST"|"WEEK"|"MONTH")}
+              onClick={() => setCalendarView(item)}
               key={item}
+              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : undefined}
             >
-              {item[0] + item.slice(1).toLowerCase()}
+              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item[0] + item.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -19636,6 +19701,9 @@ function Admin({
         </button>
         <button onClick={() => { void loadEventTypeSettings(); setEtSettingsOpen(true); }} style={{background:"#0d1018",border:"1px solid #253040",color:"#70a0d0",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
           ⚙ Event types
+        </button>
+        <button onClick={() => { void loadResources(); setResourcesOpen(true); }} style={{background:"#0a100a",border:"1px solid #253525",color:"#70c080",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+          ◈ Resources
         </button>
         <button
           className="crmCreate"
@@ -19714,7 +19782,7 @@ function Admin({
                       const startMin=(s.getHours()*60+s.getMinutes()-7*60);const endMin=(e.getHours()*60+e.getMinutes()-7*60);
                       const top=Math.max(0,(startMin/30)*30);const height=Math.max(30,((endMin-startMin)/30)*30);
                       const statusColor=b.status==="CONFIRMED"?"#3dcc7a":b.status==="COMPLETED"?"#4ab0f5":b.status==="NO_SHOW"?"#c070e0":"#e05060";
-                      return(<button key={b.id} className="calSlotBooking" onClick={()=>setSelectedBooking(b)}
+                      return(<button key={b.id} className="calSlotBooking" onClick={()=>openBookingDetail(b)}
                         style={{top,height,borderLeftColor:statusColor}}>
                         <b>{s.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</b>
                         <span>{b.customer_name}</span>
@@ -19740,7 +19808,109 @@ function Admin({
           )}
         </div>
       )}
-      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (
+      {(calendarView as string) === "REVENUE" && (
+        <div className="revenueCalendar">
+          <div className="revenueCalHead">
+            <div>
+              <small>REVENUE CALENDAR™</small>
+              <b>Appointments with business context — lead score, opportunity, and close potential</b>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <span style={{fontSize:11,color:"#7a6e70"}}>{rows.filter(b=>b.status!=="CANCELLED").length} active bookings</span>
+            </div>
+          </div>
+          <div className="revenueCalGrid">
+            {(["HIGH","MEDIUM","LOW"] as const).map(tier=>{
+              const tierRows=rows.filter(b=>{
+                const ls=(b as unknown as Record<string,unknown>).lead_score as number|undefined;
+                const score=ls||0;
+                if(tier==="HIGH") return score>=70&&b.status!=="CANCELLED";
+                if(tier==="MEDIUM") return score>=30&&score<70&&b.status!=="CANCELLED";
+                return score<30&&b.status!=="CANCELLED";
+              });
+              const tierColor=tier==="HIGH"?"#3dcc7a":tier==="MEDIUM"?"#d4c040":"#b8abad";
+              const tierLabel=tier==="HIGH"?"High Value (70–100)":tier==="MEDIUM"?"Mid-Market (30–69)":"Nurture (0–29)";
+              return(
+                <div key={tier} className="revenueTierColumn">
+                  <div className="revenueTierHead" style={{borderTopColor:tierColor}}>
+                    <span style={{color:tierColor,fontSize:9,fontWeight:700,letterSpacing:"0.1em"}}>{tierLabel}</span>
+                    <b style={{color:tierColor}}>{tierRows.length}</b>
+                  </div>
+                  {tierRows.slice(0,20).map(b=>{
+                    const opp=(b as unknown as Record<string,unknown>).opportunity_id as string|null;
+                    return(
+                      <button key={b.id} className="revenueBookingCard" onClick={()=>openBookingDetail(b)}>
+                        <div className="revenueCardHead">
+                          <b>{b.customer_name}</b>
+                          <span className={`bookingStatusChip status-${b.status.toLowerCase()}`}>{b.status}</span>
+                        </div>
+                        <small>{b.event_name}</small>
+                        <div className="revenueCardMeta">
+                          <span>🕐 {new Date(b.starts_at).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+                          <span>📍 {b.location_mode.replace("_"," ")}</span>
+                          {opp && <span style={{color:"#70a0d0"}}>🔗 Opportunity linked</span>}
+                          {b.assigned_to && <span>👤 {b.assigned_to.split("@")[0]}</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {!tierRows.length && <div style={{color:"#5a4e51",fontSize:11,padding:"16px 0",textAlign:"center"}}>No bookings in this tier</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {(calendarView as string) === "TEAM" && (
+        <div className="teamCalendar">
+          <div className="teamCalHead">
+            <small>TEAM CALENDAR — all reps side by side</small>
+            <b>{new Date(`${focusDate}T12:00:00`).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</b>
+          </div>
+          {(()=>{
+            const repSet=new Set(rows.map(b=>b.assigned_to||"Unassigned"));
+            const reps=Array.from(repSet).slice(0,6);
+            return(
+              <div className="teamCalGrid" style={{gridTemplateColumns:`repeat(${Math.max(1,reps.length)},1fr)`}}>
+                {reps.map(rep=>{
+                  const repBookings=rows.filter(b=>(b.assigned_to||"Unassigned")===rep&&b.status!=="CANCELLED");
+                  const today=new Date(`${focusDate}T12:00:00`);
+                  const weekStart=new Date(today);weekStart.setDate(today.getDate()-today.getDay());
+                  const weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+7);
+                  const thisWeek=repBookings.filter(b=>new Date(b.starts_at)>=weekStart&&new Date(b.starts_at)<weekEnd);
+                  const completed=repBookings.filter(b=>b.status==="COMPLETED").length;
+                  const showRate=repBookings.length>0?Math.round(((repBookings.length-repBookings.filter(b=>b.status==="NO_SHOW").length)/repBookings.length)*100):100;
+                  return(
+                    <div key={rep} className="teamRepColumn">
+                      <div className="teamRepHead">
+                        <div className="teamRepAvatar">{(rep.split("@")[0]||"?")[0].toUpperCase()}</div>
+                        <div>
+                          <b>{rep.split("@")[0]}</b>
+                          <small>{thisWeek.length} this week · {showRate}% show</small>
+                        </div>
+                      </div>
+                      <div className="teamRepStats">
+                        <span><b>{completed}</b><small>done</small></span>
+                        <span><b>{repBookings.filter(b=>b.status==="CONFIRMED"||b.status==="RESCHEDULED").length}</b><small>upcoming</small></span>
+                        <span><b>{showRate}%</b><small>show rate</small></span>
+                      </div>
+                      {thisWeek.slice(0,8).map(b=>(
+                        <button key={b.id} className="teamRepBooking" onClick={()=>openBookingDetail(b)}>
+                          <b>{new Date(b.starts_at).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})}</b>
+                          <span>{b.customer_name}</span>
+                          <small className={`bookingStatusChip status-${b.status.toLowerCase()}`}>{b.status}</small>
+                        </button>
+                      ))}
+                      {!thisWeek.length&&<div style={{color:"#5a4e51",fontSize:11,padding:12,textAlign:"center"}}>No bookings this week</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
           <div className="roleCalendarHead">
             <b>
@@ -19781,7 +19951,7 @@ function Admin({
                     {dayRows.map((row) => (
                       <button
                         key={row.id}
-                        onClick={() => setSelectedBooking(row)}
+                        onClick={() => openBookingDetail(row)}
                       >
                         <b>
                           {new Date(row.starts_at).toLocaleTimeString([], {
@@ -19844,7 +20014,7 @@ function Admin({
             <span>
               <b className={`bookingStatusChip status-${(booking.status||"").toLowerCase()}`}>{booking.status}</b>
             </span>
-            <button onClick={() => setSelectedBooking(booking)}>•••</button>
+            <button onClick={() => openBookingDetail(booking)}>•••</button>
           </div>
         ))}
         {loaded && !visibleRows.length && (
@@ -19909,6 +20079,7 @@ function Admin({
               <div>
                 <small>DATE & TIME</small>
                 <b>{new Date(selectedBooking.starts_at).toLocaleString()}</b>
+                <span style={{fontSize:10,color:"#7a6e70"}}>→ {new Date(selectedBooking.ends_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</span>
               </div>
               <div>
                 <small>EVENT</small>
@@ -19925,13 +20096,50 @@ function Admin({
               </div>
               <div>
                 <small>STATUS</small>
-                <b>{selectedBooking.status}</b>
+                <b className={`bookingStatusChip status-${selectedBooking.status.toLowerCase()}`}>{selectedBooking.status}</b>
               </div>
               <div>
                 <small>ASSIGNED TO</small>
                 <b>{selectedBooking.assigned_to || "Unassigned"}</b>
               </div>
+              <div>
+                <small>CONTACT</small>
+                <b>{selectedBooking.customer_email}</b>
+                {selectedBooking.customer_phone && <span style={{fontSize:10,color:"#7a6e70",display:"block"}}>{selectedBooking.customer_phone}</span>}
+              </div>
+              {(selectedBooking as unknown as Record<string,unknown>).lead_score !== undefined && Number((selectedBooking as unknown as Record<string,unknown>).lead_score) > 0 && (
+                <div>
+                  <small>LEAD SCORE</small>
+                  <b style={{color:Number((selectedBooking as unknown as Record<string,unknown>).lead_score)>=70?"#3dcc7a":Number((selectedBooking as unknown as Record<string,unknown>).lead_score)>=40?"#d4c040":"#b8abad"}}>
+                    {String((selectedBooking as unknown as Record<string,unknown>).lead_score)}/100
+                  </b>
+                </div>
+              )}
+              {Boolean((selectedBooking as unknown as Record<string,unknown>).opportunity_id) && (
+                <div>
+                  <small>OPPORTUNITY</small>
+                  <b style={{color:"#70a0d0"}}>🔗 Linked to CRM</b>
+                </div>
+              )}
+              {selectedBooking.notes && (
+                <div style={{gridColumn:"1/-1"}}>
+                  <small>NOTES</small>
+                  <b style={{fontWeight:400,fontSize:12,color:"#b8abad"}}>{selectedBooking.notes}</b>
+                </div>
+              )}
             </div>
+            {auditLog.length > 0 && (
+              <div className="bookingAuditLog">
+                <small>ACTIVITY LOG</small>
+                {auditLog.map(entry=>(
+                  <div key={entry.id} className="auditLogEntry">
+                    <span className="auditAction">{entry.action}</span>
+                    <span className="auditActor">{entry.actor.split("@")[0]}</span>
+                    <span className="auditTime">{new Date(entry.created_at).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <label>
               New date and time
               <input
@@ -20110,6 +20318,53 @@ function Admin({
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {resourcesOpen && (
+        <div className="modalback" onClick={() => setResourcesOpen(false)}>
+          <div className="bookingmodal pipelineSettings" style={{maxWidth:600,maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div className="modalhead">
+              <div><label>UNIVERSAL RESOURCE GRAPH™</label><h2>Rooms, vehicles &amp; equipment</h2></div>
+              <button onClick={() => setResourcesOpen(false)}>×</button>
+            </div>
+            <p style={{fontSize:12,color:"#b8abad",margin:"0 0 16px"}}>Resources are linked to bookings to prevent double-booking of shared spaces, vehicles, and equipment.</p>
+            <div className="crmForm" style={{marginBottom:16}}>
+              <label>Name<input value={newResource.name} onChange={e=>setNewResource({...newResource,name:e.target.value})} placeholder="Conference Room A" /></label>
+              <label>Type
+                <select value={newResource.resourceType} onChange={e=>setNewResource({...newResource,resourceType:e.target.value})}>
+                  <option value="ROOM">Room</option><option value="VEHICLE">Vehicle</option><option value="EQUIPMENT">Equipment</option><option value="PERSON">Person</option><option value="VIRTUAL">Virtual</option>
+                </select>
+              </label>
+              <label>Capacity<input type="number" min="1" max="500" value={newResource.capacity} onChange={e=>setNewResource({...newResource,capacity:Number(e.target.value)})} /></label>
+              <label>Location<input value={newResource.location} onChange={e=>setNewResource({...newResource,location:e.target.value})} placeholder="Floor 2, Building A" /></label>
+              <label>Color<input type="color" value={newResource.color} onChange={e=>setNewResource({...newResource,color:e.target.value})} style={{width:40,height:36,border:"none",background:"none"}} /></label>
+            </div>
+            <button style={{marginBottom:16,background:"#0a100a",border:"1px solid #253525",color:"#70c080",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer"}} onClick={async()=>{
+              if(!newResource.name){setNotice("Resource name is required.");return;}
+              const res=await fetch("/api/calendar/resources",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(newResource)});
+              if(!res.ok){const d=await res.json() as {error?:string};setNotice(d.error||"Could not create resource.");return;}
+              setNewResource({name:"",resourceType:"ROOM",capacity:1,location:"",color:"#C1283E"});
+              await loadResources();
+              setNotice("Resource added to Universal Resource Graph™");
+            }}>+ Add resource</button>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {resources.map(r=>(
+                <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"#100e0f",border:"1px solid #2e2527",borderRadius:8}}>
+                  <span style={{width:10,height:10,borderRadius:"50%",background:r.color,flexShrink:0}} />
+                  <div style={{flex:1}}>
+                    <b style={{fontSize:12}}>{r.name}</b>
+                    <small style={{fontSize:10,color:"#7a6e70",display:"block"}}>{r.resource_type} · cap {r.capacity}{r.location?` · ${r.location}`:""}</small>
+                  </div>
+                  <button onClick={async()=>{
+                    await fetch("/api/calendar/resources",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:r.id,active:false})});
+                    await loadResources();
+                  }} style={{color:"#e05060",background:"none",border:"none",cursor:"pointer",fontSize:11}}>Archive</button>
+                </div>
+              ))}
+              {!resources.length && <p style={{color:"#5a4e51",fontSize:12}}>No resources yet. Add rooms, vehicles, or equipment above.</p>}
+            </div>
+            <div className="modalactions"><button onClick={()=>setResourcesOpen(false)}>Done</button></div>
           </div>
         </div>
       )}

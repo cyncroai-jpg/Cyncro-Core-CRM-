@@ -348,6 +348,114 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(booking_id) REFERENCES calendar_bookings(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_booking_reminders_booking ON calendar_booking_reminders(booking_id, reminder_type)"),
+    // ── Universal Calendar™ Phase 2 ──────────────────────────────────────────
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_resources (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      resource_type TEXT NOT NULL DEFAULT 'ROOM',
+      description TEXT,
+      location TEXT,
+      capacity INTEGER NOT NULL DEFAULT 1,
+      color TEXT NOT NULL DEFAULT '#C1283E',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_resource_bookings (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(booking_id) REFERENCES calendar_bookings(id),
+      FOREIGN KEY(resource_id) REFERENCES calendar_resources(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_resource_bookings_range ON calendar_resource_bookings(resource_id, starts_at, ends_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_routing_rules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      event_type_id TEXT,
+      strategy TEXT NOT NULL DEFAULT 'ROUND_ROBIN',
+      members TEXT NOT NULL DEFAULT '[]',
+      weights TEXT NOT NULL DEFAULT '{}',
+      skills_required TEXT NOT NULL DEFAULT '[]',
+      territory_rules TEXT NOT NULL DEFAULT '[]',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(event_type_id) REFERENCES calendar_event_types(id)
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_slot_holds (
+      token TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      customer_email TEXT,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(event_type_id) REFERENCES calendar_event_types(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slot_holds_expires ON calendar_slot_holds(expires_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slot_holds_event_time ON calendar_slot_holds(event_type_id, starts_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_waitlist (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL,
+      preferred_date TEXT,
+      preferred_time_start TEXT,
+      preferred_time_end TEXT,
+      customer_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      customer_phone TEXT,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'WAITING',
+      notified_at TEXT,
+      booking_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(event_type_id) REFERENCES calendar_event_types(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_waitlist_event ON calendar_waitlist(event_type_id, status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_recurrence_rules (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL,
+      contact_id TEXT,
+      customer_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      frequency TEXT NOT NULL DEFAULT 'WEEKLY',
+      interval_count INTEGER NOT NULL DEFAULT 1,
+      weekdays TEXT NOT NULL DEFAULT '[]',
+      day_of_month INTEGER,
+      starts_on TEXT NOT NULL,
+      ends_on TEXT,
+      max_occurrences INTEGER,
+      occurrence_count INTEGER NOT NULL DEFAULT 0,
+      timezone TEXT NOT NULL DEFAULT 'UTC',
+      location_mode TEXT NOT NULL DEFAULT 'VIDEO',
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(event_type_id) REFERENCES calendar_event_types(id)
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_audit_log (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT,
+      entity_type TEXT NOT NULL DEFAULT 'BOOKING',
+      entity_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      actor TEXT NOT NULL,
+      before_state TEXT,
+      after_state TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON calendar_audit_log(entity_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON calendar_audit_log(actor, created_at DESC)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS prime_missions (
       id TEXT PRIMARY KEY,
       created_by TEXT NOT NULL,
@@ -453,6 +561,24 @@ export async function ensureCoreSchema() {
     .run();
   // Add commission_notes column for custom commission overrides/splits
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN commission_notes TEXT").run(); } catch { /* already migrated */ }
+  // Universal Calendar™ Phase 2 — new columns
+  for (const statement of [
+    "ALTER TABLE calendar_bookings ADD COLUMN opportunity_id TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN lead_score INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_bookings ADD COLUMN hold_token TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN recurrence_rule_id TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN routing_rule_id TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN revenue_context TEXT",
+    "ALTER TABLE calendar_bookings ADD COLUMN no_show_reason TEXT",
+    "ALTER TABLE calendar_event_types ADD COLUMN routing_rule_id TEXT",
+    "ALTER TABLE calendar_event_types ADD COLUMN require_hold INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_event_types ADD COLUMN buffer_strategy TEXT NOT NULL DEFAULT 'FIXED'",
+    "ALTER TABLE calendar_event_types ADD COLUMN smartslot_enabled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_event_types ADD COLUMN booking_page_title TEXT",
+    "ALTER TABLE calendar_event_types ADD COLUMN booking_page_description TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  }
   const now = new Date().toISOString();
   await db.batch([
     db

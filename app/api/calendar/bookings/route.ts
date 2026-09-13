@@ -66,20 +66,35 @@ export async function POST(request: Request) {
       }
     }
     const assignedTo = cleanText(body.assignedTo, 160) || String(eventType.host_name || requestUser(request));
+    const opportunityId = cleanText(body.opportunityId, 80) || null;
+    const leadScore = Math.min(100, Math.max(0, Number(body.leadScore || 0)));
+    const customAnswers = body.customAnswers && typeof body.customAnswers === "object" ? JSON.stringify(body.customAnswers) : "{}";
+    const holdToken = cleanText(body.holdToken, 80) || null;
     await db.prepare(`INSERT INTO calendar_bookings
       (id, event_type_id, account_id, contact_id, customer_name, customer_email, customer_phone, starts_at, ends_at, timezone,
-       location_mode, meeting_address, video_platform, video_url, status, notes, created_by, assigned_to, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)`) 
+       location_mode, meeting_address, video_platform, video_url, status, notes, created_by, assigned_to,
+       opportunity_id, lead_score, custom_answers, hold_token, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(bookingId, eventTypeId, cleanText(body.accountId, 80) || null, contactId,
         customerName, customerEmail, cleanText(body.customerPhone, 40) || null, starts.toISOString(), ends.toISOString(), timezone,
         locationMode, meetingAddress, videoPlatform, cleanText(body.videoUrl, 500) || null, cleanText(body.notes, 5000) || null,
-        requestUser(request), assignedTo, now, now).run();
+        requestUser(request), assignedTo, opportunityId, leadScore, customAnswers, holdToken, now, now).run();
     await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,created_at,updated_at)
       VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),requestUser(request),now,now).run();
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
     if (createdBooking) await syncGoogleBooking(requestUser(request), createdBooking);
+    // Audit log — fire-and-forget
+    try {
+      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, after_state, created_at)
+        VALUES (?, ?, 'BOOKING', ?, 'CREATED', ?, ?, ?)`).bind(
+        crypto.randomUUID(), bookingId, bookingId, requestUser(request),
+        JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), now
+      ).run();
+      // Release slot hold if token was provided
+      if (cleanText(body.holdToken, 80)) await db.prepare("DELETE FROM calendar_slot_holds WHERE token = ?").bind(cleanText(body.holdToken, 80)).run();
+    } catch { /* non-fatal */ }
     // Send confirmation email (fire-and-forget)
     try {
       const { subject, html } = bookingConfirmationEmail({
@@ -142,6 +157,16 @@ export async function PATCH(request: Request) {
       .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
     const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first<Record<string,unknown>>();
     if (updated) await syncGoogleBooking(requestUser(request), { ...updated, event_name: booking.event_name || "Cyncro appointment" });
+    // Audit log — fire-and-forget
+    try {
+      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, before_state, after_state, created_at)
+        VALUES (?, ?, 'BOOKING', ?, ?, ?, ?, ?, ?)`).bind(
+        crypto.randomUUID(), id, id, action, requestUser(request),
+        JSON.stringify({ status: booking.status, starts_at: booking.starts_at }),
+        JSON.stringify({ status: updated?.status, starts_at: updated?.starts_at }),
+        new Date().toISOString()
+      ).run();
+    } catch { /* non-fatal */ }
     // Send transactional email
     try {
       const customerEmail = String(booking.customer_email || "");

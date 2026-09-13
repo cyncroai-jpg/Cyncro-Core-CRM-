@@ -23267,3 +23267,287 @@ button.crmUser i {
 @media (max-width: 520px) {
   .commissionSummary { grid-template-columns: 1fr 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CYNCRO UNIVERSAL CALENDAR™ — Phase 2 Styles
+   Revenue Calendar™ · Team View · Audit Log · Resource Graph™
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Revenue Calendar™ ─────────────────────────────────────────────────────── */
+.revenueCalendar {
+  background: #0c0a0b;
+  border: 1px solid #2e1e24;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.revenueCalHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2e1e24;
+  gap: 12px;
+}
+.revenueCalHead small {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #5A4E51;
+  margin-bottom: 4px;
+}
+.revenueCalHead b {
+  font-size: 13px;
+  color: #C8C0C4;
+  font-weight: 500;
+}
+.revenueCalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+@media (max-width: 680px) {
+  .revenueCalGrid { grid-template-columns: 1fr; }
+}
+.revenueTierColumn {
+  padding: 16px;
+  border-right: 1px solid #2e1e24;
+}
+.revenueTierColumn:last-child { border-right: none; }
+.revenueTierHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 3px solid;
+  padding-top: 10px;
+  margin-bottom: 12px;
+}
+.revenueTierHead b {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.revenueBookingCard {
+  display: block;
+  width: 100%;
+  background: #13100e;
+  border: 1px solid #2e2822;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.revenueBookingCard:hover {
+  background: #1a1410;
+  border-color: #4a3028;
+}
+.revenueCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.revenueBookingCard b {
+  font-size: 12px;
+  color: #E8E4E6;
+  font-weight: 600;
+}
+.revenueBookingCard small {
+  display: block;
+  font-size: 10px;
+  color: #7a6e70;
+  margin-bottom: 6px;
+}
+.revenueCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.revenueCardMeta span {
+  font-size: 10px;
+  color: #9A8E90;
+  background: #1e1a1c;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* Team Calendar View ─────────────────────────────────────────────────────── */
+.teamCalendar {
+  background: #0c0a0b;
+  border: 1px solid #2e1e24;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.teamCalHead {
+  padding: 14px 20px;
+  border-bottom: 1px solid #2e1e24;
+}
+.teamCalHead small {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #5A4E51;
+  margin-bottom: 4px;
+}
+.teamCalHead b {
+  font-size: 14px;
+  color: #C8C0C4;
+}
+.teamCalGrid {
+  display: grid;
+  gap: 0;
+  overflow-x: auto;
+  min-width: 0;
+}
+.teamRepColumn {
+  padding: 14px;
+  border-right: 1px solid #2e1e24;
+  min-width: 180px;
+}
+.teamRepColumn:last-child { border-right: none; }
+.teamRepHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2e1e24;
+}
+.teamRepAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #C1283E22;
+  border: 1px solid #C1283E55;
+  color: #C1283E;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.teamRepHead b {
+  display: block;
+  font-size: 12px;
+  color: #E8E4E6;
+}
+.teamRepHead small {
+  font-size: 10px;
+  color: #7a6e70;
+}
+.teamRepStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.teamRepStats span {
+  background: #13100e;
+  border: 1px solid #2e2822;
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.teamRepStats b {
+  display: block;
+  font-size: 14px;
+  color: #E8E4E6;
+  font-variant-numeric: tabular-nums;
+}
+.teamRepStats small {
+  display: block;
+  font-size: 9px;
+  color: #5A4E51;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.teamRepBooking {
+  display: block;
+  width: 100%;
+  background: #13100e;
+  border: 1px solid #2e2822;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.teamRepBooking:hover { background: #1a1410; }
+.teamRepBooking b {
+  display: block;
+  font-size: 11px;
+  color: #C8C0C4;
+  margin-bottom: 2px;
+}
+.teamRepBooking span {
+  display: block;
+  font-size: 11px;
+  color: #9A8E90;
+  margin-bottom: 4px;
+}
+
+/* Appointment Audit Log ─────────────────────────────────────────────────── */
+.bookingAuditLog {
+  margin: 16px 0 4px;
+  border-top: 1px solid #2e1e24;
+  padding-top: 14px;
+}
+.bookingAuditLog small {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5A4E51;
+  margin-bottom: 8px;
+}
+.auditLogEntry {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #1e1a1c;
+  font-size: 11px;
+}
+.auditAction {
+  background: #1a1012;
+  border: 1px solid #3a2028;
+  border-radius: 4px;
+  color: #e08090;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.auditActor {
+  color: #C8C0C4;
+  font-weight: 500;
+  flex: 1;
+}
+.auditTime {
+  color: #5A4E51;
+  flex-shrink: 0;
+}
+
+/* Booking detail facts enhancement ─────────────────────────────────────── */
+.bookingfacts > div > span {
+  display: block;
+  font-size: 10px;
+  color: #7a6e70;
+  margin-top: 2px;
+}
+
+/* Resources manager ─────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .revenueCalGrid { grid-template-columns: 1fr; }
+  .teamCalGrid { grid-template-columns: 1fr !important; }
+}
