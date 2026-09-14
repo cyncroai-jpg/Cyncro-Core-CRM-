@@ -1206,6 +1206,44 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_data_deletions_tenant ON data_deletions(tenant_id, created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_data_deletions_status ON data_deletions(status)"),
+    // ============ PHASE 27 - WEBHOOK MANAGEMENT ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS webhooks (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      events TEXT NOT NULL,
+      secret TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      headers TEXT,
+      filter TEXT,
+      max_retries INTEGER NOT NULL DEFAULT 5,
+      timeout INTEGER NOT NULL DEFAULT 30000,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhooks_tenant ON webhooks(tenant_id, active)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id TEXT PRIMARY KEY,
+      webhook_id TEXT NOT NULL,
+      tenant_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      status_code INTEGER,
+      response_body TEXT,
+      error TEXT,
+      attempt INTEGER NOT NULL DEFAULT 1,
+      next_retry_at TEXT,
+      delivered_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(webhook_id) REFERENCES webhooks(id),
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_pending ON webhook_deliveries(status, next_retry_at) WHERE status IN ('PENDING', 'RETRYING')"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id, created_at DESC)"),
   ]);
   try {
     await db
