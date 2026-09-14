@@ -1128,6 +1128,20 @@ export async function ensureCoreSchema() {
       UNIQUE(tenant_id, name)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_tenant_roles_tenant ON tenant_roles(tenant_id)"),
+    // ============ PHASE 24 - API KEYS & RATE LIMITING ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS api_key_usage (
+      id TEXT PRIMARY KEY,
+      api_key_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      method TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      response_time_ms INTEGER NOT NULL,
+      ip_address TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(api_key_id) REFERENCES api_keys(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_api_key_usage_key ON api_key_usage(api_key_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_api_key_usage_time ON api_key_usage(created_at DESC)"),
   ]);
   try {
     await db
@@ -1236,6 +1250,14 @@ export async function ensureCoreSchema() {
   }
   db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(tenant_id, action)").run().catch(() => {});
   db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_resource_idx ON audit_logs(tenant_id, resource_type, resource_id)").run().catch(() => {});
+  // Phase 24 - API Keys columns
+  for (const statement of [
+    "ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE api_keys ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT 100",
+    "ALTER TABLE api_keys ADD COLUMN expires_at TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  }
   // Add commission_notes column for custom commission overrides/splits
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN commission_notes TEXT").run(); } catch { /* already migrated */ }
   // Universal Calendar™ Phase 2 — new columns
