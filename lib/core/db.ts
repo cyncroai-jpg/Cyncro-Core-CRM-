@@ -456,6 +456,54 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON calendar_audit_log(entity_id, created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON calendar_audit_log(actor, created_at DESC)"),
+    // Phase 7: Automation webhook endpoints
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_webhook_endpoints (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      secret TEXT NOT NULL,
+      events TEXT NOT NULL DEFAULT '[]',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_webhook_deliveries (
+      id TEXT PRIMARY KEY,
+      endpoint_id TEXT NOT NULL,
+      event TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      response_code INTEGER,
+      response_body TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      next_retry_at TEXT,
+      delivered_at TEXT,
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_endpoint ON calendar_webhook_deliveries(endpoint_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON calendar_webhook_deliveries(status, next_retry_at)"),
+    // Phase 7: A/B slot experimentation
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_ab_experiments (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      event_type_id TEXT,
+      variants TEXT NOT NULL DEFAULT '[]',
+      traffic_split TEXT NOT NULL DEFAULT '{}',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_ab_events (
+      id TEXT PRIMARY KEY,
+      experiment_id TEXT NOT NULL,
+      variant TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      event_type TEXT NOT NULL DEFAULT 'IMPRESSION',
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_ab_events_experiment ON calendar_ab_events(experiment_id, event_type, created_at DESC)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS prime_missions (
       id TEXT PRIMARY KEY,
       created_by TEXT NOT NULL,

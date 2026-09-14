@@ -1,6 +1,7 @@
 import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
+import { dispatchWebhookEvent } from "@/lib/core/webhooks";
 
 /**
  * Outcome Routing™ executor — resolves who to assign a booking to based on
@@ -175,6 +176,12 @@ export async function POST(request: Request) {
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
     if (createdBooking) await syncGoogleBooking(requestUser(request), createdBooking);
+    // Automation webhooks — fire-and-forget
+    void dispatchWebhookEvent("appointment.created", {
+      bookingId, eventTypeId, customerName, customerEmail,
+      startsAt: starts.toISOString(), endsAt: ends.toISOString(),
+      timezone, locationMode, assignedTo, status: "CONFIRMED",
+    });
     // Audit log — fire-and-forget
     try {
       await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, after_state, created_at)
@@ -247,6 +254,17 @@ export async function PATCH(request: Request) {
       .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
     const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first<Record<string,unknown>>();
     if (updated) await syncGoogleBooking(requestUser(request), { ...updated, event_name: booking.event_name || "Cyncro appointment" });
+    // Automation webhooks — fire-and-forget
+    {
+      const webhookData = { bookingId: id, customerName: booking.customer_name, customerEmail: booking.customer_email, startsAt: updated?.starts_at, endsAt: updated?.ends_at, status: updated?.status };
+      if (action === "CANCEL") void dispatchWebhookEvent("appointment.cancelled", webhookData);
+      else if (action === "RESCHEDULE") void dispatchWebhookEvent("appointment.rescheduled", webhookData);
+      else {
+        const newStatus = String(updated?.status || "");
+        if (newStatus === "COMPLETED") void dispatchWebhookEvent("appointment.completed", webhookData);
+        else if (newStatus === "NO_SHOW") void dispatchWebhookEvent("appointment.no_show", webhookData);
+      }
+    }
     // Audit log — fire-and-forget
     try {
       await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, before_state, after_state, created_at)

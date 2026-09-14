@@ -19323,7 +19323,7 @@ function Admin({
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
-  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM" | "WAITLIST" | "RESOURCES">(
+  const [calendarView, setCalendarView] = useState<"LIST" | "MONTH" | "WEEK" | "SLOTS" | "REVENUE" | "TEAM" | "WAITLIST" | "RESOURCES" | "WEBHOOKS" | "EXPERIMENTS">(
     "WEEK",
   );
   const [focusDate, setFocusDate] = useState(() =>
@@ -19343,6 +19343,17 @@ function Admin({
   const [recurForm, setRecurForm] = useState({ frequency:"WEEKLY", intervalCount:1, maxOccurrences:8, endsOn:"", weekdays:[] as number[] });
   const [waitlistEntries, setWaitlistEntries] = useState<{id:string;event_type_id:string;customer_name:string;customer_email:string;status:string;created_at:string;event_name?:string}[]>([]);
   const [waitlistLoaded, setWaitlistLoaded] = useState(false);
+  const [webhookEndpoints, setWebhookEndpoints] = useState<{id:string;name:string;url:string;events:string;active:number;created_at:string}[]>([]);
+  const [webhookDeliveries, setWebhookDeliveries] = useState<{id:string;event:string;status:string;response_code?:number;attempt_count:number;delivered_at?:string;created_at:string}[]>([]);
+  const [webhookViewLoaded, setWebhookViewLoaded] = useState(false);
+  const [webhookForm, setWebhookForm] = useState({name:"",url:"",events:[] as string[]});
+  const [webhookNewSecret, setWebhookNewSecret] = useState<{id:string;secret:string}|null>(null);
+  const [selectedWebhookId, setSelectedWebhookId] = useState<string|null>(null);
+  const [experiments, setExperiments] = useState<{id:string;name:string;variants:string;traffic_split:string;active:number;event_type_name?:string;created_at:string}[]>([]);
+  const [experimentResults, setExperimentResults] = useState<{variant:string;impressions:number;conversions:number;conversionRate:number;significant?:boolean;lift?:number}[]>([]);
+  const [experimentsLoaded, setExperimentsLoaded] = useState(false);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string|null>(null);
+  const [expForm, setExpForm] = useState({name:"",variants:"control,treatment",eventTypeId:""});
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
   const [manual, setManual] = useState({
@@ -19411,6 +19422,30 @@ function Admin({
       const to = new Date(); to.setDate(to.getDate() + 30);
       const res = await fetch(`/api/calendar/resource-bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
       if (res.ok) { setResourceBookings(((await res.json()) as {resourceBookings?:typeof resourceBookings}).resourceBookings || []); setResourceViewLoaded(true); }
+    } catch { /* non-fatal */ }
+  };
+  const loadWebhooks = async () => {
+    try {
+      const res = await fetch("/api/calendar/webhooks");
+      if (res.ok) { setWebhookEndpoints(((await res.json()) as {endpoints?:typeof webhookEndpoints}).endpoints || []); setWebhookViewLoaded(true); }
+    } catch { /* non-fatal */ }
+  };
+  const loadWebhookDeliveries = async (endpointId: string) => {
+    try {
+      const res = await fetch(`/api/calendar/webhooks?endpointId=${encodeURIComponent(endpointId)}`);
+      if (res.ok) setWebhookDeliveries(((await res.json()) as {deliveries?:typeof webhookDeliveries}).deliveries || []);
+    } catch { /* non-fatal */ }
+  };
+  const loadExperiments = async () => {
+    try {
+      const res = await fetch("/api/calendar/experiments");
+      if (res.ok) { setExperiments(((await res.json()) as {experiments?:typeof experiments}).experiments || []); setExperimentsLoaded(true); }
+    } catch { /* non-fatal */ }
+  };
+  const loadExperimentResults = async (experimentId: string) => {
+    try {
+      const res = await fetch(`/api/calendar/experiments?results=1&experimentId=${encodeURIComponent(experimentId)}`);
+      if (res.ok) setExperimentResults(((await res.json()) as {results?:typeof experimentResults}).results || []);
     } catch { /* non-fatal */ }
   };
   const loadAuditLog = async (entityId: string) => {
@@ -19787,18 +19822,20 @@ function Admin({
       )}
       <div className="calendarCommandBar">
         <div>
-          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES"] as const).map((item) => (
+          {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES", "WEBHOOKS", "EXPERIMENTS"] as const).map((item) => (
             <button
               className={(calendarView as string) === item ? "active" : ""}
               onClick={() => {
                 setCalendarView(item);
                 if (item === "WAITLIST" && !waitlistLoaded) void loadWaitlist();
                 if (item === "RESOURCES" && !resourceViewLoaded) { void loadResources(); void loadResourceBookings(); }
+                if (item === "WEBHOOKS" && !webhookViewLoaded) void loadWebhooks();
+                if (item === "EXPERIMENTS" && !experimentsLoaded) void loadExperiments();
               }}
               key={item}
-              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : item === "RESOURCES" ? "Resource Calendar — room and equipment usage" : undefined}
+              title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : item === "RESOURCES" ? "Resource Calendar — room and equipment usage" : item === "WEBHOOKS" ? "Automation Webhooks™ — trigger external systems on booking events" : item === "EXPERIMENTS" ? "A/B Slot Experimentation — test slot presentation strategies" : undefined}
             >
-              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item === "RESOURCES" ? "📦 Resources" : item[0] + item.slice(1).toLowerCase()}
+              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item === "RESOURCES" ? "📦 Resources" : item === "WEBHOOKS" ? "🔗 Webhooks" : item === "EXPERIMENTS" ? "🧪 A/B" : item[0] + item.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -20205,7 +20242,187 @@ function Admin({
           )}
         </div>
       )}
-      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (calendarView as string) !== "WAITLIST" && (calendarView as string) !== "RESOURCES" && (
+      {/* ── WEBHOOKS view ─────────────────────────────────────────────────── */}
+      {(calendarView as string) === "WEBHOOKS" && (
+        <div style={{padding:"0 0 32px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div>
+              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#4080a0"}}>AUTOMATION WEBHOOKS™</small>
+              <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{webhookEndpoints.length} endpoint{webhookEndpoints.length!==1?"s":""} registered</h3>
+            </div>
+          </div>
+          {/* Add endpoint form */}
+          <div style={{background:"#080e14",border:"1px solid #1a2a3a",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+            <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#4080a0",display:"block",marginBottom:10}}>ADD ENDPOINT</small>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+              <input value={webhookForm.name} onChange={e=>setWebhookForm({...webhookForm,name:e.target.value})} placeholder="Endpoint name" style={{flex:"1 1 140px",padding:"6px 10px",background:"#0a1520",border:"1px solid #1e3050",borderRadius:6,color:"#c8dff0",fontSize:12}} />
+              <input value={webhookForm.url} onChange={e=>setWebhookForm({...webhookForm,url:e.target.value})} placeholder="https://your-server.com/webhook" style={{flex:"2 1 220px",padding:"6px 10px",background:"#0a1520",border:"1px solid #1e3050",borderRadius:6,color:"#c8dff0",fontSize:12}} />
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:10}}>
+              {["appointment.created","appointment.cancelled","appointment.rescheduled","appointment.completed","appointment.no_show"].map(ev=>(
+                <label key={ev} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#8090a0",cursor:"pointer"}}>
+                  <input type="checkbox" checked={webhookForm.events.includes(ev)} onChange={e=>{setWebhookForm({...webhookForm,events:e.target.checked?[...webhookForm.events,ev]:webhookForm.events.filter(x=>x!==ev)});}} />
+                  {ev}
+                </label>
+              ))}
+            </div>
+            <button onClick={async()=>{
+              if(!webhookForm.name||!webhookForm.url){setNotice("Name and URL are required.");return;}
+              const res=await fetch("/api/calendar/webhooks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:webhookForm.name,url:webhookForm.url,events:webhookForm.events})});
+              const d=(await res.json()) as {id?:string;secret?:string;error?:string};
+              if(!res.ok){setNotice(d.error||"Failed to add endpoint.");return;}
+              setWebhookNewSecret({id:d.id!,secret:d.secret!});
+              setWebhookForm({name:"",url:"",events:[]});
+              void loadWebhooks();
+              setNotice("Endpoint added — copy the signing secret below, it won't be shown again.");
+            }} style={{padding:"6px 14px",background:"#0e2040",border:"1px solid #1e4080",color:"#80b8f0",borderRadius:6,cursor:"pointer",fontSize:12}}>Add endpoint</button>
+          </div>
+          {/* One-time secret reveal */}
+          {webhookNewSecret && (
+            <div style={{background:"#0a1800",border:"1px solid #2a4800",borderRadius:8,padding:"12px 16px",marginBottom:16}}>
+              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#80d040",display:"block",marginBottom:6}}>⚠ SIGNING SECRET — COPY NOW, SHOWN ONCE</small>
+              <code style={{fontSize:11,color:"#b0e870",wordBreak:"break-all",display:"block",marginBottom:8}}>{webhookNewSecret.secret}</code>
+              <button onClick={()=>{void navigator.clipboard.writeText(webhookNewSecret.secret).then(()=>setNotice("Secret copied!"));}} style={{padding:"4px 10px",background:"#162800",border:"1px solid #2a4800",color:"#80d040",borderRadius:5,cursor:"pointer",fontSize:11,marginRight:8}}>Copy secret</button>
+              <button onClick={()=>setWebhookNewSecret(null)} style={{padding:"4px 10px",background:"none",border:"1px solid #2a3a1a",color:"#607050",borderRadius:5,cursor:"pointer",fontSize:11}}>Dismiss</button>
+            </div>
+          )}
+          {/* Endpoint list */}
+          {webhookEndpoints.length === 0 ? (
+            <div style={{textAlign:"center",padding:"40px 0",color:"#4a5a6a",fontSize:13}}>No webhook endpoints yet.</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {webhookEndpoints.map(ep=>(
+                <div key={ep.id} style={{background:"#080e14",border:`1px solid ${selectedWebhookId===ep.id?"#2a4080":"#1a2a3a"}`,borderRadius:10,overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer"}} onClick={()=>{
+                    if(selectedWebhookId===ep.id){setSelectedWebhookId(null);setWebhookDeliveries([]);}
+                    else{setSelectedWebhookId(ep.id);void loadWebhookDeliveries(ep.id);}
+                  }}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:ep.active?"#40c040":"#604040",flexShrink:0}} />
+                    <div style={{flex:1,minWidth:0}}>
+                      <b style={{fontSize:13,color:"#c8dff0",display:"block"}}>{ep.name}</b>
+                      <small style={{fontSize:10,color:"#4a7090",wordBreak:"break-all"}}>{ep.url}</small>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0}}>
+                      <button onClick={async e=>{e.stopPropagation();await fetch("/api/calendar/webhooks",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:ep.id,active:!ep.active})});void loadWebhooks();}} style={{fontSize:10,padding:"3px 8px",background:"none",border:"1px solid #1e3050",color:"#5090c0",borderRadius:5,cursor:"pointer"}}>{ep.active?"Disable":"Enable"}</button>
+                      <button onClick={async e=>{e.stopPropagation();if(!confirm("Delete this endpoint?"))return;await fetch(`/api/calendar/webhooks?id=${ep.id}`,{method:"DELETE"});void loadWebhooks();}} style={{fontSize:10,padding:"3px 8px",background:"none",border:"1px solid #3e2527",color:"#e07080",borderRadius:5,cursor:"pointer"}}>Delete</button>
+                    </div>
+                  </div>
+                  {selectedWebhookId===ep.id && (
+                    <div style={{borderTop:"1px solid #1a2a3a",padding:"10px 14px"}}>
+                      <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#4080a0",display:"block",marginBottom:8}}>RECENT DELIVERIES</small>
+                      {webhookDeliveries.length===0 ? (
+                        <div style={{fontSize:11,color:"#4a5a6a",padding:"8px 0"}}>No deliveries recorded yet.</div>
+                      ) : (
+                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                          {webhookDeliveries.slice(0,10).map(d=>(
+                            <div key={d.id} style={{display:"flex",alignItems:"center",gap:10,fontSize:11}}>
+                              <span style={{width:70,flexShrink:0,color:d.status==="DELIVERED"?"#40c040":d.status==="FAILED"?"#e07080":"#8090a0",fontWeight:600}}>{d.status}</span>
+                              <span style={{flex:1,color:"#7090a0"}}>{d.event}</span>
+                              <span style={{color:"#4a5a6a",flexShrink:0}}>{d.response_code?`HTTP ${d.response_code}`:""}</span>
+                              <span style={{color:"#3a4a5a",flexShrink:0}}>{new Date(d.created_at).toLocaleDateString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {/* ── EXPERIMENTS view ──────────────────────────────────────────────── */}
+      {(calendarView as string) === "EXPERIMENTS" && (
+        <div style={{padding:"0 0 32px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div>
+              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7040a0"}}>A/B SLOT EXPERIMENTATION™</small>
+              <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{experiments.length} experiment{experiments.length!==1?"s":""}</h3>
+            </div>
+          </div>
+          {/* Create experiment form */}
+          <div style={{background:"#0a0814",border:"1px solid #2a1a4a",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+            <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7040a0",display:"block",marginBottom:10}}>NEW EXPERIMENT</small>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+              <input value={expForm.name} onChange={e=>setExpForm({...expForm,name:e.target.value})} placeholder="Experiment name" style={{flex:"1 1 180px",padding:"6px 10px",background:"#0d0a1c",border:"1px solid #2a1a4a",borderRadius:6,color:"#c0b0e0",fontSize:12}} />
+              <input value={expForm.variants} onChange={e=>setExpForm({...expForm,variants:e.target.value})} placeholder="Variants (comma-separated)" style={{flex:"1 1 180px",padding:"6px 10px",background:"#0d0a1c",border:"1px solid #2a1a4a",borderRadius:6,color:"#c0b0e0",fontSize:12}} />
+              <select value={expForm.eventTypeId} onChange={e=>setExpForm({...expForm,eventTypeId:e.target.value})} style={{flex:"1 1 140px",padding:"6px 10px",background:"#0d0a1c",border:"1px solid #2a1a4a",borderRadius:6,color:"#c0b0e0",fontSize:12}}>
+                <option value="">All event types</option>
+                {eventOptions.map(et=><option key={et.id} value={et.id}>{et.name}</option>)}
+              </select>
+            </div>
+            <button onClick={async()=>{
+              if(!expForm.name){setNotice("Experiment name is required.");return;}
+              const variants=expForm.variants.split(",").map(v=>v.trim()).filter(Boolean);
+              if(variants.length<2){setNotice("Enter at least 2 variants separated by commas.");return;}
+              const res=await fetch("/api/calendar/experiments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:expForm.name,variants,eventTypeId:expForm.eventTypeId||null})});
+              const d=(await res.json()) as {id?:string;error?:string};
+              if(!res.ok){setNotice(d.error||"Failed to create experiment.");return;}
+              setExpForm({name:"",variants:"control,treatment",eventTypeId:""});
+              void loadExperiments();
+              setNotice("Experiment created — use GET /api/calendar/experiments?assign=1 to assign variants.");
+            }} style={{padding:"6px 14px",background:"#1a0a40",border:"1px solid #3a1a80",color:"#b090f0",borderRadius:6,cursor:"pointer",fontSize:12}}>Create experiment</button>
+          </div>
+          {/* Experiment list */}
+          {experiments.length===0 ? (
+            <div style={{textAlign:"center",padding:"40px 0",color:"#4a3a6a",fontSize:13}}>No experiments yet.</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {experiments.map(exp=>{
+                const isSelected=selectedExperimentId===exp.id;
+                let variants:string[]=[];
+                try{variants=JSON.parse(exp.variants);}catch{variants=[];}
+                return(
+                  <div key={exp.id} style={{background:"#0a0814",border:`1px solid ${isSelected?"#3a1a80":"#2a1a4a"}`,borderRadius:10,overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer"}} onClick={()=>{
+                      if(isSelected){setSelectedExperimentId(null);setExperimentResults([]);}
+                      else{setSelectedExperimentId(exp.id);void loadExperimentResults(exp.id);}
+                    }}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:exp.active?"#9060e0":"#504060",flexShrink:0}} />
+                      <div style={{flex:1,minWidth:0}}>
+                        <b style={{fontSize:13,color:"#c0b0e0",display:"block"}}>{exp.name}</b>
+                        <small style={{fontSize:10,color:"#6050a0"}}>{variants.join(" · ")}{exp.event_type_name?` · ${exp.event_type_name}`:""}</small>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <button onClick={async e=>{e.stopPropagation();await fetch("/api/calendar/experiments",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:exp.id,active:!exp.active})});void loadExperiments();}} style={{fontSize:10,padding:"3px 8px",background:"none",border:"1px solid #2a1a4a",color:"#9060e0",borderRadius:5,cursor:"pointer"}}>{exp.active?"Pause":"Resume"}</button>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div style={{borderTop:"1px solid #2a1a4a",padding:"10px 14px"}}>
+                        <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7040a0",display:"block",marginBottom:8}}>RESULTS</small>
+                        {experimentResults.length===0 ? (
+                          <div style={{fontSize:11,color:"#4a3a6a",padding:"8px 0"}}>No data collected yet. Impressions and conversions will appear here.</div>
+                        ) : (
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {experimentResults.map((r,i)=>(
+                              <div key={r.variant} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 10px",background:"#0d0a1c",borderRadius:7,border:`1px solid ${i===0?"#3a1a80":"#1e1530"}`}}>
+                                <div style={{flex:"0 0 90px"}}>
+                                  <b style={{fontSize:12,color:i===0?"#b090f0":"#8070b0"}}>{r.variant}</b>
+                                  {i===0 && <small style={{fontSize:9,color:"#6050a0",display:"block"}}>CONTROL</small>}
+                                </div>
+                                <div style={{flex:1,height:6,background:"#1a1030",borderRadius:3,overflow:"hidden"}}>
+                                  <div style={{height:"100%",width:`${Math.min(100,r.conversionRate*5)}%`,background:i===0?"#7040c0":"#50d080",borderRadius:3}} />
+                                </div>
+                                <span style={{fontSize:13,fontWeight:700,color:i===0?"#b090f0":"#50d080",width:48,textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{r.conversionRate}%</span>
+                                <span style={{fontSize:10,color:"#5a4a7a",width:70,textAlign:"right"}}>{r.impressions} views</span>
+                                {"lift" in r && i>0 && <span style={{fontSize:10,color:(r.lift||0)>0?"#50d080":"#e07080",width:50,textAlign:"right"}}>{(r.lift||0)>0?"+":""}{r.lift}%</span>}
+                                {"significant" in r && i>0 && r.significant && <span style={{fontSize:9,background:"#1a4020",color:"#60d080",borderRadius:4,padding:"2px 5px"}}>✓ SIG</span>}
+                              </div>
+                            ))}
+                            <p style={{fontSize:10,color:"#4a3a6a",margin:"4px 0 0"}}>Statistical significance at p&lt;0.05 requires ~30+ impressions per variant. Use GET /api/calendar/experiments?assign=1 to assign variants; POST ?track=1 to record events.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {calendarView !== "LIST" && (calendarView as string) !== "SLOTS" && (calendarView as string) !== "REVENUE" && (calendarView as string) !== "TEAM" && (calendarView as string) !== "WAITLIST" && (calendarView as string) !== "RESOURCES" && (calendarView as string) !== "WEBHOOKS" && (calendarView as string) !== "EXPERIMENTS" && (
         <div className={`roleCalendar ${calendarView.toLowerCase()}`}>
           <div className="roleCalendarHead">
             <b>
