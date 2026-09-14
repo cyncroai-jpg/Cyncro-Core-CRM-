@@ -1567,6 +1567,43 @@ export async function ensureCoreSchema() {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_tenant ON workflow_executions(tenant_id, started_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow ON workflow_executions(workflow_id, status)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions(status)"),
+    // ============ PHASE 38: BULK OPERATIONS API ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS bulk_operations (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      operation_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      total_items INTEGER NOT NULL,
+      processed_items INTEGER NOT NULL DEFAULT 0,
+      successful_items INTEGER NOT NULL DEFAULT 0,
+      failed_items INTEGER NOT NULL DEFAULT 0,
+      data TEXT NOT NULL,
+      errors TEXT,
+      progress INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      started_at TEXT,
+      completed_at TEXT,
+      estimated_time_remaining_seconds INTEGER,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operations_tenant ON bulk_operations(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operations_status ON bulk_operations(tenant_id, status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS bulk_operation_results (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      operation_id TEXT NOT NULL,
+      item_index INTEGER NOT NULL,
+      resource_id TEXT,
+      success INTEGER NOT NULL,
+      error TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(operation_id) REFERENCES bulk_operations(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operation_results_operation ON bulk_operation_results(operation_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operation_results_tenant ON bulk_operation_results(tenant_id, created_at DESC)"),
   ]);
   try {
     await db
