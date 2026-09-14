@@ -782,6 +782,55 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_prime_missions_created ON prime_missions(created_at DESC)"),
+    // Website Visitor Tracking (Phase 14)
+    db.prepare(`CREATE TABLE IF NOT EXISTS website_visitors (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      contact_id TEXT,
+      company_name TEXT,
+      ip_address TEXT NOT NULL,
+      country TEXT,
+      city TEXT,
+      state TEXT,
+      user_agent TEXT,
+      first_seen TEXT NOT NULL,
+      last_seen TEXT NOT NULL,
+      page_views INTEGER NOT NULL DEFAULT 0,
+      lead_score INTEGER NOT NULL DEFAULT 0,
+      identified INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(contact_id) REFERENCES crm_contacts(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_website_visitors_tenant ON website_visitors(tenant_id, last_seen DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_website_visitors_ip ON website_visitors(ip_address)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_website_visitors_contact ON website_visitors(contact_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS website_visits (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      page_url TEXT NOT NULL,
+      referrer TEXT,
+      time_on_page INTEGER,
+      visited_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(visitor_id) REFERENCES website_visitors(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_website_visits_visitor ON website_visits(visitor_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_website_visits_tenant ON website_visits(tenant_id, visited_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS website_pixel_events (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      event_data TEXT,
+      triggered_sequence BOOLEAN NOT NULL DEFAULT 0,
+      triggered_workflow BOOLEAN NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(visitor_id) REFERENCES website_visitors(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_pixel_events_visitor ON website_pixel_events(visitor_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_pixel_events_tenant ON website_pixel_events(tenant_id, created_at DESC)"),
   ]);
   try {
     await db
