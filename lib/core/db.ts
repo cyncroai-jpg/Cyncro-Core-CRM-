@@ -1069,6 +1069,52 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_tenant ON shared_notes(tenant_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_owner ON shared_notes(owner_id)"),
+    // Advanced Reporting (Phase 21)
+    db.prepare(`CREATE TABLE IF NOT EXISTS dashboards (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      widgets TEXT NOT NULL,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dashboards_tenant ON dashboards(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dashboards_default ON dashboards(tenant_id, is_default)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS reports (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      report_type TEXT NOT NULL,
+      filters TEXT,
+      columns TEXT,
+      sort_by TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_reports_tenant ON reports(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_reports_type ON reports(report_type)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS scheduled_reports (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      report_id TEXT NOT NULL,
+      recipients TEXT NOT NULL,
+      frequency TEXT NOT NULL,
+      format TEXT NOT NULL,
+      next_run_at TEXT,
+      last_run_at TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(report_id) REFERENCES reports(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_reports_tenant ON scheduled_reports(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_reports_next ON scheduled_reports(next_run_at)"),
   ]);
   try {
     await db
