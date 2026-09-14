@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import crypto from "crypto";
 
 type Prepared = {
   bind: (...values: unknown[]) => Prepared;
@@ -907,12 +908,64 @@ export function requestTenantId(request: Request): string | null {
  * Get full tenant context for a request.
  * Used by API routes that need tenant isolation.
  */
+/**
+ * Get or create a default tenant for backward compatibility.
+ * Single-tenant users get migrated to a "default" tenant automatically.
+ */
+export async function ensureUserDefaultTenant(email: string): Promise<string> {
+  const db = coreDb();
+  const now = new Date().toISOString();
+
+  // Check if user is already in a tenant
+  const existing = await db.prepare(
+    "SELECT DISTINCT tenant_id FROM tenant_members WHERE email = ? LIMIT 1"
+  ).bind(email).first<{ tenant_id: string }>();
+
+  if (existing) return existing.tenant_id;
+
+  // Get the user to find their display name
+  const user = await db.prepare(
+    "SELECT id, display_name FROM auth_users WHERE lower(email) = ?"
+  ).bind(email).first<{ id: string; display_name: string }>();
+
+  if (!user) {
+    // User doesn't exist, create them first
+    const userId = crypto.randomUUID();
+    await db.prepare(
+      `INSERT INTO auth_users (id, email, password_hash, display_name, role, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'MEMBER', 1, ?, ?)`
+    ).bind(userId, email, "", email.split("@")[0], now, now).run();
+  }
+
+  // Create default tenant
+  const tenantId = crypto.randomUUID();
+  const tenantName = `${email.split("@")[0]}'s Workspace`;
+  const tenantSlug = `default-${email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+
+  await db.prepare(
+    `INSERT INTO tenants (id, name, slug, plan, seats, active, created_at, updated_at)
+     VALUES (?, ?, ?, 'starter', 3, 1, ?, ?)`
+  ).bind(tenantId, tenantName, tenantSlug, now, now).run();
+
+  // Add user as OWNER
+  await db.prepare(
+    `INSERT INTO tenant_members (id, tenant_id, user_id, email, display_name, role, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'OWNER', 1, ?, ?)`
+  ).bind(crypto.randomUUID(), tenantId, user?.id || crypto.randomUUID(), email, user?.display_name || email, now, now).run();
+
+  return tenantId;
+}
+
 export async function getTenantContext(request: Request): Promise<TenantContext | null> {
   const email = await resolveRequestEmail(request);
   if (!email) return null;
 
-  const tenantId = requestTenantId(request);
-  if (!tenantId) return null;
+  let tenantId = requestTenantId(request);
+
+  // If no tenantId provided, use user's default tenant
+  if (!tenantId) {
+    tenantId = await ensureUserDefaultTenant(email);
+  }
 
   const db = coreDb();
   const member = await db.prepare(
