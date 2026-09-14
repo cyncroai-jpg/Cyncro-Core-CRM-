@@ -1013,6 +1013,62 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_notifications_tenant ON slack_notifications(tenant_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_notifications_event ON slack_notifications(event_type)"),
+    // Team Collaboration (Phase 20)
+    db.prepare(`CREATE TABLE IF NOT EXISTS collaboration_threads (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      title TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_threads_tenant ON collaboration_threads(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_threads_resource ON collaboration_threads(resource_type, resource_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS collaboration_messages (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      author_id TEXT,
+      author_email TEXT,
+      content TEXT NOT NULL,
+      mentions TEXT,
+      attachments TEXT,
+      edited_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(thread_id) REFERENCES collaboration_threads(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_messages_thread ON collaboration_messages(thread_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_messages_author ON collaboration_messages(author_email)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS collaboration_mentions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      mentioned_user TEXT,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(message_id) REFERENCES collaboration_messages(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_mentions_user ON collaboration_mentions(mentioned_user, read)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS shared_notes (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT,
+      owner_id TEXT,
+      is_public INTEGER NOT NULL DEFAULT 0,
+      shared_with TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_tenant ON shared_notes(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_owner ON shared_notes(owner_id)"),
   ]);
   try {
     await db
