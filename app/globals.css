@@ -23551,3 +23551,13 @@ button.crmUser i {
   .revenueCalGrid { grid-template-columns: 1fr; }
   .teamCalGrid { grid-template-columns: 1fr !important; }
 }
+
+/* Analytics & Payments (Phase 50/51) ───────────────────────────────────── */
+.opsSectionNav{display:flex;gap:8px;overflow-x:auto;margin:18px 0 6px;padding-bottom:4px}.opsSectionNav button{white-space:nowrap;padding:8px 14px;border:1px solid #2f2729;border-radius:20px;background:#141212;color:#a79b9e;font-size:11px}.opsSectionNav button.active{background:#a91f37;border-color:#b22840;color:#fff}
+.opsPanelGrid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+.dataTable{width:100%;border-collapse:collapse;margin-top:10px}.dataTable th{text-align:left;color:#85777a;font-size:9px;letter-spacing:.08em;font-weight:500;padding:9px 6px;border-bottom:1px solid #2f2729;white-space:nowrap}.dataTable td{padding:11px 6px;border-bottom:1px solid #201d1e;font-size:12px;color:#e6dfe0}.dataTable tr:last-child td{border-bottom:none}.dataTable tbody tr:hover{background:#161314}.dataTableWrap{overflow-x:auto}
+.statusPill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:9px;letter-spacing:.04em;background:#201d1e;color:#a79b9e;white-space:nowrap}.statusPill.good{background:#122a1c;color:#73c596}.statusPill.warn{background:#2c2310;color:#e0b34d}.statusPill.bad{background:#2c1416;color:#e0725f}
+.opsEmpty{color:#8f8185;font-size:12px;padding:20px 4px}
+.opsListRow{display:flex;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid #292123}.opsListRow:first-of-type{border-top:none}.opsListRow>i{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:8px;background:#201d1e;font-style:normal;font-size:14px}.opsListRow>div{flex:1;min-width:0;display:grid;gap:3px}.opsListRow>div>b{font-size:12px;font-weight:500}.opsListRow>div>small{color:#938689;font-size:10px}
+.opsRowActions{display:flex;gap:8px;flex-wrap:wrap}.opsRowActions button{padding:4px 9px;font-size:10px;background:#1c1a1a;border:1px solid #2f2729;border-radius:7px;color:#c9bfc1}.opsRowActions button:hover{border-color:#b22840;color:#fff}
+@media(max-width:900px){.dataTable th,.dataTable td{font-size:11px}}

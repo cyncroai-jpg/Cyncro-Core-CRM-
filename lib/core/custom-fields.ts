@@ -103,7 +103,7 @@ export async function createCustomField(
   await db
     .prepare(
       `INSERT INTO custom_fields
-       (id, tenant_id, resource_type, field_name, display_name, field_type, required, unique, description, default_value, options, validation_rules, group_name, display_order, active, created_at, updated_at)
+       (id, tenant_id, resource_type, field_name, display_name, field_type, required, "unique", description, default_value, options, validation_rules, group_name, display_order, active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(

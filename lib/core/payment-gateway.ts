@@ -593,7 +593,7 @@ export async function createDispute(
 
   await db
     .prepare(
-      `INSERT INTO disputes (
+      `INSERT INTO payment_disputes (
         id, tenant_id, transaction_id, customer_id, amount, reason, status,
         provider_dispute_id, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -638,7 +638,7 @@ export async function submitDisputeEvidence(
 
   // Get current dispute
   const dispute = await db
-    .prepare(`SELECT * FROM disputes WHERE tenant_id = ? AND id = ?`)
+    .prepare(`SELECT * FROM payment_disputes WHERE tenant_id = ? AND id = ?`)
     .bind(tenantId, disputeId)
     .first<any>();
 
@@ -654,13 +654,13 @@ export async function submitDisputeEvidence(
 
   await db
     .prepare(
-      `UPDATE disputes SET evidence = ?, updated_at = ? WHERE tenant_id = ? AND id = ?`
+      `UPDATE payment_disputes SET evidence = ?, updated_at = ? WHERE tenant_id = ? AND id = ?`
     )
     .bind(JSON.stringify(evidence), now, tenantId, disputeId)
     .run();
 
   const updated = await db
-    .prepare(`SELECT * FROM disputes WHERE tenant_id = ? AND id = ?`)
+    .prepare(`SELECT * FROM payment_disputes WHERE tenant_id = ? AND id = ?`)
     .bind(tenantId, disputeId)
     .first<Dispute>();
 

@@ -11247,7 +11247,9 @@ type CRMView =
   | "Sales Playbooks"
   | "Attribution"
   | "Cyncro Work"
-  | "Intelligence";
+  | "Intelligence"
+  | "Analytics"
+  | "Payments";
 
 type CRMContactCard = {
   id?: string;
@@ -11686,11 +11688,13 @@ function UniversalCRM({
     { name: "Forms", icon: "▤", count: "Build" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
     { name: "Attribution", icon: "⌁", count: "Live", permission:"attribution_access" },
+    { name: "Analytics", icon: "◒", count: "New" },
+    { name: "Payments", icon: "⛁", count: "New" },
     { name: "Cyncro Work", icon: "✓", count: "Team", permission:"work_access" },
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations","Analytics","Payments"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -12145,6 +12149,8 @@ function UniversalCRM({
           {view === "Forms" && <CRMForms onFlash={flash} />}
           {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
           {view === "Attribution" && <CRMAttribution onFlash={flash} />}
+          {view === "Analytics" && <CRMAnalytics onFlash={flash} />}
+          {view === "Payments" && <CRMPayments onFlash={flash} />}
           {view === "Cyncro Work" && <CRMWork onFlash={flash} currentUserName={crmUserName} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
@@ -17434,6 +17440,353 @@ function CRMAttribution({ onFlash }: { onFlash:(message:string)=>void }) {
     <div className="attributionEnterpriseGrid"><article className="crmPanel apiControl"><small>FULL API ACCESS</small><h2>Own the data layer</h2><p>Ingest server, browser, CRM, call, checkout, subscription, and offline events. Export touchpoints, journeys, spend, reports, LTV, and forecasts.</p><code>POST /api/attribution/track</code><code>GET /api/crm/attribution</code><button onClick={()=>setSetup(true)}>Open API setup</button></article><article className="crmPanel supportDesk" id="attr-support"><small>1-TO-1 SUPPORT + DATA ANALYST</small><h2>Your attribution command desk</h2><p>Dedicated onboarding checklist, tracking audit, data-quality review, custom model setup, and analyst requests live beside the reporting system.</p>{["Implementation manager","Dedicated data analyst","Tracking audit","Custom report request"].map(item=><button key={item} onClick={()=>onFlash(`${item} request created`)}><span>{item}</span><em>REQUEST →</em></button>)}</article></div>
     {adding&&<div className="crmModalBack" onClick={()=>setAdding(null)}><form className="crmModal miniDataForm" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="crmModalHead"><div><label>ATTRIBUTION INPUT</label><h2>{adding==="spend"?"Import campaign spend":adding==="print"?"Create print campaign":adding==="report"?"Build custom report":"Record offline conversion"}</h2></div><button type="button" onClick={()=>setAdding(null)}>×</button></div>{adding==="spend"?<><input name="platform" placeholder="Platform (Meta, Google…)" required/><input name="campaign" placeholder="Campaign name" required/><input name="spend" type="number" step=".01" placeholder="Spend ($)" required/><input name="clicks" type="number" placeholder="Clicks"/><input name="impressions" type="number" placeholder="Impressions"/><input name="periodStart" type="date" required/><input name="periodEnd" type="date" required/></>:adding==="print"?<><input name="name" placeholder="Print campaign name" required/><input name="code" placeholder="Tracking code (optional)"/><input name="destinationUrl" type="url" placeholder="Destination URL" required/><input name="distributionCount" type="number" placeholder="Pieces distributed"/></>:adding==="report"?<><input name="name" placeholder="Report title" required/><select name="dimension"><option>Source</option><option>Campaign</option><option>Creative</option><option>Customer</option><option>Landing page</option><option>Channel</option></select><select name="metric"><option>Revenue</option><option>ROAS</option><option>LTV</option><option>CAC</option><option>Conversions</option><option>Subscriptions</option></select><select name="dateRange"><option value="30D">Last 30 days</option><option value="90D">Last 90 days</option><option value="YTD">Year to date</option><option value="ALL">All time</option></select></>:<><input name="source" placeholder="Source" required/><input name="channel" placeholder="Channel" required/><input name="campaign" placeholder="Campaign"/><input name="value" type="number" step=".01" placeholder="Revenue ($)" required/></>}<button className="crmCreate" type="submit">Save record</button></form></div>}
   </section>
+}
+
+function CRMAnalytics({ onFlash }: { onFlash: (message: string) => void }) {
+  type Row = Record<string, unknown>;
+  const [portfolio, setPortfolio] = useState<Row[]>([]),
+    [customers, setCustomers] = useState<Row[]>([]),
+    [revenue, setRevenue] = useState<Row[]>([]),
+    [risk, setRisk] = useState<Row[]>([]),
+    [dashboards, setDashboards] = useState<Row[]>([]),
+    [alerts, setAlerts] = useState<Row[]>([]),
+    [loaded, setLoaded] = useState(false),
+    [adding, setAdding] = useState<"portfolio" | "customers" | "revenue" | "risk" | "dashboard" | "alert" | null>(null);
+  const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
+  const pct = (n: unknown) => `${Number(n || 0).toFixed(1)}%`;
+  const load = async () => {
+    const sections: [string, (rows: Row[]) => void][] = [
+      ["portfolio", setPortfolio], ["customers", setCustomers], ["revenue", setRevenue],
+      ["risk", setRisk], ["dashboards", setDashboards], ["alerts", setAlerts],
+    ];
+    await Promise.all(sections.map(async ([section, setter]) => {
+      const r = await fetch(`/api/analytics?section=${section}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const d = await r.json() as { metrics?: Row[]; dashboards?: Row[]; alerts?: Row[] };
+      setter(d.metrics || d.dashboards || d.alerts || []);
+    }));
+    setLoaded(true);
+  };
+  useEffect(() => { void load(); }, []);
+  const latest = (rows: Row[]) => rows[0] || {};
+  const p = latest(portfolio), c = latest(customers), r = latest(revenue), k = latest(risk);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    const section = adding === "dashboard" ? "dashboards" : adding === "alert" ? "alerts" : adding;
+    const body: Record<string, unknown> = adding === "dashboard"
+      ? { name: values.name, dashboardType: values.dashboardType, refreshIntervalMinutes: Number(values.refreshIntervalMinutes || 60) }
+      : adding === "alert"
+      ? { name: values.name, metricName: values.metricName, thresholdValue: Number(values.thresholdValue || 0), comparisonOperator: values.comparisonOperator }
+      : Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value === "" ? undefined : (isNaN(Number(value)) ? value : Number(value))]));
+    const res = await fetch(`/api/analytics?section=${section}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Could not save record"); return; }
+    setAdding(null);
+    await load();
+    onFlash("Analytics record saved");
+  };
+
+  return (
+    <div className="analyticsOS">
+      <div className="crmMetrics">
+        {[
+          ["PORTFOLIO YIELD", pct(p.portfolio_yield), p.metric_date ? String(p.metric_date) : "No snapshots yet"],
+          ["DEFAULT RATE", pct(p.default_rate), `${p.total_loans_active || 0} active loans`],
+          ["CUSTOMER RETENTION", pct(c.retention_rate), `${c.active_customers || 0} active customers`],
+          ["REVENUE THIS PERIOD", money(Number(r.total_revenue || 0) * 100), r.revenue_date ? String(r.revenue_date) : "No revenue snapshot yet"],
+        ].map(([label, value, sub]) => (
+          <article key={label}><small>{label}</small><div><b>{value}</b></div><p>{sub}</p></article>
+        ))}
+      </div>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead">
+          <div><small>PORTFOLIO METRICS</small><h2>Loan portfolio performance</h2></div>
+          <button onClick={() => setAdding("portfolio")}>＋ Record snapshot</button>
+        </div>
+        {portfolio.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Date</th><th>Active</th><th>Paid off</th><th>Defaulted</th><th>Default rate</th><th>Yield</th><th>Revenue</th></tr></thead>
+            <tbody>{portfolio.map((row) => (
+              <tr key={String(row.id)}><td>{String(row.metric_date)}</td><td>{String(row.total_loans_active)}</td><td>{String(row.total_loans_paid_off)}</td><td>{String(row.total_loans_defaulted)}</td><td>{pct(row.default_rate)}</td><td>{pct(row.portfolio_yield)}</td><td>{money(Number(row.total_revenue || 0) * 100)}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No portfolio snapshots recorded yet.</p> : null}
+      </section>
+
+      <div className="opsPanelGrid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>CUSTOMER ANALYTICS</small><h2>Lifetime value & churn</h2></div><button onClick={() => setAdding("customers")}>＋ Record</button></div>
+          {customers.length ? (
+            <div className="dataTableWrap"><table className="dataTable">
+              <thead><tr><th>Date</th><th>Active</th><th>Churn</th><th>CLV</th><th>NPS</th></tr></thead>
+              <tbody>{customers.map((row) => (
+                <tr key={String(row.id)}><td>{String(row.customer_date)}</td><td>{String(row.active_customers)}</td><td>{pct(row.churn_rate)}</td><td>{money(Number(row.customer_lifetime_value || 0) * 100)}</td><td>{row.nps_score != null ? String(row.nps_score) : "—"}</td></tr>
+              ))}</tbody>
+            </table></div>
+          ) : loaded ? <p className="opsEmpty">No customer metrics recorded yet.</p> : null}
+        </section>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>RISK ANALYTICS</small><h2>Delinquency & default forecast</h2></div><button onClick={() => setAdding("risk")}>＋ Record</button></div>
+          {risk.length ? (
+            <div className="dataTableWrap"><table className="dataTable">
+              <thead><tr><th>Date</th><th>Risk score</th><th>30d</th><th>60d</th><th>90d+</th><th>Predicted default</th></tr></thead>
+              <tbody>{risk.map((row) => (
+                <tr key={String(row.id)}><td>{String(row.analytics_date)}</td><td>{String(row.portfolio_risk_score)}</td><td>{String(row.delinquent_30days_count)}</td><td>{String(row.delinquent_60days_count)}</td><td>{String(row.delinquent_90plus_count)}</td><td>{pct(row.predictive_default_rate)}</td></tr>
+              ))}</tbody>
+            </table></div>
+          ) : loaded ? <p className="opsEmpty">No risk analytics recorded yet.</p> : null}
+        </section>
+      </div>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>REVENUE ATTRIBUTION</small><h2>Where profit comes from</h2></div><button onClick={() => setAdding("revenue")}>＋ Record</button></div>
+        {revenue.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Date</th><th>Origination</th><th>Interest</th><th>Late fees</th><th>Subscriptions</th><th>Net revenue</th><th>Margin</th></tr></thead>
+            <tbody>{revenue.map((row) => (
+              <tr key={String(row.id)}><td>{String(row.revenue_date)}</td><td>{money(Number(row.origination_fees || 0) * 100)}</td><td>{money(Number(row.interest_revenue || 0) * 100)}</td><td>{money(Number(row.late_fees || 0) * 100)}</td><td>{money(Number(row.subscription_revenue || 0) * 100)}</td><td>{money(Number(row.net_revenue || 0) * 100)}</td><td>{pct(row.profit_margin)}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No revenue snapshots recorded yet.</p> : null}
+      </section>
+
+      <div className="opsPanelGrid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>DASHBOARDS</small><h2>Saved analytics views</h2></div><button onClick={() => setAdding("dashboard")}>＋ New dashboard</button></div>
+          {dashboards.length ? dashboards.map((d) => (
+            <div key={String(d.id)} className="opsListRow"><i>◒</i><div><b>{String(d.name)}</b><small>{String(d.dashboard_type)} · refreshes every {String(d.refresh_interval_minutes)}m</small></div></div>
+          )) : loaded ? <p className="opsEmpty">No dashboards yet. Build one to pin your key metrics.</p> : null}
+        </section>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>ALERTS</small><h2>Threshold notifications</h2></div><button onClick={() => setAdding("alert")}>＋ New alert</button></div>
+          {alerts.length ? alerts.map((a) => (
+            <div key={String(a.id)} className="opsListRow"><i>🔔</i><div><b>{String(a.name)}</b><small>{String(a.metric_name)} {String(a.comparison_operator).replace(/_/g, " ").toLowerCase()} {String(a.threshold_value)}</small></div><span className={`statusPill ${a.is_active ? "good" : ""}`}>{a.is_active ? "Active" : "Paused"}</span></div>
+          )) : loaded ? <p className="opsEmpty">No alerts configured yet.</p> : null}
+        </section>
+      </div>
+
+      {adding && (
+        <div className="crmModalBack" onClick={() => setAdding(null)}>
+          <form className="crmModal miniDataForm" onSubmit={(e) => void submit(e)} onClick={(e) => e.stopPropagation()}>
+            <div className="crmModalHead">
+              <div><label>ANALYTICS INPUT</label><h2>
+                {adding === "portfolio" ? "Record portfolio snapshot" : adding === "customers" ? "Record customer metrics" : adding === "revenue" ? "Record revenue snapshot" : adding === "risk" ? "Record risk analytics" : adding === "dashboard" ? "Create dashboard" : "Create alert"}
+              </h2></div>
+              <button type="button" onClick={() => setAdding(null)}>×</button>
+            </div>
+            {adding === "portfolio" && <><input name="metricDate" type="date" required /><input name="totalLoansActive" type="number" placeholder="Active loans" /><input name="totalLoansPaidOff" type="number" placeholder="Paid off loans" /><input name="totalLoansDefaulted" type="number" placeholder="Defaulted loans" /><input name="defaultRate" type="number" step=".01" placeholder="Default rate (%)" /><input name="portfolioYield" type="number" step=".01" placeholder="Portfolio yield (%)" /><input name="totalRevenue" type="number" step=".01" placeholder="Total revenue ($)" /></>}
+            {adding === "customers" && <><input name="customerDate" type="date" required /><input name="totalCustomers" type="number" placeholder="Total customers" /><input name="activeCustomers" type="number" placeholder="Active customers" /><input name="churnRate" type="number" step=".01" placeholder="Churn rate (%)" /><input name="customerLifetimeValue" type="number" step=".01" placeholder="Avg CLV ($)" /><input name="retentionRate" type="number" step=".01" placeholder="Retention rate (%)" /><input name="npsScore" type="number" placeholder="NPS score" /></>}
+            {adding === "revenue" && <><input name="revenueDate" type="date" required /><input name="originationFees" type="number" step=".01" placeholder="Origination fees ($)" /><input name="interestRevenue" type="number" step=".01" placeholder="Interest revenue ($)" /><input name="lateFees" type="number" step=".01" placeholder="Late fees ($)" /><input name="subscriptionRevenue" type="number" step=".01" placeholder="Subscription revenue ($)" /><input name="netRevenue" type="number" step=".01" placeholder="Net revenue ($)" /><input name="profitMargin" type="number" step=".01" placeholder="Profit margin (%)" /></>}
+            {adding === "risk" && <><input name="analyticsDate" type="date" required /><input name="portfolioRiskScore" type="number" placeholder="Risk score (0-100)" /><input name="delinquent30daysCount" type="number" placeholder="30-day delinquent" /><input name="delinquent60daysCount" type="number" placeholder="60-day delinquent" /><input name="delinquent90plusCount" type="number" placeholder="90+ day delinquent" /><input name="predictiveDefaultRate" type="number" step=".01" placeholder="Predicted default rate (%)" /></>}
+            {adding === "dashboard" && <><input name="name" placeholder="Dashboard name" required autoFocus /><select name="dashboardType"><option value="PORTFOLIO">Portfolio</option><option value="CUSTOMER">Customer</option><option value="REVENUE">Revenue</option><option value="RISK">Risk</option><option value="EXECUTIVE">Executive</option></select><input name="refreshIntervalMinutes" type="number" placeholder="Refresh interval (minutes)" defaultValue={60} /></>}
+            {adding === "alert" && <><input name="name" placeholder="Alert name" required autoFocus /><input name="metricName" placeholder="Metric to watch (e.g. default_rate)" required /><select name="comparisonOperator"><option value="GREATER_THAN">Greater than</option><option value="LESS_THAN">Less than</option><option value="EQUALS">Equals</option></select><input name="thresholdValue" type="number" step=".01" placeholder="Threshold value" required /></>}
+            <button className="crmCreate" type="submit">Save</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CRMPayments({ onFlash }: { onFlash: (message: string) => void }) {
+  type Row = Record<string, unknown>;
+  const [methods, setMethods] = useState<Row[]>([]),
+    [transactions, setTransactions] = useState<Row[]>([]),
+    [invoices, setInvoices] = useState<Row[]>([]),
+    [subscriptions, setSubscriptions] = useState<Row[]>([]),
+    [disputes, setDisputes] = useState<Row[]>([]),
+    [plans, setPlans] = useState<Row[]>([]),
+    [loaded, setLoaded] = useState(false),
+    [adding, setAdding] = useState<"method" | "transaction" | "invoice" | "subscription" | "dispute" | "plan" | null>(null);
+  const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
+  const load = async () => {
+    const sections: [string, string, (rows: Row[]) => void][] = [
+      ["methods", "methods", setMethods], ["transactions", "transactions", setTransactions],
+      ["invoices", "invoices", setInvoices], ["subscriptions", "subscriptions", setSubscriptions],
+      ["disputes", "disputes", setDisputes], ["plans", "plans", setPlans],
+    ];
+    await Promise.all(sections.map(async ([section, key, setter]) => {
+      const r = await fetch(`/api/payments?section=${section}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const d = await r.json() as Record<string, Row[]>;
+      setter(d[key] || []);
+    }));
+    setLoaded(true);
+  };
+  useEffect(() => { void load(); }, []);
+
+  const totalVolume = transactions.reduce((sum, t) => sum + Number(t.amount_cents || 0), 0);
+  const successCount = transactions.filter((t) => t.status === "SUCCEEDED" || t.status === "PENDING").length;
+  const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
+  const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE").length;
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    if (adding === "method") {
+      const body = { customerId: values.customerId, methodType: values.methodType, provider: "STRIPE", tokenId: `tok_test_${crypto.randomUUID().slice(0, 12)}`, displayName: values.displayName, cardLastFour: values.cardLastFour || undefined, cardBrand: values.cardBrand || undefined, cardExpiry: values.cardExpiry || undefined };
+      const res = await fetch("/api/payments?section=methods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Payment method could not be saved"); return; }
+      setAdding(null); await load(); onFlash("Payment method added (test token)");
+      return;
+    }
+    if (adding === "transaction") {
+      const body = { customerId: values.customerId, paymentMethodId: values.paymentMethodId, transactionType: values.transactionType, amountCents: Math.round(Number(values.amount || 0) * 100), processingFeeCents: Math.round(Number(values.amount || 0) * 100 * 0.029) };
+      const res = await fetch("/api/payments?section=transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Transaction could not be created"); return; }
+      setAdding(null); await load(); onFlash("Transaction recorded");
+      return;
+    }
+    if (adding === "invoice") {
+      const body = { customerId: values.customerId, amountCents: Math.round(Number(values.amount || 0) * 100), description: values.description, dueDate: values.dueDate };
+      const res = await fetch("/api/payments?section=invoices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Invoice could not be created"); return; }
+      setAdding(null); await load(); onFlash("Invoice created");
+      return;
+    }
+    if (adding === "subscription") {
+      const body = { customerId: values.customerId, planId: values.planId, paymentMethodId: values.paymentMethodId, trialDays: Number(values.trialDays || 0) };
+      const res = await fetch("/api/payments?section=subscriptions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Subscription could not be created"); return; }
+      setAdding(null); await load(); onFlash("Subscription created");
+      return;
+    }
+    if (adding === "dispute") {
+      const body = { transactionId: values.transactionId, customerId: values.customerId, disputeType: values.disputeType, amountCents: Math.round(Number(values.amount || 0) * 100), reason: values.reason };
+      const res = await fetch("/api/payments?section=disputes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Dispute could not be created"); return; }
+      setAdding(null); await load(); onFlash("Dispute logged");
+      return;
+    }
+    if (adding === "plan") {
+      const body = { name: values.name, description: values.description, billingCycle: values.billingCycle, amountCents: Math.round(Number(values.amount || 0) * 100), trialDays: Number(values.trialDays || 0) };
+      const res = await fetch("/api/payments?section=plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Plan could not be created"); return; }
+      setAdding(null); await load(); onFlash("Subscription plan created");
+      return;
+    }
+  };
+
+  const setDefaultMethod = async (id: string) => {
+    const res = await fetch(`/api/payments?section=methods&id=${id}&action=default`, { method: "PATCH" });
+    if (!res.ok) { onFlash("Could not set default"); return; }
+    await load(); onFlash("Default payment method updated");
+  };
+  const removeMethod = async (id: string) => {
+    if (!window.confirm("Deactivate this payment method?")) return;
+    const res = await fetch(`/api/payments?section=methods&id=${id}`, { method: "DELETE" });
+    if (!res.ok) { onFlash("Could not remove method"); return; }
+    await load(); onFlash("Payment method deactivated");
+  };
+  const payInvoice = async (id: string) => {
+    const res = await fetch(`/api/payments?section=invoices&id=${id}&action=pay`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    if (!res.ok) { onFlash("Could not mark invoice paid"); return; }
+    await load(); onFlash("Invoice marked paid");
+  };
+  const cancelSubscription = async (id: string) => {
+    if (!window.confirm("Cancel this subscription?")) return;
+    const res = await fetch(`/api/payments?section=subscriptions&id=${id}&action=cancel`, { method: "PATCH" });
+    if (!res.ok) { onFlash("Could not cancel subscription"); return; }
+    await load(); onFlash("Subscription cancelled");
+  };
+
+  const statusClass = (status: unknown) => status === "SUCCEEDED" || status === "PAID" || status === "ACTIVE" ? "good" : status === "OPEN" || status === "PENDING" ? "warn" : status === "FAILED" || status === "CANCELLED" ? "bad" : "";
+
+  return (
+    <div className="paymentsOS">
+      <div className="crmMetrics">
+        {[
+          ["PAYMENTS PROCESSED", String(transactions.length), `${successCount} succeeded or pending`],
+          ["TOTAL VOLUME", money(totalVolume), `${transactions.length} transactions`],
+          ["ACTIVE SUBSCRIPTIONS", String(activeSubs), `${plans.length} plans configured`],
+          ["OPEN DISPUTES", String(openDisputes), `${disputes.length} total disputes`],
+        ].map(([label, value, sub]) => (
+          <article key={label}><small>{label}</small><div><b>{value}</b></div><p>{sub}</p></article>
+        ))}
+      </div>
+
+      <div className="opsPanelGrid" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 14 }}>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>PAYMENT METHODS</small><h2>Tokenized instruments</h2></div><button onClick={() => setAdding("method")}>＋ Add method</button></div>
+          {methods.length ? methods.map((m) => (
+            <div key={String(m.id)} className="opsListRow">
+              <i>{m.method_type === "CARD" ? "💳" : m.method_type === "ACH" ? "🏦" : "◈"}</i>
+              <div><b>{String(m.display_name)}</b><small>{String(m.method_type)} {m.card_last_four ? `···· ${m.card_last_four}` : ""} · {String(m.customer_id)}</small></div>
+              {Boolean(m.is_default) && <span className="statusPill good">Default</span>}
+              <div className="opsRowActions">{!m.is_default && <button onClick={() => void setDefaultMethod(String(m.id))}>Set default</button>}<button onClick={() => void removeMethod(String(m.id))}>Remove</button></div>
+            </div>
+          )) : loaded ? <p className="opsEmpty">No payment methods on file yet.</p> : null}
+        </section>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>SUBSCRIPTION PLANS</small><h2>Recurring billing plans</h2></div><button onClick={() => setAdding("plan")}>＋ New plan</button></div>
+          {plans.length ? plans.map((pl) => (
+            <div key={String(pl.id)} className="opsListRow"><i>🔄</i><div><b>{String(pl.name)}</b><small>{money(Number(pl.amount_cents || 0))} / {String(pl.billing_cycle).toLowerCase()} {pl.trial_days ? `· ${pl.trial_days}d trial` : ""}</small></div></div>
+          )) : loaded ? <p className="opsEmpty">No plans yet. Create one to sell subscriptions.</p> : null}
+        </section>
+      </div>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>TRANSACTIONS</small><h2>Payment activity</h2></div><button onClick={() => setAdding("transaction")}>＋ New transaction</button></div>
+        {transactions.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Amount</th><th>Fee</th><th>Net</th><th>Status</th></tr></thead>
+            <tbody>{transactions.map((t) => (
+              <tr key={String(t.id)}><td>{new Date(String(t.created_at)).toLocaleDateString()}</td><td>{String(t.customer_id)}</td><td>{String(t.transaction_type)}</td><td>{money(Number(t.amount_cents || 0))}</td><td>{money(Number(t.processing_fee_cents || 0))}</td><td>{money(Number(t.net_amount_cents || 0))}</td><td><span className={`statusPill ${statusClass(t.status)}`}>{String(t.status)}</span></td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No transactions recorded yet.</p> : null}
+      </section>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>INVOICES</small><h2>Billing documents</h2></div><button onClick={() => setAdding("invoice")}>＋ New invoice</button></div>
+        {invoices.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Number</th><th>Customer</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
+            <tbody>{invoices.map((inv) => (
+              <tr key={String(inv.id)}><td>{String(inv.invoice_number)}</td><td>{String(inv.customer_id)}</td><td>{money(Number(inv.amount_cents || 0))}</td><td>{String(inv.due_date)}</td><td><span className={`statusPill ${statusClass(inv.status)}`}>{String(inv.status)}</span></td><td>{inv.status !== "PAID" && <button onClick={() => void payInvoice(String(inv.id))}>Mark paid</button>}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No invoices yet.</p> : null}
+      </section>
+
+      <div className="opsPanelGrid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>SUBSCRIPTIONS</small><h2>Active recurring revenue</h2></div><button onClick={() => setAdding("subscription")}>＋ New subscription</button></div>
+          {subscriptions.length ? subscriptions.map((s) => (
+            <div key={String(s.id)} className="opsListRow"><i>🔄</i><div><b>{String(s.customer_id)}</b><small>Plan {String(s.plan_id)} · next billing {s.next_billing_date ? new Date(String(s.next_billing_date)).toLocaleDateString() : "—"}</small></div><span className={`statusPill ${statusClass(s.status)}`}>{String(s.status)}</span>{s.status === "ACTIVE" && <div className="opsRowActions"><button onClick={() => void cancelSubscription(String(s.id))}>Cancel</button></div>}</div>
+          )) : loaded ? <p className="opsEmpty">No subscriptions yet.</p> : null}
+        </section>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>DISPUTES</small><h2>Chargebacks & evidence</h2></div><button onClick={() => setAdding("dispute")}>＋ Log dispute</button></div>
+          {disputes.length ? disputes.map((d) => (
+            <div key={String(d.id)} className="opsListRow"><i>⚖</i><div><b>{money(Number(d.amount_cents || 0))} · {String(d.dispute_type)}</b><small>Transaction {String(d.transaction_id)} · deadline {new Date(String(d.response_deadline)).toLocaleDateString()}</small></div><span className={`statusPill ${statusClass(d.status)}`}>{String(d.status)}</span></div>
+          )) : loaded ? <p className="opsEmpty">No disputes on record.</p> : null}
+        </section>
+      </div>
+
+      {adding && (
+        <div className="crmModalBack" onClick={() => setAdding(null)}>
+          <form className="crmModal miniDataForm" onSubmit={(e) => void submit(e)} onClick={(e) => e.stopPropagation()}>
+            <div className="crmModalHead">
+              <div><label>PAYMENTS INPUT</label><h2>
+                {adding === "method" ? "Add payment method" : adding === "transaction" ? "Record transaction" : adding === "invoice" ? "Create invoice" : adding === "subscription" ? "Create subscription" : adding === "dispute" ? "Log dispute" : "Create subscription plan"}
+              </h2></div>
+              <button type="button" onClick={() => setAdding(null)}>×</button>
+            </div>
+            {adding === "method" && <><input name="customerId" placeholder="Customer ID" required autoFocus /><select name="methodType"><option value="CARD">Card</option><option value="ACH">Bank (ACH)</option><option value="DIGITAL_WALLET">Digital wallet</option></select><input name="displayName" placeholder="Display name (e.g. Visa •••• 4242)" required /><input name="cardLastFour" placeholder="Card last 4 (optional)" maxLength={4} /><input name="cardBrand" placeholder="Card brand (optional)" /><input name="cardExpiry" placeholder="Expiry MM/YY (optional)" /><p style={{ fontSize: 11, color: "#8f8185" }}>A test token is generated automatically — no raw card data is stored.</p></>}
+            {adding === "transaction" && <><input name="customerId" placeholder="Customer ID" required autoFocus /><input name="paymentMethodId" placeholder="Payment method ID" required /><select name="transactionType"><option value="PAYMENT">Payment</option><option value="REFUND">Refund</option><option value="DEPOSIT">Deposit</option></select><input name="amount" type="number" step=".01" placeholder="Amount ($)" required /></>}
+            {adding === "invoice" && <><input name="customerId" placeholder="Customer ID" required autoFocus /><input name="amount" type="number" step=".01" placeholder="Amount ($)" required /><input name="description" placeholder="Description" /><input name="dueDate" type="date" /></>}
+            {adding === "subscription" && <><input name="customerId" placeholder="Customer ID" required autoFocus /><select name="planId" required>{plans.length ? plans.map((pl) => <option key={String(pl.id)} value={String(pl.id)}>{String(pl.name)} — {money(Number(pl.amount_cents || 0))}</option>) : <option value="">Create a plan first</option>}</select><input name="paymentMethodId" placeholder="Payment method ID" required /><input name="trialDays" type="number" placeholder="Trial days (optional)" /></>}
+            {adding === "dispute" && <><input name="transactionId" placeholder="Transaction ID" required autoFocus /><input name="customerId" placeholder="Customer ID" required /><select name="disputeType"><option value="CHARGEBACK">Chargeback</option><option value="FRAUD">Fraud claim</option><option value="DUPLICATE">Duplicate charge</option></select><input name="amount" type="number" step=".01" placeholder="Amount ($)" required /><input name="reason" placeholder="Reason (optional)" /></>}
+            {adding === "plan" && <><input name="name" placeholder="Plan name" required autoFocus /><input name="description" placeholder="Description (optional)" /><select name="billingCycle"><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="ANNUAL">Annual</option></select><input name="amount" type="number" step=".01" placeholder="Amount per cycle ($)" required /><input name="trialDays" type="number" placeholder="Trial days (optional)" /></>}
+            <button className="crmCreate" type="submit">Save</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
 }
 
 type WorkTask={id:string;title:string;details?:string;status:string;priority:string;assignee?:string;reporter?:string;due_at?:string;contact_name?:string;account_name?:string;opportunity_name?:string;subtask_count?:number;completed_subtasks?:number;estimated_minutes:number};

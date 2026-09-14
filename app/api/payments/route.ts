@@ -1,24 +1,27 @@
 /**
  * Payment Gateway Integration API
  *
- * GET /api/payments/methods — list payment methods
- * POST /api/payments/methods — add payment method
- * GET /api/payments/methods/:methodId — get payment method
- * DELETE /api/payments/methods/:methodId — remove payment method
- * POST /api/payments/methods/:methodId/default — set as default
- * GET /api/payments/transactions — list transactions
- * POST /api/payments/transactions — create transaction
- * GET /api/payments/transactions/:transactionId — get transaction
- * GET /api/payments/invoices — list invoices
- * POST /api/payments/invoices — create invoice
- * POST /api/payments/invoices/:invoiceId/send — send invoice
- * POST /api/payments/invoices/:invoiceId/pay — mark invoice paid
- * GET /api/payments/subscriptions — list subscriptions
- * POST /api/payments/subscriptions — create subscription
- * POST /api/payments/subscriptions/:subscriptionId/cancel — cancel subscription
- * GET /api/payments/disputes — list disputes
- * POST /api/payments/disputes — create dispute
- * POST /api/payments/disputes/:disputeId/evidence — submit evidence
+ * All routes are on the single /api/payments path — Next.js has no
+ * catch-all segment under app/api/payments, so the resource, id and
+ * action are passed as query params instead of URL path segments.
+ *
+ * GET /api/payments?section=methods — list payment methods
+ * POST /api/payments?section=methods — add payment method
+ * GET /api/payments?section=methods&id=:methodId — get payment method
+ * DELETE /api/payments?section=methods&id=:methodId — remove payment method
+ * PATCH /api/payments?section=methods&id=:methodId&action=default — set as default
+ * GET /api/payments?section=transactions — list transactions
+ * POST /api/payments?section=transactions — create transaction
+ * GET /api/payments?section=transactions&id=:transactionId — get transaction
+ * GET /api/payments?section=invoices — list invoices
+ * POST /api/payments?section=invoices — create invoice
+ * PATCH /api/payments?section=invoices&id=:invoiceId&action=pay — mark invoice paid
+ * GET /api/payments?section=subscriptions — list subscriptions
+ * POST /api/payments?section=subscriptions — create subscription
+ * PATCH /api/payments?section=subscriptions&id=:subscriptionId&action=cancel — cancel subscription
+ * GET /api/payments?section=disputes — list disputes
+ * POST /api/payments?section=disputes — create dispute
+ * PATCH /api/payments?section=disputes&id=:disputeId&action=evidence — submit evidence
  */
 
 import {
@@ -36,10 +39,9 @@ export async function GET(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
-    const action = pathParts[5];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
+    const action = url.searchParams.get("action");
 
     const db = coreDb();
 
@@ -154,7 +156,7 @@ export async function GET(request: Request) {
       if (resourceId) {
         const dispute = await db
           .prepare(
-            `SELECT * FROM disputes
+            `SELECT * FROM payment_disputes
              WHERE tenant_id = ? AND id = ?`
           )
           .bind(tenant.tenantId, resourceId)
@@ -166,7 +168,7 @@ export async function GET(request: Request) {
       } else {
         const disputes = await db
           .prepare(
-            `SELECT * FROM disputes
+            `SELECT * FROM payment_disputes
              WHERE tenant_id = ?
              ORDER BY created_at DESC
              LIMIT 50`
@@ -175,6 +177,18 @@ export async function GET(request: Request) {
           .all<any>();
         return Response.json({ disputes: disputes.results || [] });
       }
+    }
+
+    if (section === "plans") {
+      const plans = await db
+        .prepare(
+          `SELECT * FROM subscription_plans
+           WHERE tenant_id = ? AND is_active = 1
+           ORDER BY amount_cents ASC`
+        )
+        .bind(tenant.tenantId)
+        .all<any>();
+      return Response.json({ plans: plans.results || [] });
     }
 
     return Response.json({ error: "Not found" }, { status: 404 });
@@ -194,10 +208,9 @@ export async function POST(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
-    const action = pathParts[5];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
+    const action = url.searchParams.get("action");
 
     const body = (await request.json()) as Record<string, unknown>;
     const db = coreDb();
@@ -245,7 +258,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Payment Method: ${displayName}`,
           status: "SUCCESS",
-          type: methodType,
         }
       );
 
@@ -294,7 +306,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Transaction: $${(amountCents / 100).toFixed(2)}`,
           status: "SUCCESS",
-          amount: amountCents,
         }
       );
 
@@ -337,7 +348,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Invoice: ${invoiceNumber}`,
           status: "SUCCESS",
-          amount: amountCents,
         }
       );
 
@@ -388,7 +398,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Subscription Created`,
           status: "SUCCESS",
-          planId: planId,
         }
       );
 
@@ -414,7 +423,7 @@ export async function POST(request: Request) {
 
       await db
         .prepare(
-          `INSERT INTO disputes
+          `INSERT INTO payment_disputes
            (id, tenant_id, transaction_id, customer_id, provider, provider_dispute_id, dispute_type, amount_cents,
             status, reason, response_deadline, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -435,11 +444,50 @@ export async function POST(request: Request) {
         {
           resourceName: `Dispute: $${(amountCents / 100).toFixed(2)}`,
           status: "SUCCESS",
-          type: disputeType,
         }
       );
 
       return Response.json({ dispute: { id, transactionId, amountCents, status: "OPEN" } }, { status: 201 });
+    }
+
+    if (section === "plans") {
+      const name = cleanText(String(body.name || ""), 100);
+      const description = body.description ? cleanText(String(body.description), 500) : null;
+      const billingCycle = String(body.billingCycle || "MONTHLY");
+      const amountCents = Number(body.amountCents || 0);
+      const trialDays = Number(body.trialDays || 0);
+      const features = JSON.stringify(Array.isArray(body.features) ? body.features : []);
+
+      if (!name || !amountCents) {
+        return Response.json({ error: "name and amountCents are required" }, { status: 400 });
+      }
+
+      const id = `plan-${Date.now()}`;
+      const now = new Date().toISOString();
+
+      await db
+        .prepare(
+          `INSERT INTO subscription_plans
+           (id, tenant_id, name, description, billing_cycle, amount_cents, trial_days, features, is_active, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(id, tenant.tenantId, name, description, billingCycle, amountCents, trialDays, features, 1, now, now)
+        .run();
+
+      await logAuditAction(
+        tenant.tenantId,
+        tenant.userId,
+        tenant.email,
+        "CREATE",
+        "subscription_plan",
+        id,
+        {
+          resourceName: `Plan: ${name}`,
+          status: "SUCCESS",
+        }
+      );
+
+      return Response.json({ plan: { id, name, amountCents } }, { status: 201 });
     }
 
     return Response.json({ error: "Invalid action" }, { status: 400 });
@@ -459,15 +507,15 @@ export async function PATCH(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
-    const action = pathParts[5];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
+    const action = url.searchParams.get("action");
 
     const body = (await request.json()) as Record<string, unknown>;
     const db = coreDb();
 
     if (section === "methods" && action === "default") {
+      if (!resourceId) return Response.json({ error: "id is required" }, { status: 400 });
       const now = new Date().toISOString();
       await db
         .prepare(
@@ -497,6 +545,7 @@ export async function PATCH(request: Request) {
     }
 
     if (section === "invoices" && action === "pay") {
+      if (!resourceId) return Response.json({ error: "id is required" }, { status: 400 });
       const transactionId = cleanText(String(body.transactionId || ""), 100);
       const now = new Date().toISOString();
 
@@ -522,6 +571,7 @@ export async function PATCH(request: Request) {
     }
 
     if (section === "subscriptions" && action === "cancel") {
+      if (!resourceId) return Response.json({ error: "id is required" }, { status: 400 });
       const now = new Date().toISOString();
 
       await db
@@ -546,6 +596,7 @@ export async function PATCH(request: Request) {
     }
 
     if (section === "disputes" && action === "evidence") {
+      if (!resourceId) return Response.json({ error: "id is required" }, { status: 400 });
       const documentId = cleanText(String(body.documentId || ""), 100);
       const documentType = String(body.documentType || "RECEIPT");
       const description = body.description ? cleanText(String(body.description), 500) : null;
@@ -559,7 +610,7 @@ export async function PATCH(request: Request) {
 
       const dispute = await db
         .prepare(
-          `SELECT evidence FROM disputes WHERE tenant_id = ? AND id = ?`
+          `SELECT evidence FROM payment_disputes WHERE tenant_id = ? AND id = ?`
         )
         .bind(tenant.tenantId, resourceId)
         .first<any>();
@@ -577,7 +628,7 @@ export async function PATCH(request: Request) {
       const now = new Date().toISOString();
       await db
         .prepare(
-          `UPDATE disputes SET evidence = ?, updated_at = ? WHERE tenant_id = ? AND id = ?`
+          `UPDATE payment_disputes SET evidence = ?, updated_at = ? WHERE tenant_id = ? AND id = ?`
         )
         .bind(JSON.stringify(evidenceList), now, tenant.tenantId, resourceId)
         .run();
@@ -612,13 +663,13 @@ export async function DELETE(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
 
     const db = coreDb();
 
     if (section === "methods") {
+      if (!resourceId) return Response.json({ error: "id is required" }, { status: 400 });
       await db
         .prepare(
           `UPDATE payment_methods SET is_active = 0 WHERE tenant_id = ? AND id = ?`

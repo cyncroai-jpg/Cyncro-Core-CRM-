@@ -1,25 +1,29 @@
 /**
  * Advanced Analytics API
  *
- * GET /api/analytics/portfolio — get portfolio metrics
- * GET /api/analytics/portfolio/:date — get portfolio metrics for date
- * POST /api/analytics/portfolio — create/update portfolio metrics
- * GET /api/analytics/customers — get customer metrics
- * POST /api/analytics/customers — create/update customer metrics
- * GET /api/analytics/credit-repair — get credit repair metrics
- * POST /api/analytics/credit-repair — create/update credit repair metrics
- * GET /api/analytics/revenue — get revenue metrics
- * POST /api/analytics/revenue — create/update revenue metrics
- * GET /api/analytics/risk — get risk analytics
- * POST /api/analytics/risk — create/update risk analytics
- * GET /api/analytics/dashboards — list analytics dashboards
- * POST /api/analytics/dashboards — create dashboard
- * PATCH /api/analytics/dashboards/:id — update dashboard
- * GET /api/analytics/alerts — list analytics alerts
- * POST /api/analytics/alerts — create alert
- * GET /api/analytics/exports — list export jobs
- * POST /api/analytics/exports — create export job
- * GET /api/analytics/exports/:jobId — get export job status
+ * All routes are on the single /api/analytics path — Next.js has no
+ * catch-all segment under app/api/analytics, so the resource and id are
+ * passed as query params instead of URL path segments.
+ *
+ * GET /api/analytics?section=portfolio — get portfolio metrics
+ * GET /api/analytics?section=portfolio&id=:date — get portfolio metrics for date
+ * POST /api/analytics?section=portfolio — create/update portfolio metrics
+ * GET /api/analytics?section=customers — get customer metrics
+ * POST /api/analytics?section=customers — create/update customer metrics
+ * GET /api/analytics?section=credit-repair — get credit repair metrics
+ * POST /api/analytics?section=credit-repair — create/update credit repair metrics
+ * GET /api/analytics?section=revenue — get revenue metrics
+ * POST /api/analytics?section=revenue — create/update revenue metrics
+ * GET /api/analytics?section=risk — get risk analytics
+ * POST /api/analytics?section=risk — create/update risk analytics
+ * GET /api/analytics?section=dashboards — list analytics dashboards
+ * POST /api/analytics?section=dashboards — create dashboard
+ * PATCH /api/analytics?section=dashboards&id=:id — update dashboard
+ * GET /api/analytics?section=alerts — list analytics alerts
+ * POST /api/analytics?section=alerts — create alert
+ * GET /api/analytics?section=exports — list export jobs
+ * POST /api/analytics?section=exports — create export job
+ * GET /api/analytics?section=exports&id=:jobId — get export job status
  */
 
 import {
@@ -37,9 +41,8 @@ export async function GET(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
 
     if (section === "portfolio") {
       const db = coreDb();
@@ -196,8 +199,7 @@ export async function POST(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
+    const section = url.searchParams.get("section");
 
     const body = (await request.json()) as Record<string, unknown>;
     const db = coreDb();
@@ -243,8 +245,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Portfolio Metrics: ${metricDate}`,
           status: "SUCCESS",
-          totalLoans: totalLoansActive,
-          defaultRate: defaultRate,
         }
       );
 
@@ -289,7 +289,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Customer Metrics: ${customerDate}`,
           status: "SUCCESS",
-          activeCustomers: activeCustomers,
         }
       );
 
@@ -335,7 +334,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Credit Repair Metrics: ${metricDate}`,
           status: "SUCCESS",
-          successRate: `${disputeSuccessRate}%`,
         }
       );
 
@@ -381,7 +379,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Revenue Metrics: ${revenueDate}`,
           status: "SUCCESS",
-          totalRevenue: totalRevenue,
         }
       );
 
@@ -428,7 +425,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Risk Analytics: ${analyticsDate}`,
           status: "SUCCESS",
-          riskScore: portfolioRiskScore,
         }
       );
 
@@ -470,7 +466,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Dashboard: ${name}`,
           status: "SUCCESS",
-          type: dashboardType,
         }
       );
 
@@ -512,7 +507,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Alert: ${name}`,
           status: "SUCCESS",
-          metric: metricName,
         }
       );
 
@@ -551,7 +545,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Export: ${jobName}`,
           status: "SUCCESS",
-          type: exportType,
         }
       );
 
@@ -575,9 +568,8 @@ export async function PATCH(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
+    const section = url.searchParams.get("section");
+    const resourceId = url.searchParams.get("id");
 
     const body = (await request.json()) as Record<string, unknown>;
     const db = coreDb();

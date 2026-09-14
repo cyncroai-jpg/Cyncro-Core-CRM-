@@ -116,8 +116,6 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`),
-    // Migration: add default_tenant_id if it doesn't exist
-    db.prepare("ALTER TABLE auth_users ADD COLUMN default_tenant_id TEXT"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_unique ON auth_users(lower(email))"),
     db.prepare(`CREATE TABLE IF NOT EXISTS auth_sessions (
       token TEXT PRIMARY KEY,
@@ -157,9 +155,6 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS crm_accounts_prospect_unique ON crm_accounts(source_prospect_id) WHERE source_prospect_id IS NOT NULL",
     ),
-    // Migration: add tenant_id to crm_accounts
-    db.prepare("ALTER TABLE crm_accounts ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS crm_accounts_tenant_idx ON crm_accounts(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_contacts (
       id TEXT PRIMARY KEY,
       account_id TEXT,
@@ -181,9 +176,6 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS crm_contacts_account_idx ON crm_contacts(account_id)",
     ),
-    // Migration: add tenant_id to crm_contacts
-    db.prepare("ALTER TABLE crm_contacts ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS crm_contacts_tenant_idx ON crm_contacts(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_activities (
       id TEXT PRIMARY KEY, contact_id TEXT NOT NULL, activity_type TEXT NOT NULL, title TEXT NOT NULL,
       details TEXT, due_at TEXT, status TEXT NOT NULL DEFAULT 'COMPLETED', created_by TEXT,
@@ -250,11 +242,6 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS crm_opportunities_rep_idx ON crm_opportunities(assigned_rep)",
     ),
-    // Migration: add tenant_id to crm_opportunities and crm_activities
-    db.prepare("ALTER TABLE crm_opportunities ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS crm_opportunities_tenant_idx ON crm_opportunities(tenant_id)"),
-    db.prepare("ALTER TABLE crm_activities ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS crm_activities_tenant_idx ON crm_activities(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS calendar_event_types (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -316,13 +303,6 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS calendar_bookings_assigned_idx ON calendar_bookings(assigned_to, starts_at)",
     ),
-    // Migration: add tenant_id to calendar tables
-    db.prepare("ALTER TABLE calendar_event_types ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS calendar_event_types_tenant_idx ON calendar_event_types(tenant_id)"),
-    db.prepare("ALTER TABLE calendar_bookings ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS calendar_bookings_tenant_idx ON calendar_bookings(tenant_id)"),
-    db.prepare("ALTER TABLE calendar_availability ADD COLUMN tenant_id TEXT"),
-    db.prepare("ALTER TABLE calendar_feeds ADD COLUMN tenant_id TEXT"),
     db.prepare(`CREATE TABLE IF NOT EXISTS workspace_notifications (
       id TEXT PRIMARY KEY, recipient TEXT NOT NULL, title TEXT NOT NULL, body TEXT, entity_type TEXT, entity_id TEXT, read_at TEXT, created_at TEXT NOT NULL
     )`),
@@ -607,13 +587,6 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_ab_events_experiment ON calendar_ab_events(experiment_id, event_type, created_at DESC)"),
-    // Migration: add tenant_id to webhook and experiment tables
-    db.prepare("ALTER TABLE calendar_webhook_endpoints ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant ON calendar_webhook_endpoints(tenant_id)"),
-    db.prepare("ALTER TABLE calendar_webhook_deliveries ADD COLUMN tenant_id TEXT"),
-    db.prepare("ALTER TABLE calendar_ab_experiments ADD COLUMN tenant_id TEXT"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_ab_experiments_tenant ON calendar_ab_experiments(tenant_id)"),
-    db.prepare("ALTER TABLE calendar_ab_events ADD COLUMN tenant_id TEXT"),
     // ============ PHASE 8: EMAIL SEQUENCES ============
     db.prepare(`CREATE TABLE IF NOT EXISTS email_sequences (
       id TEXT PRIMARY KEY,
@@ -1069,8 +1042,13 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_tenant ON shared_notes(tenant_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_shared_notes_owner ON shared_notes(owner_id)"),
-    // Advanced Reporting (Phase 21)
-    db.prepare(`CREATE TABLE IF NOT EXISTS dashboards (
+    // Advanced Reporting (Phase 21). Named legacy_reporting_dashboards (not dashboards) —
+    // a later phase (reporting.ts / app/api/reporting/route.ts) defines its own
+    // "dashboards" table with a different shape (owner, is_public); a second
+    // CREATE TABLE IF NOT EXISTS "dashboards" would silently no-op and this table's
+    // columns (widgets, is_default, created_by) would never actually exist. Nothing
+    // currently queries this table by name, so it's kept for compatibility only.
+    db.prepare(`CREATE TABLE IF NOT EXISTS legacy_reporting_dashboards (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -1082,8 +1060,8 @@ export async function ensureCoreSchema() {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(tenant_id) REFERENCES tenants(id)
     )`),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_dashboards_tenant ON dashboards(tenant_id)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_dashboards_default ON dashboards(tenant_id, is_default)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_legacy_reporting_dashboards_tenant ON legacy_reporting_dashboards(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_legacy_reporting_dashboards_default ON legacy_reporting_dashboards(tenant_id, is_default)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS reports (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
@@ -1292,7 +1270,7 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(tenant_id) REFERENCES tenants(id),
-      UNIQUE(tenant_id, external_id) WHERE external_id IS NOT NULL
+      UNIQUE(tenant_id, external_id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON notifications(tenant_id, created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(tenant_id, user_id, read_at)"),
@@ -1491,7 +1469,7 @@ export async function ensureCoreSchema() {
       display_name TEXT NOT NULL,
       field_type TEXT NOT NULL,
       required INTEGER NOT NULL DEFAULT 0,
-      unique INTEGER NOT NULL DEFAULT 0,
+      "unique" INTEGER NOT NULL DEFAULT 0,
       description TEXT,
       default_value TEXT,
       options TEXT,
@@ -2710,7 +2688,11 @@ export async function ensureCoreSchema() {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_subs_tenant ON subscriptions(tenant_id, status)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_subs_customer ON subscriptions(customer_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_subs_billing ON subscriptions(next_billing_date)"),
-    db.prepare(`CREATE TABLE IF NOT EXISTS disputes (
+    // Named payment_disputes (not disputes) — "disputes" is already used by the
+    // credit-repair module (client_id, credit_bureau, reason) for a different entity;
+    // a second CREATE TABLE IF NOT EXISTS with that name would silently no-op and this
+    // table's columns (customer_id, response_deadline, ...) would never actually exist.
+    db.prepare(`CREATE TABLE IF NOT EXISTS payment_disputes (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
       transaction_id TEXT NOT NULL,
@@ -2732,10 +2714,40 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(transaction_id) REFERENCES transactions(id),
       UNIQUE(tenant_id, provider_dispute_id)
     )`),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_disputes_tenant ON disputes(tenant_id, status)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_disputes_customer ON disputes(customer_id)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_disputes_deadline ON disputes(response_deadline)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_tenant ON payment_disputes(tenant_id, status)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_customer ON payment_disputes(customer_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_deadline ON payment_disputes(response_deadline)"),
   ]);
+  // Migration: add tenant_id columns to tables that predate multi-tenancy, then their
+  // indexes. Run sequentially with try/catch (not inside the batch above) because
+  // ADD COLUMN has no IF NOT EXISTS guard in SQLite — once a column exists, re-running
+  // it throws "duplicate column", and since db.batch() is transactional, that failure
+  // would silently roll back every CREATE TABLE in the batch on every later restart.
+  for (const statement of [
+    "ALTER TABLE auth_users ADD COLUMN default_tenant_id TEXT",
+    "ALTER TABLE crm_accounts ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS crm_accounts_tenant_idx ON crm_accounts(tenant_id)",
+    "ALTER TABLE crm_contacts ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS crm_contacts_tenant_idx ON crm_contacts(tenant_id)",
+    "ALTER TABLE crm_opportunities ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS crm_opportunities_tenant_idx ON crm_opportunities(tenant_id)",
+    "ALTER TABLE crm_activities ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS crm_activities_tenant_idx ON crm_activities(tenant_id)",
+    "ALTER TABLE calendar_event_types ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS calendar_event_types_tenant_idx ON calendar_event_types(tenant_id)",
+    "ALTER TABLE calendar_bookings ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS calendar_bookings_tenant_idx ON calendar_bookings(tenant_id)",
+    "ALTER TABLE calendar_availability ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE calendar_feeds ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE calendar_webhook_endpoints ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant ON calendar_webhook_endpoints(tenant_id)",
+    "ALTER TABLE calendar_webhook_deliveries ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE calendar_ab_experiments ADD COLUMN tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_ab_experiments_tenant ON calendar_ab_experiments(tenant_id)",
+    "ALTER TABLE calendar_ab_events ADD COLUMN tenant_id TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  }
   try {
     await db
       .prepare("ALTER TABLE calendar_event_types ADD COLUMN host_name TEXT")

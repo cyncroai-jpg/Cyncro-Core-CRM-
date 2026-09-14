@@ -43,7 +43,21 @@ export type AuditResourceType =
   | "integration"
   | "user"
   | "role"
-  | "api_key";
+  | "api_key"
+  | "portfolio_metrics"
+  | "customer_metrics"
+  | "credit_repair_metrics"
+  | "revenue_metrics"
+  | "risk_analytics"
+  | "analytics_dashboard"
+  | "analytics_alert"
+  | "export_job"
+  | "payment_method"
+  | "transaction"
+  | "invoice"
+  | "subscription"
+  | "subscription_plan"
+  | "dispute";
 
 export interface AuditLog {
   id: string;
