@@ -1638,6 +1638,41 @@ export async function ensureCoreSchema() {
       last_cleanup_at TEXT,
       FOREIGN KEY(tenant_id) REFERENCES tenants(id)
     )`),
+    // ============ PHASE 40: REAL-TIME WEBSOCKET SUPPORT ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS user_presence (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'online',
+      current_resource TEXT,
+      last_seen_at TEXT NOT NULL,
+      connected_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, user_id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_user_presence_tenant ON user_presence(tenant_id, status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS resource_locks (
+      id TEXT PRIMARY KEY,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      locked_by TEXT NOT NULL,
+      locked_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      UNIQUE(resource_type, resource_id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_resource_locks_expires ON resource_locks(expires_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS realtime_subscriptions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT,
+      subscription_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_realtime_subscriptions_user ON realtime_subscriptions(tenant_id, user_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_realtime_subscriptions_resource ON realtime_subscriptions(resource_type, resource_id)"),
   ]);
   try {
     await db
