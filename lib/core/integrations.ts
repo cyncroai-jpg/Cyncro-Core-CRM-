@@ -18,6 +18,7 @@
  * Example: "When contact tagged 'Hot Lead' → Send Slack message"
  */
 
+import crypto from "crypto";
 import { coreDb } from "@/lib/core/db";
 
 export interface Integration {
