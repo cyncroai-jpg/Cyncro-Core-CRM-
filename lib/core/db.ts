@@ -1142,6 +1142,37 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_api_key_usage_key ON api_key_usage(api_key_id, created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_api_key_usage_time ON api_key_usage(created_at DESC)"),
+    // ============ PHASE 25 - ADVANCED PERMISSIONS ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS field_permissions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      field TEXT NOT NULL,
+      rule_type TEXT NOT NULL,
+      mask_type TEXT,
+      condition TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, role, resource_type, field)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_field_perms_role ON field_permissions(tenant_id, role, resource_type)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dynamic_permissions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      resource_type TEXT NOT NULL,
+      action TEXT NOT NULL,
+      conditions TEXT NOT NULL,
+      allow INTEGER NOT NULL DEFAULT 1,
+      priority INTEGER NOT NULL DEFAULT 100,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dynamic_perms_resource ON dynamic_permissions(tenant_id, resource_type, action, priority)"),
   ]);
   try {
     await db
