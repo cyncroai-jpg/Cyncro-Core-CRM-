@@ -1371,6 +1371,82 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_tenant ON scheduled_jobs(tenant_id, enabled)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_next_run ON scheduled_jobs(next_run_at, enabled)"),
+    // ============ PHASE 32 - ENTERPRISE SECURITY ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS sso_configurations (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      client_id TEXT NOT NULL,
+      client_secret TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL,
+      metadata TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_sso_tenant ON sso_configurations(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS ip_allowlist (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      ip_address TEXT NOT NULL,
+      description TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, ip_address)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_ip_allowlist_tenant ON ip_allowlist(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS two_factor_auth (
+      user_id TEXT NOT NULL,
+      tenant_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      method TEXT NOT NULL,
+      secret TEXT,
+      backup_codes TEXT,
+      verified_at TEXT,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, tenant_id),
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_2fa_tenant ON two_factor_auth(tenant_id, enabled)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS trusted_devices (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      tenant_id TEXT NOT NULL,
+      device_fingerprint TEXT NOT NULL,
+      device_name TEXT NOT NULL,
+      last_used_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(user_id, tenant_id, device_fingerprint)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_devices(user_id, tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS security_events (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT,
+      event_type TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      ip_address TEXT,
+      user_agent TEXT,
+      details TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_security_events_tenant ON security_events(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_security_events_user ON security_events(tenant_id, user_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_security_events_severity ON security_events(severity)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS password_policies (
+      tenant_id TEXT PRIMARY KEY,
+      min_length INTEGER NOT NULL DEFAULT 12,
+      require_uppercase INTEGER NOT NULL DEFAULT 1,
+      require_numbers INTEGER NOT NULL DEFAULT 1,
+      require_special_chars INTEGER NOT NULL DEFAULT 1,
+      expiry_days INTEGER NOT NULL DEFAULT 90,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
   ]);
   try {
     await db
