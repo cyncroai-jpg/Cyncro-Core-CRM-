@@ -305,16 +305,17 @@ export function createSignature(
 export async function markDelivered(
   deliveryId: string,
   statusCode: number,
-  responseBody?: string
+  responseBody?: string,
+  responseTimeMs?: number
 ): Promise<void> {
   const db = coreDb();
   await db
     .prepare(
       `UPDATE webhook_deliveries
-       SET status = ?, status_code = ?, response_body = ?, delivered_at = ?
+       SET status = ?, status_code = ?, response_body = ?, response_time_ms = ?, delivered_at = ?
        WHERE id = ?`
     )
-    .bind("DELIVERED", statusCode, responseBody || null, new Date().toISOString(), deliveryId)
+    .bind("DELIVERED", statusCode, responseBody || null, responseTimeMs || null, new Date().toISOString(), deliveryId)
     .run();
 }
 

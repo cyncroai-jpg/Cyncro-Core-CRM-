@@ -1238,6 +1238,7 @@ export async function ensureCoreSchema() {
       attempt INTEGER NOT NULL DEFAULT 1,
       next_retry_at TEXT,
       delivered_at TEXT,
+      response_time_ms INTEGER,
       created_at TEXT NOT NULL,
       FOREIGN KEY(webhook_id) REFERENCES webhooks(id),
       FOREIGN KEY(tenant_id) REFERENCES tenants(id)
@@ -1388,6 +1389,8 @@ export async function ensureCoreSchema() {
   ]) {
     try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }
+  // Phase 29 - Webhook Processor columns
+  try { await db.prepare("ALTER TABLE webhook_deliveries ADD COLUMN response_time_ms INTEGER").run(); } catch { /* already migrated */ }
   // Add commission_notes column for custom commission overrides/splits
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN commission_notes TEXT").run(); } catch { /* already migrated */ }
   // Universal Calendar™ Phase 2 — new columns
