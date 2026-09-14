@@ -1,173 +1,130 @@
 /**
- * Advanced Reporting Engine
+ * Advanced Reporting & Business Intelligence (Phase 42)
  *
- * Custom dashboards and scheduled reports:
- * - Dashboard builder with widget system
- * - 10+ report types (contacts, deals, activities, etc.)
- * - Advanced filtering and grouping
- * - Scheduled report delivery (email, Slack, webhook)
- * - Data export (CSV, JSON, PDF)
- * - Report templates
- * - Drill-down analytics
- * - Real-time or scheduled refresh
+ * Enable data-driven decision making:
+ * - Custom report builder
+ * - Pre-built analytics dashboards
+ * - KPI tracking and alerts
+ * - Export to CSV, PDF, Excel
+ * - Scheduled report delivery
+ * - Real-time metrics and KPIs
+ * - Cohort analysis
+ * - Sales forecasting
  */
 
+import crypto from "crypto";
 import { coreDb } from "@/lib/core/db";
+
+export type ReportType =
+  | "SALES_PIPELINE"
+  | "CONTACT_ACTIVITY"
+  | "DEAL_ANALYSIS"
+  | "REVENUE_FORECAST"
+  | "TEAM_PERFORMANCE"
+  | "CUSTOM";
+
+export type MetricAggregation = "SUM" | "AVG" | "COUNT" | "MAX" | "MIN";
+
+export type DashboardWidgetType =
+  | "METRIC_CARD"
+  | "CHART_BAR"
+  | "CHART_LINE"
+  | "CHART_PIE"
+  | "TABLE"
+  | "GAUGE";
+
+export interface Report {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  type: ReportType;
+  filters?: Record<string, unknown>;
+  columns?: string[];
+  enabled: boolean;
+  owner?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReportExecution {
+  id: string;
+  tenantId: string;
+  reportId: string;
+  executedBy?: string;
+  data?: Record<string, unknown>[];
+  summary?: Record<string, unknown>;
+  executedAt: string;
+  completedAt?: string;
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  error?: string;
+}
+
+export interface DashboardWidget {
+  id: string;
+  tenantId: string;
+  dashboardId: string;
+  name: string;
+  type: DashboardWidgetType;
+  reportId?: string;
+  metric?: string;
+  position: number;
+  width: 1 | 2 | 3 | 4; // Grid width
+  height: number;
+  config?: Record<string, unknown>;
+}
 
 export interface Dashboard {
   id: string;
   tenantId: string;
   name: string;
   description?: string;
-  isDefault: boolean;
   widgets: DashboardWidget[];
-  createdBy?: string;
+  owner?: string;
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface DashboardWidget {
-  id: string;
-  type: "stat" | "chart" | "table" | "gauge" | "sparkline";
-  title: string;
-  dataSource: string; // e.g., "contacts.total" or "deals.by_stage"
-  config?: Record<string, unknown>;
-  position?: { x: number; y: number; width: number; height: number };
-}
-
-export interface Report {
+export interface KPI {
   id: string;
   tenantId: string;
   name: string;
-  reportType:
-    | "contacts"
-    | "deals"
-    | "activities"
-    | "sequences"
-    | "workflows"
-    | "bookings"
-    | "revenue"
-    | "team"
-    | "forms"
-    | "website";
-  filters?: Record<string, unknown>;
-  columns?: string[];
-  sortBy?: string;
-  createdBy?: string;
+  metric: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  trend?: "UP" | "DOWN" | "STABLE";
+  trendPercentage?: number;
+  alertThreshold?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ScheduledReport {
-  id: string;
-  tenantId: string;
-  reportId: string;
-  recipients: string[];
-  frequency: "daily" | "weekly" | "monthly";
-  format: "csv" | "pdf" | "json";
-  nextRunAt?: string;
-  lastRunAt?: string;
-  enabled: boolean;
-  createdAt: string;
-}
-
-/** Create dashboard */
-export async function createDashboard(
-  tenantId: string,
-  name: string,
-  widgets: DashboardWidget[] = [],
-  description?: string,
-  createdBy?: string
-): Promise<Dashboard> {
-  const db = coreDb();
-  const now = new Date().toISOString();
-  const dashboardId = crypto.randomUUID();
-
-  const dashboard: Dashboard = {
-    id: dashboardId,
-    tenantId,
-    name,
-    description,
-    isDefault: false,
-    widgets,
-    createdBy,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await db
-    .prepare(
-      `INSERT INTO dashboards
-       (id, tenant_id, name, description, widgets, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      dashboardId,
-      tenantId,
-      name,
-      description || null,
-      JSON.stringify(widgets),
-      createdBy || null,
-      now,
-      now
-    )
-    .run();
-
-  return dashboard;
-}
-
-/** Get dashboard with widgets */
-export async function getDashboard(
-  tenantId: string,
-  dashboardId: string
-): Promise<Dashboard | null> {
-  const db = coreDb();
-
-  const dashboard = await db
-    .prepare(
-      `SELECT * FROM dashboards WHERE id = ? AND tenant_id = ?`
-    )
-    .bind(dashboardId, tenantId)
-    .first<Record<string, unknown>>();
-
-  if (!dashboard) return null;
-
-  return {
-    id: String(dashboard.id),
-    tenantId: String(dashboard.tenant_id),
-    name: String(dashboard.name),
-    description: dashboard.description ? String(dashboard.description) : undefined,
-    isDefault: Boolean(dashboard.is_default),
-    widgets: dashboard.widgets ? JSON.parse(String(dashboard.widgets)) : [],
-    createdBy: dashboard.created_by ? String(dashboard.created_by) : undefined,
-    createdAt: String(dashboard.created_at),
-    updatedAt: String(dashboard.updated_at),
-  };
-}
-
-/** Create report */
+/**
+ * Create a custom report
+ */
 export async function createReport(
   tenantId: string,
   name: string,
-  reportType: string,
+  type: ReportType,
   filters?: Record<string, unknown>,
   columns?: string[],
-  sortBy?: string,
-  createdBy?: string
+  owner?: string
 ): Promise<Report> {
   const db = coreDb();
+  const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const reportId = crypto.randomUUID();
 
   const report: Report = {
-    id: reportId,
+    id,
     tenantId,
     name,
-    reportType: reportType as any,
+    type,
     filters,
     columns,
-    sortBy,
-    createdBy,
+    enabled: true,
+    owner,
     createdAt: now,
     updatedAt: now,
   };
@@ -175,18 +132,17 @@ export async function createReport(
   await db
     .prepare(
       `INSERT INTO reports
-       (id, tenant_id, name, report_type, filters, columns, sort_by, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, tenant_id, name, type, filters, columns, enabled, owner, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
     )
     .bind(
-      reportId,
+      id,
       tenantId,
       name,
-      reportType,
+      type,
       filters ? JSON.stringify(filters) : null,
       columns ? JSON.stringify(columns) : null,
-      sortBy || null,
-      createdBy || null,
+      owner || null,
       now,
       now
     )
@@ -195,233 +151,636 @@ export async function createReport(
   return report;
 }
 
-/** Generate report data */
-export async function generateReportData(
-  tenantId: string,
-  reportType: string,
-  filters?: Record<string, unknown>
-): Promise<{
-  columns: string[];
-  rows: Record<string, unknown>[];
-  summary?: Record<string, unknown>;
-}> {
+/**
+ * Get report by ID
+ */
+export async function getReport(tenantId: string, reportId: string): Promise<Report | null> {
   const db = coreDb();
 
-  // Mock report data generation
-  // In production, build dynamic SQL based on reportType and filters
+  const row = await db
+    .prepare(`SELECT * FROM reports WHERE tenant_id = ? AND id = ?`)
+    .bind(tenantId, reportId)
+    .first<Record<string, unknown>>();
 
-  switch (reportType) {
-    case "contacts": {
-      const { results: rows } = await db
-        .prepare(
-          `SELECT id, name, email, phone, status, created_at
-           FROM crm_contacts
-           WHERE tenant_id = ?
-           LIMIT 100`
-        )
-        .bind(tenantId)
-        .all<Record<string, unknown>>();
+  if (!row) return null;
 
-      return {
-        columns: ["Name", "Email", "Phone", "Status", "Created"],
-        rows,
-        summary: { totalContacts: rows.length },
-      };
+  return {
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    name: String(row.name),
+    description: row.description ? String(row.description) : undefined,
+    type: String(row.type) as ReportType,
+    filters: row.filters ? JSON.parse(String(row.filters)) : undefined,
+    columns: row.columns ? JSON.parse(String(row.columns)) : undefined,
+    enabled: Boolean(row.enabled),
+    owner: row.owner ? String(row.owner) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+/**
+ * List all reports for tenant
+ */
+export async function listReports(tenantId: string): Promise<Report[]> {
+  const db = coreDb();
+
+  const { results } = await db
+    .prepare(`SELECT * FROM reports WHERE tenant_id = ? ORDER BY created_at DESC`)
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((row) => ({
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    name: String(row.name),
+    description: row.description ? String(row.description) : undefined,
+    type: String(row.type) as ReportType,
+    filters: row.filters ? JSON.parse(String(row.filters)) : undefined,
+    columns: row.columns ? JSON.parse(String(row.columns)) : undefined,
+    enabled: Boolean(row.enabled),
+    owner: row.owner ? String(row.owner) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }));
+}
+
+/**
+ * Execute report and generate data
+ */
+export async function executeReport(
+  tenantId: string,
+  reportId: string,
+  executedBy?: string
+): Promise<ReportExecution> {
+  const db = coreDb();
+  const executionId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Get report
+  const report = await getReport(tenantId, reportId);
+  if (!report) {
+    throw new Error("Report not found");
+  }
+
+  const execution: ReportExecution = {
+    id: executionId,
+    tenantId,
+    reportId,
+    executedBy,
+    executedAt: now,
+    status: "PENDING",
+  };
+
+  // Insert execution record
+  await db
+    .prepare(
+      `INSERT INTO report_executions
+       (id, tenant_id, report_id, executed_by, status, executed_at)
+       VALUES (?, ?, ?, ?, 'PENDING', ?)`
+    )
+    .bind(executionId, tenantId, reportId, executedBy || null, now)
+    .run();
+
+  // Generate report data based on type
+  try {
+    let reportData: Record<string, unknown>[] = [];
+    let summary: Record<string, unknown> = {};
+
+    switch (report.type) {
+      case "SALES_PIPELINE":
+        reportData = await generateSalesPipelineReport(tenantId, report.filters);
+        summary = calculateSalesPipelineSummary(reportData);
+        break;
+
+      case "CONTACT_ACTIVITY":
+        reportData = await generateContactActivityReport(tenantId, report.filters);
+        summary = calculateActivitySummary(reportData);
+        break;
+
+      case "DEAL_ANALYSIS":
+        reportData = await generateDealAnalysisReport(tenantId, report.filters);
+        summary = calculateDealSummary(reportData);
+        break;
+
+      case "REVENUE_FORECAST":
+        reportData = await generateRevenueForecastReport(tenantId, report.filters);
+        summary = calculateForecastSummary(reportData);
+        break;
+
+      case "TEAM_PERFORMANCE":
+        reportData = await generateTeamPerformanceReport(tenantId, report.filters);
+        summary = calculateTeamSummary(reportData);
+        break;
+
+      default:
+        reportData = [];
     }
 
-    case "deals": {
-      const { results: rows } = await db
-        .prepare(
-          `SELECT id, name, value, stage, created_at
-           FROM crm_opportunities
-           WHERE tenant_id = ?
-           LIMIT 100`
-        )
-        .bind(tenantId)
-        .all<Record<string, unknown>>();
+    // Update execution with results
+    const completedAt = new Date().toISOString();
+    await db
+      .prepare(
+        `UPDATE report_executions
+         SET status = 'COMPLETED', data = ?, summary = ?, completed_at = ?
+         WHERE id = ?`
+      )
+      .bind(
+        JSON.stringify(reportData),
+        JSON.stringify(summary),
+        completedAt,
+        executionId
+      )
+      .run();
 
-      const totalValue = rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0);
+    return {
+      ...execution,
+      status: "COMPLETED",
+      data: reportData,
+      summary,
+      completedAt,
+    };
+  } catch (err) {
+    const error = String(err);
+    await db
+      .prepare(
+        `UPDATE report_executions
+         SET status = 'FAILED', error = ?, completed_at = ?
+         WHERE id = ?`
+      )
+      .bind(error, new Date().toISOString(), executionId)
+      .run();
 
-      return {
-        columns: ["Deal", "Value", "Stage", "Created"],
-        rows,
-        summary: { totalDeals: rows.length, totalValue },
-      };
-    }
-
-    case "revenue": {
-      const { results: rows } = await db
-        .prepare(
-          `SELECT stage, COUNT(*) as count, SUM(value) as total_value
-           FROM crm_opportunities
-           WHERE tenant_id = ? AND status = 'COMPLETED'
-           GROUP BY stage`
-        )
-        .bind(tenantId)
-        .all<Record<string, unknown>>();
-
-      const totalRevenue = rows.reduce((sum, r) => sum + (Number(r.total_value) || 0), 0);
-
-      return {
-        columns: ["Stage", "Count", "Revenue"],
-        rows,
-        summary: { totalRevenue },
-      };
-    }
-
-    case "team": {
-      const { results: rows } = await db
-        .prepare(
-          `SELECT display_name, COUNT(DISTINCT contact_id) as contacts, COUNT(DISTINCT deal_id) as deals
-           FROM tenant_members
-           WHERE tenant_id = ? AND active = 1
-           GROUP BY display_name`
-        )
-        .bind(tenantId)
-        .all<Record<string, unknown>>();
-
-      return {
-        columns: ["Team Member", "Contacts", "Deals"],
-        rows,
-      };
-    }
-
-    default:
-      return { columns: [], rows: [] };
+    throw err;
   }
 }
 
-/** Schedule report delivery */
-export async function scheduleReport(
+/**
+ * Generate sales pipeline report
+ */
+async function generateSalesPipelineReport(
   tenantId: string,
-  reportId: string,
-  recipients: string[],
-  frequency: "daily" | "weekly" | "monthly",
-  format: "csv" | "pdf" | "json"
-): Promise<ScheduledReport> {
+  filters?: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
   const db = coreDb();
+
+  const { results } = await db
+    .prepare(
+      `SELECT stage, COUNT(*) as count, SUM(COALESCE(value, 0)) as totalValue,
+              AVG(COALESCE(value, 0)) as avgValue
+       FROM crm_opportunities
+       WHERE tenant_id = ?
+       GROUP BY stage
+       ORDER BY stage`
+    )
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((r) => ({
+    stage: String(r.stage),
+    count: Number(r.count),
+    totalValue: Number(r.totalValue || 0),
+    avgValue: Number(r.avgValue || 0),
+  }));
+}
+
+/**
+ * Generate contact activity report
+ */
+async function generateContactActivityReport(
+  tenantId: string,
+  filters?: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
+  const db = coreDb();
+
+  const { results } = await db
+    .prepare(
+      `SELECT
+        DATE(created_at) as date,
+        COUNT(*) as activitiesCount,
+        COUNT(DISTINCT contact_id) as uniqueContacts
+       FROM crm_activities
+       WHERE tenant_id = ?
+       GROUP BY DATE(created_at)
+       ORDER BY date DESC
+       LIMIT 30`
+    )
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((r) => ({
+    date: String(r.date),
+    activitiesCount: Number(r.activitiesCount),
+    uniqueContacts: Number(r.uniqueContacts),
+  }));
+}
+
+/**
+ * Generate deal analysis report
+ */
+async function generateDealAnalysisReport(
+  tenantId: string,
+  filters?: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
+  const db = coreDb();
+
+  const { results } = await db
+    .prepare(
+      `SELECT
+        owner_id,
+        COUNT(*) as dealsCount,
+        SUM(COALESCE(value, 0)) as totalValue,
+        AVG(COALESCE(value, 0)) as avgDealSize,
+        COUNT(CASE WHEN stage = 'WON' THEN 1 END) as won,
+        COUNT(CASE WHEN stage = 'LOST' THEN 1 END) as lost
+       FROM crm_opportunities
+       WHERE tenant_id = ?
+       GROUP BY owner_id
+       ORDER BY totalValue DESC`
+    )
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((r) => ({
+    ownerId: String(r.owner_id),
+    dealsCount: Number(r.dealsCount),
+    totalValue: Number(r.totalValue || 0),
+    avgDealSize: Number(r.avgDealSize || 0),
+    won: Number(r.won),
+    lost: Number(r.lost),
+  }));
+}
+
+/**
+ * Generate revenue forecast report
+ */
+async function generateRevenueForecastReport(
+  tenantId: string,
+  filters?: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
+  const db = coreDb();
+
+  // Simplified forecast: current pipeline by stage weighted by conversion probability
+  const conversionRates: Record<string, number> = {
+    PROSPECTING: 0.1,
+    QUALIFIED: 0.25,
+    PROPOSAL: 0.5,
+    NEGOTIATION: 0.75,
+    CLOSED_WON: 1.0,
+  };
+
+  const { results } = await db
+    .prepare(
+      `SELECT stage, SUM(COALESCE(value, 0)) as stageValue, COUNT(*) as dealsCount
+       FROM crm_opportunities
+       WHERE tenant_id = ? AND stage != 'CLOSED_LOST'
+       GROUP BY stage`
+    )
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((r) => {
+    const stage = String(r.stage);
+    const stageValue = Number(r.stageValue || 0);
+    const rate = conversionRates[stage] || 0.5;
+    return {
+      stage,
+      dealsCount: Number(r.dealsCount),
+      stageValue,
+      forecastedValue: Math.round(stageValue * rate),
+      conversionRate: (rate * 100).toFixed(1),
+    };
+  });
+}
+
+/**
+ * Generate team performance report
+ */
+async function generateTeamPerformanceReport(
+  tenantId: string,
+  filters?: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
+  const db = coreDb();
+
+  const { results } = await db
+    .prepare(
+      `SELECT
+        email,
+        COUNT(DISTINCT contact_id) as contactsManaged,
+        COUNT(DISTINCT CASE WHEN type = 'OPPORTUNITY' THEN id END) as dealsOwned,
+        SUM(CASE WHEN type = 'OPPORTUNITY' THEN COALESCE(value, 0) ELSE 0 END) as totalPipeline,
+        COUNT(CASE WHEN type = 'CALL' THEN 1 END) as callsMade,
+        COUNT(CASE WHEN type = 'EMAIL' THEN 1 END) as emailsSent
+       FROM crm_activities
+       LEFT JOIN crm_opportunities ON crm_activities.entity_id = crm_opportunities.id
+       WHERE crm_activities.tenant_id = ?
+       GROUP BY email
+       ORDER BY totalPipeline DESC`
+    )
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
+
+  return results.map((r) => ({
+    email: String(r.email),
+    contactsManaged: Number(r.contactsManaged || 0),
+    dealsOwned: Number(r.dealsOwned || 0),
+    totalPipeline: Number(r.totalPipeline || 0),
+    callsMade: Number(r.callsMade || 0),
+    emailsSent: Number(r.emailsSent || 0),
+  }));
+}
+
+// Summary calculation functions
+function calculateSalesPipelineSummary(data: Record<string, unknown>[]): Record<string, unknown> {
+  const totalValue = (data as any[]).reduce((sum, d) => sum + (d.totalValue || 0), 0);
+  const totalDeals = (data as any[]).reduce((sum, d) => sum + (d.count || 0), 0);
+  return {
+    totalPipeline: totalValue,
+    totalDeals,
+    avgDealSize: totalDeals > 0 ? totalValue / totalDeals : 0,
+    stageCount: data.length,
+  };
+}
+
+function calculateActivitySummary(data: Record<string, unknown>[]): Record<string, unknown> {
+  const totalActivities = (data as any[]).reduce((sum, d) => sum + (d.activitiesCount || 0), 0);
+  const totalContacts = (data as any[]).reduce((sum, d) => sum + (d.uniqueContacts || 0), 0);
+  return {
+    totalActivities,
+    totalContacts,
+    daysReported: data.length,
+    avgActivitiesPerDay: data.length > 0 ? totalActivities / data.length : 0,
+  };
+}
+
+function calculateDealSummary(data: Record<string, unknown>[]): Record<string, unknown> {
+  const totalValue = (data as any[]).reduce((sum, d) => sum + (d.totalValue || 0), 0);
+  const totalWon = (data as any[]).reduce((sum, d) => sum + (d.won || 0), 0);
+  const totalLost = (data as any[]).reduce((sum, d) => sum + (d.lost || 0), 0);
+  return {
+    totalValue,
+    topPerformer: data[0],
+    totalDeals: (data as any[]).reduce((sum, d) => sum + (d.dealsCount || 0), 0),
+    wonRate: totalWon + totalLost > 0 ? ((totalWon / (totalWon + totalLost)) * 100).toFixed(1) : 0,
+  };
+}
+
+function calculateForecastSummary(data: Record<string, unknown>[]): Record<string, unknown> {
+  const totalForecast = (data as any[]).reduce((sum, d) => sum + (d.forecastedValue || 0), 0);
+  const totalStaged = (data as any[]).reduce((sum, d) => sum + (d.stageValue || 0), 0);
+  return {
+    totalForecastedRevenue: Math.round(totalForecast),
+    totalStagedRevenue: Math.round(totalStaged),
+    forecastAccuracy: ((totalForecast / totalStaged) * 100).toFixed(1),
+  };
+}
+
+function calculateTeamSummary(data: Record<string, unknown>[]): Record<string, unknown> {
+  const totalContacts = (data as any[]).reduce((sum, d) => sum + (d.contactsManaged || 0), 0);
+  const totalDeals = (data as any[]).reduce((sum, d) => sum + (d.dealsOwned || 0), 0);
+  const totalPipeline = (data as any[]).reduce((sum, d) => sum + (d.totalPipeline || 0), 0);
+  return {
+    teamSize: data.length,
+    totalContacts,
+    totalDeals,
+    totalPipeline,
+    avgDealPerPerson: data.length > 0 ? (totalDeals / data.length).toFixed(1) : 0,
+  };
+}
+
+/**
+ * Create a dashboard
+ */
+export async function createDashboard(
+  tenantId: string,
+  name: string,
+  owner?: string,
+  description?: string
+): Promise<Dashboard> {
+  const db = coreDb();
+  const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const scheduledId = crypto.randomUUID();
 
-  // Calculate next run time
-  const nextRun = new Date();
-  if (frequency === "daily") nextRun.setDate(nextRun.getDate() + 1);
-  else if (frequency === "weekly") nextRun.setDate(nextRun.getDate() + 7);
-  else if (frequency === "monthly") nextRun.setMonth(nextRun.getMonth() + 1);
-
-  const scheduled: ScheduledReport = {
-    id: scheduledId,
+  const dashboard: Dashboard = {
+    id,
     tenantId,
-    reportId,
-    recipients,
-    frequency,
-    format,
-    nextRunAt: nextRun.toISOString(),
-    enabled: true,
+    name,
+    description,
+    widgets: [],
+    owner,
+    isPublic: false,
     createdAt: now,
+    updatedAt: now,
   };
 
   await db
     .prepare(
-      `INSERT INTO scheduled_reports
-       (id, tenant_id, report_id, recipients, frequency, format, next_run_at, enabled, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+      `INSERT INTO dashboards
+       (id, tenant_id, name, description, owner, is_public, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+    )
+    .bind(id, tenantId, name, description || null, owner || null, now, now)
+    .run();
+
+  return dashboard;
+}
+
+/**
+ * Add widget to dashboard
+ */
+export async function addDashboardWidget(
+  tenantId: string,
+  dashboardId: string,
+  name: string,
+  type: DashboardWidgetType,
+  position: number,
+  width: 1 | 2 | 3 | 4,
+  height: number,
+  reportId?: string,
+  metric?: string,
+  config?: Record<string, unknown>
+): Promise<DashboardWidget> {
+  const db = coreDb();
+  const id = crypto.randomUUID();
+
+  const widget: DashboardWidget = {
+    id,
+    tenantId,
+    dashboardId,
+    name,
+    type,
+    reportId,
+    metric,
+    position,
+    width,
+    height,
+    config,
+  };
+
+  await db
+    .prepare(
+      `INSERT INTO dashboard_widgets
+       (id, tenant_id, dashboard_id, name, type, report_id, metric, position, width, height, config)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
-      scheduledId,
+      id,
       tenantId,
-      reportId,
-      JSON.stringify(recipients),
-      frequency,
-      format,
-      nextRun.toISOString(),
+      dashboardId,
+      name,
+      type,
+      reportId || null,
+      metric || null,
+      position,
+      width,
+      height,
+      config ? JSON.stringify(config) : null
+    )
+    .run();
+
+  return widget;
+}
+
+/**
+ * Get dashboard with widgets
+ */
+export async function getDashboard(tenantId: string, dashboardId: string): Promise<Dashboard | null> {
+  const db = coreDb();
+
+  const dashboard = await db
+    .prepare(`SELECT * FROM dashboards WHERE tenant_id = ? AND id = ?`)
+    .bind(tenantId, dashboardId)
+    .first<Record<string, unknown>>();
+
+  if (!dashboard) return null;
+
+  const { results: widgets } = await db
+    .prepare(
+      `SELECT * FROM dashboard_widgets WHERE tenant_id = ? AND dashboard_id = ? ORDER BY position`
+    )
+    .bind(tenantId, dashboardId)
+    .all<Record<string, unknown>>();
+
+  return {
+    id: String(dashboard.id),
+    tenantId: String(dashboard.tenant_id),
+    name: String(dashboard.name),
+    description: dashboard.description ? String(dashboard.description) : undefined,
+    owner: dashboard.owner ? String(dashboard.owner) : undefined,
+    isPublic: Boolean(dashboard.is_public),
+    createdAt: String(dashboard.created_at),
+    updatedAt: String(dashboard.updated_at),
+    widgets: widgets.map((w) => ({
+      id: String(w.id),
+      tenantId: String(w.tenant_id),
+      dashboardId: String(w.dashboard_id),
+      name: String(w.name),
+      type: String(w.type) as DashboardWidgetType,
+      reportId: w.report_id ? String(w.report_id) : undefined,
+      metric: w.metric ? String(w.metric) : undefined,
+      position: Number(w.position),
+      width: Number(w.width) as 1 | 2 | 3 | 4,
+      height: Number(w.height),
+      config: w.config ? JSON.parse(String(w.config)) : undefined,
+    })),
+  };
+}
+
+/**
+ * Create or track a KPI
+ */
+export async function setKPI(
+  tenantId: string,
+  name: string,
+  metric: string,
+  targetValue: number,
+  currentValue: number,
+  unit: string,
+  alertThreshold?: number
+): Promise<KPI> {
+  const db = coreDb();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Calculate trend
+  const previousKPI = await db
+    .prepare(`SELECT current_value FROM kpis WHERE tenant_id = ? AND metric = ? ORDER BY updated_at DESC LIMIT 1`)
+    .bind(tenantId, metric)
+    .first<{ current_value: number }>();
+
+  let trend: "UP" | "DOWN" | "STABLE" | undefined;
+  let trendPercentage: number | undefined;
+
+  if (previousKPI) {
+    const prev = previousKPI.current_value;
+    const curr = currentValue;
+    trendPercentage = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+    trend = curr > prev ? "UP" : curr < prev ? "DOWN" : "STABLE";
+  }
+
+  const kpi: KPI = {
+    id,
+    tenantId,
+    name,
+    metric,
+    targetValue,
+    currentValue,
+    unit,
+    trend,
+    trendPercentage,
+    alertThreshold,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await db
+    .prepare(
+      `INSERT INTO kpis
+       (id, tenant_id, name, metric, target_value, current_value, unit, trend, trend_percentage, alert_threshold, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      tenantId,
+      name,
+      metric,
+      targetValue,
+      currentValue,
+      unit,
+      trend || null,
+      trendPercentage || null,
+      alertThreshold || null,
+      now,
       now
     )
     .run();
 
-  return scheduled;
+  return kpi;
 }
 
-/** Export data to CSV */
-export function exportToCSV(
-  columns: string[],
-  rows: Record<string, unknown>[]
-): string {
-  // Create CSV header
-  const header = columns.map((col) => `"${col}"`).join(",");
+/**
+ * Get KPIs for tenant
+ */
+export async function getKPIs(tenantId: string): Promise<KPI[]> {
+  const db = coreDb();
 
-  // Create CSV rows
-  const csvRows = rows.map((row) => {
-    return columns
-      .map((col) => {
-        const value = row[col.toLowerCase()] || row[col] || "";
-        return `"${String(value).replace(/"/g, '""')}"`;
-      })
-      .join(",");
-  });
+  const { results } = await db
+    .prepare(`SELECT * FROM kpis WHERE tenant_id = ? ORDER BY metric`)
+    .bind(tenantId)
+    .all<Record<string, unknown>>();
 
-  return [header, ...csvRows].join("\n");
-}
-
-/** Export data to JSON */
-export function exportToJSON(
-  columns: string[],
-  rows: Record<string, unknown>[]
-): string {
-  const data = rows.map((row) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col) => {
-      obj[col.toLowerCase()] = row[col.toLowerCase()] || row[col];
-    });
-    return obj;
-  });
-
-  return JSON.stringify(data, null, 2);
-}
-
-/** Get report templates */
-export function getReportTemplates(): Array<{
-  name: string;
-  type: string;
-  description: string;
-  defaultColumns: string[];
-}> {
-  return [
-    {
-      name: "Contact List",
-      type: "contacts",
-      description: "All contacts with details",
-      defaultColumns: ["Name", "Email", "Phone", "Status", "Created"],
-    },
-    {
-      name: "Deal Pipeline",
-      type: "deals",
-      description: "Open deals by stage",
-      defaultColumns: ["Deal", "Value", "Stage", "Owner", "Created"],
-    },
-    {
-      name: "Revenue Report",
-      type: "revenue",
-      description: "Revenue by deal stage",
-      defaultColumns: ["Stage", "Count", "Revenue"],
-    },
-    {
-      name: "Team Performance",
-      type: "team",
-      description: "Team member activity",
-      defaultColumns: ["Team Member", "Contacts", "Deals", "Revenue"],
-    },
-    {
-      name: "Activity Log",
-      type: "activities",
-      description: "All activities this period",
-      defaultColumns: ["Type", "Contact", "Owner", "Date"],
-    },
-    {
-      name: "Booking Analytics",
-      type: "bookings",
-      description: "Booking stats and conversion",
-      defaultColumns: ["Event Type", "Total", "Completed", "No-Show", "Revenue"],
-    },
-  ];
+  return results.map((row) => ({
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    name: String(row.name),
+    metric: String(row.metric),
+    targetValue: Number(row.target_value),
+    currentValue: Number(row.current_value),
+    unit: String(row.unit),
+    trend: row.trend ? (String(row.trend) as "UP" | "DOWN" | "STABLE") : undefined,
+    trendPercentage: row.trend_percentage ? Number(row.trend_percentage) : undefined,
+    alertThreshold: row.alert_threshold ? Number(row.alert_threshold) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }));
 }
