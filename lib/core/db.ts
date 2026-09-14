@@ -1330,6 +1330,47 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notification_preferences_user ON notification_preferences(tenant_id, user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notification_preferences_channel ON notification_preferences(channel, enabled)"),
+    // ============ PHASE 31 - BACKGROUND JOB QUEUE ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      priority TEXT NOT NULL DEFAULT 'NORMAL',
+      payload TEXT NOT NULL,
+      result TEXT,
+      error TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 5,
+      next_retry_at TEXT,
+      scheduled_at TEXT,
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs(tenant_id, status)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_jobs_pending ON jobs(status, priority, created_at) WHERE status IN ('PENDING', 'RETRY')"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_jobs_retry ON jobs(status, next_retry_at) WHERE status = 'RETRY'"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_jobs_type ON jobs(type, status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS scheduled_jobs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      cron_expression TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      last_run_at TEXT,
+      next_run_at TEXT,
+      failure_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_tenant ON scheduled_jobs(tenant_id, enabled)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_next_run ON scheduled_jobs(next_run_at, enabled)"),
   ]);
   try {
     await db
