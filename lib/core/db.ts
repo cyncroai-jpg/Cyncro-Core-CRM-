@@ -1223,6 +1223,19 @@ export async function ensureCoreSchema() {
       "UPDATE calendar_event_types SET duration_options=json_array(15,30,45,60) WHERE id='cyncro-default-consultation' AND (duration_options IS NULL OR duration_options='')",
     )
     .run();
+  // Phase 23 - Audit Logging columns
+  for (const statement of [
+    "ALTER TABLE audit_logs ADD COLUMN resource_name TEXT",
+    "ALTER TABLE audit_logs ADD COLUMN changes TEXT",
+    "ALTER TABLE audit_logs ADD COLUMN ip_address TEXT",
+    "ALTER TABLE audit_logs ADD COLUMN user_agent TEXT",
+    "ALTER TABLE audit_logs ADD COLUMN status TEXT NOT NULL DEFAULT 'SUCCESS'",
+    "ALTER TABLE audit_logs ADD COLUMN error_message TEXT",
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already migrated */ }
+  }
+  db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(tenant_id, action)").run().catch(() => {});
+  db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_resource_idx ON audit_logs(tenant_id, resource_type, resource_id)").run().catch(() => {});
   // Add commission_notes column for custom commission overrides/splits
   try { await db.prepare("ALTER TABLE crm_opportunities ADD COLUMN commission_notes TEXT").run(); } catch { /* already migrated */ }
   // Universal Calendar™ Phase 2 — new columns
