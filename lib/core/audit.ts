@@ -26,7 +26,13 @@ export type AuditAction =
   | "ROLE_CHANGE"
   | "WORKFLOW_TRIGGER"
   | "API_CALL"
-  | "EXPORT_DATA";
+  | "EXPORT_DATA"
+  | "SUBMIT"
+  | "PAYMENT"
+  | "UPGRADE"
+  | "COMPLETE_STEP"
+  | "UNDERWRITE"
+  | "ACCEPT_OFFER";
 
 export type AuditResourceType =
   | "contact"
@@ -57,7 +63,20 @@ export type AuditResourceType =
   | "invoice"
   | "subscription"
   | "subscription_plan"
-  | "dispute";
+  | "dispute"
+  | "dispute_template"
+  | "credit_repair_client"
+  | "credit_score_record"
+  | "payment_record"
+  | "client_access"
+  | "onboarding"
+  | "loan_application"
+  | "loan"
+  | "loan_payment"
+  | "loan_product"
+  | "loan_offer"
+  | "disclosure"
+  | "underwriting_decision";
 
 export interface AuditLog {
   id: string;

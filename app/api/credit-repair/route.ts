@@ -1,21 +1,24 @@
 /**
  * Credit Repair & Dispute Management API
  *
+ * A single Next.js route file (no catch-all segment), so the resource,
+ * action and ids are passed as query params instead of URL path segments.
+ *
  * GET /api/credit-repair — list credit repair clients
  * POST /api/credit-repair — create new credit repair client
- * GET /api/credit-repair/:clientId — get client details
- * POST /api/credit-repair/:clientId/disputes — create dispute
- * GET /api/credit-repair/:clientId/disputes — list client disputes
- * POST /api/credit-repair/:clientId/disputes/:disputeId/submit — submit dispute
- * PATCH /api/credit-repair/:clientId/disputes/:disputeId — update dispute status
- * GET /api/credit-repair/:clientId/scores — get credit score history
- * POST /api/credit-repair/:clientId/scores — record new credit score
- * POST /api/credit-repair/:clientId/payment — record payment/unlock features
- * POST /api/credit-repair/:clientId/upgrade — upgrade access level
- * POST /api/credit-repair/:clientId/onboarding — complete onboarding step
- * GET /api/credit-repair/:clientId/analytics — get client analytics
- * GET /api/credit-repair/templates — list dispute templates
- * POST /api/credit-repair/templates — create dispute template
+ * GET /api/credit-repair?clientId=X — get client details
+ * POST /api/credit-repair?clientId=X&action=disputes — create dispute
+ * GET /api/credit-repair?clientId=X&section=disputes — list client disputes
+ * POST /api/credit-repair?clientId=X&action=disputes&disputeId=Y&submit=1 — submit dispute
+ * PATCH /api/credit-repair?clientId=X&action=disputes&disputeId=Y — update dispute status
+ * GET /api/credit-repair?clientId=X&section=scores — get credit score history
+ * POST /api/credit-repair?clientId=X&action=scores — record new credit score
+ * POST /api/credit-repair?clientId=X&action=payment — record payment/unlock features
+ * POST /api/credit-repair?clientId=X&action=upgrade — upgrade access level
+ * POST /api/credit-repair?clientId=X&action=onboarding — complete onboarding step
+ * GET /api/credit-repair?clientId=X&section=analytics — get client analytics
+ * GET /api/credit-repair?templates=1 — list dispute templates
+ * POST /api/credit-repair?templates=1 — create dispute template
  */
 
 import {
@@ -54,12 +57,11 @@ export async function GET(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const clientId = pathParts[3];
-    const section = pathParts[4];
+    const clientId = url.searchParams.get("clientId") || undefined;
+    const section = url.searchParams.get("section") || undefined;
 
-    if (clientId === "templates") {
-      // GET /api/credit-repair/templates - list dispute templates
+    if (url.searchParams.get("templates")) {
+      // GET /api/credit-repair?templates=1 - list dispute templates
       const reason = url.searchParams.get("reason") as DisputeReason | null;
       const templates = await getDisputeTemplates(tenant.tenantId, reason || undefined);
       return Response.json({ templates });
@@ -124,15 +126,15 @@ export async function POST(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const clientId = pathParts[3];
-    const action = pathParts[4];
-    const disputeId = pathParts[5];
+    const clientId = url.searchParams.get("clientId") || undefined;
+    const action = url.searchParams.get("action") || undefined;
+    const disputeId = url.searchParams.get("disputeId") || undefined;
+    const submit = url.searchParams.get("submit");
 
     const body = (await request.json()) as Record<string, unknown>;
 
-    if (clientId === "templates") {
-      // POST /api/credit-repair/templates - create dispute template
+    if (url.searchParams.get("templates")) {
+      // POST /api/credit-repair?templates=1 - create dispute template
       const name = cleanText(String(body.name || ""), 200);
       const reason = String(body.reason || "OTHER") as DisputeReason;
       const templateContent = String(body.templateContent || "");
@@ -165,7 +167,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Template: ${name}`,
           status: "SUCCESS",
-          reason,
         }
       );
 
@@ -208,8 +209,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Client: ${firstName} ${lastName}`,
           status: "SUCCESS",
-          accessLevel,
-          email,
         }
       );
 
@@ -217,7 +216,8 @@ export async function POST(request: Request) {
     }
 
     if (action === "disputes" && !disputeId) {
-      // POST /api/credit-repair/:clientId/disputes - create dispute
+      // POST /api/credit-repair?clientId=X&action=disputes - create dispute
+      if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
       const creditBureau = (String(body.creditBureau || "EQUIFAX") as CreditBureau) || "EQUIFAX";
       const reason = String(body.reason || "OTHER") as DisputeReason;
       const description = cleanText(String(body.description || ""), 1000);
@@ -249,16 +249,14 @@ export async function POST(request: Request) {
         {
           resourceName: `Dispute: ${reason}`,
           status: "SUCCESS",
-          creditBureau,
-          clientId,
         }
       );
 
       return Response.json({ dispute }, { status: 201 });
     }
 
-    if (action === "disputes" && disputeId && pathParts[6] === "submit") {
-      // POST /api/credit-repair/:clientId/disputes/:disputeId/submit - submit dispute
+    if (action === "disputes" && disputeId && submit) {
+      // POST /api/credit-repair?clientId=X&action=disputes&disputeId=Y&submit=1 - submit dispute
       const dispute = await submitDispute(tenant.tenantId, disputeId);
 
       await logAuditAction(
@@ -271,7 +269,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Dispute Submitted`,
           status: "SUCCESS",
-          clientId,
         }
       );
 
@@ -280,6 +277,7 @@ export async function POST(request: Request) {
 
     if (action === "scores") {
       // POST /api/credit-repair/:clientId/scores - record credit score
+      if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
       const equifaxScore = body.equifaxScore ? Number(body.equifaxScore) : undefined;
       const experianScore = body.experianScore ? Number(body.experianScore) : undefined;
       const transunionScore = body.transunionScore ? Number(body.transunionScore) : undefined;
@@ -304,7 +302,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Credit Score Recorded: ${scoreRecord.averageScore}`,
           status: "SUCCESS",
-          clientId,
         }
       );
 
@@ -313,6 +310,7 @@ export async function POST(request: Request) {
 
     if (action === "payment") {
       // POST /api/credit-repair/:clientId/payment - record payment
+      if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
       const paymentType = String(body.paymentType || "SUBSCRIPTION");
       const amount = Number(body.amount || 0);
       const currency = cleanText(String(body.currency || "USD"), 10);
@@ -357,8 +355,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Payment: $${amount}`,
           status: "SUCCESS",
-          amount,
-          clientId,
         }
       );
 
@@ -367,6 +363,7 @@ export async function POST(request: Request) {
 
     if (action === "upgrade") {
       // POST /api/credit-repair/:clientId/upgrade - upgrade access level
+      if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
       const newAccessLevel = String(body.newAccessLevel || "PREMIUM") as AccessLevel;
 
       const client = await upgradeClientAccessLevel(tenant.tenantId, clientId, newAccessLevel);
@@ -381,7 +378,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Access Upgraded to ${newAccessLevel}`,
           status: "SUCCESS",
-          clientId,
         }
       );
 
@@ -390,6 +386,7 @@ export async function POST(request: Request) {
 
     if (action === "onboarding") {
       // POST /api/credit-repair/:clientId/onboarding - complete onboarding step
+      if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
       const stepNumber = Number(body.stepNumber || 1);
       const stepData = body.stepData ? JSON.stringify(body.stepData) : undefined;
 
@@ -410,7 +407,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Onboarding Step ${stepNumber}`,
           status: "SUCCESS",
-          clientId,
         }
       );
 
@@ -434,15 +430,14 @@ export async function PATCH(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const clientId = pathParts[3];
-    const action = pathParts[4];
-    const disputeId = pathParts[5];
+    const clientId = url.searchParams.get("clientId") || undefined;
+    const action = url.searchParams.get("action") || undefined;
+    const disputeId = url.searchParams.get("disputeId") || undefined;
 
     const body = (await request.json()) as Record<string, unknown>;
 
     if (action === "disputes" && disputeId) {
-      // PATCH /api/credit-repair/:clientId/disputes/:disputeId - update dispute status
+      // PATCH /api/credit-repair?clientId=X&action=disputes&disputeId=Y - update dispute status
       const status = String(body.status || "INVESTIGATING") as DisputeStatus;
       const resolution = body.resolution ? cleanText(String(body.resolution), 1000) : undefined;
 
@@ -458,7 +453,6 @@ export async function PATCH(request: Request) {
         {
           resourceName: `Dispute Status Updated: ${status}`,
           status: "SUCCESS",
-          clientId,
         }
       );
 

@@ -1,18 +1,23 @@
 /**
  * Lending Platform API
  *
- * GET /api/lending/products — list available loan products
- * POST /api/lending/products — create loan product
- * POST /api/lending/applications — create loan application
- * GET /api/lending/applications/:appId — get application details
- * POST /api/lending/applications/:appId/submit — submit application
- * POST /api/lending/applications/:appId/underwrite — perform underwriting
- * POST /api/lending/applications/:appId/offer — create loan offer
- * POST /api/lending/offers/:offerId/accept — accept offer and create loan
- * GET /api/lending/loans/:loanId — get loan details
- * POST /api/lending/loans/:loanId/payment — record payment
- * POST /api/lending/loans/:loanId/disclosure — create disclosure
- * GET /api/lending/loans/:loanId/payments — get payment history
+ * A single Next.js route file (no catch-all segment), so the resource,
+ * id and action are passed as query params instead of URL path segments.
+ *
+ * GET /api/lending?resource=products — list available loan products
+ * POST /api/lending?resource=products — create loan product
+ * POST /api/lending?resource=applications — create loan application
+ * GET /api/lending?resource=applications — list applications
+ * GET /api/lending?resource=applications&id=X — get application details
+ * POST /api/lending?resource=applications&id=X&action=submit — submit application
+ * POST /api/lending?resource=applications&id=X&action=underwrite — perform underwriting
+ * POST /api/lending?resource=applications&id=X&action=offer — create loan offer
+ * POST /api/lending?resource=offers&id=X&action=accept — accept offer and create loan
+ * GET /api/lending?resource=loans — list loans
+ * GET /api/lending?resource=loans&id=X — get loan details
+ * POST /api/lending?resource=loans&id=X&action=payment — record payment
+ * POST /api/lending?resource=loans&id=X&action=disclosure — create disclosure
+ * GET /api/lending?resource=loans&id=X&section=payments — get payment history
  */
 
 import {
@@ -45,19 +50,18 @@ export async function GET(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
-    const action = pathParts[5];
+    const section = url.searchParams.get("resource");
+    const resourceId = url.searchParams.get("id");
+    const action = url.searchParams.get("section");
 
     if (section === "products") {
-      // GET /api/lending/products — list loan products
+      // GET /api/lending?resource=products — list loan products
       const products = await listLoanProducts(tenant.tenantId);
       return Response.json({ products });
     }
 
     if (section === "applications" && resourceId) {
-      // GET /api/lending/applications/:appId
+      // GET /api/lending?resource=applications&id=X
       const application = await getLoanApplication(tenant.tenantId, resourceId);
       if (!application) {
         return Response.json({ error: "Application not found" }, { status: 404 });
@@ -65,8 +69,38 @@ export async function GET(request: Request) {
       return Response.json({ application });
     }
 
+    if (section === "applications") {
+      // GET /api/lending?resource=applications — list applications
+      const db = coreDb();
+      const result = await db
+        .prepare(
+          `SELECT * FROM loan_applications
+           WHERE tenant_id = ?
+           ORDER BY created_at DESC
+           LIMIT 100`
+        )
+        .bind(tenant.tenantId)
+        .all<any>();
+      return Response.json({ applications: result.results || [] });
+    }
+
+    if (section === "loans" && !resourceId) {
+      // GET /api/lending?resource=loans — list loans
+      const db = coreDb();
+      const result = await db
+        .prepare(
+          `SELECT * FROM loans
+           WHERE tenant_id = ?
+           ORDER BY created_at DESC
+           LIMIT 100`
+        )
+        .bind(tenant.tenantId)
+        .all<any>();
+      return Response.json({ loans: result.results || [] });
+    }
+
     if (section === "loans" && resourceId && action === "payments") {
-      // GET /api/lending/loans/:loanId/payments
+      // GET /api/lending?resource=loans&id=X&section=payments
       const db = coreDb();
       const result = await db
         .prepare(
@@ -105,15 +139,14 @@ export async function POST(request: Request) {
     if (!tenant) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url);
-    const pathParts = url.pathname.split("/");
-    const section = pathParts[3];
-    const resourceId = pathParts[4];
-    const action = pathParts[5];
+    const section = url.searchParams.get("resource");
+    const resourceId = url.searchParams.get("id");
+    const action = url.searchParams.get("action");
 
     const body = (await request.json()) as Record<string, unknown>;
 
     if (section === "products") {
-      // POST /api/lending/products — create loan product
+      // POST /api/lending?resource=products — create loan product
       const name = cleanText(String(body.name || ""), 200);
       const type = String(body.type || "PERSONAL") as LoanType;
       const minAmount = Number(body.minAmount || 1000);
@@ -159,8 +192,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Product: ${name}`,
           status: "SUCCESS",
-          type,
-          rate: baseInterestRate,
         }
       );
 
@@ -207,16 +238,15 @@ export async function POST(request: Request) {
         {
           resourceName: `Application: $${requestedAmount}`,
           status: "SUCCESS",
-          amount: requestedAmount,
         }
       );
 
       return Response.json({ application }, { status: 201 });
     }
 
-    if (section === "applications" && resourceId === "submit") {
-      // POST /api/lending/applications/:appId/submit
-      const appId = pathParts[4];
+    if (section === "applications" && action === "submit" && resourceId) {
+      // POST /api/lending?resource=applications&id=X&action=submit
+      const appId = resourceId;
       const application = await submitLoanApplication(tenant.tenantId, appId);
 
       await logAuditAction(
@@ -235,9 +265,9 @@ export async function POST(request: Request) {
       return Response.json({ application });
     }
 
-    if (section === "applications" && resourceId === "underwrite") {
-      // POST /api/lending/applications/:appId/underwrite
-      const appId = pathParts[4];
+    if (section === "applications" && action === "underwrite" && resourceId) {
+      // POST /api/lending?resource=applications&id=X&action=underwrite
+      const appId = resourceId;
       const creditScore = Number(body.creditScore || 650);
       const debtToIncomeRatio = Number(body.debtToIncomeRatio || 0.35);
       const riskLevel = String(body.riskLevel || "MEDIUM") as any;
@@ -270,17 +300,15 @@ export async function POST(request: Request) {
         {
           resourceName: `Underwriting: ${decision}`,
           status: "SUCCESS",
-          decision,
-          riskLevel,
         }
       );
 
       return Response.json({ application, assessment });
     }
 
-    if (section === "applications" && resourceId === "offer") {
-      // POST /api/lending/applications/:appId/offer
-      const appId = pathParts[4];
+    if (section === "applications" && action === "offer" && resourceId) {
+      // POST /api/lending?resource=applications&id=X&action=offer
+      const appId = resourceId;
       const app = await getLoanApplication(tenant.tenantId, appId);
       if (!app) {
         return Response.json({ error: "Application not found" }, { status: 404 });
@@ -306,16 +334,15 @@ export async function POST(request: Request) {
         {
           resourceName: `Offer: $${offer.loanAmount}`,
           status: "SUCCESS",
-          apr: offer.interestRate,
         }
       );
 
       return Response.json({ offer }, { status: 201 });
     }
 
-    if (section === "offers" && resourceId === "accept") {
-      // POST /api/lending/offers/:offerId/accept
-      const offerId = pathParts[4];
+    if (section === "offers" && action === "accept" && resourceId) {
+      // POST /api/lending?resource=offers&id=X&action=accept
+      const offerId = resourceId;
       const borrowerId = cleanText(String(body.borrowerId || ""), 100);
       const applicationId = cleanText(String(body.applicationId || ""), 100);
       const productId = cleanText(String(body.productId || ""), 100);
@@ -345,16 +372,15 @@ export async function POST(request: Request) {
         {
           resourceName: `Loan Created: $${loan.loanAmount}`,
           status: "SUCCESS",
-          amount: loan.loanAmount,
         }
       );
 
       return Response.json({ loan }, { status: 201 });
     }
 
-    if (section === "loans" && resourceId === "payment") {
-      // POST /api/lending/loans/:loanId/payment
-      const loanId = pathParts[4];
+    if (section === "loans" && action === "payment" && resourceId) {
+      // POST /api/lending?resource=loans&id=X&action=payment
+      const loanId = resourceId;
       const amount = Number(body.amount || 0);
       const principalAmount = Number(body.principalAmount || 0);
       const interestAmount = Number(body.interestAmount || 0);
@@ -390,17 +416,15 @@ export async function POST(request: Request) {
         {
           resourceName: `Payment: $${amount}`,
           status: "SUCCESS",
-          loanId,
-          amount,
         }
       );
 
       return Response.json({ payment }, { status: 201 });
     }
 
-    if (section === "loans" && resourceId === "disclosure") {
-      // POST /api/lending/loans/:loanId/disclosure
-      const loanId = pathParts[4];
+    if (section === "loans" && action === "disclosure" && resourceId) {
+      // POST /api/lending?resource=loans&id=X&action=disclosure
+      const loanId = resourceId;
       const disclosureType = String(body.disclosureType || "TILA") as any;
       const content = cleanText(String(body.content || ""), 5000);
 
@@ -428,7 +452,6 @@ export async function POST(request: Request) {
         {
           resourceName: `Disclosure: ${disclosureType}`,
           status: "SUCCESS",
-          loanId,
         }
       );
 

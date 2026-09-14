@@ -11249,7 +11249,9 @@ type CRMView =
   | "Cyncro Work"
   | "Intelligence"
   | "Analytics"
-  | "Payments";
+  | "Payments"
+  | "Credit Repair"
+  | "Lending";
 
 type CRMContactCard = {
   id?: string;
@@ -11690,11 +11692,13 @@ function UniversalCRM({
     { name: "Attribution", icon: "⌁", count: "Live", permission:"attribution_access" },
     { name: "Analytics", icon: "◒", count: "New" },
     { name: "Payments", icon: "⛁", count: "New" },
+    { name: "Credit Repair", icon: "◈", count: "New" },
+    { name: "Lending", icon: "▥", count: "New" },
     { name: "Cyncro Work", icon: "✓", count: "Team", permission:"work_access" },
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations","Analytics","Payments"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations","Analytics","Payments","Credit Repair","Lending"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -12151,6 +12155,8 @@ function UniversalCRM({
           {view === "Attribution" && <CRMAttribution onFlash={flash} />}
           {view === "Analytics" && <CRMAnalytics onFlash={flash} />}
           {view === "Payments" && <CRMPayments onFlash={flash} />}
+          {view === "Credit Repair" && <CRMCreditRepair onFlash={flash} />}
+          {view === "Lending" && <CRMLending onFlash={flash} />}
           {view === "Cyncro Work" && <CRMWork onFlash={flash} currentUserName={crmUserName} />}
           {view === "Integrations" && <CRMIntegrations onFlash={flash} />}
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
@@ -17781,6 +17787,293 @@ function CRMPayments({ onFlash }: { onFlash: (message: string) => void }) {
             {adding === "subscription" && <><input name="customerId" placeholder="Customer ID" required autoFocus /><select name="planId" required>{plans.length ? plans.map((pl) => <option key={String(pl.id)} value={String(pl.id)}>{String(pl.name)} — {money(Number(pl.amount_cents || 0))}</option>) : <option value="">Create a plan first</option>}</select><input name="paymentMethodId" placeholder="Payment method ID" required /><input name="trialDays" type="number" placeholder="Trial days (optional)" /></>}
             {adding === "dispute" && <><input name="transactionId" placeholder="Transaction ID" required autoFocus /><input name="customerId" placeholder="Customer ID" required /><select name="disputeType"><option value="CHARGEBACK">Chargeback</option><option value="FRAUD">Fraud claim</option><option value="DUPLICATE">Duplicate charge</option></select><input name="amount" type="number" step=".01" placeholder="Amount ($)" required /><input name="reason" placeholder="Reason (optional)" /></>}
             {adding === "plan" && <><input name="name" placeholder="Plan name" required autoFocus /><input name="description" placeholder="Description (optional)" /><select name="billingCycle"><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="ANNUAL">Annual</option></select><input name="amount" type="number" step=".01" placeholder="Amount per cycle ($)" required /><input name="trialDays" type="number" placeholder="Trial days (optional)" /></>}
+            <button className="crmCreate" type="submit">Save</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
+  type Row = Record<string, unknown>;
+  const [clients, setClients] = useState<Row[]>([]),
+    [templates, setTemplates] = useState<Row[]>([]),
+    [selectedClient, setSelectedClient] = useState<Row | null>(null),
+    [disputes, setDisputes] = useState<Row[]>([]),
+    [scores, setScores] = useState<Row[]>([]),
+    [loaded, setLoaded] = useState(false),
+    [adding, setAdding] = useState<"client" | "dispute" | "score" | "template" | null>(null);
+  const load = async () => {
+    const [clientsRes, templatesRes] = await Promise.all([
+      fetch("/api/credit-repair", { cache: "no-store" }),
+      fetch("/api/credit-repair?templates=1", { cache: "no-store" }),
+    ]);
+    if (clientsRes.ok) setClients(((await clientsRes.json()) as { clients?: Row[] }).clients || []);
+    if (templatesRes.ok) setTemplates(((await templatesRes.json()) as { templates?: Row[] }).templates || []);
+    setLoaded(true);
+  };
+  useEffect(() => { void load(); }, []);
+  const openClient = async (client: Row) => {
+    setSelectedClient(client);
+    const id = String(client.id);
+    const [disputesRes, scoresRes] = await Promise.all([
+      fetch(`/api/credit-repair?clientId=${id}&section=disputes`, { cache: "no-store" }),
+      fetch(`/api/credit-repair?clientId=${id}&section=scores`, { cache: "no-store" }),
+    ]);
+    setDisputes(disputesRes.ok ? ((await disputesRes.json()) as { disputes?: Row[] }).disputes || [] : []);
+    setScores(scoresRes.ok ? ((await scoresRes.json()) as { scores?: Row[] }).scores || [] : []);
+  };
+  const totalClients = clients.length;
+  const activeClients = clients.filter((c) => c.subscription_status === "ACTIVE" || c.onboarding_status === "COMPLETE").length;
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    if (adding === "client") {
+      const res = await fetch("/api/credit-repair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: values.email, firstName: values.firstName, lastName: values.lastName, accessLevel: values.accessLevel, phoneNumber: values.phoneNumber || undefined }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Client could not be created"); return; }
+      setAdding(null); await load(); onFlash("Client added");
+      return;
+    }
+    if (adding === "dispute" && selectedClient) {
+      const id = String(selectedClient.id);
+      const res = await fetch(`/api/credit-repair?clientId=${id}&action=disputes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creditBureau: values.creditBureau, reason: values.reason, description: values.description }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Dispute could not be created"); return; }
+      setAdding(null); await openClient(selectedClient); onFlash("Dispute filed");
+      return;
+    }
+    if (adding === "score" && selectedClient) {
+      const id = String(selectedClient.id);
+      const res = await fetch(`/api/credit-repair?clientId=${id}&action=scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ equifaxScore: values.equifaxScore || undefined, experianScore: values.experianScore || undefined, transunionScore: values.transunionScore || undefined }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Score could not be recorded"); return; }
+      setAdding(null); await openClient(selectedClient); onFlash("Credit score recorded");
+      return;
+    }
+    if (adding === "template") {
+      const res = await fetch("/api/credit-repair?templates=1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: values.name, reason: values.reason, templateContent: values.templateContent, creditBureau: values.creditBureau }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Template could not be created"); return; }
+      setAdding(null); await load(); onFlash("Dispute template saved");
+      return;
+    }
+  };
+  const submitDispute = async (disputeId: string) => {
+    if (!selectedClient) return;
+    const res = await fetch(`/api/credit-repair?clientId=${selectedClient.id}&action=disputes&disputeId=${disputeId}&submit=1`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    if (!res.ok) { onFlash("Could not submit dispute"); return; }
+    await openClient(selectedClient); onFlash("Dispute submitted to bureau");
+  };
+  const statusClass = (status: unknown) => status === "RESOLVED" || status === "COMPLETE" || status === "ACTIVE" ? "good" : status === "SUBMITTED" || status === "INVESTIGATING" ? "warn" : status === "REJECTED" ? "bad" : "";
+
+  return (
+    <div className="creditRepairOS">
+      <div className="crmMetrics">
+        {[
+          ["CLIENTS", String(totalClients), `${activeClients} active`],
+          ["DISPUTE TEMPLATES", String(templates.length), "FCRA-ready letters"],
+          ["OPEN DISPUTES", selectedClient ? String(disputes.filter((d) => d.status !== "RESOLVED").length) : "—", selectedClient ? String(selectedClient.first_name || "") + " " + String(selectedClient.last_name || "") : "Select a client"],
+          ["SCORE RECORDS", selectedClient ? String(scores.length) : "—", "Bureau history"],
+        ].map(([label, value, sub]) => (
+          <article key={label}><small>{label}</small><div><b>{value}</b></div><p>{sub}</p></article>
+        ))}
+      </div>
+
+      <div className="opsPanelGrid" style={{ gridTemplateColumns: "1fr 1.4fr", marginTop: 14 }}>
+        <section className="crmPanel">
+          <div className="crmPanelHead"><div><small>CLIENTS</small><h2>Credit repair roster</h2></div><button onClick={() => setAdding("client")}>＋ Add client</button></div>
+          {clients.length ? clients.map((c) => (
+            <div key={String(c.id)} className={`opsListRow ${selectedClient?.id === c.id ? "" : ""}`} style={{ cursor: "pointer", background: selectedClient?.id === c.id ? "#1c1516" : undefined }} onClick={() => void openClient(c)}>
+              <i>◎</i>
+              <div><b>{String(c.first_name)} {String(c.last_name)}</b><small>{String(c.email)} · {String(c.access_level)}</small></div>
+              <span className={`statusPill ${statusClass(c.onboarding_status)}`}>{String(c.onboarding_status || "NEW")}</span>
+            </div>
+          )) : loaded ? <p className="opsEmpty">No clients yet. Add your first credit repair client.</p> : null}
+        </section>
+
+        <section className="crmPanel">
+          {selectedClient ? (
+            <>
+              <div className="crmPanelHead"><div><small>{String(selectedClient.first_name)} {String(selectedClient.last_name)}</small><h2>Disputes & score history</h2></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => setAdding("score")}>＋ Score</button><button onClick={() => setAdding("dispute")}>＋ Dispute</button></div></div>
+              {disputes.length ? (
+                <div className="dataTableWrap"><table className="dataTable">
+                  <thead><tr><th>Bureau</th><th>Reason</th><th>Status</th><th>Filed</th><th></th></tr></thead>
+                  <tbody>{disputes.map((d) => (
+                    <tr key={String(d.id)}><td>{String(d.credit_bureau)}</td><td>{String(d.reason).replace(/_/g, " ")}</td><td><span className={`statusPill ${statusClass(d.status)}`}>{String(d.status)}</span></td><td>{new Date(String(d.created_at)).toLocaleDateString()}</td><td>{d.status === "DRAFT" && <button onClick={() => void submitDispute(String(d.id))}>Submit</button>}</td></tr>
+                  ))}</tbody>
+                </table></div>
+              ) : <p className="opsEmpty">No disputes filed for this client yet.</p>}
+              <h3 style={{ fontSize: 12, color: "#a79b9e", marginTop: 18 }}>SCORE HISTORY</h3>
+              {scores.length ? (
+                <div className="dataTableWrap"><table className="dataTable">
+                  <thead><tr><th>Date</th><th>Equifax</th><th>Experian</th><th>TransUnion</th><th>Average</th></tr></thead>
+                  <tbody>{scores.map((s) => (
+                    <tr key={String(s.id)}><td>{new Date(String(s.created_at)).toLocaleDateString()}</td><td>{s.equifax_score != null ? String(s.equifax_score) : "—"}</td><td>{s.experian_score != null ? String(s.experian_score) : "—"}</td><td>{s.transunion_score != null ? String(s.transunion_score) : "—"}</td><td>{s.average_score != null ? String(s.average_score) : "—"}</td></tr>
+                  ))}</tbody>
+                </table></div>
+              ) : <p className="opsEmpty">No score records yet.</p>}
+            </>
+          ) : <p className="opsEmpty">Select a client to view their disputes and score history.</p>}
+        </section>
+      </div>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>DISPUTE TEMPLATES</small><h2>FCRA letter library</h2></div><button onClick={() => setAdding("template")}>＋ New template</button></div>
+        {templates.length ? templates.map((t) => (
+          <div key={String(t.id)} className="opsListRow"><i>▤</i><div><b>{String(t.name)}</b><small>{String(t.reason).replace(/_/g, " ")} · {String(t.credit_bureau)}</small></div></div>
+        )) : loaded ? <p className="opsEmpty">No templates yet. FCRA-compliant letters start here.</p> : null}
+      </section>
+
+      {adding && (
+        <div className="crmModalBack" onClick={() => setAdding(null)}>
+          <form className="crmModal miniDataForm" onSubmit={(e) => void submit(e)} onClick={(e) => e.stopPropagation()}>
+            <div className="crmModalHead">
+              <div><label>CREDIT REPAIR INPUT</label><h2>
+                {adding === "client" ? "Add client" : adding === "dispute" ? "File a dispute" : adding === "score" ? "Record credit score" : "Create dispute template"}
+              </h2></div>
+              <button type="button" onClick={() => setAdding(null)}>×</button>
+            </div>
+            {adding === "client" && <><input name="firstName" placeholder="First name" required autoFocus /><input name="lastName" placeholder="Last name" required /><input name="email" type="email" placeholder="Email" required /><input name="phoneNumber" placeholder="Phone (optional)" /><select name="accessLevel"><option value="FREE">Free — 1 dispute/mo</option><option value="PREMIUM">Premium — 5 disputes/mo</option><option value="PROFESSIONAL">Professional — 20 disputes/mo</option><option value="UNLIMITED">Unlimited — 100 disputes/mo</option></select></>}
+            {adding === "dispute" && <><select name="creditBureau"><option value="EQUIFAX">Equifax</option><option value="EXPERIAN">Experian</option><option value="TRANSUNION">TransUnion</option><option value="ALL">All bureaus</option></select><select name="reason"><option value="NOT_MINE">Not mine</option><option value="INACCURATE_BALANCE">Inaccurate balance</option><option value="PAID_IN_FULL">Paid in full</option><option value="DUPLICATE">Duplicate account</option><option value="IDENTITY_THEFT">Identity theft</option><option value="OTHER">Other</option></select><textarea name="description" placeholder="Describe the inaccuracy…" required autoFocus /></>}
+            {adding === "score" && <><input name="equifaxScore" type="number" placeholder="Equifax score" /><input name="experianScore" type="number" placeholder="Experian score" /><input name="transunionScore" type="number" placeholder="TransUnion score" /></>}
+            {adding === "template" && <><input name="name" placeholder="Template name" required autoFocus /><select name="reason"><option value="NOT_MINE">Not mine</option><option value="INACCURATE_BALANCE">Inaccurate balance</option><option value="PAID_IN_FULL">Paid in full</option><option value="DUPLICATE">Duplicate account</option><option value="IDENTITY_THEFT">Identity theft</option><option value="OTHER">Other</option></select><select name="creditBureau"><option value="ALL">All bureaus</option><option value="EQUIFAX">Equifax</option><option value="EXPERIAN">Experian</option><option value="TRANSUNION">TransUnion</option></select><textarea name="templateContent" placeholder="Letter content…" required /></>}
+            <button className="crmCreate" type="submit">Save</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CRMLending({ onFlash }: { onFlash: (message: string) => void }) {
+  type Row = Record<string, unknown>;
+  const [products, setProducts] = useState<Row[]>([]),
+    [applications, setApplications] = useState<Row[]>([]),
+    [loans, setLoans] = useState<Row[]>([]),
+    [loaded, setLoaded] = useState(false),
+    [adding, setAdding] = useState<"product" | "application" | "underwrite" | "offer" | null>(null),
+    [activeAppId, setActiveAppId] = useState<string>("");
+  const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n || 0);
+  const load = async () => {
+    const [p, a, l] = await Promise.all([
+      fetch("/api/lending?resource=products", { cache: "no-store" }),
+      fetch("/api/lending?resource=applications", { cache: "no-store" }),
+      fetch("/api/lending?resource=loans", { cache: "no-store" }),
+    ]);
+    if (p.ok) setProducts(((await p.json()) as { products?: Row[] }).products || []);
+    if (a.ok) setApplications(((await a.json()) as { applications?: Row[] }).applications || []);
+    if (l.ok) setLoans(((await l.json()) as { loans?: Row[] }).loans || []);
+    setLoaded(true);
+  };
+  useEffect(() => { void load(); }, []);
+  const activeLoans = loans.filter((l) => l.status === "ACTIVE" || l.status === "FUNDED").length;
+  const totalOriginated = loans.reduce((sum, l) => sum + Number(l.loan_amount || 0), 0);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    if (adding === "product") {
+      const res = await fetch("/api/lending?resource=products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: values.name, type: values.type, minAmount: Number(values.minAmount), maxAmount: Number(values.maxAmount), minTerm: Number(values.minTerm), maxTerm: Number(values.maxTerm), baseInterestRate: Number(values.baseInterestRate), description: values.description }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Product could not be created"); return; }
+      setAdding(null); await load(); onFlash("Loan product created");
+      return;
+    }
+    if (adding === "application") {
+      const res = await fetch("/api/lending?resource=applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicantId: values.applicantId, applicantEmail: values.applicantEmail, productId: values.productId, requestedAmount: Number(values.requestedAmount), requestedTerm: Number(values.requestedTerm), purpose: values.purpose }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Application could not be created"); return; }
+      setAdding(null); await load(); onFlash("Application submitted for intake");
+      return;
+    }
+    if (adding === "underwrite" && activeAppId) {
+      const res = await fetch(`/api/lending?resource=applications&id=${activeAppId}&action=underwrite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creditScore: Number(values.creditScore), debtToIncomeRatio: Number(values.debtToIncomeRatio) / 100, riskLevel: values.riskLevel, decision: values.decision, estimatedAPR: Number(values.estimatedAPR), monthlyPayment: Number(values.monthlyPayment) }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Underwriting failed"); return; }
+      setAdding(null); await load(); onFlash("Underwriting decision recorded");
+      return;
+    }
+    if (adding === "offer" && activeAppId) {
+      const res = await fetch(`/api/lending?resource=applications&id=${activeAppId}&action=offer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loanAmount: Number(values.loanAmount), interestRate: Number(values.interestRate), term: Number(values.term) }) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Offer could not be created"); return; }
+      setAdding(null); await load(); onFlash("Loan offer created");
+      return;
+    }
+  };
+  const submitApplication = async (appId: string) => {
+    const res = await fetch(`/api/lending?resource=applications&id=${appId}&action=submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    if (!res.ok) { onFlash("Could not submit application"); return; }
+    await load(); onFlash("Application submitted");
+  };
+  const statusClass = (status: unknown) => status === "APPROVED" || status === "ACTIVE" || status === "FUNDED" ? "good" : status === "SUBMITTED" || status === "UNDER_REVIEW" || status === "PENDING" ? "warn" : status === "DECLINED" || status === "DEFAULTED" ? "bad" : "";
+
+  return (
+    <div className="lendingOS">
+      <div className="crmMetrics">
+        {[
+          ["LOAN PRODUCTS", String(products.length), "Active offerings"],
+          ["APPLICATIONS", String(applications.length), `${applications.filter((a) => a.status === "PENDING" || a.status === "SUBMITTED").length} in review`],
+          ["ACTIVE LOANS", String(activeLoans), `${loans.length} total`],
+          ["TOTAL ORIGINATED", money(totalOriginated), "Across all loans"],
+        ].map(([label, value, sub]) => (
+          <article key={label}><small>{label}</small><div><b>{value}</b></div><p>{sub}</p></article>
+        ))}
+      </div>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>LOAN PRODUCTS</small><h2>What you offer</h2></div><button onClick={() => setAdding("product")}>＋ New product</button></div>
+        {products.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Name</th><th>Type</th><th>Range</th><th>Term</th><th>Base APR</th></tr></thead>
+            <tbody>{products.map((p) => (
+              <tr key={String(p.id)}><td>{String(p.name)}</td><td>{String(p.type)}</td><td>{money(Number(p.min_amount))} – {money(Number(p.max_amount))}</td><td>{String(p.min_term)}–{String(p.max_term)}mo</td><td>{String(p.base_interest_rate)}%</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No loan products yet. Create one to start taking applications.</p> : null}
+      </section>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>APPLICATIONS</small><h2>Origination pipeline</h2></div><button onClick={() => setAdding("application")}>＋ New application</button></div>
+        {applications.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Applicant</th><th>Amount</th><th>Term</th><th>Status</th><th></th></tr></thead>
+            <tbody>{applications.map((a) => (
+              <tr key={String(a.id)}>
+                <td>{String(a.applicant_email)}</td>
+                <td>{money(Number(a.requested_amount))}</td>
+                <td>{String(a.requested_term)}mo</td>
+                <td><span className={`statusPill ${statusClass(a.status)}`}>{String(a.status)}</span></td>
+                <td className="opsRowActions">
+                  {a.status === "DRAFT" && <button onClick={() => void submitApplication(String(a.id))}>Submit</button>}
+                  {a.status === "SUBMITTED" && <button onClick={() => { setActiveAppId(String(a.id)); setAdding("underwrite"); }}>Underwrite</button>}
+                  {a.status === "APPROVED" && <button onClick={() => { setActiveAppId(String(a.id)); setAdding("offer"); }}>Create offer</button>}
+                </td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No applications yet.</p> : null}
+      </section>
+
+      <section className="crmPanel" style={{ marginTop: 14 }}>
+        <div className="crmPanelHead"><div><small>LOANS</small><h2>Funded & active</h2></div></div>
+        {loans.length ? (
+          <div className="dataTableWrap"><table className="dataTable">
+            <thead><tr><th>Borrower</th><th>Amount</th><th>Rate</th><th>Status</th><th>Next payment</th></tr></thead>
+            <tbody>{loans.map((l) => (
+              <tr key={String(l.id)}><td>{String(l.borrower_id)}</td><td>{money(Number(l.loan_amount))}</td><td>{String(l.interest_rate)}%</td><td><span className={`statusPill ${statusClass(l.status)}`}>{String(l.status)}</span></td><td>{l.next_payment_due_date ? new Date(String(l.next_payment_due_date)).toLocaleDateString() : "—"}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : loaded ? <p className="opsEmpty">No loans funded yet — offers become loans once accepted.</p> : null}
+      </section>
+
+      {adding && (
+        <div className="crmModalBack" onClick={() => setAdding(null)}>
+          <form className="crmModal miniDataForm" onSubmit={(e) => void submit(e)} onClick={(e) => e.stopPropagation()}>
+            <div className="crmModalHead">
+              <div><label>LENDING INPUT</label><h2>
+                {adding === "product" ? "Create loan product" : adding === "application" ? "New loan application" : adding === "underwrite" ? "Underwriting decision" : "Create loan offer"}
+              </h2></div>
+              <button type="button" onClick={() => setAdding(null)}>×</button>
+            </div>
+            {adding === "product" && <><input name="name" placeholder="Product name" required autoFocus /><select name="type"><option value="PERSONAL">Personal</option><option value="AUTO">Auto</option><option value="HOME">Home</option><option value="BUSINESS">Business</option><option value="STUDENT">Student</option></select><input name="minAmount" type="number" placeholder="Min amount ($)" required /><input name="maxAmount" type="number" placeholder="Max amount ($)" required /><input name="minTerm" type="number" placeholder="Min term (months)" required /><input name="maxTerm" type="number" placeholder="Max term (months)" required /><input name="baseInterestRate" type="number" step=".01" placeholder="Base APR (%)" required /><input name="description" placeholder="Description" /></>}
+            {adding === "application" && <><input name="applicantId" placeholder="Applicant ID" required autoFocus /><input name="applicantEmail" type="email" placeholder="Applicant email" required /><select name="productId" required>{products.length ? products.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>) : <option value="">Create a product first</option>}</select><input name="requestedAmount" type="number" placeholder="Requested amount ($)" required /><input name="requestedTerm" type="number" placeholder="Requested term (months)" required /><input name="purpose" placeholder="Purpose" /></>}
+            {adding === "underwrite" && <><input name="creditScore" type="number" placeholder="Credit score" required autoFocus /><input name="debtToIncomeRatio" type="number" step=".1" placeholder="Debt-to-income (%)" required /><select name="riskLevel"><option value="LOW">Low risk</option><option value="MEDIUM">Medium risk</option><option value="HIGH">High risk</option></select><select name="decision"><option value="APPROVED">Approved</option><option value="DECLINED">Declined</option><option value="MANUAL_REVIEW">Manual review</option></select><input name="estimatedAPR" type="number" step=".01" placeholder="Estimated APR (%)" /><input name="monthlyPayment" type="number" placeholder="Est. monthly payment ($)" /></>}
+            {adding === "offer" && <><input name="loanAmount" type="number" placeholder="Loan amount ($)" required autoFocus /><input name="interestRate" type="number" step=".01" placeholder="Interest rate (%)" required /><input name="term" type="number" placeholder="Term (months)" required /></>}
             <button className="crmCreate" type="submit">Save</button>
           </form>
         </div>

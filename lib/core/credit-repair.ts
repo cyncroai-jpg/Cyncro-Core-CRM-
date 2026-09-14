@@ -204,8 +204,8 @@ export async function createCreditRepairClient(
       email,
       firstName,
       lastName,
-      phoneNumber,
-      address,
+      phoneNumber ?? null,
+      address ?? null,
       accessLevel,
       "PENDING",
       disputesRemaining,
@@ -276,7 +276,7 @@ export async function createDispute(
       creditBureau,
       reason,
       description,
-      accountInfo,
+      accountInfo ?? null,
       "DRAFT",
       now,
       now
@@ -350,7 +350,7 @@ export async function updateDisputeStatus(
        SET status = ?, resolution = ?, actual_resolution_date = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`
     )
-    .bind(status, resolution, actualResolutionDate, now, tenantId, disputeId)
+    .bind(status, resolution ?? null, actualResolutionDate ?? null, now, tenantId, disputeId)
     .run();
 
   const dispute = await db
@@ -393,13 +393,13 @@ export async function addCreditScoreRecord(
       id,
       tenantId,
       clientId,
-      equifaxScore,
-      experianScore,
-      transunionScore,
+      equifaxScore ?? null,
+      experianScore ?? null,
+      transunionScore ?? null,
       averageScore,
       now,
       "MANUAL",
-      documentProof,
+      documentProof ?? null,
       now
     )
     .run();
@@ -454,8 +454,8 @@ export async function recordPayment(
       transactionId,
       "COMPLETED",
       JSON.stringify(unlockedFeatures || []),
-      recipientEmail,
-      invoiceUrl,
+      recipientEmail ?? null,
+      invoiceUrl ?? null,
       now,
       now,
       now
@@ -554,7 +554,7 @@ export async function completeOnboardingStep(
       stepNumber,
       "STEP_" + stepNumber,
       "COMPLETED",
-      stepData,
+      stepData ?? null,
       now,
       now,
       now
@@ -638,8 +638,8 @@ export async function getCreditRepairAnalytics(
       averageDaysToResolve: 30, // placeholder
       creditScoreImprovement: 0, // would calculate from score records
       averageScoreGain: 0,
-      disputesByReason: {},
-      disputesByStatus: {},
+      disputesByReason: {} as Record<DisputeReason, number>,
+      disputesByStatus: {} as Record<DisputeStatus, number>,
       successfulOutcomes: resolved,
       revenue: 0,
     };
