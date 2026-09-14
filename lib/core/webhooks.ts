@@ -450,3 +450,23 @@ export async function disableIfTooManyFailures(
 
   return false;
 }
+
+/**
+ * Fire-and-forget event dispatch for call sites that don't have a tenant
+ * in scope (legacy, pre-multi-tenant routes). Triggers the event against
+ * every tenant with at least one active webhook — triggerWebhooks() still
+ * filters per-tenant by the webhook's own subscribed event types.
+ */
+export async function dispatchWebhookEvent(
+  eventType: WebhookEventType,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const db = coreDb();
+  const { results } = await db
+    .prepare(`SELECT DISTINCT tenant_id FROM webhooks WHERE status = 'ACTIVE'`)
+    .all<{ tenant_id: string }>();
+
+  for (const row of results) {
+    await triggerWebhooks(row.tenant_id, eventType, payload);
+  }
+}

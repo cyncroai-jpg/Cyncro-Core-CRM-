@@ -784,3 +784,113 @@ export async function getKPIs(tenantId: string): Promise<KPI[]> {
     updatedAt: String(row.updated_at),
   }));
 }
+
+// ==================== REPORT DATA / EXPORT / TEMPLATES / SCHEDULING ====================
+
+/** Generate tabular {columns, rows} data for a report type, for on-demand viewing or export. */
+export async function generateReportData(
+  tenantId: string,
+  reportType: string,
+  filters?: Record<string, unknown>
+): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
+  let rows: Record<string, unknown>[] = [];
+  switch (reportType) {
+    case "SALES_PIPELINE":
+      rows = await generateSalesPipelineReport(tenantId, filters);
+      break;
+    case "CONTACT_ACTIVITY":
+      rows = await generateContactActivityReport(tenantId, filters);
+      break;
+    case "DEAL_ANALYSIS":
+      rows = await generateDealAnalysisReport(tenantId, filters);
+      break;
+    case "REVENUE_FORECAST":
+      rows = await generateRevenueForecastReport(tenantId, filters);
+      break;
+    case "TEAM_PERFORMANCE":
+      rows = await generateTeamPerformanceReport(tenantId, filters);
+      break;
+    default:
+      rows = [];
+  }
+  const columns = rows.length ? Object.keys(rows[0]) : [];
+  return { columns, rows };
+}
+
+/** Serialize columns/rows as a CSV string. */
+export function exportToCSV(columns: string[], rows: Record<string, unknown>[]): string {
+  const escape = (value: unknown) => {
+    const str = value === null || value === undefined ? "" : String(value);
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+  const header = columns.map(escape).join(",");
+  const body = rows.map((row) => columns.map((col) => escape(row[col])).join(","));
+  return [header, ...body].join("\n");
+}
+
+/** Serialize rows as a pretty-printed JSON string. */
+export function exportToJSON(columns: string[], rows: Record<string, unknown>[]): string {
+  return JSON.stringify(rows, null, 2);
+}
+
+/** Static catalog of built-in report templates available to every tenant. */
+export function getReportTemplates(): {
+  type: ReportType;
+  name: string;
+  description: string;
+}[] {
+  return [
+    { type: "SALES_PIPELINE", name: "Sales Pipeline", description: "Open opportunities by stage, value, and age." },
+    { type: "CONTACT_ACTIVITY", name: "Contact Activity", description: "Calls, emails, meetings, and tasks logged per contact." },
+    { type: "DEAL_ANALYSIS", name: "Deal Analysis", description: "Win/loss breakdown and deal velocity." },
+    { type: "REVENUE_FORECAST", name: "Revenue Forecast", description: "Projected revenue from weighted open pipeline." },
+    { type: "TEAM_PERFORMANCE", name: "Team Performance", description: "Rep-by-rep quota attainment and activity volume." },
+  ];
+}
+
+/** Create a recurring delivery schedule for an existing report. */
+export async function scheduleReport(
+  tenantId: string,
+  reportId: string,
+  recipients: string[],
+  frequency: "daily" | "weekly" | "monthly",
+  format: "csv" | "pdf" | "json"
+): Promise<{
+  id: string;
+  tenantId: string;
+  reportId: string;
+  recipients: string[];
+  frequency: string;
+  format: string;
+  nextRunAt: string;
+  createdAt: string;
+}> {
+  const db = coreDb();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const intervalMs =
+    frequency === "daily" ? 24 * 60 * 60 * 1000 :
+    frequency === "monthly" ? 30 * 24 * 60 * 60 * 1000 :
+    7 * 24 * 60 * 60 * 1000;
+  const nextRunAt = new Date(Date.now() + intervalMs).toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO scheduled_reports
+       (id, tenant_id, report_id, recipients, frequency, format, next_run_at, enabled, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+    )
+    .bind(id, tenantId, reportId, JSON.stringify(recipients), frequency, format, nextRunAt, now)
+    .run();
+
+  return {
+    id,
+    tenantId,
+    reportId,
+    recipients,
+    frequency,
+    format,
+    nextRunAt,
+    createdAt: now,
+  };
+}

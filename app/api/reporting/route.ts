@@ -19,6 +19,7 @@ import {
 } from "@/lib/core/db";
 import {
   createDashboard,
+  addDashboardWidget,
   getDashboard,
   createReport,
   generateReportData,
@@ -26,6 +27,8 @@ import {
   exportToCSV,
   exportToJSON,
   getReportTemplates,
+  type DashboardWidgetType,
+  type ReportType,
 } from "@/lib/core/reporting";
 
 export async function GET(request: Request) {
@@ -182,10 +185,25 @@ export async function POST(request: Request) {
       const dashboard = await createDashboard(
         tenant.tenantId,
         name,
-        widgets,
-        description,
-        tenant.email
+        tenant.email,
+        description
       );
+
+      for (let i = 0; i < widgets.length; i++) {
+        const w = widgets[i] as Record<string, unknown>;
+        await addDashboardWidget(
+          tenant.tenantId,
+          dashboard.id,
+          cleanText(String(w.name || "Widget"), 160),
+          (w.type as DashboardWidgetType) || "METRIC",
+          Number(w.position ?? i),
+          (Number(w.width) as 1 | 2 | 3 | 4) || 2,
+          Number(w.height) || 2,
+          w.reportId ? String(w.reportId) : undefined,
+          w.metric ? String(w.metric) : undefined,
+          w.config as Record<string, unknown> | undefined
+        );
+      }
 
       return Response.json(dashboard, { status: 201 });
     }
@@ -196,7 +214,6 @@ export async function POST(request: Request) {
       const reportType = cleanText(String(body.reportType || ""), 50);
       const filters = body.filters as Record<string, unknown> | undefined;
       const columns = Array.isArray(body.columns) ? (body.columns as string[]) : undefined;
-      const sortBy = body.sortBy ? cleanText(String(body.sortBy), 50) : undefined;
 
       if (!name || !reportType) {
         return Response.json(
@@ -208,10 +225,9 @@ export async function POST(request: Request) {
       const report = await createReport(
         tenant.tenantId,
         name,
-        reportType,
+        reportType as ReportType,
         filters,
         columns,
-        sortBy,
         tenant.email
       );
 
