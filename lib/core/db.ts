@@ -19,10 +19,92 @@ export function coreDb() {
 }
 
 let initialized = false;
+
+/** Multi-tenant context extracted from request */
+export interface TenantContext {
+  tenantId: string;
+  userId: string;
+  email: string;
+  role: "OWNER" | "ADMIN" | "MANAGER" | "USER" | "VIEWER";
+}
+
 export async function ensureCoreSchema() {
   if (initialized) return;
   const db = coreDb();
   await db.batch([
+    // ============ MULTI-TENANT CORE TABLES ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS tenants (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      stripe_customer_id TEXT,
+      plan TEXT NOT NULL DEFAULT 'starter',
+      seats INTEGER NOT NULL DEFAULT 3,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS tenants_slug_idx ON tenants(slug)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS tenant_members (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'USER',
+      permissions TEXT DEFAULT '{}',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(user_id) REFERENCES auth_users(id),
+      UNIQUE(tenant_id, email)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS tenant_members_tenant_idx ON tenant_members(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS tenant_members_user_idx ON tenant_members(user_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS tenant_subscriptions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      stripe_subscription_id TEXT,
+      stripe_invoice_id TEXT,
+      plan TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      current_period_start TEXT,
+      current_period_end TEXT,
+      amount_cents INTEGER,
+      currency TEXT DEFAULT 'USD',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS tenant_subscriptions_tenant_idx ON tenant_subscriptions(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      key_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      last_used_at TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS api_keys_tenant_idx ON api_keys(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT,
+      email TEXT,
+      action TEXT NOT NULL,
+      resource_type TEXT,
+      resource_id TEXT,
+      details TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_tenant_idx ON audit_logs(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_user_idx ON audit_logs(tenant_id, user_id)"),
+    // ============ UPDATED AUTH TABLES ============
     db.prepare(`CREATE TABLE IF NOT EXISTS auth_users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL,
@@ -33,6 +115,8 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`),
+    // Migration: add default_tenant_id if it doesn't exist
+    db.prepare("ALTER TABLE auth_users ADD COLUMN default_tenant_id TEXT"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_unique ON auth_users(lower(email))"),
     db.prepare(`CREATE TABLE IF NOT EXISTS auth_sessions (
       token TEXT PRIMARY KEY,
@@ -72,6 +156,9 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS crm_accounts_prospect_unique ON crm_accounts(source_prospect_id) WHERE source_prospect_id IS NOT NULL",
     ),
+    // Migration: add tenant_id to crm_accounts
+    db.prepare("ALTER TABLE crm_accounts ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_accounts_tenant_idx ON crm_accounts(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_contacts (
       id TEXT PRIMARY KEY,
       account_id TEXT,
@@ -93,6 +180,9 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS crm_contacts_account_idx ON crm_contacts(account_id)",
     ),
+    // Migration: add tenant_id to crm_contacts
+    db.prepare("ALTER TABLE crm_contacts ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_contacts_tenant_idx ON crm_contacts(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_activities (
       id TEXT PRIMARY KEY, contact_id TEXT NOT NULL, activity_type TEXT NOT NULL, title TEXT NOT NULL,
       details TEXT, due_at TEXT, status TEXT NOT NULL DEFAULT 'COMPLETED', created_by TEXT,
@@ -159,6 +249,11 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS crm_opportunities_rep_idx ON crm_opportunities(assigned_rep)",
     ),
+    // Migration: add tenant_id to crm_opportunities and crm_activities
+    db.prepare("ALTER TABLE crm_opportunities ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_opportunities_tenant_idx ON crm_opportunities(tenant_id)"),
+    db.prepare("ALTER TABLE crm_activities ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_activities_tenant_idx ON crm_activities(tenant_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS calendar_event_types (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -220,6 +315,13 @@ export async function ensureCoreSchema() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS calendar_bookings_assigned_idx ON calendar_bookings(assigned_to, starts_at)",
     ),
+    // Migration: add tenant_id to calendar tables
+    db.prepare("ALTER TABLE calendar_event_types ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS calendar_event_types_tenant_idx ON calendar_event_types(tenant_id)"),
+    db.prepare("ALTER TABLE calendar_bookings ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS calendar_bookings_tenant_idx ON calendar_bookings(tenant_id)"),
+    db.prepare("ALTER TABLE calendar_availability ADD COLUMN tenant_id TEXT"),
+    db.prepare("ALTER TABLE calendar_feeds ADD COLUMN tenant_id TEXT"),
     db.prepare(`CREATE TABLE IF NOT EXISTS workspace_notifications (
       id TEXT PRIMARY KEY, recipient TEXT NOT NULL, title TEXT NOT NULL, body TEXT, entity_type TEXT, entity_id TEXT, read_at TEXT, created_at TEXT NOT NULL
     )`),
@@ -504,6 +606,13 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_ab_events_experiment ON calendar_ab_events(experiment_id, event_type, created_at DESC)"),
+    // Migration: add tenant_id to webhook and experiment tables
+    db.prepare("ALTER TABLE calendar_webhook_endpoints ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant ON calendar_webhook_endpoints(tenant_id)"),
+    db.prepare("ALTER TABLE calendar_webhook_deliveries ADD COLUMN tenant_id TEXT"),
+    db.prepare("ALTER TABLE calendar_ab_experiments ADD COLUMN tenant_id TEXT"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_ab_experiments_tenant ON calendar_ab_experiments(tenant_id)"),
+    db.prepare("ALTER TABLE calendar_ab_events ADD COLUMN tenant_id TEXT"),
     db.prepare(`CREATE TABLE IF NOT EXISTS prime_missions (
       id TEXT PRIMARY KEY,
       created_by TEXT NOT NULL,
@@ -778,6 +887,51 @@ export async function hasCrmAction(request: Request, action: "create"|"edit"|"de
   const member=await coreDb().prepare(`SELECT role,active,crm_access,can_${action} allowed FROM workspace_members WHERE email=?`).bind(email).first<{role:string;active:number;crm_access:number;allowed:number}>();
   if(!member){const count=await coreDb().prepare("SELECT COUNT(*) total FROM workspace_members").first<{total:number}>();if(!Number(count?.total||0))return true;}
   return Boolean(member?.active&&member.crm_access&&(member.role==="OWNER"||member.allowed));
+}
+
+/**
+ * Multi-tenant helper: Extract tenant_id from Authorization header (JWT token)
+ * or from query params ?tenantId=X for legacy support
+ */
+export function requestTenantId(request: Request): string | null {
+  // Try query param first (for API calls)
+  const url = new URL(request.url);
+  const param = url.searchParams.get("tenantId");
+  if (param) return cleanText(param, 80) || null;
+
+  // Try header (future: extract from JWT if present)
+  return null; // Will be set by auth middleware
+}
+
+/**
+ * Get full tenant context for a request.
+ * Used by API routes that need tenant isolation.
+ */
+export async function getTenantContext(request: Request): Promise<TenantContext | null> {
+  const email = await resolveRequestEmail(request);
+  if (!email) return null;
+
+  const tenantId = requestTenantId(request);
+  if (!tenantId) return null;
+
+  const db = coreDb();
+  const member = await db.prepare(
+    `SELECT tm.id, tm.tenant_id, tm.user_id, tm.email, tm.display_name, tm.role
+     FROM tenant_members tm
+     WHERE tm.tenant_id = ? AND tm.email = ? AND tm.active = 1`
+  ).bind(tenantId, email).first<{
+    id: string; tenant_id: string; user_id: string; email: string;
+    display_name: string; role: string
+  }>();
+
+  if (!member) return null;
+
+  return {
+    tenantId: member.tenant_id,
+    userId: member.user_id,
+    email: member.email,
+    role: member.role as any
+  };
 }
 
 export function cleanText(value: unknown, max = 500) {
