@@ -1447,6 +1447,41 @@ export async function ensureCoreSchema() {
       created_at TEXT NOT NULL,
       FOREIGN KEY(tenant_id) REFERENCES tenants(id)
     )`),
+    // ============ PHASE 34: RATE LIMITING & THROTTLING ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_configs (
+      tenant_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      requests_per_second INTEGER,
+      requests_per_minute INTEGER,
+      requests_per_hour INTEGER,
+      burst_allowance INTEGER,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(tenant_id, endpoint),
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_configs_tenant ON rate_limit_configs(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_checks (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_checks_tenant ON rate_limit_checks(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_checks_user ON rate_limit_checks(tenant_id, user_id, endpoint)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_blocks (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      window_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_tenant ON rate_limit_blocks(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_user ON rate_limit_blocks(tenant_id, user_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_endpoint ON rate_limit_blocks(endpoint)"),
   ]);
   try {
     await db
