@@ -1604,6 +1604,40 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operation_results_operation ON bulk_operation_results(operation_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_bulk_operation_results_tenant ON bulk_operation_results(tenant_id, created_at DESC)"),
+    // ============ PHASE 39: DATA RETENTION & ARCHIVAL POLICIES ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS retention_policies (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      retention_days INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      archive_storage TEXT,
+      anonymize_fields TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, resource_type)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_retention_policies_tenant ON retention_policies(tenant_id, enabled)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS archived_records (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      original_data TEXT NOT NULL,
+      archived_at TEXT NOT NULL,
+      expires_at TEXT,
+      storage_location TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_archived_records_tenant ON archived_records(tenant_id, archived_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_archived_records_resource ON archived_records(resource_type, resource_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS retention_cleanup_log (
+      tenant_id TEXT PRIMARY KEY,
+      last_cleanup_at TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
   ]);
   try {
     await db
