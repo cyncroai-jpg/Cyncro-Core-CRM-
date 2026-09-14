@@ -1244,6 +1244,34 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_pending ON webhook_deliveries(status, next_retry_at) WHERE status IN ('PENDING', 'RETRYING')"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id, created_at DESC)"),
+    // ============ PHASE 28 - SEARCH & INDEXING ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS search_index (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, resource_type, resource_id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_search_index_tenant ON search_index(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_search_index_resource ON search_index(tenant_id, resource_type)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_search_index_title ON search_index(title)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS search_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      query TEXT NOT NULL,
+      result_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_search_logs_tenant ON search_logs(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_search_logs_query ON search_logs(tenant_id, query)"),
   ]);
   try {
     await db
