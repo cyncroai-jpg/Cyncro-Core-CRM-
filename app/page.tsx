@@ -11382,7 +11382,10 @@ function UniversalCRM({
       lifecycle: "Lead",
     }),
     [dupeMergeId, setDupeMergeId] = useState<string | null>(null),
-    [dupeMerging, setDupeMerging] = useState(false);
+    [dupeMerging, setDupeMerging] = useState(false),
+    [cmdOpen, setCmdOpen] = useState(false),
+    [cmdQuery, setCmdQuery] = useState(""),
+    [cmdIndex, setCmdIndex] = useState(0);
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
@@ -11395,6 +11398,20 @@ function UniversalCRM({
       80,
     );
   };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((open) => !open);
+        setCmdQuery("");
+        setCmdIndex(0);
+      } else if (e.key === "Escape") {
+        setCmdOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     const saved = window.localStorage.getItem("cyncro-crm-user-name");
     if (saved) setCrmUserName(saved);
@@ -11772,7 +11789,7 @@ function UniversalCRM({
               onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) setView("Contacts"); }}
               placeholder="Search any contact, company, deal, message, or booking…"
             />
-            <kbd>⌘ K</kbd>
+            <kbd onClick={() => { setCmdOpen(true); setCmdQuery(""); setCmdIndex(0); }} style={{ cursor: "pointer" }}>⌘ K</kbd>
           </div>
           <button
             className="crmIconButton"
@@ -12162,6 +12179,71 @@ function UniversalCRM({
           {view === "Intelligence" && <CRMIntelligence onFlash={flash} />}
         </div>
       </main>
+
+      {cmdOpen && (() => {
+        const q = cmdQuery.trim().toLowerCase();
+        type CmdItem = { key: string; label: string; hint: string; icon: string; run: () => void };
+        const navItems: CmdItem[] = views.map((item) => ({
+          key: `nav-${item.name}`,
+          label: item.name,
+          hint: "Go to",
+          icon: item.icon,
+          run: () => setView(item.name),
+        }));
+        const contactItems: CmdItem[] = liveContacts.slice(0, 200).map((c, i) => ({
+          key: `contact-${c.id || i}`,
+          label: c.name,
+          hint: c.company,
+          icon: "◎",
+          run: () => { setSelected(liveContacts.indexOf(c)); setView("Contacts"); setContactRecordOpen(true); },
+        }));
+        const actionItems: CmdItem[] = [
+          { key: "action-new-contact", label: "New contact", hint: "Create", icon: "＋", run: () => { setCreateType("Contact"); setCreating(true); } },
+          { key: "action-new-appt", label: "New appointment", hint: "Create", icon: "＋", run: () => openNewAppointment() },
+        ];
+        const all = q
+          ? [...navItems, ...actionItems, ...contactItems].filter((item) => item.label.toLowerCase().includes(q) || item.hint.toLowerCase().includes(q))
+          : [...navItems, ...actionItems];
+        const results = all.slice(0, 40);
+        const runSelected = (item?: CmdItem) => {
+          const target = item || results[cmdIndex];
+          if (!target) return;
+          target.run();
+          setCmdOpen(false);
+        };
+        return (
+          <div className="crmModalBack" onClick={() => setCmdOpen(false)}>
+            <div className="crmModal cmdPalette" onClick={(e) => e.stopPropagation()}>
+              <input
+                autoFocus
+                value={cmdQuery}
+                onChange={(e) => { setCmdQuery(e.target.value); setCmdIndex(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") { e.preventDefault(); setCmdIndex((i) => Math.min(i + 1, results.length - 1)); }
+                  else if (e.key === "ArrowUp") { e.preventDefault(); setCmdIndex((i) => Math.max(i - 1, 0)); }
+                  else if (e.key === "Enter") { e.preventDefault(); runSelected(); }
+                  else if (e.key === "Escape") setCmdOpen(false);
+                }}
+                placeholder="Jump to a screen, contact, or action…"
+              />
+              <div className="cmdResults">
+                {results.length ? results.map((item, i) => (
+                  <button
+                    key={item.key}
+                    className={i === cmdIndex ? "on" : ""}
+                    onMouseEnter={() => setCmdIndex(i)}
+                    onClick={() => runSelected(item)}
+                  >
+                    <i>{item.icon}</i>
+                    <span>{item.label}</span>
+                    <em>{item.hint}</em>
+                  </button>
+                )) : <p className="opsEmpty">No matches. Try a different search.</p>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {creating && (
         <div className="crmModalBack" onClick={() => setCreating(false)}>

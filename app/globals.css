@@ -23561,3 +23561,10 @@ button.crmUser i {
 .opsListRow{display:flex;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid #292123}.opsListRow:first-of-type{border-top:none}.opsListRow>i{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:8px;background:#201d1e;font-style:normal;font-size:14px}.opsListRow>div{flex:1;min-width:0;display:grid;gap:3px}.opsListRow>div>b{font-size:12px;font-weight:500}.opsListRow>div>small{color:#938689;font-size:10px}
 .opsRowActions{display:flex;gap:8px;flex-wrap:wrap}.opsRowActions button{padding:4px 9px;font-size:10px;background:#1c1a1a;border:1px solid #2f2729;border-radius:7px;color:#c9bfc1}.opsRowActions button:hover{border-color:#b22840;color:#fff}
 @media(max-width:900px){.dataTable th,.dataTable td{font-size:11px}}
+.cmdPalette{width:min(560px,100%);margin-top:9vh}.cmdPalette>input{width:100%;background:#161314;border:none;border-bottom:1px solid #2f2729;color:#fff;font-size:15px;padding:18px 20px;outline:none}.cmdPalette>input::placeholder{color:#6e6265}
+.cmdResults{max-height:min(420px,60vh);overflow-y:auto;padding:6px}
+.cmdResults button{width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;background:transparent;color:#e6dfe0;border-radius:8px;text-align:left;font-size:13px}
+.cmdResults button.on,.cmdResults button:hover{background:#221c1e}
+.cmdResults button i{width:26px;height:26px;flex-shrink:0;display:grid;place-items:center;border-radius:7px;background:#201d1e;font-style:normal;font-size:13px}
+.cmdResults button span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmdResults button em{font-style:normal;color:#85777a;font-size:10px;flex-shrink:0}
