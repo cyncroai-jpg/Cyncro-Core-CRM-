@@ -983,6 +983,36 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_zap_executions_zap ON zap_executions(zap_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_zap_executions_status ON zap_executions(status)"),
+    // Slack Integration (Phase 18)
+    db.prepare(`CREATE TABLE IF NOT EXISTS slack_connections (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      workspace_name TEXT,
+      bot_token TEXT,
+      user_token TEXT,
+      scope TEXT,
+      installed_by TEXT,
+      installed_at TEXT NOT NULL,
+      last_used_at TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_connections_tenant ON slack_connections(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_connections_workspace ON slack_connections(workspace_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS slack_notifications (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      slack_workspace_id TEXT,
+      channel_id TEXT,
+      event_type TEXT NOT NULL,
+      resource_type TEXT,
+      resource_id TEXT,
+      message_ts TEXT,
+      sent_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_notifications_tenant ON slack_notifications(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_slack_notifications_event ON slack_notifications(event_type)"),
   ]);
   try {
     await db
