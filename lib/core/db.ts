@@ -1482,6 +1482,57 @@ export async function ensureCoreSchema() {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_tenant ON rate_limit_blocks(tenant_id, created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_user ON rate_limit_blocks(tenant_id, user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_endpoint ON rate_limit_blocks(endpoint)"),
+    // ============ PHASE 35: CUSTOM FIELDS & EXTENSIBILITY ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS custom_fields (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      field_name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      field_type TEXT NOT NULL,
+      required INTEGER NOT NULL DEFAULT 0,
+      unique INTEGER NOT NULL DEFAULT 0,
+      description TEXT,
+      default_value TEXT,
+      options TEXT,
+      validation_rules TEXT,
+      group_name TEXT,
+      display_order INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, resource_type, field_name)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_custom_fields_tenant ON custom_fields(tenant_id, resource_type)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_custom_fields_active ON custom_fields(tenant_id, active)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS custom_field_values (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      field_id TEXT NOT NULL,
+      value TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(field_id) REFERENCES custom_fields(id),
+      UNIQUE(tenant_id, resource_type, resource_id, field_id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_custom_field_values_resource ON custom_field_values(tenant_id, resource_type, resource_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS custom_field_groups (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      group_name TEXT NOT NULL,
+      description TEXT,
+      display_order INTEGER NOT NULL DEFAULT 0,
+      collapsed INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, resource_type, group_name)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_custom_field_groups_tenant ON custom_field_groups(tenant_id, resource_type)"),
   ]);
   try {
     await db
