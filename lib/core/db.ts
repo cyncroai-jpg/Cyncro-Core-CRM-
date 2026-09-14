@@ -1755,6 +1755,47 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_kpis_tenant ON kpis(tenant_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_kpis_metric ON kpis(metric)"),
+    // ============ PHASE 43: MULTI-CURRENCY SUPPORT & LOCALIZATION ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS currency_config (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL UNIQUE,
+      base_currency TEXT NOT NULL DEFAULT 'USD',
+      supported_currencies TEXT NOT NULL DEFAULT '[]',
+      auto_convert INTEGER NOT NULL DEFAULT 1,
+      rate_update_frequency TEXT NOT NULL DEFAULT 'DAILY',
+      last_updated TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_currency_config_tenant ON currency_config(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS exchange_rates (
+      id TEXT PRIMARY KEY,
+      from_currency TEXT NOT NULL,
+      to_currency TEXT NOT NULL,
+      rate REAL NOT NULL,
+      timestamp TEXT NOT NULL,
+      source TEXT,
+      UNIQUE(from_currency, to_currency, timestamp)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_exchange_rates_pair ON exchange_rates(from_currency, to_currency)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_exchange_rates_timestamp ON exchange_rates(timestamp DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS currency_conversions_log (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      original_amount REAL NOT NULL,
+      original_currency TEXT NOT NULL,
+      converted_amount REAL NOT NULL,
+      converted_currency TEXT NOT NULL,
+      rate REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_conversions_log_tenant ON currency_conversions_log(tenant_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_conversions_log_entity ON currency_conversions_log(entity_type, entity_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_conversions_log_timestamp ON currency_conversions_log(created_at DESC)"),
   ]);
   try {
     await db
