@@ -281,6 +281,27 @@ export function workspaceInviteEmail(p: {
   };
 }
 
+// ── Waitlist slot available ───────────────────────────────────────────────────
+
+export function waitlistSlotAvailableEmail(p: {
+  customerName: string;
+  eventName: string;
+  bookingUrl?: string | null;
+}): { subject: string; html: string } {
+  return {
+    subject: `🎉 A spot opened up for ${p.eventName}`,
+    html: wrap(`
+      <div class="card">
+        <div class="logo">Cyncro<span>CALENDAR</span></div>
+        <h1>Great news — a spot opened up!</h1>
+        <p>Hi ${p.customerName.split(" ")[0]}, a slot for <strong>${p.eventName}</strong> is now available. Book it before it fills up.</p>
+        ${p.bookingUrl ? `<a class="btn" href="${p.bookingUrl}">Book your spot →</a>` : "<p>Reply to this email to confirm your appointment.</p>"}
+        <p style="font-size:13px;color:#7a6e70">This is a first-come, first-served notification — book soon to secure your time.</p>
+      </div>
+    `),
+  };
+}
+
 // ── Password reset (placeholder — full flow coming soon) ─────────────────────
 
 export function passwordResetEmail(p: {

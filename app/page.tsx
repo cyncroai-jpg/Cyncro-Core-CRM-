@@ -1092,6 +1092,19 @@ function PublicBookingExperience() {
     }
     setSaving(true);
     setError("");
+    // Acquire a slot hold to prevent race conditions (released by the booking API)
+    let holdToken: string | undefined;
+    try {
+      const holdRes = await fetch("/api/calendar/holds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventTypeId: selected.id, startsAt, durationMinutes: selected.duration_minutes }),
+      });
+      if (holdRes.ok) {
+        const holdData = (await holdRes.json()) as { token?: string };
+        holdToken = holdData.token;
+      }
+    } catch { /* non-fatal — proceed without hold */ }
     const response = await fetch("/api/calendar/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1107,11 +1120,20 @@ function PublicBookingExperience() {
         meetingAddress: locationMode === "IN_PERSON" ? form.address : null,
         notes: form.notes,
         customAnswers: Object.keys(customAnswers).length ? customAnswers : undefined,
+        holdToken,
       }),
     });
     const data = (await response.json()) as { error?: string };
     setSaving(false);
     if (!response.ok) {
+      // Release the hold if booking failed
+      if (holdToken) {
+        void fetch("/api/calendar/holds", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: holdToken }),
+        }).catch(() => {});
+      }
       setError(data.error || "Booking could not be completed");
       return;
     }
@@ -19853,10 +19875,50 @@ function Admin({
         </div>
         <div>
           <button onClick={() => { window.location.href = "/api/integrations/google-calendar/connect"; }}>
-            Connect Google Calendar
+            {calendarFeed ? "✓ Reconnect Google Calendar" : "Connect Google Calendar"}
           </button>
           <button onClick={() => void connectCalendar()}>
             {calendarFeed ? "Copy subscription link" : "Create subscription link"}
+          </button>
+        </div>
+      </div>
+      {/* AI Booking API discovery panel */}
+      <div style={{margin:"0 0 16px",padding:"14px 16px",background:"#080e14",border:"1px solid #1a2a3a",borderRadius:10,display:"flex",alignItems:"flex-start",gap:16,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 260px",minWidth:0}}>
+          <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#4080c0",display:"block",marginBottom:4}}>🤖 AI BOOKING API™ — VOICE &amp; AUTOMATION</small>
+          <b style={{fontSize:13,color:"#c8dff0",display:"block",marginBottom:4}}>POST /api/calendar/ai-book</b>
+          <span style={{fontSize:12,color:"#5a7a9a",lineHeight:1.5,display:"block"}}>
+            Connect voice assistants, AI agents, and automation workflows. Supports <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>BOOK</code>, <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>RESCHEDULE</code>, <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>CANCEL</code>, and <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>CHECK_AVAILABILITY</code> intents. SmartSlot™ auto-picks the best slot.
+          </span>
+          <div style={{marginTop:8,background:"#0a1520",borderRadius:6,padding:"8px 10px",overflowX:"auto"}}>
+            <pre style={{margin:0,fontSize:10,color:"#70a8d8",whiteSpace:"pre",fontFamily:"monospace",lineHeight:1.6}}>{`{
+  "intent": "BOOK",
+  "eventTypeSlug": "intro-call",
+  "customerName": "Alex Smith",
+  "customerEmail": "alex@example.com",
+  "preferredDate": "2026-09-20",
+  "preferredTime": "10:00",
+  "timezone": "America/New_York",
+  "locationMode": "VIDEO",
+  "videoPlatform": "GOOGLE_MEET",
+  "leadScore": 85,
+  "agentId": "my-voice-bot"
+}`}</pre>
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,flexShrink:0,alignSelf:"center"}}>
+          <button
+            onClick={()=>{void navigator.clipboard.writeText(`${window.location.origin}/api/calendar/ai-book`).then(()=>setNotice("API endpoint URL copied!")).catch(()=>setNotice("Copy failed — copy the URL manually"));}}
+            style={{fontSize:11,padding:"6px 12px",background:"#0e2040",border:"1px solid #1e4080",color:"#80b8f0",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap"}}>
+            📋 Copy endpoint URL
+          </button>
+          <button
+            onClick={()=>{
+              const schema = {endpoint:`${window.location.origin}/api/calendar/ai-book`,method:"POST",intents:["BOOK","RESCHEDULE","CANCEL","CHECK_AVAILABILITY"],fields:{intent:"string (required)",eventTypeSlug:"string (required for BOOK/CHECK_AVAILABILITY)",customerName:"string (required for BOOK)",customerEmail:"string (required for BOOK)",preferredDate:"ISO date YYYY-MM-DD (optional)",preferredTime:"HH:MM (optional)",timezone:"IANA timezone (default UTC)",locationMode:"VIDEO|PHONE|IN_PERSON",videoPlatform:"GOOGLE_MEET|ZOOM|FACETIME",meetingAddress:"string (required for IN_PERSON)",leadScore:"0-100 (optional)",bookingId:"string (required for RESCHEDULE/CANCEL)",newStartsAt:"ISO datetime (optional for RESCHEDULE)",agentId:"string (optional, for audit)"}};
+              void navigator.clipboard.writeText(JSON.stringify(schema,null,2)).then(()=>setNotice("API schema copied!")).catch(()=>setNotice("Copy failed"));
+            }}
+            style={{fontSize:11,padding:"6px 12px",background:"#0e2040",border:"1px solid #1e4080",color:"#80b8f0",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap"}}>
+            📋 Copy API schema
           </button>
         </div>
       </div>

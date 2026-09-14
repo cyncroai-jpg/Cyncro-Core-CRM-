@@ -2,6 +2,78 @@ import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, r
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
 
+/**
+ * Outcome Routing™ executor — resolves who to assign a booking to based on
+ * the event type's linked routing rule. Falls back to host_name if no rule
+ * is set or no eligible member is available.
+ */
+async function resolveAssignedTo(
+  db: ReturnType<typeof coreDb>,
+  eventType: Record<string, unknown>,
+  fallback: string,
+  leadScore = 0
+): Promise<string> {
+  const routingRuleId = String(eventType.routing_rule_id || "");
+  if (!routingRuleId) return fallback;
+  const rule = await db.prepare("SELECT * FROM calendar_routing_rules WHERE id = ? AND active = 1").bind(routingRuleId).first<Record<string, unknown>>();
+  if (!rule) return fallback;
+  let members: string[] = [];
+  try { members = JSON.parse(String(rule.members || "[]")); } catch { /* ignore */ }
+  if (!members.length) return fallback;
+  const strategy = String(rule.strategy || "ROUND_ROBIN");
+  if (strategy === "ROUND_ROBIN") {
+    // Pick the member with the fewest bookings in the last 30 days
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    let minBookings = Infinity, chosen = members[0];
+    for (const m of members) {
+      const row = await db.prepare(
+        `SELECT COUNT(*) AS total FROM calendar_bookings WHERE assigned_to = ? AND created_at >= ? AND status IN ('CONFIRMED','RESCHEDULED')`
+      ).bind(m, since).first<{ total: number }>();
+      if (Number(row?.total || 0) < minBookings) { minBookings = Number(row?.total || 0); chosen = m; }
+    }
+    return chosen;
+  }
+  if (strategy === "WEIGHTED") {
+    let weights: Record<string, number> = {};
+    try { weights = JSON.parse(String(rule.weights || "{}")); } catch { /* ignore */ }
+    const total = members.reduce((s, m) => s + (weights[m] || 1), 0);
+    let rand = Math.random() * total;
+    for (const m of members) { rand -= (weights[m] || 1); if (rand <= 0) return m; }
+    return members[members.length - 1];
+  }
+  if (strategy === "AVAILABILITY") {
+    // Pick the member with the most open slots today
+    const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setUTCHours(23, 59, 59, 999);
+    let minToday = Infinity, chosen = members[0];
+    for (const m of members) {
+      const row = await db.prepare(
+        `SELECT COUNT(*) AS total FROM calendar_bookings WHERE assigned_to = ? AND starts_at >= ? AND starts_at <= ?`
+      ).bind(m, todayStart.toISOString(), todayEnd.toISOString()).first<{ total: number }>();
+      if (Number(row?.total || 0) < minToday) { minToday = Number(row?.total || 0); chosen = m; }
+    }
+    return chosen;
+  }
+  if (strategy === "PERFORMANCE" || strategy === "REVENUE") {
+    // High-lead-score bookings go to the top performer (fewest no-shows in 60 days)
+    if (leadScore >= 70) {
+      const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+      let minNoShows = Infinity, chosen = members[0];
+      for (const m of members) {
+        const row = await db.prepare(
+          `SELECT COUNT(*) AS total FROM calendar_bookings WHERE assigned_to = ? AND created_at >= ? AND status = 'NO_SHOW'`
+        ).bind(m, since).first<{ total: number }>();
+        if (Number(row?.total || 0) < minNoShows) { minNoShows = Number(row?.total || 0); chosen = m; }
+      }
+      return chosen;
+    }
+    // Standard leads: round-robin
+    return members[Math.floor(Math.random() * members.length)];
+  }
+  // SKILL / TERRITORY: return first member (full impl requires contact metadata lookup)
+  return members[0];
+}
+
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
@@ -65,9 +137,11 @@ export async function POST(request: Request) {
           VALUES (?,?,?,?, 'CUSTOMER', ?, 'CALENDAR', ?, ?)`).bind(contactId,customerName,customerEmail,cleanText(body.customerPhone,40)||null,String(eventType.host_name||requestUser(request)),now,now).run();
       }
     }
-    const assignedTo = cleanText(body.assignedTo, 160) || String(eventType.host_name || requestUser(request));
-    const opportunityId = cleanText(body.opportunityId, 80) || null;
     const leadScore = Math.min(100, Math.max(0, Number(body.leadScore || 0)));
+    // Outcome Routing™: resolve assignedTo via routing rule if set; explicit body value overrides
+    const assignedTo = cleanText(body.assignedTo, 160)
+      || await resolveAssignedTo(db, eventType, String(eventType.host_name || requestUser(request)), leadScore);
+    const opportunityId = cleanText(body.opportunityId, 80) || null;
     const customAnswers = body.customAnswers && typeof body.customAnswers === "object" ? JSON.stringify(body.customAnswers) : "{}";
     const holdToken = cleanText(body.holdToken, 80) || null;
     await db.prepare(`INSERT INTO calendar_bookings
