@@ -1173,6 +1173,39 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(tenant_id) REFERENCES tenants(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_dynamic_perms_resource ON dynamic_permissions(tenant_id, resource_type, action, priority)"),
+    // ============ PHASE 26 - DATA EXPORT & COMPLIANCE ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS data_exports (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      format TEXT NOT NULL DEFAULT 'json',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      categories TEXT NOT NULL,
+      download_url TEXT,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      completed_at TEXT,
+      error_message TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_data_exports_tenant ON data_exports(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_data_exports_user ON data_exports(tenant_id, user_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_data_exports_status ON data_exports(status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS data_deletions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      categories TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      completed_at TEXT,
+      error_message TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_data_deletions_tenant ON data_deletions(tenant_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_data_deletions_status ON data_deletions(status)"),
   ]);
   try {
     await db
