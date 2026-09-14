@@ -1533,6 +1533,40 @@ export async function ensureCoreSchema() {
       UNIQUE(tenant_id, resource_type, group_name)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_custom_field_groups_tenant ON custom_field_groups(tenant_id, resource_type)"),
+    // ============ PHASE 36: ADVANCED WORKFLOW AUTOMATION ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS advanced_workflows (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      trigger TEXT NOT NULL,
+      steps TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_advanced_workflows_tenant ON advanced_workflows(tenant_id, enabled)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_advanced_workflows_created ON advanced_workflows(tenant_id, created_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS workflow_executions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workflow_id TEXT NOT NULL,
+      triggered_by TEXT NOT NULL,
+      trigger_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      current_step_id TEXT,
+      step_results TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(workflow_id) REFERENCES advanced_workflows(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_tenant ON workflow_executions(tenant_id, started_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow ON workflow_executions(workflow_id, status)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions(status)"),
   ]);
   try {
     await db
