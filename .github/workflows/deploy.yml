@@ -55,6 +55,12 @@ jobs:
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" | tee /tmp/scripts.json
           echo
+          echo "== PATCH workers/scripts/{name}/subdomain (isolated write-permission probe, tests scripts:edit) =="
+          curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/cyncro-core-crm/subdomain" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"enabled":true,"previews_enabled":true}' | tee /tmp/write-probe.json
+          echo
 
       - name: Set secrets
         env:
