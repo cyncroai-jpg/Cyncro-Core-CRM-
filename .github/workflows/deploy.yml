@@ -25,6 +25,37 @@ jobs:
       - name: Install dependencies
         run: npm run install:ci
 
+      - name: Diagnose Cloudflare API token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2685fddc3c8d342a98b1adb6a13912ef
+        run: |
+          echo "== /user/tokens/verify =="
+          curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" | tee /tmp/verify.json
+          echo
+          echo "== /memberships (which accounts this token can see) =="
+          curl -s -X GET "https://api.cloudflare.com/client/v4/memberships" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" | tee /tmp/memberships.json
+          echo
+          echo "== /accounts/{id} (can this token see the target account directly?) =="
+          curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" | tee /tmp/account.json
+          echo
+          echo "== /accounts/{id}/workers/subdomain (has workers.dev ever been claimed?) =="
+          curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" | tee /tmp/subdomain.json
+          echo
+          echo "== /accounts/{id}/workers/scripts (list existing workers, tests scripts:read) =="
+          curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" | tee /tmp/scripts.json
+          echo
+
       - name: Set secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
