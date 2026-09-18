@@ -4790,7 +4790,7 @@ function CyncroDispute({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
         </header>
         <div className="disputeContent">
           {view === "Command" && (
-            <DisputeCommand onView={setView} summary={summary} clients={clients} onFlash={flash} />
+            <DisputeCommand onView={setView} summary={summary} clients={clients} onFlash={flash} onReload={() => { loadClients(); loadSummary(); }} />
           )}
           {view === "Cases" && (
             <DisputeCases client={selectedClient} onFlash={flash} />
@@ -4826,18 +4826,29 @@ function DisputeCommand({
   summary,
   clients,
   onFlash,
+  onReload,
 }: {
   onView: (view: DisputeView) => void;
   summary: DisputeSummary | null;
   clients: DisputeClientRow[];
   onFlash: (message: string) => void;
+  onReload: () => void;
 }) {
   const [priorityItems, setPriorityItems] = useState<(DisputeItemRow & { first_name: string; last_name: string })[]>([]);
   const [tasks, setTasks] = useState<DisputeTaskRow[]>([]);
-  useEffect(() => {
+  const loadPriorityPanels = () => {
     void fetch("/api/dispute?resource=items").then((r) => r.json()).then((d: { items?: typeof priorityItems }) => setPriorityItems((d.items || []).slice(0, 6)));
     void fetch("/api/dispute?resource=tasks&status=OPEN").then((r) => r.json()).then((d: { tasks?: DisputeTaskRow[] }) => setTasks((d.tasks || []).slice(0, 5)));
-  }, []);
+  };
+  useEffect(loadPriorityPanels, []);
+  const isEmpty = clients.length === 0;
+  const loadDemoData = () => {
+    void fetch("/api/dispute?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); loadPriorityPanels(); }
+        else onFlash(d.reason || "Could not load demo data");
+      });
+  };
   return (
     <>
       <div className="disputeHero">
@@ -4854,10 +4865,9 @@ function DisputeCommand({
             controls.
           </p>
         </div>
-        <button onClick={() => onView("Clients")}>
-          ✦ Build compliant dispute
-        </button>
+        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Clients")}>✦ Build compliant dispute</button>}
       </div>
+      {isEmpty && <p className="disputeEmpty">This account is empty. "Load demo data" seeds real sample clients, dispute rounds, tradelines, a mailed letter with certified-mail tracking, and a follow-up task — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
       <div className="disputeMetrics">
         {[
           ["ACTIVE CLIENTS", String(summary?.activeClients ?? clients.length), ""],
@@ -5987,7 +5997,7 @@ function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <div><small>APEX FUNDS</small><b>{view}</b></div>
         </header>
         <div className="disputeContent">
-          {view === "Command" && <ApexCommand summary={summary} applicants={applicants} onView={setView} />}
+          {view === "Command" && <ApexCommand summary={summary} applicants={applicants} onView={setView} onReload={() => { loadApplicants(); loadSummary(); }} onFlash={flash} />}
           {view === "Applicants" && (
             <ApexApplicants
               applicants={applicants}
@@ -6007,7 +6017,17 @@ function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   );
 }
 
-function ApexCommand({ summary, applicants, onView }: { summary: ApexSummary | null; applicants: ApexApplicant[]; onView: (v: ApexView) => void }) {
+function ApexCommand({
+  summary, applicants, onView, onReload, onFlash,
+}: { summary: ApexSummary | null; applicants: ApexApplicant[]; onView: (v: ApexView) => void; onReload: () => void; onFlash: (m: string) => void }) {
+  const isEmpty = applicants.length === 0;
+  const loadDemoData = () => {
+    void fetch("/api/apex?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); }
+        else onFlash(d.reason || "Could not load demo data");
+      });
+  };
   return (
     <>
       <div className="disputeHero">
@@ -6016,8 +6036,9 @@ function ApexCommand({ summary, applicants, onView }: { summary: ApexSummary | n
           <h1>One applicant.<br /><i>Every lender's own answer.</i></h1>
           <p>Submit once, track every lender's status, rate, and stipulations independently — then compare real offers side by side.</p>
         </div>
-        <button onClick={() => onView("Applicants")}>✦ New applicant</button>
+        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Applicants")}>✦ New applicant</button>}
       </div>
+      {isEmpty && <p className="disputeEmpty">This account is empty. "Load demo data" seeds real sample applicants, lenders, and multi-lender submissions (including a funded deal with a pending commission) — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
       <div className="disputeMetrics">
         {[
           ["TOTAL APPLICANTS", String(summary?.totalApplicants ?? applicants.length), ""],
@@ -8152,6 +8173,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
               onFlash={flash}
               onMove={moveJob}
               role={role}
+              onReload={() => { loadJobs(); loadCustomers(); loadTechnicians(); }}
             />
           )}
           {view === "Jobs" && (
@@ -8229,21 +8251,32 @@ function DispatchDashboard({
   onFlash,
   onMove,
   role,
+  onReload,
 }: {
   jobs: DispatchJob[];
   onView: (view: DispatchView) => void;
   onFlash: (message: string) => void;
   onMove: (index: number, direction: number) => void;
   role: DispatchRole;
+  onReload: () => void;
 }) {
   const [analytics, setAnalytics] = useState<DispatchAnalytics | null>(null);
-  useEffect(() => {
+  const loadAnalytics = () => {
     void fetch("/api/dispatch/analytics")
       .then((r) => (r.ok ? r.json() : null))
       .then((data: DispatchAnalytics | null) => setAnalytics(data));
-  }, []);
+  };
+  useEffect(loadAnalytics, []);
   const topTechs = (analytics?.techProductivity || []).slice(0, 3);
   const maxRevPerHour = topTechs.reduce((max, t) => Math.max(max, t.revenuePerHourCents || 0), 1);
+  const isEmpty = jobs.length === 0;
+  const loadDemoData = () => {
+    void fetch("/api/dispatch/seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); loadAnalytics(); }
+        else onFlash(d.reason || "Could not load demo data");
+      });
+  };
   return (
     <>
       <div className="dispatchPageHead">
@@ -8259,10 +8292,11 @@ function DispatchDashboard({
             surface.
           </p>
         </div>
-        <button onClick={() => onFlash("Daily dispatch brief generated")}>
-          ✦ Generate daily brief
-        </button>
+        {isEmpty
+          ? <button onClick={loadDemoData}>◈ Load demo data</button>
+          : <button onClick={() => onFlash("Daily dispatch brief generated")}>✦ Generate daily brief</button>}
       </div>
+      {isEmpty && <p className="disputeEmpty">This workspace is empty. "Load demo data" seeds real sample customers, technicians, and jobs across booked, in-progress, and invoiced-and-paid stages — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
       <div className="dispatchMetrics">
         {[
           ["BOOKED THIS WEEK", analytics ? money(analytics.bookedThisWeekCents) : "—", "Last 7 days"],

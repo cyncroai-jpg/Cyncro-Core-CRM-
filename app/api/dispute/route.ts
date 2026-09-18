@@ -37,10 +37,14 @@
  * POST /api/dispute?resource=notifications
  * GET  /api/dispute?resource=team
  * GET  /api/dispute?resource=summary — dashboard metrics
+ * POST /api/dispute?resource=seed-demo — populates realistic sample records
+ *   (real clients, rounds, tradelines, items, letters, and tasks flowing
+ *   through the real logic below). No-ops if this tenant already has clients.
  */
 
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { logAuditAction } from "@/lib/core/audit";
+import { createCreditRepairClient } from "@/lib/core/credit-repair";
 
 function id() {
   return crypto.randomUUID();
@@ -301,6 +305,71 @@ export async function POST(request: Request) {
       await db.prepare(`INSERT INTO dispute_notifications (id,tenant_id,client_id,channel,subject,body,created_at)
         VALUES (?,?,?,?,?,?,?)`).bind(nid, tenant.tenantId, clientId, cleanText(body.channel, 20) || "EMAIL", subject, message, now).run();
       return Response.json({ id: nid }, { status: 201 });
+    }
+
+    if (resource === "seed-demo") {
+      const existing = await db.prepare("SELECT COUNT(*) c FROM credit_repair_clients WHERE tenant_id=?").bind(tenant.tenantId).first<{ c: number }>();
+      if (Number(existing?.c || 0) > 0) {
+        return Response.json({ seeded: false, reason: "This account already has clients — seed only runs on an empty account." });
+      }
+
+      const client1 = await createCreditRepairClient(tenant.tenantId, "hannah.reyes@example.com", "Hannah", "Reyes", "PREMIUM", "555-0121", "412 Oakwood Dr");
+      const client2 = await createCreditRepairClient(tenant.tenantId, "leon.park@example.com", "Leon", "Park", "PROFESSIONAL", "555-0187", "88 Birchwood Ln");
+      await db.prepare("UPDATE credit_repair_clients SET assigned_rep=?, onboarding_status='ACTIVE', updated_at=? WHERE id=?").bind(tenant.email, now, client1.id).run();
+      await db.prepare("UPDATE credit_repair_clients SET assigned_rep=?, onboarding_status='ACTIVE', updated_at=? WHERE id=?").bind(tenant.email, now, client2.id).run();
+
+      // Client 1 — round 1 open, two negative tradelines, one item preparing, one report on file
+      const round1 = id();
+      await db.prepare(`INSERT INTO dispute_rounds (id,tenant_id,client_id,round_number,credit_bureau,status,opened_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`).bind(round1, tenant.tenantId, client1.id, 1, "EXPERIAN", "OPEN", now, now, now).run();
+      const tl1 = id();
+      await db.prepare(`INSERT INTO dispute_tradelines (id,tenant_id,client_id,creditor_name,account_number,account_type,balance_cents,reported_status,bureaus_reporting,is_negative,negative_reason,source,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?)`)
+        .bind(tl1, tenant.tenantId, client1.id, "Apex Collections Group", "XXXX-4471", "Collection", 184500, "Charged Off", JSON.stringify(["EXPERIAN", "EQUIFAX"]), "Not mine — never opened this account", "MANUAL", now, now).run();
+      const tl2 = id();
+      await db.prepare(`INSERT INTO dispute_tradelines (id,tenant_id,client_id,creditor_name,account_number,account_type,balance_cents,reported_status,bureaus_reporting,is_negative,negative_reason,source,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?)`)
+        .bind(tl2, tenant.tenantId, client1.id, "Summit Auto Finance", "XXXX-2290", "Repossession", 920000, "Repossession", JSON.stringify(["EXPERIAN"]), "Reporting inaccurate late payment history", "MANUAL", now, now).run();
+      const item1 = id();
+      await db.prepare(`INSERT INTO dispute_items (id,tenant_id,client_id,round_id,tradeline_id,dispute_reason,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`).bind(item1, tenant.tenantId, client1.id, round1, tl1, "NOT_MINE", "PREPARING", now, now).run();
+      const report1 = id();
+      await db.prepare(`INSERT INTO dispute_bureau_reports (id,tenant_id,client_id,credit_bureau,report_date,file_name,uploaded_by,created_at)
+        VALUES (?,?,?,?,?,?,?,?)`).bind(report1, tenant.tenantId, client1.id, "EXPERIAN", now.slice(0, 10), "experian-report.pdf", tenant.email, now).run();
+
+      // Client 2 — round 1 has a mailed letter awaiting response, plus a resolved item
+      const round2 = id();
+      await db.prepare(`INSERT INTO dispute_rounds (id,tenant_id,client_id,round_number,credit_bureau,status,opened_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`).bind(round2, tenant.tenantId, client2.id, 1, "TRANSUNION", "OPEN", now, now, now).run();
+      const tl3 = id();
+      await db.prepare(`INSERT INTO dispute_tradelines (id,tenant_id,client_id,creditor_name,account_number,account_type,balance_cents,reported_status,bureaus_reporting,is_negative,negative_reason,source,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?)`)
+        .bind(tl3, tenant.tenantId, client2.id, "Meridian Card Services", "XXXX-8834", "Credit Card", 312000, "Charged Off", JSON.stringify(["TRANSUNION"]), "Paid in full before charge-off date", "MANUAL", now, now).run();
+      const item2 = id();
+      await db.prepare(`INSERT INTO dispute_items (id,tenant_id,client_id,round_id,tradeline_id,dispute_reason,status,outcome,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(item2, tenant.tenantId, client2.id, round2, tl3, "PAID_IN_FULL", "RESOLVED_DELETED", "DELETED", now, now).run();
+      const letter2 = id();
+      await db.prepare(`INSERT INTO dispute_letters (id,tenant_id,client_id,letter_type,credit_bureau,dispute_reason,account_number,account_name,letter_content,generated_date,sent_date,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(letter2, tenant.tenantId, client2.id, "INITIAL_DISPUTE", "TRANSUNION", "PAID_IN_FULL", "XXXX-8834", "Meridian Card Services",
+          "This letter disputes the above account under FCRA §611, requesting verification and removal if unverifiable.", now, now, now, now).run();
+      const mail2 = id();
+      await db.prepare(`INSERT INTO dispute_mail_tracking (id,tenant_id,letter_id,client_id,carrier,tracking_number,status,mailed_at,response_due_date,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(mail2, tenant.tenantId, letter2, client2.id, "USPS_CERTIFIED", "9400111899223344556677", "MAILED", now,
+          new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), now, now).run();
+
+      // A follow-up task and a client notification
+      const task1 = id();
+      await db.prepare(`INSERT INTO dispute_tasks (id,tenant_id,client_id,title,due_date,status,assigned_to,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(task1, tenant.tenantId, client1.id, "Follow up on Apex Collections dispute response", new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10), "OPEN", tenant.email, now, now).run();
+      const notif1 = id();
+      await db.prepare(`INSERT INTO dispute_notifications (id,tenant_id,client_id,channel,subject,body,created_at)
+        VALUES (?,?,?,?,?,?,?)`).bind(notif1, tenant.tenantId, client2.id, "EMAIL", "Your dispute letter was mailed", "We've mailed your dispute to TransUnion via certified mail — we'll update you the moment they respond.", now).run();
+
+      await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "CREATE", "dispute", client1.id, { resourceName: "Demo data seeded" });
+      return Response.json({ seeded: true }, { status: 201 });
     }
 
     return Response.json({ error: "Unknown resource." }, { status: 400 });

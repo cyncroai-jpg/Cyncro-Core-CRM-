@@ -34,6 +34,9 @@
  * POST /api/apex?resource=commissions
  * PATCH /api/apex?resource=commissions&id=X
  * GET  /api/apex?resource=summary
+ * POST /api/apex?resource=seed-demo — populates realistic sample records
+ *   (real rows flowing through the real submission/funding/commission logic,
+ *   not canned numbers). No-ops if this tenant already has applicants.
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { logAuditAction } from "@/lib/core/audit";
@@ -243,6 +246,73 @@ export async function POST(request: Request) {
         .bind(id, tenant.tenantId, applicantId, cleanText(body.submissionId, 80) || null, cleanText(body.brokerEmail, 254) || tenant.email,
           Math.round(Number(body.amount || 0) * 100), "PENDING", now, now).run();
       return Response.json({ id }, { status: 201 });
+    }
+
+    if (resource === "seed-demo") {
+      const existing = await db.prepare("SELECT COUNT(*) c FROM apex_applicants WHERE tenant_id=?").bind(tenant.tenantId).first<{ c: number }>();
+      if (Number(existing?.c || 0) > 0) {
+        return Response.json({ seeded: false, reason: "This account already has applicants — seed only runs on an empty account." });
+      }
+
+      const mkLender = async (name: string, minScore: number, minTib: number, maxAmount: number) => {
+        const id = uid();
+        await db.prepare(`INSERT INTO apex_lenders (id,tenant_id,name,product_types,min_credit_score,min_time_in_business_months,max_funding_amount_cents,notes,active,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,1,?,?)`)
+          .bind(id, tenant.tenantId, name, JSON.stringify(["MCA", "TERM_LOAN"]), minScore, minTib, maxAmount * 100, "Manual registry entry — no live lender API connected.", now, now).run();
+        return id;
+      };
+      const [lender1, lender2, lender3] = await Promise.all([
+        mkLender("Bluevine Capital", 600, 6, 250000),
+        mkLender("OnDeck Funding", 625, 12, 500000),
+        mkLender("Fundera Partners", 580, 3, 150000),
+      ]);
+
+      const mkApplicant = async (a: { name: string; business: string; industry: string; tib: number; monthlyRev: number; annualRev: number; score: number; amount: number; purpose: string }) => {
+        const id = uid();
+        await db.prepare(`INSERT INTO apex_applicants
+          (id,tenant_id,broker_email,applicant_name,applicant_email,applicant_phone,business_name,industry,
+           time_in_business_months,monthly_revenue_cents,annual_revenue_cents,credit_score_self_reported,funding_amount_requested_cents,funding_purpose,status,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+          .bind(id, tenant.tenantId, tenant.email, a.name, `${a.name.toLowerCase().replace(/\s+/g, ".")}@example.com`, "555-0110",
+            a.business, a.industry, a.tib, a.monthlyRev * 100, a.annualRev * 100, a.score, a.amount * 100, a.purpose, "NEW", now, now).run();
+        const oid = uid();
+        await db.prepare(`INSERT INTO apex_owners (id,tenant_id,applicant_id,full_name,ownership_pct,created_at) VALUES (?,?,?,?,?,?)`)
+          .bind(oid, tenant.tenantId, id, a.name, 100, now).run();
+        const did = uid();
+        await db.prepare(`INSERT INTO apex_documents (id,tenant_id,applicant_id,doc_type,file_name,uploaded_by,created_at) VALUES (?,?,?,?,?,?,?)`)
+          .bind(did, tenant.tenantId, id, "Bank statements", "bank-statements-3mo.pdf", tenant.email, now).run();
+        return id;
+      };
+
+      const applicant1 = await mkApplicant({ name: "Renee Holt", business: "Holt Family Bakery", industry: "Food & Beverage", tib: 30, monthlyRev: 42000, annualRev: 504000, score: 690, amount: 60000, purpose: "New oven equipment" });
+      const applicant2 = await mkApplicant({ name: "Tariq Wells", business: "Wells Logistics LLC", industry: "Transportation", tib: 54, monthlyRev: 110000, annualRev: 1320000, score: 705, amount: 150000, purpose: "Fleet expansion" });
+      const applicant3 = await mkApplicant({ name: "Consuela Diaz", business: "Diaz Dental Group", industry: "Healthcare", tib: 96, monthlyRev: 85000, annualRev: 1020000, score: 740, amount: 100000, purpose: "Office buildout" });
+
+      // Applicant 2 — submitted to two lenders, one approved
+      await db.prepare("UPDATE apex_applicants SET status='SUBMITTED', updated_at=? WHERE id=?").bind(now, applicant2).run();
+      const sub2a = uid();
+      await db.prepare(`INSERT INTO apex_submissions (id,tenant_id,applicant_id,lender_id,status,rate,term_months,payment_cents,approval_amount_cents,submitted_at,responded_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(sub2a, tenant.tenantId, applicant2, lender1, "APPROVED", 9.5, 24, 682500, 14500000, now, now, now, now).run();
+      const sub2b = uid();
+      await db.prepare(`INSERT INTO apex_submissions (id,tenant_id,applicant_id,lender_id,status,submitted_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?)`).bind(sub2b, tenant.tenantId, applicant2, lender2, "UNDER_REVIEW", now, now, now).run();
+      const note2 = uid();
+      await db.prepare(`INSERT INTO apex_submission_notes (id,tenant_id,submission_id,author,body,created_at) VALUES (?,?,?,?,?,?)`)
+        .bind(note2, tenant.tenantId, sub2a, tenant.email, "Underwriter confirmed approval — awaiting signed offer letter.", now).run();
+
+      // Applicant 3 — funded, with a pending commission
+      const sub3 = uid();
+      await db.prepare(`INSERT INTO apex_submissions (id,tenant_id,applicant_id,lender_id,status,rate,term_months,payment_cents,approval_amount_cents,submitted_at,responded_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(sub3, tenant.tenantId, applicant3, lender3, "FUNDED", 11.2, 18, 623000, 10000000, now, now, now, now).run();
+      await db.prepare("UPDATE apex_applicants SET status='FUNDED', funded_amount_cents=100000, funded_at=?, ofac_checked=1, ofac_clear=1, updated_at=? WHERE id=?").bind(now, now, applicant3).run();
+      const commission3 = uid();
+      await db.prepare(`INSERT INTO apex_commissions (id,tenant_id,applicant_id,submission_id,broker_email,amount_cents,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`).bind(commission3, tenant.tenantId, applicant3, sub3, tenant.email, 500000, "PENDING", now, now).run();
+
+      await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "CREATE", "loan_application", applicant3, { resourceName: "Demo data seeded" });
+      return Response.json({ seeded: true }, { status: 201 });
     }
 
     return Response.json({ error: "Unknown resource." }, { status: 400 });
