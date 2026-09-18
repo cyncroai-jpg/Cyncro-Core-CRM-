@@ -28,6 +28,14 @@
  * POST /api/automotive?resource=documents
  * PATCH /api/automotive?resource=documents&id=X
  * GET  /api/automotive?resource=summary
+ * GET  /api/automotive?resource=watchlist
+ * POST /api/automotive?resource=watchlist
+ * DELETE /api/automotive?resource=watchlist&id=X
+ * GET  /api/automotive?resource=compliance-checks&dealId=X
+ * POST /api/automotive?resource=compliance-check  { dealId, screenedName }
+ * POST /api/automotive?resource=contract  { dealId }  — sends the contract
+ * PATCH /api/automotive?resource=contract&id=dealId  { signerName, signatureData }  — signs it
+ * GET  /api/automotive?resource=analytics
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { postJournalEntry } from "@/lib/core/accounting";
@@ -35,6 +43,32 @@ import { logAuditAction } from "@/lib/core/audit";
 
 function uid() {
   return crypto.randomUUID();
+}
+
+/** Normalizes a name for watchlist matching: uppercase, single-spaced, punctuation stripped. */
+function normalizeName(name: string): string {
+  return name.toUpperCase().replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Assembles a real buyer's order / retail contract summary from the deal's actual persisted numbers. */
+function buildContractText(deal: Record<string, unknown>, customerName: string, vehicleDesc: string): string {
+  const money = (cents: unknown) => `$${(Number(cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return [
+    "RETAIL BUYER'S ORDER",
+    `Buyer: ${customerName}`,
+    `Vehicle: ${vehicleDesc}`,
+    "",
+    `Cash price ................. ${money(deal.sale_price_cents)}`,
+    `Trade allowance ............ ${money(deal.trade_allowance_cents)}`,
+    `Trade payoff ................ ${money(deal.trade_payoff_cents)}`,
+    `Down payment ................ ${money(deal.down_payment_cents)}`,
+    `Taxes ....................... ${money(deal.tax_cents)}`,
+    `Fees ........................ ${money(deal.fees_cents)}`,
+    `Amount financed ............. ${money(deal.amount_financed_cents)}`,
+    `Term ......................... ${deal.term_months} months`,
+    `APR .......................... ${deal.interest_rate}%`,
+    `Monthly payment .............. ${money(deal.monthly_payment_cents)}`,
+  ].join("\n");
 }
 
 /** Standard amortizing monthly payment, in cents. */
@@ -153,6 +187,30 @@ export async function GET(request: Request) {
         dealerSlug: tenantRow?.slug || null,
         digitalLeads: (await db.prepare("SELECT COUNT(*) c FROM auto_deals WHERE tenant_id=? AND status='DIGITAL_LEAD'").bind(tenant.tenantId).first<{ c: number }>())?.c || 0,
       });
+    }
+
+    if (resource === "watchlist") {
+      const { results } = await db.prepare("SELECT * FROM auto_watchlist WHERE tenant_id=? ORDER BY created_at DESC").bind(tenant.tenantId).all();
+      return Response.json({ watchlist: results });
+    }
+
+    if (resource === "compliance-checks") {
+      if (!dealId) return Response.json({ error: "dealId is required." }, { status: 400 });
+      const { results } = await db.prepare("SELECT * FROM auto_compliance_checks WHERE tenant_id=? AND deal_id=? ORDER BY checked_at DESC").bind(tenant.tenantId, dealId).all();
+      return Response.json({ checks: results });
+    }
+
+    if (resource === "analytics") {
+      const { results } = await db.prepare(`
+        SELECT COALESCE(salesperson_email,'(unassigned)') AS rep, COUNT(*) AS deal_count,
+          COALESCE(SUM(front_gross_cents),0) AS front_gross_cents, COALESCE(SUM(back_gross_cents),0) AS back_gross_cents
+        FROM auto_deals WHERE tenant_id=? AND status='FUNDED' GROUP BY rep ORDER BY (front_gross_cents+back_gross_cents) DESC
+      `).bind(tenant.tenantId).all<{ rep: string; deal_count: number; front_gross_cents: number; back_gross_cents: number }>();
+      const reps = (results || []).map((r) => ({
+        ...r,
+        pvrCents: r.deal_count > 0 ? Math.round((r.front_gross_cents + r.back_gross_cents) / r.deal_count) : 0,
+      }));
+      return Response.json({ reps });
     }
 
     return Response.json({ error: "Unknown resource." }, { status: 400 });
@@ -322,6 +380,51 @@ export async function POST(request: Request) {
       return Response.json({ id }, { status: 201 });
     }
 
+    if (resource === "watchlist") {
+      const fullName = cleanText(body.fullName, 200);
+      if (!fullName) return Response.json({ error: "fullName is required." }, { status: 400 });
+      const id = uid();
+      await db.prepare("INSERT INTO auto_watchlist (id,tenant_id,full_name,reason,created_at) VALUES (?,?,?,?,?)")
+        .bind(id, tenant.tenantId, fullName, cleanText(body.reason, 500) || null, now).run();
+      return Response.json({ id }, { status: 201 });
+    }
+
+    if (resource === "compliance-check") {
+      const dealId = cleanText(body.dealId, 80);
+      const screenedName = cleanText(body.screenedName, 200);
+      if (!dealId || !screenedName) return Response.json({ error: "dealId and screenedName are required." }, { status: 400 });
+      const normalizedScreened = normalizeName(screenedName);
+      const { results: watchlist } = await db.prepare("SELECT full_name FROM auto_watchlist WHERE tenant_id=?").bind(tenant.tenantId).all<{ full_name: string }>();
+      let matchedEntry: string | null = null;
+      for (const entry of watchlist || []) {
+        const normalizedEntry = normalizeName(entry.full_name);
+        if (normalizedEntry && (normalizedScreened === normalizedEntry || normalizedScreened.includes(normalizedEntry) || normalizedEntry.includes(normalizedScreened))) {
+          matchedEntry = entry.full_name;
+          break;
+        }
+      }
+      const id = uid();
+      await db.prepare(`INSERT INTO auto_compliance_checks (id,tenant_id,deal_id,screened_name,match_found,matched_entry,checked_by,checked_at)
+        VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(id, tenant.tenantId, dealId, screenedName, matchedEntry ? 1 : 0, matchedEntry, tenant.email, now).run();
+      return Response.json({ id, matchFound: Boolean(matchedEntry), matchedEntry }, { status: 201 });
+    }
+
+    if (resource === "contract") {
+      const dealId = cleanText(body.dealId, 80);
+      if (!dealId) return Response.json({ error: "dealId is required." }, { status: 400 });
+      const deal = await db.prepare(`SELECT d.*, c.first_name, c.last_name, i.year, i.make, i.model, i.vin, i.stock_number
+        FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id JOIN auto_inventory i ON i.id=d.vehicle_id
+        WHERE d.tenant_id=? AND d.id=?`).bind(tenant.tenantId, dealId).first<Record<string, unknown>>();
+      if (!deal) return Response.json({ error: "Deal not found." }, { status: 404 });
+      const customerName = `${deal.first_name} ${deal.last_name}`;
+      const vehicleDesc = `${deal.year} ${deal.make} ${deal.model} — VIN ${deal.vin || "N/A"} — Stock ${deal.stock_number}`;
+      const contractText = buildContractText(deal, customerName, vehicleDesc);
+      await db.prepare("UPDATE auto_deals SET contract_status='SENT', contract_sent_at=?, updated_at=? WHERE tenant_id=? AND id=?")
+        .bind(now, now, tenant.tenantId, dealId).run();
+      return Response.json({ sent: true, contractText }, { status: 201 });
+    }
+
     return Response.json({ error: "Unknown resource." }, { status: 400 });
   } catch (error) {
     console.error("automotive.post_failed", error);
@@ -354,11 +457,42 @@ export async function PATCH(request: Request) {
       return Response.json({ updated: true });
     }
 
+    if (resource === "contract") {
+      const dealId = id;
+      const signerName = cleanText(body.signerName, 200);
+      const signatureData = cleanText(body.signatureData, 20000);
+      if (!signerName || !signatureData) return Response.json({ error: "signerName and signatureData are required." }, { status: 400 });
+      const deal = await db.prepare("SELECT contract_status FROM auto_deals WHERE tenant_id=? AND id=?").bind(tenant.tenantId, dealId).first<{ contract_status: string }>();
+      if (!deal) return Response.json({ error: "Deal not found." }, { status: 404 });
+      if (deal.contract_status !== "SENT") return Response.json({ error: "The contract must be sent to the buyer before it can be signed." }, { status: 400 });
+      await db.prepare(`UPDATE auto_deals SET contract_status='SIGNED', contract_signed_at=?, signer_name=?, signature_data=?, updated_at=?
+        WHERE tenant_id=? AND id=?`).bind(now, signerName, signatureData, now, tenant.tenantId, dealId).run();
+      return Response.json({ signed: true });
+    }
+
     if (resource === "deals") {
       // Recompute amount financed + payment whenever a structure input changes,
       // so the calculator is always driven off real, persisted numbers.
       const current = await db.prepare("SELECT * FROM auto_deals WHERE tenant_id=? AND id=?").bind(tenant.tenantId, id).first<Record<string, unknown>>();
       if (!current) return Response.json({ error: "Deal not found." }, { status: 404 });
+
+      if (body.fundingStatus === "FUNDED") {
+        const nextContractStatus = body.contractStatus !== undefined ? cleanText(body.contractStatus, 20) : String(current.contract_status || "");
+        if (nextContractStatus !== "SIGNED") {
+          return Response.json({ error: "The retail contract must be signed before this deal can be funded." }, { status: 400 });
+        }
+        const uncheckedDocs = await db.prepare("SELECT COUNT(*) c FROM auto_documents WHERE tenant_id=? AND deal_id=? AND checked=0").bind(tenant.tenantId, id).first<{ c: number }>();
+        if (Number(uncheckedDocs?.c || 0) > 0) {
+          return Response.json({ error: `${uncheckedDocs?.c} deal-jacket document(s) are still unchecked — complete the checklist before funding.` }, { status: 400 });
+        }
+        const latestCheck = await db.prepare("SELECT match_found FROM auto_compliance_checks WHERE tenant_id=? AND deal_id=? ORDER BY checked_at DESC LIMIT 1").bind(tenant.tenantId, id).first<{ match_found: number }>();
+        if (!latestCheck) {
+          return Response.json({ error: "Run an OFAC / red-flag compliance screening on this buyer before funding." }, { status: 400 });
+        }
+        if (latestCheck.match_found) {
+          return Response.json({ error: "The most recent compliance screening flagged a possible match — resolve it before funding." }, { status: 400 });
+        }
+      }
       const next = {
         sale_price_cents: body.salePrice !== undefined ? Math.round(Number(body.salePrice) * 100) : Number(current.sale_price_cents),
         trade_allowance_cents: body.tradeAllowance !== undefined ? Math.round(Number(body.tradeAllowance) * 100) : Number(current.trade_allowance_cents),
@@ -381,6 +515,7 @@ export async function PATCH(request: Request) {
         next.tax_cents, next.fees_cents, next.term_months, next.interest_rate, amountFinancedCents, monthlyPaymentCents, frontGrossCents,
       ];
       if (body.status !== undefined) { updates.push("status=?"); vals.push(cleanText(body.status, 20)); }
+      else if (body.fundingStatus === "FUNDED") { updates.push("status=?"); vals.push("FUNDED"); }
       if (body.contractStatus !== undefined) { updates.push("contract_status=?"); vals.push(cleanText(body.contractStatus, 20)); }
       if (body.fundingStatus !== undefined) { updates.push("funding_status=?"); vals.push(cleanText(body.fundingStatus, 20)); }
       if (body.financeManagerEmail !== undefined) { updates.push("finance_manager_email=?"); vals.push(cleanText(body.financeManagerEmail, 254) || null); }
@@ -459,6 +594,10 @@ export async function DELETE(request: Request) {
         const totals = await db.prepare("SELECT COALESCE(SUM(price_cents-cost_cents),0) g FROM auto_deal_products WHERE deal_id=?").bind(row.deal_id).first<{ g: number }>();
         await db.prepare("UPDATE auto_deals SET back_gross_cents=?, updated_at=? WHERE id=?").bind(Number(totals?.g || 0), new Date().toISOString(), row.deal_id).run();
       }
+      return Response.json({ deleted: true });
+    }
+    if (resource === "watchlist") {
+      await db.prepare("DELETE FROM auto_watchlist WHERE tenant_id=? AND id=?").bind(tenant.tenantId, id).run();
       return Response.json({ deleted: true });
     }
     return Response.json({ error: "Unknown resource." }, { status: 400 });

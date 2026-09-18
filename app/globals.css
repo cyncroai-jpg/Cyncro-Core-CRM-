@@ -23742,6 +23742,9 @@ button.crmUser i {
 .autoPaymentOutput b i{font-style:normal;font-size:12px;color:#8a7a7d;margin-left:4px}
 .autoPaymentOutput span{display:block;color:#a99c9f;font-size:11px;margin-top:4px}
 .autoDocChecklistRow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #201a1c;font-size:11px;color:#c9babe}
+.autoContractPreview{white-space:pre-wrap;background:#111011;border:1px solid #2f2729;border-radius:8px;padding:14px;font-size:11px;color:#c9babe;margin:10px 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.autoComplianceFlag{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid #8b2a3d;border-radius:8px;background:rgba(139,42,61,.12);color:#f0c6cd;font-size:11px;margin:8px 0}
+.autoComplianceFlag b{color:#ff8fa3}
 
 /* ===== Automotive Service Department ===== */
 .serviceWorkspace .financeFilters{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}

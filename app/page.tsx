@@ -6382,7 +6382,7 @@ function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
 
 // ─── Cyncro Automotive — dealership finance & deal management (standalone product) ──
 
-type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Digital Retailing" | "Accounting" | "Analytics";
+type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Digital Retailing" | "Accounting" | "Compliance" | "Analytics";
 type AutoCustomer = { id: string; first_name: string; last_name: string; email: string | null; phone: string | null };
 type AutoVehicle = {
   id: string; stock_number: string; vin: string | null; year: number | null; make: string | null; model: string | null;
@@ -6398,7 +6398,11 @@ type AutoDealDetail = AutoDealRow & {
   down_payment_cents: number; tax_cents: number; fees_cents: number; amount_financed_cents: number; term_months: number;
   interest_rate: number; front_gross_cents: number; back_gross_cents: number; contract_status: string; funding_status: string;
   finance_manager_email: string | null; vehicle_id: string;
+  contract_sent_at: string | null; contract_signed_at: string | null; signer_name: string | null;
 };
+type AutoComplianceCheck = { id: string; screened_name: string; match_found: number; matched_entry: string | null; checked_at: string };
+type AutoWatchlistEntry = { id: string; full_name: string; reason: string | null; created_at: string };
+type AutoRepAnalytics = { rep: string; deal_count: number; front_gross_cents: number; back_gross_cents: number; pvrCents: number };
 type AutoCoBuyer = { id: string; full_name: string; relationship: string | null };
 type AutoProduct = { id: string; product_type: string; name: string; price_cents: number; cost_cents: number };
 type AutoLenderRow = { id: string; name: string; min_credit_score: number | null; max_advance_pct: number | null; buy_rate: number | null; reserve_pct: number | null; active: number };
@@ -6441,6 +6445,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
     { name: "Service", icon: "◈" },
     { name: "Digital Retailing", icon: "▱" },
     { name: "Accounting", icon: "$" },
+    { name: "Compliance", icon: "⚑" },
     { name: "Analytics", icon: "⌁" },
   ];
 
@@ -6482,6 +6487,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
           {view === "Service" && <AutoService onFlash={flash} />}
           {view === "Digital Retailing" && <AutoDigitalRetailing summary={summary} onFlash={flash} />}
           {view === "Accounting" && <AutoAccounting onFlash={flash} />}
+          {view === "Compliance" && <AutoCompliance onFlash={flash} />}
           {view === "Analytics" && <AutoAnalytics summary={summary} />}
         </div>
       </main>
@@ -6539,6 +6545,11 @@ function AutoDealQueue({
   const [lenders, setLenders] = useState<AutoLenderRow[]>([]);
   const [selectedLenderIds, setSelectedLenderIds] = useState<Set<string>>(new Set());
   const [newCustomer, setNewCustomer] = useState(false);
+  const [complianceChecks, setComplianceChecks] = useState<AutoComplianceCheck[]>([]);
+  const [contractText, setContractText] = useState("");
+  const [signerName, setSignerName] = useState("");
+  const [signatureText, setSignatureText] = useState("");
+  const [screenName, setScreenName] = useState("");
 
   useEffect(() => {
     void fetch("/api/automotive?resource=customers").then((r) => r.json()).then((d: { customers?: AutoCustomer[] }) => setCustomers(d.customers || []));
@@ -6550,9 +6561,12 @@ function AutoDealQueue({
     if (!selectedId) { setDeal(null); return; }
     void fetch(`/api/automotive?resource=deals&id=${selectedId}`).then((r) => r.json()).then((d: { deal?: AutoDealDetail; cobuyers?: AutoCoBuyer[]; products?: AutoProduct[]; submissions?: AutoSubmission[]; documents?: AutoDocument[] }) => {
       setDeal(d.deal || null); setCobuyers(d.cobuyers || []); setProducts(d.products || []); setSubmissions(d.submissions || []); setDocuments(d.documents || []);
+      if (d.deal) setScreenName(`${d.deal.first_name} ${d.deal.last_name}`);
     });
+    void fetch(`/api/automotive?resource=compliance-checks&dealId=${selectedId}`).then((r) => r.json()).then((d: { checks?: AutoComplianceCheck[] }) => setComplianceChecks(d.checks || []));
   };
   useEffect(loadDetail, [selectedId]);
+  useEffect(() => { setContractText(""); setSignerName(""); setSignatureText(""); }, [selectedId]);
 
   const createDeal = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -6624,8 +6638,46 @@ function AutoDealQueue({
   const toggleDoc = (id: string, checked: boolean) =>
     void fetch(`/api/automotive?resource=documents&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checked }) }).then((r) => { if (r.ok) loadDetail(); });
 
+  const sendContract = () => {
+    if (!deal) return;
+    void fetch("/api/automotive?resource=contract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dealId: deal.id }) })
+      .then((r) => r.json()).then((d: { contractText?: string; error?: string }) => {
+        if (d.error) { onFlash(d.error); return; }
+        setContractText(d.contractText || "");
+        onFlash("Contract sent to buyer"); loadDetail();
+      });
+  };
+  const signContract = () => {
+    if (!deal || !signerName.trim() || !signatureText.trim()) { onFlash("Enter the signer's name and signature"); return; }
+    void fetch(`/api/automotive?resource=contract&id=${deal.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signerName, signatureData: signatureText }),
+    }).then((r) => r.json()).then((d: { signed?: boolean; error?: string }) => {
+      if (d.error) { onFlash(d.error); return; }
+      onFlash("Contract signed"); loadDetail();
+    });
+  };
+  const runComplianceCheck = () => {
+    if (!deal || !screenName.trim()) return;
+    void fetch("/api/automotive?resource=compliance-check", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dealId: deal.id, screenedName: screenName }),
+    }).then((r) => r.json()).then((d: { matchFound?: boolean; error?: string }) => {
+      if (d.error) { onFlash(d.error); return; }
+      onFlash(d.matchFound ? "⚠ Possible watchlist match found" : "Screening cleared — no match");
+      loadDetail();
+    });
+  };
+  const requestFunding = () => {
+    if (!deal) return;
+    void fetch(`/api/automotive?resource=deals&id=${deal.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fundingStatus: "FUNDED" }) })
+      .then((r) => r.json()).then((d: { updated?: boolean; error?: string }) => {
+        if (d.error) { onFlash(d.error); return; }
+        onFlash("Deal funded — journal entry posted"); loadDetail(); onReload();
+      });
+  };
+
   const bestOffer = submissions.filter((s) => s.status === "APPROVED").filter((s) => s.approved_amount_cents).sort((a, b) => (a.approved_rate ?? 999) - (b.approved_rate ?? 999))[0];
   const docsChecked = documents.filter((d) => d.checked).length;
+  const latestCheck = complianceChecks[0];
 
   return (
     <div className="disputeCases apexApplicants">
@@ -6783,6 +6835,43 @@ function AutoDealQueue({
                 {doc.doc_type}
               </label>
             ))}
+
+            <h3>Contract &amp; e-sign</h3>
+            <div className="caseFacts">
+              <span><small>SENT</small><b>{deal.contract_sent_at ? new Date(deal.contract_sent_at).toLocaleString() : "Not sent"}</b></span>
+              <span><small>SIGNED</small><b>{deal.contract_signed_at ? `${deal.signer_name} · ${new Date(deal.contract_signed_at).toLocaleString()}` : "Not signed"}</b></span>
+            </div>
+            {deal.contract_status === "NOT_STARTED" && <button onClick={sendContract}>Send retail contract to buyer</button>}
+            {contractText && <pre className="autoContractPreview">{contractText}</pre>}
+            {deal.contract_status === "SENT" && (
+              <form className="disputeInlineForm" onSubmit={(e) => { e.preventDefault(); signContract(); }}>
+                <input placeholder="Signer full name" value={signerName} onChange={(e) => setSignerName(e.target.value)} required />
+                <input placeholder="Type signature (acts as e-signature)" value={signatureText} onChange={(e) => setSignatureText(e.target.value)} required />
+                <button type="submit">Sign contract</button>
+              </form>
+            )}
+            {deal.contract_status === "SIGNED" && <p className="disputeEmpty">Contract signed — ready for compliance screening and funding.</p>}
+
+            <h3>OFAC / red-flag compliance screening</h3>
+            <p className="disputeEmpty">Screens against your dealership's own watchlist (managed under Compliance) — not a live federal OFAC/SDN feed.</p>
+            <form className="disputeInlineForm" onSubmit={(e) => { e.preventDefault(); runComplianceCheck(); }}>
+              <input placeholder="Name to screen" value={screenName} onChange={(e) => setScreenName(e.target.value)} required />
+              <button type="submit">Run screening</button>
+            </form>
+            {latestCheck && (
+              <div className={latestCheck.match_found ? "autoComplianceFlag" : "disputeListRow"}>
+                <b>{latestCheck.match_found ? "⚠ Possible match" : "✓ Cleared"}</b>
+                <span>{latestCheck.screened_name}{latestCheck.matched_entry ? ` — matched "${latestCheck.matched_entry}"` : ""}</span>
+                <em>{new Date(latestCheck.checked_at).toLocaleString()}</em>
+              </div>
+            )}
+
+            <h3>Funding</h3>
+            {deal.funding_status === "FUNDED" ? (
+              <p className="disputeEmpty">✓ Funded — journal entry posted to the accounting ledger.</p>
+            ) : (
+              <button onClick={requestFunding}>Fund this deal</button>
+            )}
           </>
         )}
       </aside>
@@ -6926,7 +7015,11 @@ function AutoDigitalRetailing({ summary, onFlash }: { summary: AutoSummary | nul
 
 function AutoAnalytics({ summary }: { summary: AutoSummary | null }) {
   const [deals, setDeals] = useState<AutoDealRow[]>([]);
-  useEffect(() => { void fetch("/api/automotive?resource=deals").then((r) => r.json()).then((d: { deals?: AutoDealRow[] }) => setDeals(d.deals || [])); }, []);
+  const [reps, setReps] = useState<AutoRepAnalytics[]>([]);
+  useEffect(() => {
+    void fetch("/api/automotive?resource=deals").then((r) => r.json()).then((d: { deals?: AutoDealRow[] }) => setDeals(d.deals || []));
+    void fetch("/api/automotive?resource=analytics").then((r) => r.json()).then((d: { reps?: AutoRepAnalytics[] }) => setReps(d.reps || []));
+  }, []);
   const byStatus = Object.entries(deals.reduce((acc, d) => { acc[d.status] = (acc[d.status] || 0) + 1; return acc; }, {} as Record<string, number>));
   return (
     <div className="disputeAnalytics">
@@ -6943,6 +7036,60 @@ function AutoAnalytics({ summary }: { summary: AutoSummary | null }) {
         <small>DEALS BY STATUS</small><h2>Pipeline</h2>
         {byStatus.map(([status, count]) => (<article key={status}><span>{status}</span><b>{count}</b></article>))}
         {!byStatus.length && <p className="disputeEmpty">No deals yet.</p>}
+      </section>
+      <section className="disputePanel">
+        <header><div><small>SALESPERSON / FINANCE MANAGER</small><h2>Per-rep performance (funded deals)</h2></div></header>
+        {reps.map((r) => (
+          <div className="disputeListRow" key={r.rep}>
+            <b>{r.rep}</b><span>{r.deal_count} funded</span>
+            <em>{autoMoney(r.front_gross_cents + r.back_gross_cents)} total gross</em>
+            <small>{autoMoney(r.pvrCents)} PVR</small>
+          </div>
+        ))}
+        {!reps.length && <p className="disputeEmpty">No funded deals yet — PVR and rep totals will appear once deals fund.</p>}
+      </section>
+    </div>
+  );
+}
+
+function AutoCompliance({ onFlash }: { onFlash: (m: string) => void }) {
+  const [watchlist, setWatchlist] = useState<AutoWatchlistEntry[]>([]);
+  const [fullName, setFullName] = useState("");
+  const [reason, setReason] = useState("");
+  const load = () => void fetch("/api/automotive?resource=watchlist").then((r) => r.json()).then((d: { watchlist?: AutoWatchlistEntry[] }) => setWatchlist(d.watchlist || []));
+  useEffect(load, []);
+  const addEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) return;
+    void fetch("/api/automotive?resource=watchlist", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fullName, reason: reason || undefined }),
+    }).then((r) => r.json()).then(() => { setFullName(""); setReason(""); load(); onFlash("Added to watchlist"); });
+  };
+  const removeEntry = (id: string) => void fetch(`/api/automotive?resource=watchlist&id=${id}`, { method: "DELETE" }).then(() => load());
+  return (
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>COMPLIANCE</span>
+          <h1>A dealer-maintained watchlist — not a live OFAC feed.</h1>
+          <p>Every deal must be screened against this list before it can fund. This is your own local watchlist, not an authorized
+            OFAC/SDN API or feed — per our compliance standard, we never claim a live federal sanctions check unless one is actually connected.</p>
+        </div>
+      </div>
+      <section className="disputePanel">
+        <header><div><small>WATCHLIST</small><h2>Names to flag during screening</h2></div></header>
+        {watchlist.map((w) => (
+          <div className="disputeListRow" key={w.id}>
+            <b>{w.full_name}</b><span>{w.reason || "No reason on file"}</span>
+            <button onClick={() => removeEntry(w.id)}>Remove</button>
+          </div>
+        ))}
+        {!watchlist.length && <p className="disputeEmpty">Your watchlist is empty — every screening will clear until you add names here.</p>}
+        <form className="disputeAddClientForm" onSubmit={addEntry}>
+          <input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button type="submit">Add to watchlist</button>
+        </form>
       </section>
     </div>
   );

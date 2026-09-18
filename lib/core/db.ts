@@ -2815,6 +2815,31 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON accounting_journal_lines(entry_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON accounting_journal_lines(account_id)"),
+    // ============ CYNCRO AUTOMOTIVE — COMPLIANCE (dealer-maintained watchlist) ============
+    // Not a live OFAC/SDN feed — a local list the dealer maintains themselves.
+    // Screening never claims to be an authoritative federal sanctions check.
+    db.prepare(`CREATE TABLE IF NOT EXISTS auto_watchlist (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      reason TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_auto_watchlist_tenant ON auto_watchlist(tenant_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS auto_compliance_checks (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      deal_id TEXT NOT NULL,
+      screened_name TEXT NOT NULL,
+      match_found INTEGER NOT NULL DEFAULT 0,
+      matched_entry TEXT,
+      checked_by TEXT,
+      checked_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY(deal_id) REFERENCES auto_deals(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_auto_compliance_deal ON auto_compliance_checks(deal_id, checked_at DESC)"),
     // ============ PHASE 49: LENDING PLATFORM ============
     db.prepare(`CREATE TABLE IF NOT EXISTS loan_products (
       id TEXT PRIMARY KEY,
@@ -3567,6 +3592,10 @@ export async function ensureCoreSchema() {
     "CREATE INDEX IF NOT EXISTS idx_auto_deals_store ON auto_deals(store_id)",
     "ALTER TABLE service_repair_orders ADD COLUMN store_id TEXT",
     "CREATE INDEX IF NOT EXISTS idx_service_ro_store ON service_repair_orders(store_id)",
+    "ALTER TABLE auto_deals ADD COLUMN contract_sent_at TEXT",
+    "ALTER TABLE auto_deals ADD COLUMN contract_signed_at TEXT",
+    "ALTER TABLE auto_deals ADD COLUMN signer_name TEXT",
+    "ALTER TABLE auto_deals ADD COLUMN signature_data TEXT",
   ]) {
     try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }
