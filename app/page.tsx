@@ -30,7 +30,7 @@ type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive"
 
 export default function Home() {
   // ACTIVE products — Core and Dispatch are real, working products
-  const activeProducts: CyncroProduct[] = ["core", "dispatch"];
+  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute"];
   // Land directly in Core by default; the switcher is one click away via "Products"
   const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
@@ -124,14 +124,26 @@ export default function Home() {
   if (product === "switcher") {
     return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={setProduct} />;
   }
-  // Dispatch is a real, separate product — hand off to the actual app.
-  // "readable" carries the app-wide font-size legibility boost (see
-  // ".readable ..." rules in globals.css); without it Dispatch's base
-  // styles (many 5-9px labels) are unreadably small.
+  // Dispatch and Dispute are real, separate products — hand off to the
+  // actual apps. "readable" carries the app-wide font-size legibility
+  // boost (see ".readable ..." rules in globals.css); without it their
+  // base styles (many 5-9px labels) are unreadably small.
   if (product === "dispatch") {
     return (
       <div className="readable">
         <CyncroDispatch
+          onNavigate={(destination) => {
+            setProduct("core");
+            navigate(destination);
+          }}
+        />
+      </div>
+    );
+  }
+  if (product === "dispute") {
+    return (
+      <div className="readable">
+        <CyncroDispute
           onNavigate={(destination) => {
             setProduct("core");
             navigate(destination);
@@ -4593,93 +4605,104 @@ function Switch({
 type DisputeView =
   | "Command"
   | "Clients"
-  | "Leads"
   | "Report Audit"
   | "Cases"
   | "Templates"
   | "Law Library"
   | "Mail"
-  | "Inbox"
   | "Tasks"
   | "Billing"
-  | "Affiliates"
   | "Client Portal"
   | "Team"
-  | "Marketing"
   | "Analytics"
   | "Compliance";
 
-const disputeCases = [
-  {
-    client: "Amelia Carter",
-    item: "Capital One · ending 4412",
-    bureau: "Experian",
-    issue: "Balance inaccurate",
-    round: 1,
-    due: "Sep 11",
-    status: "INVESTIGATING",
-    score: 82,
-  },
-  {
-    client: "Marcus Reed",
-    item: "Midland Credit Management",
-    bureau: "TransUnion",
-    issue: "Not my account",
-    round: 2,
-    due: "Aug 29",
-    status: "RESPONSE DUE",
-    score: 94,
-  },
-  {
-    client: "Sofia Bennett",
-    item: "Chase · ending 1098",
-    bureau: "Equifax",
-    issue: "Late payment inaccurate",
-    round: 1,
-    due: "Sep 08",
-    status: "MAILED",
-    score: 76,
-  },
-  {
-    client: "Daniel Foster",
-    item: "Portfolio Recovery",
-    bureau: "All bureaus",
-    issue: "Date/status mismatch",
-    round: 3,
-    due: "Aug 22",
-    status: "ESCALATE",
-    score: 89,
-  },
-];
+type DisputeClientRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  access_level: string;
+  onboarding_status: string;
+  subscription_status: string;
+  credit_score_current: number | null;
+  credit_score_goal: number | null;
+  disputes_remaining: number;
+  assigned_rep: string | null;
+  portal_token: string | null;
+};
+type DisputeSummary = {
+  activeClients: number;
+  openItems: number;
+  tasksDueSoon: number;
+  mailInTransit: number;
+  itemsCorrected: number;
+};
+type DisputeRound = { id: string; client_id: string; round_number: number; credit_bureau: string; status: string; opened_at: string; closed_at: string | null };
+type DisputeTradeline = {
+  id: string; client_id: string; creditor_name: string; account_number: string | null; account_type: string | null;
+  balance_cents: number | null; reported_status: string | null; is_negative: number; negative_reason: string | null; created_at: string;
+};
+type DisputeItemRow = {
+  id: string; tenant_id: string; client_id: string; round_id: string; tradeline_id: string; dispute_reason: string;
+  status: string; letter_id: string | null; outcome: string | null; outcome_notes: string | null;
+  creditor_name: string; account_number: string | null; reported_status: string | null; created_at: string;
+};
+type DisputeTaskRow = { id: string; client_id: string | null; title: string; due_date: string | null; status: string; assigned_to: string | null };
+type DisputeMailRow = {
+  id: string; letter_id: string; client_id: string; carrier: string; tracking_number: string | null; status: string;
+  mailed_at: string | null; delivered_at: string | null; response_due_date: string | null;
+  letter_type: string; credit_bureau: string; account_name: string;
+};
+type DisputeTeamRow = { id: string; email: string; display_name: string; role: string; active: number };
 
-function CyncroDispute() {
+const DISPUTE_REASONS = [
+  "NOT_MINE", "NOT_ACCURATE", "ALREADY_PAID", "WRONG_AMOUNT", "WRONG_STATUS",
+  "IDENTITY_THEFT", "ACCOUNT_CLOSED", "DUPLICATE", "WRONG_DATE", "NO_ACCOUNT_HISTORY",
+] as const;
+const DISPUTE_REASON_LABELS: Record<string, string> = {
+  NOT_MINE: "Not mine", NOT_ACCURATE: "Not accurate", ALREADY_PAID: "Already paid",
+  WRONG_AMOUNT: "Wrong amount", WRONG_STATUS: "Wrong status", IDENTITY_THEFT: "Identity theft",
+  ACCOUNT_CLOSED: "Account closed", DUPLICATE: "Duplicate", WRONG_DATE: "Wrong date",
+  NO_ACCOUNT_HISTORY: "No account history",
+};
+const DISPUTE_ITEM_STATUSES = ["PREPARING", "MAILED", "AWAITING_RESPONSE", "RESOLVED_DELETED", "RESOLVED_VERIFIED_ACCURATE", "RESOLVED_UPDATED", "CLOSED"];
+
+function CyncroDispute({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const [view, setView] = useState<DisputeView>("Command");
-  const [selectedCase, setSelectedCase] = useState(1);
   const [notice, setNotice] = useState("");
-  const [template, setTemplate] = useState(
-    "CRA factual dispute — inaccurate account data",
-  );
-  const [generated, setGenerated] = useState(false);
+  const [clients, setClients] = useState<DisputeClientRow[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [summary, setSummary] = useState<DisputeSummary | null>(null);
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1900);
   };
+  const loadClients = () => {
+    void fetch("/api/credit-repair").then((r) => (r.ok ? r.json() : null)).then((d: { clients?: DisputeClientRow[] } | null) => {
+      if (d?.clients) {
+        setClients(d.clients);
+        setSelectedClientId((prev) => prev || d.clients?.[0]?.id || "");
+      }
+    });
+  };
+  const loadSummary = () => {
+    void fetch("/api/dispute?resource=summary").then((r) => (r.ok ? r.json() : null)).then((d: DisputeSummary | null) => { if (d) setSummary(d); });
+  };
+  useEffect(() => { loadClients(); loadSummary(); }, []);
+  const selectedClient = clients.find((c) => c.id === selectedClientId) || null;
   const nav: { name: DisputeView; icon: string }[] = [
     { name: "Command", icon: "⌂" },
     { name: "Clients", icon: "◎" },
-    { name: "Leads", icon: "◫" },
     { name: "Report Audit", icon: "◉" },
     { name: "Cases", icon: "▦" },
     { name: "Templates", icon: "▤" },
     { name: "Law Library", icon: "§" },
     { name: "Mail", icon: "✉" },
-    { name: "Inbox", icon: "▣" },
     { name: "Tasks", icon: "✓" },
     { name: "Billing", icon: "$" },
-    { name: "Affiliates", icon: "⌘" },
     { name: "Client Portal", icon: "▱" },
     { name: "Team", icon: "♙" },
-    { name: "Marketing", icon: "✦" },
     { name: "Analytics", icon: "⌁" },
     { name: "Compliance", icon: "◇" },
   ];
@@ -4695,15 +4718,17 @@ function CyncroDispute() {
           </div>
         </div>
         <div className="disputeWorkspace">
-          <small>ACTIVE ORGANIZATION</small>
-          <button>
-            <span>VP</span>
-            <div>
-              <b>Vivid Pinnacle</b>
-              <small>Administrator</small>
-            </div>
-            <i>⌄</i>
-          </button>
+          <small>ACTIVE CLIENT</small>
+          <select
+            className="disputeClientSelect"
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+          >
+            <option value="">Select a client…</option>
+            {clients.map((c) => (
+              <option value={c.id} key={c.id}>{c.first_name} {c.last_name}</option>
+            ))}
+          </select>
         </div>
         <nav>
           {nav.map((item) => (
@@ -4714,7 +4739,7 @@ function CyncroDispute() {
             >
               <i>{item.icon}</i>
               <span>{item.name}</span>
-              {item.name === "Cases" && <em>24</em>}
+              {item.name === "Cases" && summary ? <em>{summary.openItems}</em> : null}
             </button>
           ))}
         </nav>
@@ -4725,7 +4750,7 @@ function CyncroDispute() {
         </div>
         <button
           className="exitDispute"
-          onClick={() => flash("Workspace switcher opened")}
+          onClick={() => (onNavigate ? onNavigate("crm") : (window.location.hash = "#crm"))}
         >
           Cyncro Core modules ↗
         </button>
@@ -4733,57 +4758,39 @@ function CyncroDispute() {
       <main className="disputeMain">
         <header className="disputeTopbar">
           <div>
-            <small>THURSDAY, AUGUST 13</small>
+            <small>{selectedClient ? `${selectedClient.first_name} ${selectedClient.last_name}` : "NO CLIENT SELECTED"}</small>
             <b>{view === "Command" ? "Dispute Command Center" : view}</b>
           </div>
           <div>
-            <button onClick={() => flash("Global search opened")}>⌕</button>
-            <button onClick={() => flash("No compliance alerts")}>◌</button>
-            <button
-              onClick={() => {
-                setView("Cases");
-                flash("New factual dispute case opened");
-              }}
-            >
-              ＋ New case
-            </button>
+            <button onClick={() => setView("Clients")}>＋ New client</button>
           </div>
         </header>
         <div className="disputeContent">
           {view === "Command" && (
-            <DisputeCommand onView={setView} onFlash={flash} />
+            <DisputeCommand onView={setView} summary={summary} clients={clients} onFlash={flash} />
           )}
           {view === "Cases" && (
-            <DisputeCases
-              selected={selectedCase}
-              setSelected={setSelectedCase}
-              onFlash={flash}
-            />
+            <DisputeCases client={selectedClient} onFlash={flash} />
           )}
           {view === "Clients" && (
-            <DisputeClients onCase={() => setView("Cases")} onFlash={flash} />
-          )}
-          {view === "Leads" && <DisputeLeads onFlash={flash} />}
-          {view === "Report Audit" && <DisputeReportAudit onFlash={flash} />}
-          {view === "Templates" && (
-            <DisputeTemplates
-              template={template}
-              setTemplate={setTemplate}
-              generated={generated}
-              setGenerated={setGenerated}
+            <DisputeClients
+              clients={clients}
+              onReload={loadClients}
+              onSelect={(id) => { setSelectedClientId(id); setView("Report Audit"); }}
               onFlash={flash}
             />
+          )}
+          {view === "Report Audit" && <DisputeReportAudit clientId={selectedClientId} onFlash={flash} />}
+          {view === "Templates" && (
+            <DisputeTemplates client={selectedClient} onFlash={flash} />
           )}
           {view === "Law Library" && <DisputeLawLibrary />}
           {view === "Mail" && <DisputeMail onFlash={flash} />}
-          {view === "Inbox" && <DisputeInbox onFlash={flash} />}
           {view === "Tasks" && <DisputeTasks onFlash={flash} />}
-          {view === "Billing" && <DisputeBilling onFlash={flash} />}
-          {view === "Affiliates" && <DisputeAffiliates onFlash={flash} />}
-          {view === "Client Portal" && <DisputeClientPortal onFlash={flash} />}
+          {view === "Billing" && <DisputeBilling client={selectedClient} onFlash={flash} onReload={loadClients} />}
+          {view === "Client Portal" && <DisputeClientPortal client={selectedClient} onFlash={flash} onReload={loadClients} />}
           {view === "Team" && <DisputeTeam onFlash={flash} />}
-          {view === "Marketing" && <DisputeMarketing onFlash={flash} />}
-          {view === "Analytics" && <DisputeAnalytics />}
+          {view === "Analytics" && <DisputeAnalytics summary={summary} clients={clients} />}
           {view === "Compliance" && <DisputeCompliance onFlash={flash} />}
         </div>
       </main>
@@ -4793,11 +4800,21 @@ function CyncroDispute() {
 
 function DisputeCommand({
   onView,
+  summary,
+  clients,
   onFlash,
 }: {
   onView: (view: DisputeView) => void;
+  summary: DisputeSummary | null;
+  clients: DisputeClientRow[];
   onFlash: (message: string) => void;
 }) {
+  const [priorityItems, setPriorityItems] = useState<(DisputeItemRow & { first_name: string; last_name: string })[]>([]);
+  const [tasks, setTasks] = useState<DisputeTaskRow[]>([]);
+  useEffect(() => {
+    void fetch("/api/dispute?resource=items").then((r) => r.json()).then((d: { items?: typeof priorityItems }) => setPriorityItems((d.items || []).slice(0, 6)));
+    void fetch("/api/dispute?resource=tasks&status=OPEN").then((r) => r.json()).then((d: { tasks?: DisputeTaskRow[] }) => setTasks((d.tasks || []).slice(0, 5)));
+  }, []);
   return (
     <>
       <div className="disputeHero">
@@ -4814,16 +4831,16 @@ function DisputeCommand({
             controls.
           </p>
         </div>
-        <button onClick={() => onView("Templates")}>
+        <button onClick={() => onView("Clients")}>
           ✦ Build compliant dispute
         </button>
       </div>
       <div className="disputeMetrics">
         {[
-          ["ACTIVE CLIENTS", "184", "+12 this month"],
-          ["OPEN DISPUTES", "327", "24 responses due"],
-          ["ITEMS CORRECTED", "68%", "Verified outcomes"],
-          ["DEADLINES PROTECTED", "100%", "0 overdue"],
+          ["ACTIVE CLIENTS", String(summary?.activeClients ?? clients.length), ""],
+          ["OPEN ITEMS", String(summary?.openItems ?? "—"), "Across all rounds"],
+          ["ITEMS CORRECTED", String(summary?.itemsCorrected ?? "—"), "Verified deletions"],
+          ["MAIL IN TRANSIT", String(summary?.mailInTransit ?? "—"), "Certified tracking"],
         ].map((m) => (
           <article key={m[0]}>
             <small>{m[0]}</small>
@@ -4836,88 +4853,66 @@ function DisputeCommand({
         <section className="disputePanel casePulse">
           <header>
             <div>
-              <small>PRIORITY CASES</small>
+              <small>PRIORITY ITEMS</small>
               <h2>What needs action now</h2>
             </div>
             <button onClick={() => onView("Cases")}>All cases →</button>
           </header>
-          {disputeCases.map((c, i) => (
-            <button onClick={() => onView("Cases")} key={c.client}>
+          {priorityItems.map((c) => (
+            <button onClick={() => onView("Cases")} key={c.id}>
               <span>
-                <i>
-                  {c.client
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </i>
+                <i>{`${c.first_name[0] || ""}${c.last_name[0] || ""}`}</i>
                 <div>
-                  <b>{c.client}</b>
-                  <small>
-                    {c.item} · {c.bureau}
-                  </small>
+                  <b>{c.first_name} {c.last_name}</b>
+                  <small>{c.creditor_name}</small>
                 </div>
               </span>
-              <em>{c.issue}</em>
+              <em>{DISPUTE_REASON_LABELS[c.dispute_reason] || c.dispute_reason}</em>
               <strong>{c.status}</strong>
-              <time>{c.due}</time>
             </button>
           ))}
+          {!priorityItems.length && <p className="disputeEmpty">No open items yet — start from a client's Report Audit.</p>}
         </section>
         <section className="disputePanel deadlineRadar">
-          <small>STATUTORY DEADLINE RADAR</small>
-          <h2>Investigation clock</h2>
-          <div className="deadlineRing">
-            <span>
-              <b>24</b>
-              <small>RESPONSES DUE</small>
-            </span>
-          </div>
-          {[
-            ["0–7 days", "5", "urgent"],
-            ["8–15 days", "8", "watch"],
-            ["16–30 days", "11", "safe"],
-          ].map((x) => (
-            <article key={x[0]}>
-              <i className={x[2]} />
-              <span>{x[0]}</span>
-              <b>{x[1]}</b>
+          <small>FOLLOW-UPS + DEADLINES</small>
+          <h2>Next up</h2>
+          {tasks.map((t) => (
+            <article key={t.id}>
+              <i className={t.due_date && t.due_date < new Date().toISOString().slice(0, 10) ? "urgent" : "watch"} />
+              <span>{t.title}</span>
+              <b>{t.due_date ? new Date(t.due_date).toLocaleDateString() : "—"}</b>
             </article>
           ))}
-          <button onClick={() => onView("Mail")}>
-            Open deadline command →
+          {!tasks.length && <p className="disputeEmpty">No open tasks.</p>}
+          <button onClick={() => onView("Tasks")}>
+            Open task command →
           </button>
         </section>
         <section className="disputePanel evidenceHealth">
           <header>
             <div>
-              <small>EVIDENCE READINESS</small>
-              <h2>Case strength before submission</h2>
+              <small>ROSTER</small>
+              <h2>Clients by program status</h2>
             </div>
-            <span>86% avg</span>
           </header>
-          {[
-            ["Identity + address verified", "100%"],
-            ["Report page attached", "92%"],
-            ["Specific factual allegation", "88%"],
-            ["Supporting documents", "76%"],
-            ["Requested correction stated", "94%"],
-          ].map((x) => (
-            <article key={x[0]}>
-              <span>{x[0]}</span>
-              <em>
-                <i style={{ width: x[1] }} />
-              </em>
-              <b>{x[1]}</b>
-            </article>
-          ))}
+          {["TRIAL", "ACTIVE", "PAST_DUE", "CANCELLED"].map((status) => {
+            const count = clients.filter((c) => c.subscription_status === status).length;
+            const pct = clients.length ? Math.round((count / clients.length) * 100) : 0;
+            return (
+              <article key={status}>
+                <span>{status}</span>
+                <em><i style={{ width: `${pct}%` }} /></em>
+                <b>{count}</b>
+              </article>
+            );
+          })}
         </section>
         <section className="disputePanel compliancePulse">
           <small>COMPLIANCE PULSE</small>
           <h2>Built to protect the consumer and the company.</h2>
           <div>
             <span>✓ No advance-fee workflow</span>
-            <span>✓ Three-day cancellation tracked</span>
-            <span>✓ Truth attestation required</span>
+            <span>✓ Truth attestation required before mailing</span>
             <span>✓ No blanket disputes</span>
             <span>✓ No false identity-theft claims</span>
             <span>✓ Immutable activity record</span>
@@ -4932,118 +4927,248 @@ function DisputeCommand({
 }
 
 function DisputeCases({
-  selected,
-  setSelected,
+  client,
   onFlash,
 }: {
-  selected: number;
-  setSelected: (n: number) => void;
+  client: DisputeClientRow | null;
   onFlash: (m: string) => void;
 }) {
-  const c = disputeCases[selected];
+  const [rounds, setRounds] = useState<DisputeRound[]>([]);
+  const [selectedRoundId, setSelectedRoundId] = useState("");
+  const [items, setItems] = useState<(DisputeItemRow)[]>([]);
+  const [tradelines, setTradelines] = useState<DisputeTradeline[]>([]);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+  const [openLetterId, setOpenLetterId] = useState<string | null>(null);
+  const [letterText, setLetterText] = useState("");
+
+  const loadRounds = () => {
+    if (!client) return;
+    void fetch(`/api/dispute?resource=rounds&clientId=${client.id}`).then((r) => r.json()).then((d: { rounds?: DisputeRound[] }) => {
+      setRounds(d.rounds || []);
+      setSelectedRoundId((prev) => prev || d.rounds?.[0]?.id || "");
+    });
+    void fetch(`/api/dispute?resource=tradelines&clientId=${client.id}`).then((r) => r.json()).then((d: { tradelines?: DisputeTradeline[] }) => setTradelines(d.tradelines || []));
+  };
+  useEffect(loadRounds, [client?.id]);
+
+  const loadItems = () => {
+    if (!selectedRoundId) { setItems([]); return; }
+    void fetch(`/api/dispute?resource=items&roundId=${selectedRoundId}`).then((r) => r.json()).then((d: { items?: DisputeItemRow[] }) => setItems(d.items || []));
+  };
+  useEffect(loadItems, [selectedRoundId]);
+
+  if (!client) return <p className="disputeEmpty">Select a client from Clients to work their case file.</p>;
+
+  const selectedRound = rounds.find((r) => r.id === selectedRoundId) || null;
+
+  const openNewRound = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const bureau = new FormData(e.currentTarget).get("bureau");
+    void fetch("/api/dispute?resource=rounds", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: client.id, creditBureau: bureau }),
+    }).then((r) => r.json()).then((d: { id?: string }) => { onFlash("New dispute round opened"); loadRounds(); if (d.id) setSelectedRoundId(d.id); });
+  };
+
+  const addItem = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedRound) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/dispute?resource=items", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: client.id, roundId: selectedRound.id, tradelineId: data.get("tradeline"), disputeReason: data.get("reason") }),
+    }).then((r) => { if (r.ok) { onFlash("Item added to round"); loadItems(); (e.target as HTMLFormElement).reset(); } });
+  };
+
+  const generateLetter = (item: DisputeItemRow) => {
+    if (!selectedRound) return;
+    const tradeline = tradelines.find((t) => t.id === item.tradeline_id);
+    void fetch("/api/fcra-compliance", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "generate-letter",
+        clientId: client.id,
+        letterType: "INITIAL_DISPUTE",
+        creditBureau: selectedRound.credit_bureau,
+        disputeReason: item.dispute_reason,
+        accountNumber: tradeline?.account_number || "unknown",
+        accountName: tradeline?.creditor_name || "unknown",
+        clientName: `${client.first_name} ${client.last_name}`,
+        clientEmail: client.email,
+        reportedStatus: tradeline?.reported_status,
+        reportedAmount: tradeline?.balance_cents ? tradeline.balance_cents / 100 : undefined,
+      }),
+    }).then((r) => r.json()).then(async (d: { letter?: { id: string; letterContent?: string }; error?: string }) => {
+      if (!d.letter?.id) { onFlash(d.error || "Letter generation failed"); return; }
+      const letterId = d.letter.id;
+      await fetch(`/api/dispute?resource=items&id=${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "PREPARING", letterId }) });
+      await fetch("/api/dispute?resource=mail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ letterId, clientId: client.id }) });
+      onFlash("Draft letter generated — review required before mailing");
+      setOpenLetterId(letterId);
+      setLetterText(d.letter.letterContent || "");
+      loadItems();
+    });
+  };
+
+  const markMailed = (item: DisputeItemRow) => {
+    if (!item.letter_id || !reviewedIds.has(item.id)) return;
+    void (async () => {
+      await fetch(`/api/dispute?resource=items&id=${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "MAILED" }) });
+      const mailRows = await fetch(`/api/dispute?resource=mail&clientId=${client.id}`).then((r) => r.json()) as { mail?: DisputeMailRow[] };
+      const row = mailRows.mail?.find((m) => m.letter_id === item.letter_id);
+      if (row) await fetch(`/api/dispute?resource=mail&id=${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "MAILED" }) });
+      onFlash("Marked mailed — certified mail tracking started");
+      loadItems();
+    })();
+  };
+
   return (
     <div className="disputeCases">
       <section className="disputePanel disputeCaseList">
         <header>
           <div>
             <small>CASE COMMAND</small>
-            <h1>Active disputes</h1>
+            <h1>{client.first_name} {client.last_name} — rounds</h1>
           </div>
-          <button onClick={() => onFlash("Case filters opened")}>Filter</button>
         </header>
-        {disputeCases.map((x, i) => (
+        <form className="disputeInlineForm" onSubmit={openNewRound}>
+          <select name="bureau" defaultValue="EQUIFAX">
+            <option value="EQUIFAX">Equifax</option>
+            <option value="EXPERIAN">Experian</option>
+            <option value="TRANSUNION">TransUnion</option>
+          </select>
+          <button type="submit">+ Open round</button>
+        </form>
+        {rounds.map((r) => (
           <button
-            className={selected === i ? "active" : ""}
-            onClick={() => setSelected(i)}
-            key={x.client}
+            className={selectedRoundId === r.id ? "active" : ""}
+            onClick={() => setSelectedRoundId(r.id)}
+            key={r.id}
           >
             <span>
-              <b>{x.client}</b>
-              <small>
-                {x.item}
-                <br />
-                {x.bureau} · Round {x.round}
-              </small>
+              <b>Round {r.round_number}</b>
+              <small>{r.credit_bureau} · opened {new Date(r.opened_at).toLocaleDateString()}</small>
             </span>
-            <em>{x.status}</em>
-            <strong>{x.score}%</strong>
+            <em>{r.status}</em>
           </button>
         ))}
+        {!rounds.length && <p className="disputeEmpty">No rounds opened yet.</p>}
       </section>
       <aside className="disputePanel disputeInspector">
         <header>
           <div>
-            <small>CASE FILE</small>
-            <h2>{c.client}</h2>
+            <small>ROUND FILE</small>
+            <h2>{selectedRound ? `Round ${selectedRound.round_number} · ${selectedRound.credit_bureau}` : "No round selected"}</h2>
           </div>
-          <button onClick={() => onFlash("Case audit trail opened")}>
-            •••
-          </button>
         </header>
-        <span className="caseStatus">● {c.status}</span>
-        <h3>{c.item}</h3>
-        <p>
-          {c.issue} · {c.bureau} · Round {c.round}
-        </p>
-        <div className="caseStrength">
-          <span>
-            <b>{c.score}%</b>
-            <small>EVIDENCE STRENGTH</small>
-          </span>
-          <em>
-            <i style={{ width: `${c.score}%` }} />
-          </em>
-        </div>
-        <div className="caseFacts">
-          {[
-            ["DISPUTED FIELD", c.issue],
-            ["REPORTED VALUE", "$4,281 / 120+ days late"],
-            ["CONSUMER POSITION", "Balance and status are inaccurate"],
-            [
-              "REQUESTED RESULT",
-              "Investigate and correct or delete if unverifiable",
-            ],
-          ].map((x) => (
-            <span key={x[0]}>
-              <small>{x[0]}</small>
-              <b>{x[1]}</b>
-            </span>
-          ))}
-        </div>
-        <div className="caseTimeline">
-          {[
-            ["REPORT REVIEWED", "Aug 10", "✓"],
-            ["EVIDENCE LOCKED", "Aug 11", "✓"],
-            ["DISPUTE MAILED", "Aug 12", "✓"],
-            ["RESPONSE DUE", c.due, ""],
-          ].map((x) => (
-            <article className={x[2] ? "done" : ""} key={x[0]}>
-              <i>{x[2]}</i>
-              <span>
-                <b>{x[0]}</b>
-                <small>{x[1]}</small>
-              </span>
-            </article>
-          ))}
-        </div>
-        <button onClick={() => onFlash("Response analyzer opened")}>
-          Analyze bureau response
-        </button>
-        <button onClick={() => onFlash("Escalation path prepared")}>
-          Prepare next lawful action
-        </button>
+        {selectedRound && (
+          <>
+            <form className="disputeInlineForm" onSubmit={addItem}>
+              <select name="tradeline" required>
+                <option value="">Select negative item…</option>
+                {tradelines.filter((t) => t.is_negative).map((t) => (
+                  <option value={t.id} key={t.id}>{t.creditor_name} · {t.account_number || "no acct#"}</option>
+                ))}
+              </select>
+              <select name="reason" required defaultValue="NOT_ACCURATE">
+                {DISPUTE_REASONS.map((r) => <option value={r} key={r}>{DISPUTE_REASON_LABELS[r]}</option>)}
+              </select>
+              <button type="submit">+ Add to round</button>
+            </form>
+            {!tradelines.filter((t) => t.is_negative).length && <p className="disputeEmpty">No negative items logged — add one from Report Audit first.</p>}
+            {items.map((item) => {
+              const tradeline = tradelines.find((t) => t.id === item.tradeline_id);
+              return (
+                <div className="caseItemRow" key={item.id}>
+                  <div className="caseFacts">
+                    <span><small>ACCOUNT</small><b>{tradeline?.creditor_name || "—"}</b></span>
+                    <span><small>REASON</small><b>{DISPUTE_REASON_LABELS[item.dispute_reason] || item.dispute_reason}</b></span>
+                    <span><small>STATUS</small><b>{item.status}</b></span>
+                  </div>
+                  {!item.letter_id && <button onClick={() => generateLetter(item)}>✦ Generate FCRA dispute letter</button>}
+                  {item.letter_id && item.status === "PREPARING" && (
+                    <div className="letterReviewGate">
+                      <button onClick={() => { setOpenLetterId(item.letter_id); }}>View draft letter</button>
+                      <label>
+                        <input type="checkbox" checked={reviewedIds.has(item.id)} onChange={(e) => {
+                          const next = new Set(reviewedIds);
+                          if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                          setReviewedIds(next);
+                        }} />
+                        I reviewed this letter for accuracy — Cyncro Dispute does not guarantee removal of accurate information.
+                      </label>
+                      <button disabled={!reviewedIds.has(item.id)} onClick={() => markMailed(item)}>Mark mailed →</button>
+                    </div>
+                  )}
+                  {item.status !== "PREPARING" && item.letter_id && <em className="caseStatus">● {item.status}</em>}
+                </div>
+              );
+            })}
+            {!items.length && <p className="disputeEmpty">No items in this round yet.</p>}
+          </>
+        )}
       </aside>
+      {openLetterId && (
+        <div className="dispatchModalBackdrop" onClick={() => setOpenLetterId(null)}>
+          <div className="dispatchModal" onClick={(e) => e.stopPropagation()}>
+            <header><h2>Draft dispute letter</h2><button onClick={() => setOpenLetterId(null)}>✕</button></header>
+            <div className="generatedLetter">
+              <small>DRAFT · EDITABLE UNTIL MAILED · CONSUMER REVIEW REQUIRED — NOT GUARANTEED TO RESULT IN REMOVAL</small>
+              <textarea
+                className="letterPreview letterEditor"
+                value={letterText}
+                onChange={(e) => setLetterText(e.target.value)}
+              />
+            </div>
+            <footer>
+              <button
+                onClick={() => {
+                  void fetch(`/api/dispute?resource=letters&id=${openLetterId}`, {
+                    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ letterContent: letterText }),
+                  }).then((r) => { if (r.ok) onFlash("Letter edits saved"); else onFlash("Could not save — letter may already be mailed"); });
+                }}
+              >
+                Save edits
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function DisputeClients({
-  onCase,
+  clients,
+  onReload,
+  onSelect,
   onFlash,
 }: {
-  onCase: () => void;
+  clients: DisputeClientRow[];
+  onReload: () => void;
+  onSelect: (clientId: string) => void;
   onFlash: (m: string) => void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const addClient = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/credit-repair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: data.get("email"), firstName: data.get("firstName"), lastName: data.get("lastName"),
+        phoneNumber: data.get("phone"), address: data.get("address"), accessLevel: "FREE",
+      }),
+    }).then(async (r) => {
+      const d = await r.json() as { client?: { id: string }; error?: string };
+      if (!r.ok) { onFlash(d.error || "Could not add client"); return; }
+      onFlash("Client added");
+      setAdding(false);
+      onReload();
+      if (d.client) onSelect(d.client.id);
+    });
+  };
   return (
     <div className="disputeClients">
       <div className="disputeHero compact">
@@ -5051,131 +5176,100 @@ function DisputeClients({
           <span>CLIENT OPERATIONS</span>
           <h1>One consumer. One defensible record.</h1>
           <p>
-            Reports, identity documents, consent, contracts, disputes, results,
-            communications, and billing.
+            Reports, identity documents, disputes, results, communications, and billing —
+            all under one client record.
           </p>
         </div>
-        <button onClick={() => onFlash("Secure client invitation created")}>
-          ＋ Invite client
+        <button onClick={() => setAdding(!adding)}>
+          ＋ Add client
         </button>
       </div>
+      {adding && (
+        <form className="disputeAddClientForm" onSubmit={addClient}>
+          <input name="firstName" placeholder="First name" required />
+          <input name="lastName" placeholder="Last name" required />
+          <input name="email" type="email" placeholder="Email" required />
+          <input name="phone" placeholder="Phone (optional)" />
+          <input name="address" placeholder="Address (optional)" />
+          <button type="submit">Create client</button>
+        </form>
+      )}
       <section className="disputePanel clientPortfolio">
         <header>
           <span>CLIENT</span>
-          <span>ACTIVE ITEMS</span>
-          <span>NEXT ACTION</span>
-          <span>OUTCOME</span>
-          <span>RISK</span>
+          <span>PROGRAM</span>
+          <span>SCORE</span>
+          <span>DISPUTES LEFT</span>
+          <span>ASSIGNED REP</span>
         </header>
-        {[
-          [
-            "AC",
-            "Amelia Carter",
-            "7",
-            "Experian response · 12d",
-            "4 corrected",
-            "LOW",
-          ],
-          [
-            "MR",
-            "Marcus Reed",
-            "11",
-            "Furnisher response · 3d",
-            "6 corrected",
-            "URGENT",
-          ],
-          [
-            "SB",
-            "Sofia Bennett",
-            "5",
-            "Equifax investigation · 10d",
-            "2 corrected",
-            "LOW",
-          ],
-          [
-            "DF",
-            "Daniel Foster",
-            "9",
-            "CFPB eligibility review",
-            "5 corrected",
-            "REVIEW",
-          ],
-        ].map((x) => (
-          <button onClick={onCase} key={x[1]}>
+        {clients.map((c) => (
+          <button onClick={() => onSelect(c.id)} key={c.id}>
             <span>
-              <i>{x[0]}</i>
-              <b>{x[1]}</b>
+              <i>{c.first_name[0]}{c.last_name[0]}</i>
+              <b>{c.first_name} {c.last_name}</b>
             </span>
-            <strong>{x[2]}</strong>
-            <span>{x[3]}</span>
-            <em>{x[4]}</em>
-            <small>{x[5]}</small>
+            <strong>{c.subscription_status}</strong>
+            <span>{c.credit_score_current ?? "—"}{c.credit_score_goal ? ` → ${c.credit_score_goal}` : ""}</span>
+            <em>{c.disputes_remaining}</em>
+            <small>{c.assigned_rep || "Unassigned"}</small>
           </button>
         ))}
+        {!clients.length && <p className="disputeEmpty">No clients yet. Add your first one above.</p>}
       </section>
     </div>
   );
 }
 
 function DisputeTemplates({
-  template,
-  setTemplate,
-  generated,
-  setGenerated,
+  client,
   onFlash,
 }: {
-  template: string;
-  setTemplate: (v: string) => void;
-  generated: boolean;
-  setGenerated: (v: boolean) => void;
+  client: DisputeClientRow | null;
   onFlash: (m: string) => void;
 }) {
-  const templates = [
-    "CRA factual dispute — inaccurate account data",
-    "Direct furnisher dispute — Regulation V",
-    "Method of verification request",
-    "Identity theft block request — verified victims only",
-    "Debt collector validation request",
-    "Obsolete information dispute",
-    "Mixed-file / identity mismatch",
-    "CFPB complaint narrative — after dispute eligibility",
-  ];
+  const [letterTypes, setLetterTypes] = useState<string[]>([]);
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [selected, setSelected] = useState("");
+  useEffect(() => {
+    void fetch("/api/fcra-compliance?section=templates").then((r) => r.json()).then((d: { templates?: { letterTypes: string[]; reasons: string[] } }) => {
+      setLetterTypes(d.templates?.letterTypes || []);
+      setReasons(d.templates?.reasons || []);
+      setSelected(d.templates?.letterTypes?.[0] || "");
+    });
+  }, []);
+  const letterLabels: Record<string, string> = {
+    INITIAL_DISPUTE: "Initial CRA factual dispute (FCRA § 1681i)",
+    INVESTIGATION_FOLLOW_UP: "Investigation follow-up",
+    SECOND_DISPUTE: "Second-round dispute",
+    DEBT_VALIDATION: "Debt validation request (FDCPA § 1692g)",
+    CEASE_AND_DESIST: "Cease and desist collection activity",
+    REINVESTIGATION_REQUEST: "Reinvestigation request",
+    FURNISHER_DISPUTE: "Direct furnisher dispute (Regulation V)",
+    GOODWILL_LETTER: "Goodwill adjustment request",
+    PAY_FOR_DELETE: "Pay-for-delete negotiation",
+  };
   return (
     <div className="templateWorkspace">
       <div className="disputeHero compact">
         <div>
-          <span>COMPLIANCE-AWARE DOCUMENT ENGINE</span>
-          <h1>Specific facts. Relevant law. Complete evidence.</h1>
+          <span>FCRA-COMPLIANT LETTER LIBRARY</span>
+          <h1>Every letter cites the law it's built on.</h1>
           <p>
-            Templates assemble from the client’s actual report data and
-            attachments—never generic blanket language.
+            These letter types assemble from a client's actual bureau records and
+            dispute reasons in Cases — never sent as generic blanket language, and
+            never a guarantee that accurate information will be removed.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setGenerated(true);
-            onFlash("Fact-specific draft generated");
-          }}
-        >
-          ✦ Generate draft
-        </button>
       </div>
       <div className="templateBuilder">
         <section className="disputePanel templateCatalog">
-          <small>TEMPLATE LIBRARY</small>
-          {templates.map((t) => (
-            <button
-              className={template === t ? "active" : ""}
-              onClick={() => {
-                setTemplate(t);
-                setGenerated(false);
-              }}
-              key={t}
-            >
+          <small>LETTER TYPES</small>
+          {letterTypes.map((t) => (
+            <button className={selected === t ? "active" : ""} onClick={() => setSelected(t)} key={t}>
               <span>§</span>
               <div>
-                <b>{t}</b>
-                <small>Attorney-review ready · version controlled</small>
+                <b>{letterLabels[t] || t}</b>
+                <small>Version-controlled · FCRA statute references included</small>
               </div>
             </button>
           ))}
@@ -5183,62 +5277,23 @@ function DisputeTemplates({
         <section className="disputePanel letterComposer">
           <header>
             <div>
-              <small>SELECTED WORKFLOW</small>
-              <h2>{template}</h2>
+              <small>DISPUTE REASONS SUPPORTED</small>
+              <h2>{letterLabels[selected] || selected}</h2>
             </div>
-            <span>Compliance check: PASSED</span>
           </header>
           <div className="composerChecks">
-            <span>✓ Specific disputed field</span>
-            <span>✓ Supporting document linked</span>
-            <span>✓ Requested correction</span>
-            <span>✓ Truth attestation</span>
+            {reasons.map((r) => <span key={r}>✓ {DISPUTE_REASON_LABELS[r] || r}</span>)}
           </div>
-          {generated ? (
-            <article className="generatedLetter">
-              <small>DRAFT · CONSUMER REVIEW REQUIRED</small>
-              <p>
-                <b>
-                  Re: Request for investigation of specifically identified
-                  inaccurate information
-                </b>
-              </p>
-              <p>
-                I am writing to dispute the accuracy and completeness of the
-                account information identified in the attached report excerpt.
-                The specific field disputed is the reported balance/status. My
-                records supporting this position are attached and indexed.
-              </p>
-              <p>
-                Please conduct a reasonable reinvestigation, forward all
-                relevant information to the furnisher, and correct or delete
-                information that is inaccurate, incomplete, or cannot be
-                verified. Please provide the written results and an updated
-                report.
-              </p>
-              <p>
-                <b>Authority map:</b> FCRA §§ 611 and 623; Regulation V §
-                1022.43 where applicable.
-              </p>
-            </article>
-          ) : (
-            <div className="composerEmpty">
-              <span>§</span>
-              <h3>Build a defensible dispute</h3>
-              <p>
-                Select verified facts and evidence, then generate a
-                consumer-review draft.
-              </p>
-            </div>
-          )}
-          <footer>
-            <button onClick={() => onFlash("Attorney review queue opened")}>
-              Send for legal review
-            </button>
-            <button onClick={() => onFlash("Truth attestation requested")}>
-              Request consumer approval →
-            </button>
-          </footer>
+          <div className="composerEmpty">
+            <span>§</span>
+            <h3>Letters are generated per item, per client</h3>
+            <p>
+              Open a client's case file to attach this letter type to a specific
+              negative item and dispute round — every letter requires your review
+              before it can be marked mailed.
+            </p>
+            {client && <button onClick={() => onFlash("Go to Cases from the sidebar to generate this letter for " + client.first_name)}>Generate for {client.first_name} {client.last_name} →</button>}
+          </div>
         </section>
       </div>
     </div>
@@ -5349,6 +5404,22 @@ function DisputeLawLibrary() {
 }
 
 function DisputeMail({ onFlash }: { onFlash: (m: string) => void }) {
+  const [mail, setMail] = useState<DisputeMailRow[]>([]);
+  const load = () => void fetch("/api/dispute?resource=mail").then((r) => r.json()).then((d: { mail?: DisputeMailRow[] }) => setMail(d.mail || []));
+  useEffect(load, []);
+  const setTracking = (row: DisputeMailRow, trackingNumber: string) => {
+    void fetch(`/api/dispute?resource=mail&id=${row.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "MAILED", trackingNumber }),
+    }).then((r) => { if (r.ok) { onFlash("Certified mail tracking number saved"); load(); } });
+  };
+  const markDelivered = (row: DisputeMailRow) => {
+    void fetch(`/api/dispute?resource=mail&id=${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "DELIVERED" }) })
+      .then((r) => { if (r.ok) { onFlash("Marked delivered — investigation clock started"); load(); } });
+  };
+  const readyToMail = mail.filter((m) => m.status === "PREPARING").length;
+  const inTransit = mail.filter((m) => m.status === "MAILED").length;
+  const delivered = mail.filter((m) => m.status === "DELIVERED").length;
   return (
     <div className="mailWorkspace">
       <div className="disputeHero compact">
@@ -5356,20 +5427,16 @@ function DisputeMail({ onFlash }: { onFlash: (m: string) => void }) {
           <span>CERTIFIED MAIL + RESPONSE CONTROL</span>
           <h1>Proof from draft to delivery.</h1>
           <p>
-            Document versions, consumer approvals, certified tracking, delivery
-            dates, statutory clocks, and returned responses.
+            Certified tracking numbers, delivery status, and bureau response
+            deadlines — one row per letter mailed.
           </p>
         </div>
-        <button onClick={() => onFlash("Mail batch prepared")}>
-          ＋ Prepare mail batch
-        </button>
       </div>
       <div className="mailMetrics">
         {[
-          ["READY TO MAIL", "18", "$142 postage"],
-          ["IN TRANSIT", "34", "100% tracked"],
-          ["DELIVERED", "27", "Clocks running"],
-          ["RESPONSES DUE", "5", "Next 7 days"],
+          ["READY TO MAIL", String(readyToMail), "Awaiting tracking #"],
+          ["IN TRANSIT", String(inTransit), "Tracked"],
+          ["DELIVERED", String(delivered), "Clocks running"],
         ].map((x) => (
           <article className="disputePanel" key={x[0]}>
             <small>{x[0]}</small>
@@ -5380,68 +5447,61 @@ function DisputeMail({ onFlash }: { onFlash: (m: string) => void }) {
       </div>
       <section className="disputePanel mailTable">
         <header>
-          <span>CLIENT / RECIPIENT</span>
-          <span>DOCUMENT</span>
+          <span>LETTER</span>
           <span>TRACKING</span>
-          <span>DELIVERED</span>
-          <span>DEADLINE</span>
+          <span>STATUS</span>
+          <span>DUE</span>
         </header>
-        {[
-          [
-            "Marcus Reed · TransUnion",
-            "Round 2 factual dispute",
-            "9407 1118 9876 5432",
-            "Aug 01",
-            "Aug 31",
-          ],
-          [
-            "Amelia Carter · Experian",
-            "Round 1 factual dispute",
-            "9407 1118 9876 5458",
-            "Aug 12",
-            "Sep 11",
-          ],
-          [
-            "Sofia Bennett · Equifax",
-            "Round 1 factual dispute",
-            "9407 1118 9876 5501",
-            "In transit",
-            "Pending",
-          ],
-        ].map((x) => (
-          <button
-            onClick={() => onFlash("Certified-mail evidence opened")}
-            key={x[0]}
-          >
-            {x.map((v) => (
-              <span key={v}>{v}</span>
-            ))}
-          </button>
+        {mail.map((m) => (
+          <div className="mailRow" key={m.id}>
+            <span>{m.account_name} · {m.credit_bureau}</span>
+            <span>
+              {m.tracking_number || (
+                <input
+                  placeholder="Enter tracking #"
+                  onKeyDown={(e) => { if (e.key === "Enter") setTracking(m, (e.target as HTMLInputElement).value); }}
+                />
+              )}
+            </span>
+            <em>{m.status}</em>
+            <span>
+              {m.status === "MAILED" && <button onClick={() => markDelivered(m)}>Mark delivered</button>}
+              {m.response_due_date ? new Date(m.response_due_date).toLocaleDateString() : "—"}
+            </span>
+          </div>
         ))}
+        {!mail.length && <p className="disputeEmpty">No letters queued for mail yet — generate one from a client's Cases.</p>}
       </section>
     </div>
   );
 }
 
-function DisputeAnalytics() {
+function DisputeAnalytics({ summary, clients }: { summary: DisputeSummary | null; clients: DisputeClientRow[] }) {
+  const [items, setItems] = useState<DisputeItemRow[]>([]);
+  useEffect(() => {
+    void fetch("/api/dispute?resource=items").then((r) => r.json()).then((d: { items?: DisputeItemRow[] }) => setItems(d.items || []));
+  }, []);
+  const total = items.length || 1;
+  const byReason = DISPUTE_REASONS.map((r) => ({ reason: r, count: items.filter((i) => i.dispute_reason === r).length }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const byStatus = DISPUTE_ITEM_STATUSES.map((s) => ({ status: s, count: items.filter((i) => i.status === s).length })).filter((x) => x.count > 0);
+  const correctedPct = summary && total > 1 ? Math.round((summary.itemsCorrected / total) * 100) : 0;
   return (
     <div className="disputeAnalytics">
       <div className="disputeHero compact">
         <div>
           <span>VERIFIED OUTCOME INTELLIGENCE</span>
           <h1>Measure accuracy outcomes—not empty promises.</h1>
-          <p>
-            Correction rates, response quality, cycle time, evidence strength,
-            bureau behavior, and compliance performance.
-          </p>
+          <p>Real counts from your own case data — no projected or industry-average figures.</p>
         </div>
       </div>
       <div className="disputeMetrics">
         {[
-          ["VERIFIED CORRECTION RATE", "68%", "Across completed items"],
-          ["AVG RESOLUTION TIME", "41d", "−6 days QoQ"],
-          ["RESPONSE ANALYZED", "94%", "Within 24 hours"],
-          ["CLIENT RETENTION", "91%", "No score guarantees"],
+          ["TOTAL ITEMS DISPUTED", String(items.length), "All time"],
+          ["VERIFIED DELETIONS", String(summary?.itemsCorrected ?? 0), `${correctedPct}% of items`],
+          ["ACTIVE CLIENTS", String(clients.length), ""],
+          ["OPEN ITEMS", String(summary?.openItems ?? 0), "In progress"],
         ].map((x) => (
           <article key={x[0]}>
             <small>{x[0]}</small>
@@ -5452,39 +5512,27 @@ function DisputeAnalytics() {
       </div>
       <div className="analyticsDisputeGrid">
         <section className="disputePanel outcomeBars">
-          <small>OUTCOMES BY ISSUE TYPE</small>
-          <h2>Verified report changes</h2>
-          {[
-            ["Identity mismatch", "84%"],
-            ["Balance/status error", "72%"],
-            ["Duplicate account", "69%"],
-            ["Obsolete information", "65%"],
-            ["Late payment accuracy", "41%"],
-          ].map((x) => (
-            <article key={x[0]}>
-              <span>{x[0]}</span>
-              <em>
-                <i style={{ width: x[1] }} />
-              </em>
-              <b>{x[1]}</b>
+          <small>ITEMS BY DISPUTE REASON</small>
+          <h2>What's being disputed</h2>
+          {byReason.map((x) => (
+            <article key={x.reason}>
+              <span>{DISPUTE_REASON_LABELS[x.reason]}</span>
+              <em><i style={{ width: `${Math.round((x.count / total) * 100)}%` }} /></em>
+              <b>{x.count}</b>
             </article>
           ))}
+          {!byReason.length && <p className="disputeEmpty">No items yet.</p>}
         </section>
         <section className="disputePanel bureauScore">
-          <small>BUREAU RESPONSE QUALITY</small>
-          <h2>Investigation intelligence</h2>
-          {[
-            ["Experian", "4.1 / 5", "29d"],
-            ["Equifax", "3.8 / 5", "31d"],
-            ["TransUnion", "4.0 / 5", "28d"],
-            ["Furnishers", "3.4 / 5", "27d"],
-          ].map((x) => (
-            <article key={x[0]}>
-              <b>{x[0]}</b>
-              <span>{x[1]} completeness</span>
-              <em>{x[2]}</em>
+          <small>ITEMS BY STATUS</small>
+          <h2>Where cases stand</h2>
+          {byStatus.map((x) => (
+            <article key={x.status}>
+              <b>{x.status}</b>
+              <span>{x.count} item{x.count === 1 ? "" : "s"}</span>
             </article>
           ))}
+          {!byStatus.length && <p className="disputeEmpty">No items yet.</p>}
         </section>
       </div>
     </div>
@@ -5572,452 +5620,262 @@ function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
   );
 }
 
-const suiteData: Record<
-  string,
-  {
-    eyebrow: string;
-    title: string;
-    description: string;
-    action: string;
-    metrics: string[][];
-    sections: { title: string; subtitle: string; rows: string[][] }[];
-  }
-> = {
-  Leads: {
-    eyebrow: "LEAD-TO-CLIENT PIPELINE",
-    title: "Turn interest into compliant client relationships.",
-    description:
-      "Lead capture, consultation audits, nurture, agreement, onboarding, assignment, and attribution.",
-    action: "＋ Add lead",
-    metrics: [
-      ["NEW LEADS", "48", "+22%"],
-      ["CONSULTATIONS", "31", "64% booked"],
-      ["AGREEMENTS SIGNED", "18", "58% close"],
-      ["PIPELINE VALUE", "$27.4K", "This month"],
-    ],
-    sections: [
-      {
-        title: "Conversion pipeline",
-        subtitle: "Every lead and next action",
-        rows: [
-          ["Jordan Mills", "Credit audit requested", "CONSULTATION", "$1,497"],
-          ["Taylor Brooks", "Agreement opened", "PROPOSAL", "$997"],
-          ["Nina Alvarez", "Onboarding incomplete", "SIGNED", "$1,297"],
-          ["Owen Hart", "New website lead", "NEW", "$797"],
-        ],
-      },
-      {
-        title: "Automated nurture",
-        subtitle: "Email + SMS sequences",
-        rows: [
-          ["Credit audit follow-up", "842 enrolled", "38% reply", "LIVE"],
-          ["No-show recovery", "62 enrolled", "21% rebook", "LIVE"],
-          ["Agreement reminder", "34 enrolled", "59% signed", "LIVE"],
-        ],
-      },
-    ],
-  },
-  "Report Audit": {
-    eyebrow: "CREDIT REPORT INTELLIGENCE",
-    title: "Import once. Understand every bureau difference.",
-    description:
-      "Three-bureau import, account matching, issue tagging, one-click audit, reimport comparison, score history, and permanent report snapshots.",
-    action: "Import credit report",
-    metrics: [
-      ["REPORTS IMPORTED", "184", "100% encrypted"],
-      ["POTENTIAL ISSUES", "1,428", "Fact review required"],
-      ["REIMPORT CHANGES", "312", "This month"],
-      ["AVG AUDIT TIME", "2m 14s", "−81%"],
-    ],
-    sections: [
-      {
-        title: "Tri-bureau audit",
-        subtitle: "Account-level comparison",
-        rows: [
-          ["Capital One 4412", "EX: $4,281", "EQ: $3,994", "TU: $4,281"],
-          ["Midland Credit", "EX: Open", "EQ: Missing", "TU: Collection"],
-          ["Chase 1098", "EX: 30 late", "EQ: Current", "TU: 60 late"],
-        ],
-      },
-      {
-        title: "Reimport change detector",
-        subtitle: "Preserved historical snapshots",
-        rows: [
-          ["Deleted", "28 items", "Verified across report", "PDF saved"],
-          ["Updated positive", "41 items", "Status improved", "PDF saved"],
-          ["Updated negative", "9 items", "Review required", "Flagged"],
-          ["New accounts", "14 items", "Consumer review", "Pending"],
-        ],
-      },
-    ],
-  },
-  Inbox: {
-    eyebrow: "UNIFIED CLIENT COMMUNICATION",
-    title: "Every conversation attached to the case.",
-    description:
-      "Secure portal messages, email, SMS, web chat, assignments, internal notes, templates, and response-time controls.",
-    action: "New message",
-    metrics: [
-      ["OPEN CONVERSATIONS", "32", "8 assigned to you"],
-      ["AVG RESPONSE", "6m 18s", "−42%"],
-      ["CLIENT SATISFACTION", "96%", "Last 30 days"],
-      ["UNREAD", "7", "2 urgent"],
-    ],
-    sections: [
-      {
-        title: "Unified inbox",
-        subtitle: "SMS · email · portal · chat",
-        rows: [
-          ["Marcus Reed", "Uploaded TransUnion response", "PORTAL", "2m"],
-          ["Amelia Carter", "Question about investigation", "SMS", "8m"],
-          ["Sofia Bennett", "New Equifax alert", "EMAIL", "22m"],
-        ],
-      },
-      {
-        title: "Communication automations",
-        subtitle: "Context-aware and consent controlled",
-        rows: [
-          ["Welcome + onboarding", "New client", "Email + SMS", "ACTIVE"],
-          ["Report ready", "Import complete", "Push + email", "ACTIVE"],
-          [
-            "Response deadline",
-            "7 days remaining",
-            "Internal + client",
-            "ACTIVE",
-          ],
-        ],
-      },
-    ],
-  },
-  Tasks: {
-    eyebrow: "TEAM WORKFLOW CONTROL",
-    title: "Nothing falls through the cracks.",
-    description:
-      "Tasks, events, queues, recurring work, service-level timers, assignments, calendars, and automated handoffs.",
-    action: "＋ Create task",
-    metrics: [
-      ["DUE TODAY", "29", "5 urgent"],
-      ["COMPLETED", "94%", "This week"],
-      ["OVERDUE", "0", "SLA protected"],
-      ["AUTOMATED", "68%", "No manual touch"],
-    ],
-    sections: [
-      {
-        title: "Priority work queue",
-        subtitle: "Sorted by deadline and risk",
-        rows: [
-          ["Analyze TU response", "Marcus Reed", "TODAY 3 PM", "URGENT"],
-          [
-            "Review identity documents",
-            "Sofia Bennett",
-            "TODAY 5 PM",
-            "NORMAL",
-          ],
-          ["Prepare Round 2 facts", "Daniel Foster", "TOMORROW", "WATCH"],
-        ],
-      },
-      {
-        title: "Calendar + events",
-        subtitle: "Consultations and follow-ups",
-        rows: [
-          [
-            "Client review call",
-            "Amelia Carter",
-            "Aug 14 · 10 AM",
-            "Account Owner",
-          ],
-          ["Affiliate onboarding", "Palm Funding", "Aug 14 · 1 PM", "Dana"],
-          ["Team compliance review", "All staff", "Aug 15 · 9 AM", "Owner"],
-        ],
-      },
-    ],
-  },
-  Billing: {
-    eyebrow: "COMPLIANT REVENUE OPERATIONS",
-    title: "Bill accurately. Recover revenue. Keep proof.",
-    description:
-      "Invoices, subscriptions, completed-service billing gates, payment links, dunning, refunds, disputes, tax, and accounting reconciliation.",
-    action: "＋ Create invoice",
-    metrics: [
-      ["MRR", "$86,420", "+14.8%"],
-      ["COLLECTED", "$79,118", "91.5%"],
-      ["PAST DUE", "$4,208", "Saver active"],
-      ["CHURN", "2.1%", "−0.8%"],
-    ],
-    sections: [
-      {
-        title: "Invoices + subscriptions",
-        subtitle: "CROA service-completion gates",
-        rows: [
-          ["Amelia Carter", "Monthly service completed", "$149", "PAID"],
-          ["Marcus Reed", "Round 2 service completed", "$199", "DUE"],
-          ["Sofia Bennett", "Onboarding service", "$99", "HELD · CANCELLATION"],
-        ],
-      },
-      {
-        title: "Subscription Saver",
-        subtitle: "Consent-based payment recovery",
-        rows: [
-          ["Day 1 reminder", "18 accounts", "Email", "ACTIVE"],
-          ["Day 3 card update", "9 accounts", "Portal + SMS", "ACTIVE"],
-          ["Day 7 team task", "4 accounts", "Manual review", "ACTIVE"],
-        ],
-      },
-    ],
-  },
-  Affiliates: {
-    eyebrow: "REFERRAL PARTNER OPERATIONS",
-    title: "Turn trusted partners into predictable growth.",
-    description:
-      "Affiliate portal, branded links, attribution, onboarding, lead status, commissions, documents, messaging, and performance analytics.",
-    action: "＋ Invite affiliate",
-    metrics: [
-      ["ACTIVE PARTNERS", "86", "+9 this month"],
-      ["REFERRED LEADS", "214", "Last 30 days"],
-      ["CLIENTS WON", "74", "34.6%"],
-      ["ATTRIBUTED MRR", "$22.8K", "26% total"],
-    ],
-    sections: [
-      {
-        title: "Partner leaderboard",
-        subtitle: "Quality and revenue attribution",
-        rows: [
-          ["Palm Funding Group", "42 leads", "18 clients", "$7.8K MRR"],
-          ["HomeKey Mortgage", "31 leads", "12 clients", "$4.9K MRR"],
-          ["DriveRight Auto", "28 leads", "9 clients", "$3.2K MRR"],
-        ],
-      },
-      {
-        title: "Affiliate onboarding",
-        subtitle: "Automated education and compliance",
-        rows: [
-          ["Welcome sequence", "86 enrolled", "100% delivered", "ACTIVE"],
-          ["Referral rules attestation", "84 signed", "2 pending", "REQUIRED"],
-          ["Monthly partner update", "Aug 15", "86 recipients", "SCHEDULED"],
-        ],
-      },
-    ],
-  },
-  "Client Portal": {
-    eyebrow: "SECURE CLIENT ACCESS",
-    title: "Give clients visibility without losing control.",
-    description:
-      "Mobile-first onboarding, agreements, documents, scores, dispute choices, progress, messages, invoices, notifications, education, and referrals.",
-    action: "Preview mobile portal",
-    metrics: [
-      ["PORTAL ADOPTION", "92%", "169 active"],
-      ["ONBOARDING COMPLETE", "88%", "+11%"],
-      ["PUSH ENABLED", "81%", "137 clients"],
-      ["SELF-SERVICE", "64%", "Fewer status calls"],
-    ],
-    sections: [
-      {
-        title: "Onboarding journey",
-        subtitle: "English + Spanish",
-        rows: [
-          [
-            "Identity verification",
-            "Government ID + proof of address",
-            "184/184",
-            "REQUIRED",
-          ],
-          [
-            "Consumer rights disclosure",
-            "Viewed + acknowledged",
-            "181/184",
-            "3 PENDING",
-          ],
-          [
-            "Digital agreement",
-            "Signed + cancellation notice",
-            "178/184",
-            "6 PENDING",
-          ],
-          [
-            "Report connection",
-            "Monitoring or upload",
-            "171/184",
-            "13 PENDING",
-          ],
-        ],
-      },
-      {
-        title: "Client Choice",
-        subtitle: "Consumer controls disputed items",
-        rows: [
-          ["Items selected", "428", "Truth attested", "READY"],
-          ["Items awaiting review", "72", "Needs reason", "PENDING"],
-          ["Items declined", "39", "Accurate/current", "PROTECTED"],
-        ],
-      },
-    ],
-  },
-  Team: {
-    eyebrow: "PEOPLE + PERMISSIONS",
-    title: "Scale the company without exposing client data.",
-    description:
-      "Role-based access, workload, teams, specialist assignment, approval limits, audit history, training, and performance.",
-    action: "＋ Invite teammate",
-    metrics: [
-      ["TEAM MEMBERS", "18", "4 roles"],
-      ["ACTIVE CASELOAD", "18.2", "Per specialist"],
-      ["SLA SCORE", "97%", "Top quartile"],
-      ["TRAINING CURRENT", "100%", "Quarterly"],
-    ],
-    sections: [
-      {
-        title: "Team workload",
-        subtitle: "Balanced by capacity and skill",
-        rows: [
-          ["Account Owner", "Owner", "Full access", "86 cases"],
-          ["Dana Pierce", "Compliance manager", "Approval + audit", "42 cases"],
-          ["Maya Torres", "Dispute specialist", "Assigned clients", "38 cases"],
-          ["Andre Cole", "Client success", "Portal + messaging", "52 clients"],
-        ],
-      },
-      {
-        title: "Permission policies",
-        subtitle: "Least-privilege access",
-        rows: [
-          ["Owner", "All modules + billing", "2 users", "ACTIVE"],
-          ["Compliance", "Templates + approvals + audit", "3 users", "ACTIVE"],
-          ["Specialist", "Assigned clients only", "9 users", "ACTIVE"],
-          ["Affiliate", "Referred lead status only", "86 users", "ISOLATED"],
-        ],
-      },
-    ],
-  },
-  Marketing: {
-    eyebrow: "GROWTH AUTOMATION HUB",
-    title: "Attract, nurture, convert, review, and refer.",
-    description:
-      "Landing pages, forms, email/SMS, web chat, social inbox, reputation, referral campaigns, segmentation, attribution, and scheduling.",
-    action: "＋ Create campaign",
-    metrics: [
-      ["LEADS GENERATED", "486", "This month"],
-      ["NURTURE CONVERSION", "18.4%", "+4.2%"],
-      ["REVIEWS", "4.9★", "312 total"],
-      ["CAMPAIGN ROI", "8.7×", "Attributed"],
-    ],
-    sections: [
-      {
-        title: "Campaign command",
-        subtitle: "Omnichannel journeys",
-        rows: [
-          ["Credit audit funnel", "Meta + landing page", "184 leads", "LIVE"],
-          ["Cold lead reactivation", "SMS + email", "42 appointments", "LIVE"],
-          ["Client milestone reviews", "Email + portal", "31 reviews", "LIVE"],
-          [
-            "Affiliate recruitment",
-            "Social + webinar",
-            "18 partners",
-            "SCHEDULED",
-          ],
-        ],
-      },
-      {
-        title: "Unified social + chat",
-        subtitle: "Instagram · Facebook · SMS · web",
-        rows: [
-          ["CREDIT keyword", "128 conversations", "42 booked", "ACTIVE"],
-          ["Website chat", "94 conversations", "31 qualified", "ACTIVE"],
-          ["Facebook comments", "62 triggers", "18 leads", "ACTIVE"],
-        ],
-      },
-    ],
-  },
-};
-
-function DisputeSuiteView({
-  name,
+function DisputeReportAudit({
+  clientId,
   onFlash,
 }: {
-  name: keyof typeof suiteData;
+  clientId: string;
   onFlash: (m: string) => void;
 }) {
-  const data = suiteData[name];
+  const [reports, setReports] = useState<{ id: string; credit_bureau: string; report_date: string; file_name: string | null; notes: string | null }[]>([]);
+  const [tradelines, setTradelines] = useState<DisputeTradeline[]>([]);
+  const load = () => {
+    if (!clientId) return;
+    void fetch(`/api/dispute?resource=reports&clientId=${clientId}`).then((r) => r.json()).then((d: { reports?: typeof reports }) => setReports(d.reports || []));
+    void fetch(`/api/dispute?resource=tradelines&clientId=${clientId}`).then((r) => r.json()).then((d: { tradelines?: DisputeTradeline[] }) => setTradelines(d.tradelines || []));
+  };
+  useEffect(load, [clientId]);
+  const addReport = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/dispute?resource=reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, creditBureau: data.get("bureau"), reportDate: data.get("date"), fileName: data.get("file"), notes: data.get("notes") }),
+    }).then((r) => { if (r.ok) { onFlash("Bureau report intake logged"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  const addTradeline = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/dispute?resource=tradelines", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId, creditorName: data.get("creditor"), accountNumber: data.get("account"),
+        accountType: data.get("type"), balanceCents: Math.round(Number(data.get("balance") || 0) * 100),
+        reportedStatus: data.get("status"), isNegative: true, negativeReason: data.get("reason"),
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Negative item added to bureau record"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  if (!clientId) return <p className="disputeEmpty">Select a client from Clients to review their bureau records.</p>;
   return (
-    <div className="disputeSuiteView">
+    <div className="reportAuditWorkspace">
       <div className="disputeHero compact">
         <div>
-          <span>{data.eyebrow}</span>
-          <h1>{data.title}</h1>
-          <p>{data.description}</p>
+          <span>CREDIT REPORT INTAKE + BUREAU RECORDS</span>
+          <h1>Every reported account, sourced and dated.</h1>
+          <p>Log each pulled report, then record the negative tradelines it contains as the factual basis for a dispute.</p>
         </div>
-        <button onClick={() => onFlash(`${data.action} opened`)}>
-          {data.action}
-        </button>
       </div>
-      <div className="disputeMetrics">
-        {data.metrics.map((m) => (
-          <article key={m[0]}>
-            <small>{m[0]}</small>
-            <b>{m[1]}</b>
-            <span>{m[2]}</span>
-          </article>
-        ))}
-      </div>
-      <div className="suiteSections">
-        {data.sections.map((section) => (
-          <section className="disputePanel suiteTable" key={section.title}>
-            <header>
-              <div>
-                <small>{section.subtitle.toUpperCase()}</small>
-                <h2>{section.title}</h2>
-              </div>
-              <button
-                onClick={() => onFlash(`${section.title} controls opened`)}
-              >
-                Manage →
-              </button>
-            </header>
-            {section.rows.map((row, i) => (
-              <button
-                onClick={() => onFlash(`${row[0]} record opened`)}
-                key={`${row[0]}-${i}`}
-              >
-                {row.map((cell, j) => (
-                  <span
-                    className={j === 0 ? "primary" : ""}
-                    key={`${cell}-${j}`}
-                  >
-                    {cell}
-                  </span>
-                ))}
-              </button>
-            ))}
-          </section>
-        ))}
+      <div className="reportAuditGrid">
+        <section className="disputePanel">
+          <header><div><small>REPORT INTAKE</small><h2>Bureau reports on file</h2></div></header>
+          <form className="disputeInlineForm" onSubmit={addReport}>
+            <select name="bureau" required defaultValue="EQUIFAX">
+              <option value="EQUIFAX">Equifax</option>
+              <option value="EXPERIAN">Experian</option>
+              <option value="TRANSUNION">TransUnion</option>
+            </select>
+            <input name="date" type="date" required />
+            <input name="file" placeholder="Report file name (optional)" />
+            <input name="notes" placeholder="Notes" />
+            <button type="submit">+ Log report</button>
+          </form>
+          {reports.map((r) => (
+            <div className="disputeListRow" key={r.id}>
+              <b>{r.credit_bureau}</b>
+              <span>{new Date(r.report_date).toLocaleDateString()}</span>
+              <small>{r.file_name || "No file attached"}</small>
+            </div>
+          ))}
+          {!reports.length && <p className="disputeEmpty">No reports logged yet.</p>}
+        </section>
+        <section className="disputePanel">
+          <header><div><small>NEGATIVE-ITEM TRACKING</small><h2>Tradelines on this client's record</h2></div></header>
+          <form className="disputeInlineForm" onSubmit={addTradeline}>
+            <input name="creditor" placeholder="Creditor / furnisher name" required />
+            <input name="account" placeholder="Account #" />
+            <input name="type" placeholder="Type (e.g. Collection)" />
+            <input name="balance" type="number" step="0.01" placeholder="Balance $" />
+            <input name="status" placeholder="Reported status" />
+            <input name="reason" placeholder="Why is this negative / inaccurate?" />
+            <button type="submit">+ Add tradeline</button>
+          </form>
+          {tradelines.map((t) => (
+            <div className="disputeListRow" key={t.id}>
+              <b>{t.creditor_name}</b>
+              <span>{t.account_number || "—"} · {t.reported_status || "unverified status"}</span>
+              <small>{t.negative_reason || "No reason noted"}</small>
+            </div>
+          ))}
+          {!tradelines.length && <p className="disputeEmpty">No tradelines logged yet. Add one from a report above.</p>}
+        </section>
       </div>
     </div>
   );
 }
-function DisputeLeads({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Leads" onFlash={onFlash} />;
-}
-function DisputeReportAudit({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Report Audit" onFlash={onFlash} />;
-}
-function DisputeInbox({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Inbox" onFlash={onFlash} />;
-}
+
 function DisputeTasks({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Tasks" onFlash={onFlash} />;
+  const [tasks, setTasks] = useState<DisputeTaskRow[]>([]);
+  const load = () => void fetch("/api/dispute?resource=tasks").then((r) => r.json()).then((d: { tasks?: DisputeTaskRow[] }) => setTasks(d.tasks || []));
+  useEffect(load, []);
+  const addTask = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/dispute?resource=tasks", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: data.get("title"), dueDate: data.get("due"), assignedTo: data.get("assignee") }),
+    }).then((r) => { if (r.ok) { onFlash("Task created"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  const complete = (id: string) => {
+    void fetch(`/api/dispute?resource=tasks&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "DONE" }) })
+      .then((r) => { if (r.ok) { onFlash("Task completed"); load(); } });
+  };
+  const overdue = tasks.filter((t) => t.status === "OPEN" && t.due_date && t.due_date < new Date().toISOString().slice(0, 10));
+  return (
+    <div className="disputeTasksWorkspace">
+      <div className="disputeHero compact">
+        <div><span>DEADLINES + FOLLOW-UPS</span><h1>Nothing slips a statutory clock.</h1></div>
+      </div>
+      <div className="disputeMetrics">
+        {[["OPEN", String(tasks.filter((t) => t.status === "OPEN").length), ""], ["OVERDUE", String(overdue.length), overdue.length ? "Needs attention" : "On track"], ["DONE", String(tasks.filter((t) => t.status === "DONE").length), ""]].map((m) => (
+          <article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>
+        ))}
+      </div>
+      <section className="disputePanel">
+        <form className="disputeInlineForm" onSubmit={addTask}>
+          <input name="title" placeholder="Task (e.g. Follow up Equifax round 2)" required />
+          <input name="due" type="date" />
+          <input name="assignee" placeholder="Assigned to (email)" />
+          <button type="submit">+ Add task</button>
+        </form>
+        {tasks.map((t) => (
+          <div className={`disputeListRow taskRow ${t.status === "DONE" ? "done" : ""}`} key={t.id}>
+            <b>{t.title}</b>
+            <span>{t.due_date ? new Date(t.due_date).toLocaleDateString() : "No due date"}{t.assigned_to ? ` · ${t.assigned_to}` : ""}</span>
+            {t.status === "OPEN" && <button onClick={() => complete(t.id)}>Mark done</button>}
+            {t.status === "DONE" && <em>✓ Done</em>}
+          </div>
+        ))}
+        {!tasks.length && <p className="disputeEmpty">No tasks yet.</p>}
+      </section>
+    </div>
+  );
 }
-function DisputeBilling({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Billing" onFlash={onFlash} />;
+
+function DisputeBilling({
+  client,
+  onFlash,
+  onReload,
+}: {
+  client: DisputeClientRow | null;
+  onFlash: (m: string) => void;
+  onReload: () => void;
+}) {
+  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  useEffect(() => {
+    if (!client) return;
+    void fetch(`/api/credit-repair?clientId=${client.id}&section=analytics`).catch(() => null);
+    setPayments([]);
+  }, [client]);
+  const recordPayment = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!client) return;
+    const data = new FormData(e.currentTarget);
+    void fetch(`/api/credit-repair?clientId=${client.id}&action=payment`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paymentType: "SUBSCRIPTION", amount: Math.round(Number(data.get("amount") || 0) * 100),
+        paymentMethod: data.get("method"), transactionId: crypto.randomUUID(), status: "COMPLETED",
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Payment recorded"); onReload(); (e.target as HTMLFormElement).reset(); } });
+  };
+  if (!client) return <p className="disputeEmpty">Select a client from Clients to manage their program and billing.</p>;
+  return (
+    <div className="disputeBillingWorkspace">
+      <div className="disputeHero compact">
+        <div><span>MONTHLY PROGRAM + PAYMENTS</span><h1>{client.first_name} {client.last_name}</h1></div>
+      </div>
+      <div className="disputeMetrics">
+        {[
+          ["SUBSCRIPTION STATUS", client.subscription_status, client.access_level],
+          ["DISPUTES REMAINING THIS CYCLE", String(client.disputes_remaining), ""],
+          ["ONBOARDING", client.onboarding_status, ""],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <section className="disputePanel">
+        <header><div><small>RECORD A PAYMENT</small><h2>Manual entry — no payment processor connected yet</h2></div></header>
+        <form className="disputeInlineForm" onSubmit={recordPayment}>
+          <input name="amount" type="number" step="0.01" placeholder="Amount $" required />
+          <select name="method" defaultValue="CARD"><option value="CARD">Card</option><option value="ACH">ACH</option><option value="CHECK">Check</option><option value="CASH">Cash</option></select>
+          <button type="submit">+ Record payment</button>
+        </form>
+        <p className="disputeEmpty">Payment history for this client lives in Cyncro Core → Credit Repair.</p>
+      </section>
+    </div>
+  );
 }
-function DisputeAffiliates({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Affiliates" onFlash={onFlash} />;
+
+function DisputeClientPortal({
+  client,
+  onFlash,
+  onReload,
+}: {
+  client: DisputeClientRow | null;
+  onFlash: (m: string) => void;
+  onReload: () => void;
+}) {
+  const generateLink = () => {
+    if (!client) return;
+    void fetch(`/api/dispute?resource=clients&id=${client.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ generatePortalToken: true }),
+    }).then((r) => r.json()).then((d: { portalToken?: string }) => { if (d.portalToken) { onFlash("Portal link generated"); onReload(); } });
+  };
+  if (!client) return <p className="disputeEmpty">Select a client from Clients to manage their portal access.</p>;
+  const portalUrl = client.portal_token ? `${typeof window !== "undefined" ? window.location.origin : ""}/dispute-portal?token=${client.portal_token}` : "";
+  return (
+    <div className="disputeClientPortalWorkspace">
+      <div className="disputeHero compact">
+        <div><span>CLIENT-FACING PORTAL</span><h1>What {client.first_name} sees on their own.</h1><p>A read-only, token-secured status page: progress timeline, score history, and a place to upload identity/evidence documents.</p></div>
+      </div>
+      <section className="disputePanel">
+        {client.portal_token ? (
+          <>
+            <div className="disputeListRow"><b>Portal link</b><span>{portalUrl}</span>
+              <button onClick={() => { void navigator.clipboard.writeText(portalUrl); onFlash("Link copied"); }}>Copy</button>
+            </div>
+            <a href={portalUrl} target="_blank" rel="noreferrer" className="disputePortalPreviewLink">Open portal as {client.first_name} would see it ↗</a>
+          </>
+        ) : (
+          <button onClick={generateLink}>✦ Generate secure portal link</button>
+        )}
+      </section>
+    </div>
+  );
 }
-function DisputeClientPortal({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Client Portal" onFlash={onFlash} />;
-}
+
 function DisputeTeam({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Team" onFlash={onFlash} />;
-}
-function DisputeMarketing({ onFlash }: { onFlash: (m: string) => void }) {
-  return <DisputeSuiteView name="Marketing" onFlash={onFlash} />;
+  const [team, setTeam] = useState<DisputeTeamRow[]>([]);
+  useEffect(() => {
+    void fetch("/api/dispute?resource=team").then((r) => r.json()).then((d: { team?: DisputeTeamRow[] }) => setTeam(d.team || []));
+  }, []);
+  return (
+    <div className="disputeTeamWorkspace">
+      <div className="disputeHero compact">
+        <div><span>TEAM</span><h1>Who has access.</h1></div>
+        <button onClick={() => onFlash("Invite teammates from Cyncro Core → Team Access")}>+ Invite teammate</button>
+      </div>
+      <section className="disputePanel">
+        <header><span>NAME</span><span>EMAIL</span><span>ROLE</span><span>STATUS</span></header>
+        {team.map((t) => (
+          <div className="disputeListRow teamRow" key={t.id}>
+            <b>{t.display_name}</b><span>{t.email}</span><em>{t.role}</em><small>{t.active ? "ACTIVE" : "INACTIVE"}</small>
+          </div>
+        ))}
+        {!team.length && <p className="disputeEmpty">No team members yet — invited via Cyncro Core → Team Access.</p>}
+      </section>
+    </div>
+  );
 }
 
 type FinanceView =
@@ -23429,7 +23287,6 @@ const CYNCRO_PRODUCTS: {
     tagline: "Credit-dispute & client management",
     color: "#7C3AED",
     icon: "◈",
-    badge: "Coming Soon",
     features: ["Bureau intake", "Dispute letters", "Round tracking", "Certified mail", "Client portal", "Score history", "Compliance layer"],
   },
   {

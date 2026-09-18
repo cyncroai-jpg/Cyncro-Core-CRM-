@@ -3197,7 +3197,7 @@
 .disputeBrand small,
 .disputeWorkspace small {
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 0.08em;
 }
 .disputeWorkspace {
@@ -3225,7 +3225,7 @@
   border-radius: 50%;
   color: #fff;
   background: #82101a;
-  font-size: 9px;
+  font-size: 14px;
 }
 .disputeWorkspace button b {
   font-size: 10px;
@@ -3276,7 +3276,7 @@
   padding: 3px 5px;
   border-radius: 4px;
   background: #2b2b31;
-  font-size: 8px;
+  font-size: 13px;
 }
 .disputeGuard {
   display: grid;
@@ -3289,7 +3289,7 @@
 }
 .disputeGuard > span {
   color: #888;
-  font-size: 7px;
+  font-size: 12px;
   letter-spacing: 0.12em;
 }
 .disputeGuard b {
@@ -3298,7 +3298,7 @@
 }
 .disputeGuard small {
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .exitDispute {
@@ -3326,7 +3326,7 @@
 }
 .disputeTopbar small {
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 0.1em;
 }
 .disputeTopbar b {
@@ -3363,7 +3363,7 @@
 }
 .disputeHero span {
   color: #d34a56;
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 0.18em;
 }
 .disputeHero h1 {
@@ -3413,7 +3413,7 @@
 .disputeMetrics small,
 .mailMetrics small {
   color: #888;
-  font-size: 7px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 .disputeMetrics b,
@@ -3424,7 +3424,7 @@
 .disputeMetrics span,
 .mailMetrics span {
   color: #999;
-  font-size: 9px;
+  font-size: 14px;
 }
 .disputePanel {
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -3443,7 +3443,7 @@
 }
 .disputePanel header small {
   color: #8d8d94;
-  font-size: 7px;
+  font-size: 12px;
   letter-spacing: 0.12em;
 }
 .disputePanel h2 {
@@ -3482,7 +3482,7 @@
   height: 28px;
   border-radius: 50%;
   background: #601018;
-  font-size: 8px;
+  font-size: 13px;
   font-style: normal;
 }
 .casePulse > button > span div {
@@ -3491,12 +3491,12 @@
 }
 .casePulse small {
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
 }
 .casePulse em,
 .casePulse strong,
 .casePulse time {
-  font-size: 8px;
+  font-size: 13px;
 }
 .casePulse strong {
   color: #f07b85;
@@ -3636,12 +3636,12 @@
 }
 .disputeCaseList small {
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .disputeCaseList em {
   color: #f37b85;
-  font-size: 8px;
+  font-size: 13px;
 }
 .disputeCaseList strong {
   font-size: 11px;
@@ -3654,14 +3654,14 @@
 }
 .caseStatus {
   color: #f16d79;
-  font-size: 8px;
+  font-size: 13px;
 }
 .disputeInspector h3 {
   margin: 13px 0 4px;
 }
 .disputeInspector > p {
   color: #aaa;
-  font-size: 9px;
+  font-size: 14px;
 }
 .caseStrength {
   display: grid;
@@ -3682,7 +3682,7 @@
 }
 .caseStrength small {
   color: #888;
-  font-size: 7px;
+  font-size: 12px;
 }
 .caseFacts {
   display: grid;
@@ -3698,10 +3698,10 @@
 }
 .caseFacts small {
   color: #888;
-  font-size: 7px;
+  font-size: 12px;
 }
 .caseFacts b {
-  font-size: 9px;
+  font-size: 14px;
   line-height: 1.4;
 }
 .caseTimeline {
@@ -3721,7 +3721,7 @@
   height: 20px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 50%;
-  font-size: 8px;
+  font-size: 13px;
 }
 .caseTimeline article.done i {
   color: #fff;
@@ -3734,7 +3734,7 @@
 }
 .caseTimeline b,
 .caseTimeline small {
-  font-size: 8px;
+  font-size: 13px;
 }
 .caseTimeline small {
   color: #888;
@@ -3801,7 +3801,7 @@
   display: block;
   margin-bottom: 10px;
   color: #888;
-  font-size: 8px;
+  font-size: 13px;
 }
 .templateCatalog > button {
   display: flex;
@@ -3830,11 +3830,11 @@
   gap: 4px;
 }
 .templateCatalog b {
-  font-size: 9px;
+  font-size: 14px;
 }
 .templateCatalog small {
   color: #888;
-  font-size: 7px;
+  font-size: 12px;
 }
 .letterComposer {
   display: grid;
@@ -3859,7 +3859,7 @@
   border-radius: 5px;
   color: #b9ddc6;
   background: rgba(38, 139, 76, 0.07);
-  font-size: 7px;
+  font-size: 12px;
 }
 .composerEmpty {
   display: grid;
@@ -3929,7 +3929,7 @@
 .complianceGrid p {
   min-height: 48px;
   color: #aaa;
-  font-size: 9px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .lawGrid footer {
@@ -3939,10 +3939,10 @@
 }
 .lawGrid footer span {
   color: #d4777e;
-  font-size: 7px;
+  font-size: 12px;
 }
 .lawGrid footer button {
-  font-size: 8px;
+  font-size: 13px;
 }
 .legalNotice,
 .complianceWarning {
@@ -3968,7 +3968,7 @@
   padding: 10px 17px;
   color: #888;
   background: rgba(255, 255, 255, 0.025);
-  font-size: 7px;
+  font-size: 12px;
 }
 .mailTable > button {
   width: 100%;
@@ -3977,7 +3977,7 @@
   text-align: left;
 }
 .mailTable > button span {
-  font-size: 8px;
+  font-size: 13px;
 }
 .analyticsDisputeGrid {
   display: grid;
@@ -4136,7 +4136,7 @@
   }
   .disputeSidebar > nav span {
     display: block;
-    font-size: 7px;
+    font-size: 12px;
   }
   .disputeTopbar {
     padding: 0 12px;
@@ -23658,3 +23658,57 @@ button.crmUser i {
   .studioBuilderTop{flex-direction:column;align-items:stretch}
   .studioBuilderActions{justify-content:space-between}
 }
+
+/* ===== Cyncro Dispute — new real-data views (Report Audit, Tasks, Billing, Client Portal, Team) ===== */
+.disputeClientSelect{width:100%;border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:8px;font-size:11px;margin-top:6px}
+.disputeEmpty{padding:14px 4px;color:#8a7a7d;font-size:11px;line-height:1.5}
+.disputeInlineForm{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid #2b2426}
+.disputeInlineForm input,.disputeInlineForm select{flex:1;min-width:120px;border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:8px;font-size:11px}
+.disputeInlineForm button{border:0;border-radius:6px;background:#8b2a3d;color:#fff;padding:8px 14px;font-size:11px;font-weight:600;white-space:nowrap}
+.disputeAddClientForm{display:flex;flex-wrap:wrap;gap:8px;padding:14px;border:1px solid #2b2426;border-radius:8px;background:#151012;margin-bottom:14px}
+.disputeAddClientForm input{flex:1;min-width:140px;border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:9px;font-size:11px}
+.disputeAddClientForm button{border:0;border-radius:6px;background:#8b2a3d;color:#fff;padding:9px 16px;font-size:11px;font-weight:600}
+.disputeListRow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #241d20;font-size:11px}
+.disputeListRow b{min-width:140px}
+.disputeListRow small{color:#8a7a7d}
+.disputeListRow button{margin-left:auto;border:1px solid #3a2c30;border-radius:5px;background:#1b1114;color:#c9babe;padding:5px 10px;font-size:10px}
+.taskRow.done{opacity:.55}
+.taskRow.done b{text-decoration:line-through}
+.teamRow{display:grid;grid-template-columns:1.4fr 1.6fr .6fr .6fr}
+.reportAuditGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media (max-width: 900px){.reportAuditGrid{grid-template-columns:1fr}}
+.caseItemRow{border-bottom:1px solid #241d20;padding:12px 0}
+.caseItemRow .caseFacts{margin-bottom:8px}
+.caseItemRow > button{border:0;border-radius:6px;background:#8b2a3d;color:#fff;padding:8px 14px;font-size:11px;font-weight:600}
+.letterReviewGate{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #4a2b33;border-radius:8px;background:#1a1013}
+.letterReviewGate label{display:flex;gap:8px;align-items:flex-start;font-size:10px;color:#d9c9cc;line-height:1.4}
+.letterReviewGate button{border:1px solid #3a2c30;border-radius:5px;background:#1b1114;color:#c9babe;padding:7px 12px;font-size:10px;align-self:flex-start}
+.letterReviewGate button:disabled{opacity:.4}
+.letterPreview{white-space:pre-wrap;font-family:Georgia,serif;font-size:11px;line-height:1.6;color:#29262a;max-height:420px;overflow-y:auto}
+.mailRow{display:grid;grid-template-columns:1.6fr 1.2fr .6fr .8fr;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #241d20;font-size:11px}
+.mailRow input{width:100%;border:1px solid #3a2c30;border-radius:5px;background:#171114;color:#fff;padding:6px;font-size:10px}
+.mailRow button{border:1px solid #3a2c30;border-radius:5px;background:#1b1114;color:#c9babe;padding:5px 10px;font-size:10px;margin-right:8px}
+.disputePortalPreviewLink{display:inline-block;margin-top:10px;color:#c1283e;font-size:11px}
+
+/* Public client portal (token-gated, no CRM chrome) */
+.disputePortalPublic{max-width:640px;margin:0 auto;padding:48px 20px 80px;background:#0a0909;min-height:100vh;color:#f0e9ea;font-family:inherit}
+.disputePortalLoading,.disputePortalError{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0909;color:#c9babe;font-size:13px}
+.disputePortalHeader span{color:#c1283e;font-size:10px;letter-spacing:.14em;font-weight:700}
+.disputePortalHeader h1{font-size:26px;font-weight:500;margin:8px 0}
+.disputePortalHeader p{color:#a99c9f;font-size:12px;line-height:1.6}
+.disputePortalCard{border:1px solid #2b2426;border-radius:12px;background:#131011;padding:20px;margin-top:16px}
+.disputePortalCard h2{font-size:14px;font-weight:600;margin:0 0 10px}
+.disputePortalScoreRow{display:flex;gap:24px}
+.disputePortalScoreRow small{display:block;color:#8a7a7d;font-size:10px;letter-spacing:.08em}
+.disputePortalScoreRow b{display:block;font-size:28px;font-weight:300;margin-top:4px}
+.disputePortalStatus{margin:14px 0 0;font-size:12px;color:#c9babe}
+.disputePortalRow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #201a1c;font-size:12px}
+.disputePortalRow b{flex:1}
+.disputePortalRow em{color:#e8a5b2;font-style:normal}
+.disputePortalEmpty{color:#8a7a7d;font-size:11px;line-height:1.5;margin:0 0 10px}
+.disputePortalUploadForm{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.disputePortalUploadForm input,.disputePortalUploadForm select{flex:1;min-width:160px;border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:9px;font-size:12px}
+.disputePortalUploadForm button{border:0;border-radius:6px;background:#8b2a3d;color:#fff;padding:9px 16px;font-size:12px;font-weight:600}
+.disputePortalNotice{color:#82d19d;font-size:11px;margin-bottom:10px}
+.disputePortalFooter{margin-top:24px;color:#726668;font-size:10px;line-height:1.6;text-align:center}
+.letterEditor{width:100%;min-height:340px;border:1px solid #d8cfc4;border-radius:6px;background:#f7f3ee;resize:vertical}
