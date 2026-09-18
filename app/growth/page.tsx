@@ -91,11 +91,25 @@ interface OverviewData {
 }
 function GiOverview({ onNavigate }: { onNavigate: (m: GrowthModule) => void }) {
   const [data, setData] = useState<OverviewData | null>(null);
-  useEffect(() => { void fetch("/api/growth/overview").then((r) => r.json()).then((d) => setData(d as OverviewData)); }, []);
+  const [seeding, setSeeding] = useState(false);
+  const load = () => void fetch("/api/growth/overview").then((r) => r.json()).then((d) => setData(d as OverviewData));
+  useEffect(() => { load(); }, []);
+  const seedDemo = async () => {
+    setSeeding(true);
+    const r = await fetch("/api/growth/seed-demo", { method: "POST" });
+    const d = await r.json() as { seeded?: boolean; note?: string; error?: string };
+    setSeeding(false);
+    if (!r.ok) return alert(d.error || "Could not seed demo data");
+    if (d.seeded === false) return alert(d.note || "Demo data already exists.");
+    load();
+  };
   if (!data) return <div className="giLoading">Loading Growth Intelligence…</div>;
+  const isEmpty = !data.eventsTracked;
   return (
     <section className="giOverview">
-      <header><small>CYNCRO GROWTH INTELLIGENCE</small><h1>Acquisition to revenue, in one truth layer.</h1></header>
+      <header><small>CYNCRO GROWTH INTELLIGENCE</small><h1>Acquisition to revenue, in one truth layer.</h1>
+        {isEmpty && <button disabled={seeding} onClick={() => void seedDemo()}>{seeding ? "Seeding…" : "✦ Load live example data"}</button>}
+      </header>
       <div className="giStatGrid">
         <article><small>ATTRIBUTED REVENUE</small><b>{money(data.attributedRevenueCents)}</b></article>
         <article><small>OPEN ATTRIBUTED PIPELINE</small><b>{money(data.openPipelineCents)}</b></article>

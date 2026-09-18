@@ -26,11 +26,11 @@ type Tab =
   | "sign"
   | "form"
   | "prime";
-type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive" | "apex" | "prime" | "messages";
+type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive" | "apex" | "prime" | "messages" | "growth";
 
 export default function Home() {
   // ACTIVE products — Core and Dispatch are real, working products
-  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex", "automotive"];
+  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex", "automotive", "growth"];
   // Land directly in Core by default; the switcher is one click away via "Products"
   const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
@@ -206,6 +206,7 @@ export default function Home() {
               </button>
             ))}
           <span>● CORE BETA</span>
+          <a className="productSwitcherBtn" href="/growth" title="Growth Intelligence">◐ Growth</a>
           <button className="productSwitcherBtn" onClick={() => setProduct("switcher")} title="All products">⬡ Products</button>
         </nav>
       </header>
@@ -21616,6 +21617,14 @@ const CYNCRO_PRODUCTS: {
     features: ["100+ lender network", "Multi-lender submissions", "Offer comparison", "Decline recovery", "Stipulation tracking", "Broker analytics", "API & webhooks"],
   },
   {
+    id: "growth",
+    name: "Growth Intelligence",
+    tagline: "Acquisition, attribution & AI agents",
+    color: "#C1283E",
+    icon: "◐",
+    features: ["Smart forms", "Multi-touch attribution", "Customer journeys", "Tracked links", "AI agents", "Revenue recovery", "Syncs into Cyncro Core"],
+  },
+  {
     id: "prime",
     name: "Cyncro Prime",
     tagline: "AI workforce & orchestration",
@@ -21684,7 +21693,7 @@ function CyncroProductSwitcher({
                 <button
                   className="productCardEnter"
                   style={{ background: p.color }}
-                  onClick={() => onEnter(p.id)}
+                  onClick={() => (p.id === "growth" ? (window.location.href = "/growth") : onEnter(p.id))}
                 >
                   Enter {p.name.replace("Cyncro ", "")} →
                 </button>
