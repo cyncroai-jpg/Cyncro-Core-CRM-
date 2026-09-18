@@ -413,6 +413,7 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
   const [saving, setSaving] = useState(false);
   const [addingType, setAddingType] = useState(false);
   const [slugDraft, setSlugDraft] = useState("");
+  const [aiRewritingId, setAiRewritingId] = useState("");
 
   const load = async () => {
     const r = await fetch("/api/studio/pages", { cache: "no-store" });
@@ -470,6 +471,27 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
   const removeSection = (id: string) => {
     if (!page) return;
     void updateSections(page.sections.filter((s) => s.id !== id));
+  };
+
+  const aiRewriteSection = async (section: StudioSection) => {
+    const instruction = prompt(`How should AI rewrite this ${SECTION_LABELS[section.type]} section? (e.g. "make this sound more premium", "shorter and punchier")`);
+    if (!instruction || !instruction.trim()) return;
+    setAiRewritingId(section.id);
+    try {
+      const r = await fetch("/api/studio/ai-rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionType: section.type, props: section.props, instruction }),
+      });
+      const d = await r.json() as { props?: Record<string, unknown>; error?: string };
+      if (!r.ok || !d.props) { onFlash(d.error || "AI rewrite failed"); return; }
+      if (!page) return;
+      const sections = page.sections.map((s) => (s.id === section.id ? { ...s, props: d.props as Record<string, unknown> } : s));
+      await updateSections(sections);
+      onFlash("Section rewritten by AI");
+    } finally {
+      setAiRewritingId("");
+    }
   };
 
   const moveSection = (index: number, dir: -1 | 1) => {
@@ -563,6 +585,14 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
               <div className="studioSectionRow" key={s.id}>
                 <span>{SECTION_LABELS[s.type]}</span>
                 <div>
+                  <button
+                    className="studioAiRewriteBtn"
+                    disabled={aiRewritingId === s.id}
+                    onClick={() => void aiRewriteSection(s)}
+                    title="Rewrite this section with AI"
+                  >
+                    {aiRewritingId === s.id ? "…" : "✦"}
+                  </button>
                   <button disabled={i === 0} onClick={() => moveSection(i, -1)}>↑</button>
                   <button disabled={i === page.sections.length - 1} onClick={() => moveSection(i, 1)}>↓</button>
                   <button className="dangerText" onClick={() => removeSection(s.id)}>✕</button>
@@ -8715,6 +8745,32 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
   );
 }
 
+type DispatchTechProductivity = {
+  id: string;
+  name: string;
+  hours: number;
+  revenueCents: number;
+  revenuePerHourCents: number | null;
+};
+type DispatchAnalytics = {
+  bookedThisWeekCents: number;
+  collectedCents: number;
+  outstandingCents: number;
+  outstandingCount: number;
+  jobsCompletedThisWeek: number;
+  techProductivity: DispatchTechProductivity[];
+  profitability: {
+    revenueCents: number;
+    laborCents: number;
+    materialsCents: number;
+    profitCents: number;
+    marginPct: number;
+    jobsIncluded: number;
+  };
+};
+function money(cents: number) {
+  return `$${Math.round(cents / 100).toLocaleString()}`;
+}
 function DispatchDashboard({
   jobs,
   onView,
@@ -8728,6 +8784,14 @@ function DispatchDashboard({
   onMove: (index: number, direction: number) => void;
   role: DispatchRole;
 }) {
+  const [analytics, setAnalytics] = useState<DispatchAnalytics | null>(null);
+  useEffect(() => {
+    void fetch("/api/dispatch/analytics")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: DispatchAnalytics | null) => setAnalytics(data));
+  }, []);
+  const topTechs = (analytics?.techProductivity || []).slice(0, 3);
+  const maxRevPerHour = topTechs.reduce((max, t) => Math.max(max, t.revenuePerHourCents || 0), 1);
   return (
     <>
       <div className="dispatchPageHead">
@@ -8749,10 +8813,10 @@ function DispatchDashboard({
       </div>
       <div className="dispatchMetrics">
         {[
-          ["BOOKED THIS WEEK", "$48,250", "+18.4%"],
-          ["COLLECTED", "$36,840", "+$7.2K"],
-          ["OUTSTANDING", "$11,410", "8 invoices"],
-          ["JOBS COMPLETED", "42", "96.8% on time"],
+          ["BOOKED THIS WEEK", analytics ? money(analytics.bookedThisWeekCents) : "—", "Last 7 days"],
+          ["COLLECTED", analytics ? money(analytics.collectedCents) : "—", "Last 7 days"],
+          ["OUTSTANDING", analytics ? money(analytics.outstandingCents) : "—", analytics ? `${analytics.outstandingCount} invoices` : ""],
+          ["JOBS COMPLETED", analytics ? String(analytics.jobsCompletedThisWeek) : "—", "Last 7 days"],
         ].map((item) => (
           <article key={item[0]}>
             <small>{item[0]}</small>
@@ -8765,8 +8829,8 @@ function DispatchDashboard({
         <section className="liveOpsMap dispatchPanel">
           <header>
             <div>
-              <small>LIVE GPS COMMAND</small>
-              <h2>4 crews · 12 jobs</h2>
+              <small>LIVE GPS COMMAND · PREVIEW</small>
+              <h2>{jobs.filter((j) => j.techId).length} assigned · {jobs.length} jobs</h2>
             </div>
             <button onClick={() => onView("GPS Map")}>Full map →</button>
           </header>
@@ -8810,10 +8874,9 @@ function DispatchDashboard({
         <section className="routeCommand dispatchPanel">
           <header>
             <div>
-              <small>ROUTE OPTIMIZATION</small>
-              <h2>Andre Cole · 3 jobs</h2>
+              <small>JOB ORDER · MANUAL</small>
+              <h2>Today's run · {Math.min(jobs.length, 3)} jobs</h2>
             </div>
-            <span>31 min saved</span>
           </header>
           <div className="routeList">
             {jobs.slice(0, 3).map((job, index) => (
@@ -8835,7 +8898,7 @@ function DispatchDashboard({
           </div>
           <button
             className="optimizeRoute"
-            onClick={() => onFlash("Optimal route applied · 31 minutes saved")}
+            onClick={() => onFlash("Automatic route optimization needs a maps/routing integration — reorder manually with ↑↓ for now")}
           >
             ✦ Optimize route now
           </button>
@@ -8871,55 +8934,50 @@ function DispatchDashboard({
             </div>
             <button onClick={() => onView("Analytics")}>Analyze →</button>
           </header>
-          {[
-            ["AC", "Andre Cole", "$78/hr", "+14%", "84%"],
-            ["MT", "Maya Torres", "$72/hr", "+9%", "77%"],
-            ["DS", "Derek Stone", "$68/hr", "+6%", "69%"],
-          ].map((tech) => (
-            <div key={tech[1]}>
-              <i>{tech[0]}</i>
-              <span>
-                <b>{tech[1]}</b>
-                <small>
-                  {tech[2]} · {tech[3]} WoW
-                </small>
-              </span>
-              <em>
-                <i style={{ width: tech[4] }} />
-              </em>
-              <strong>{tech[4]}</strong>
-            </div>
-          ))}
+          {topTechs.length === 0 && (
+            <p className="dispatchPanelEmpty">
+              No clocked time yet — productivity appears once techs clock in/out on jobs.
+            </p>
+          )}
+          {topTechs.map((tech) => {
+            const initials = tech.name
+              .split(" ")
+              .map((p) => p[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+            const pct = tech.revenuePerHourCents
+              ? Math.round((tech.revenuePerHourCents / maxRevPerHour) * 100)
+              : 0;
+            return (
+              <div key={tech.id}>
+                <i>{initials}</i>
+                <span>
+                  <b>{tech.name}</b>
+                  <small>
+                    {tech.revenuePerHourCents ? `${money(tech.revenuePerHourCents)}/hr` : "No hours logged"} · {tech.hours}h
+                  </small>
+                </span>
+                <em>
+                  <i style={{ width: `${pct}%` }} />
+                </em>
+                <strong>{pct}%</strong>
+              </div>
+            );
+          })}
         </section>
         <section className="agentRevenue dispatchPanel">
           <header>
             <div>
-              <small>AI AGENT PERFORMANCE</small>
-              <h2>Revenue created automatically</h2>
+              <small>AI AGENT PERFORMANCE · PREVIEW</small>
+              <h2>Not yet built for Dispatch</h2>
             </div>
             <button onClick={() => onView("AI Agents")}>Agent center →</button>
           </header>
-          <div className="agentRevenueHero">
-            <span>✦</span>
-            <div>
-              <b>$15,420</b>
-              <small>FROM SETTER FOLLOW-UPS THIS MONTH</small>
-            </div>
-            <em>18.2% close rate</em>
-          </div>
-          {[
-            ["Receptionist", "81% booking conversion", "+6%"],
-            ["Setter", "42 leads recovered", "$15.4K"],
-            ["Learning system", "3 new insights ready", "Review"],
-          ].map((item) => (
-            <button onClick={() => onView("AI Agents")} key={item[0]}>
-              <span>
-                <b>{item[0]}</b>
-                <small>{item[1]}</small>
-              </span>
-              <em>{item[2]}</em>
-            </button>
-          ))}
+          <p className="dispatchPanelEmpty">
+            Dispatch AI agents (receptionist, setter, follow-up) aren&apos;t built yet — this
+            panel will show real agent-attributed revenue once they are.
+          </p>
         </section>
         <section className="profitPulse dispatchPanel">
           <header>
@@ -8931,28 +8989,31 @@ function DispatchDashboard({
           </header>
           <div className="profitRing">
             <span>
-              <b>38.4%</b>
+              <b>{analytics ? `${analytics.profitability.marginPct}%` : "—"}</b>
               <small>NET MARGIN</small>
             </span>
           </div>
           <div className="profitFacts">
             <span>
               <small>REVENUE</small>
-              <b>$48,250</b>
+              <b>{analytics ? money(analytics.profitability.revenueCents) : "—"}</b>
             </span>
             <span>
               <small>LABOR</small>
-              <b>$12,840</b>
+              <b>{analytics ? money(analytics.profitability.laborCents) : "—"}</b>
             </span>
             <span>
               <small>MATERIALS</small>
-              <b>$16,880</b>
+              <b>{analytics ? money(analytics.profitability.materialsCents) : "—"}</b>
             </span>
             <span>
               <small>PROFIT</small>
-              <b>$18,530</b>
+              <b>{analytics ? money(analytics.profitability.profitCents) : "—"}</b>
             </span>
           </div>
+          {analytics && analytics.profitability.jobsIncluded === 0 && (
+            <p className="dispatchPanelEmpty">Based on completed/invoiced jobs — none yet.</p>
+          )}
         </section>
       </div>
     </>

@@ -7687,6 +7687,13 @@ label {
   padding: 0;
   font-size: 6px;
 }
+.dispatchPanelEmpty {
+  margin: 0;
+  padding: 16px;
+  color: #8a7a7d;
+  font-size: 7px;
+  line-height: 1.5;
+}
 .dispatchMetrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -23594,6 +23601,7 @@ button.crmUser i {
 .studioSectionRow>div{display:flex;gap:4px}
 .studioSectionRow button{min-height:22px;min-width:22px;border:1px solid #34262a;border-radius:5px;background:#1b1114;color:#c9babe;padding:0;font-size:9px}
 .studioSectionRow button:disabled{opacity:.3}
+.studioAiRewriteBtn{color:#d98fa0!important;border-color:#4a2b33!important}
 .studioAddSectionBtn{border:1px dashed #4b3138;border-radius:8px;background:transparent;color:#ed7187;min-height:36px;font-size:9px}
 .studioAddSectionMenu{display:grid;gap:6px;border:1px solid #34262a;border-radius:8px;background:#0c0a0b;padding:10px}
 .studioAddSectionMenu button{min-height:30px;border:1px solid #34262a;border-radius:6px;background:#181113;color:#fff;font-size:9px;text-align:left;padding:0 10px}
