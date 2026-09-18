@@ -29,12 +29,10 @@ type Tab =
 type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive" | "apex" | "prime" | "messages";
 
 export default function Home() {
-  // ACTIVE products — only Core is currently enabled
-  const activeProducts: CyncroProduct[] = ["core"];
-  // If only one product is active, go straight to it instead of the switcher
-  const [product, setProduct] = useState<CyncroProduct>(
-    activeProducts.length === 1 ? activeProducts[0] : "switcher",
-  );
+  // ACTIVE products — Core and Dispatch are real, working products
+  const activeProducts: CyncroProduct[] = ["core", "dispatch"];
+  // Land directly in Core by default; the switcher is one click away via "Products"
+  const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
     [permissions, setPermissions] = useState<{
       role: string;
@@ -125,6 +123,17 @@ export default function Home() {
   // Show product switcher
   if (product === "switcher") {
     return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={setProduct} />;
+  }
+  // Dispatch is a real, separate product — hand off to the actual app
+  if (product === "dispatch") {
+    return (
+      <CyncroDispatch
+        onNavigate={(destination) => {
+          setProduct("core");
+          navigate(destination);
+        }}
+      />
+    );
   }
   // Show gated screen for non-active products
   if (product !== "core") {
@@ -23407,7 +23416,6 @@ const CYNCRO_PRODUCTS: {
     tagline: "Field-service & contractor OS",
     color: "#1E6FD9",
     icon: "⬡",
-    badge: "Coming Soon",
     features: ["Dispatch board", "Work orders", "Technician tracking", "Live map", "Clock in/out", "Photos & signatures", "Job invoicing"],
   },
   {
