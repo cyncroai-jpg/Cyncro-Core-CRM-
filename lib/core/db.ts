@@ -2967,6 +2967,11 @@ export async function ensureCoreSchema() {
     "ALTER TABLE calendar_ab_experiments ADD COLUMN tenant_id TEXT",
     "CREATE INDEX IF NOT EXISTS idx_ab_experiments_tenant ON calendar_ab_experiments(tenant_id)",
     "ALTER TABLE calendar_ab_events ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE loan_applications ADD COLUMN annual_income_cents INTEGER",
+    "ALTER TABLE loan_applications ADD COLUMN monthly_debt_payments_cents INTEGER",
+    "ALTER TABLE loan_applications ADD COLUMN employment_status TEXT",
+    "ALTER TABLE loan_applications ADD COLUMN self_reported_credit_score INTEGER",
+    "ALTER TABLE loan_applications ADD COLUMN ai_recommendation TEXT",
   ]) {
     try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }

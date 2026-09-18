@@ -41,6 +41,7 @@ import {
   getLoanApplication,
   type LoanType,
 } from "@/lib/core/lending-platform";
+import { performAIUnderwriting, saveAIRecommendation } from "@/lib/core/lending-ai";
 import { logAuditAction } from "@/lib/core/audit";
 
 export async function GET(request: Request) {
@@ -209,6 +210,10 @@ export async function POST(request: Request) {
       const applicantPhone = body.applicantPhone
         ? cleanText(String(body.applicantPhone), 20)
         : undefined;
+      const annualIncomeCents = body.annualIncome ? Math.round(Number(body.annualIncome) * 100) : undefined;
+      const monthlyDebtPaymentsCents = body.monthlyDebtPayments ? Math.round(Number(body.monthlyDebtPayments) * 100) : undefined;
+      const employmentStatus = body.employmentStatus ? cleanText(String(body.employmentStatus), 50) : undefined;
+      const selfReportedCreditScore = body.selfReportedCreditScore ? Number(body.selfReportedCreditScore) : undefined;
 
       if (!applicantId || !applicantEmail || !productId) {
         return Response.json(
@@ -225,7 +230,8 @@ export async function POST(request: Request) {
         requestedAmount,
         requestedTerm,
         purpose,
-        applicantPhone
+        applicantPhone,
+        { annualIncomeCents, monthlyDebtPaymentsCents, employmentStatus, selfReportedCreditScore }
       );
 
       await logAuditAction(
@@ -263,6 +269,27 @@ export async function POST(request: Request) {
       );
 
       return Response.json({ application });
+    }
+
+    if (section === "applications" && action === "ai-underwrite" && resourceId) {
+      // POST /api/lending?resource=applications&id=X&action=ai-underwrite
+      const result = await performAIUnderwriting(tenant.tenantId, resourceId);
+      await saveAIRecommendation(tenant.tenantId, resourceId, result);
+
+      await logAuditAction(
+        tenant.tenantId,
+        tenant.userId,
+        tenant.email,
+        "AI_UNDERWRITE",
+        "loan_application",
+        resourceId,
+        {
+          resourceName: `AI recommendation: ${result.recommendedDecision}`,
+          status: "SUCCESS",
+        }
+      );
+
+      return Response.json({ recommendation: result });
     }
 
     if (section === "applications" && action === "underwrite" && resourceId) {

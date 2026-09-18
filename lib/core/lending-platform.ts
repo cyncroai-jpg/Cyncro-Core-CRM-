@@ -93,6 +93,11 @@ export interface LoanApplication {
   estimatedAPR?: number;
   monthlyPayment?: number;
   documents?: string[]; // document IDs
+  annualIncomeCents?: number;
+  monthlyDebtPaymentsCents?: number;
+  employmentStatus?: string;
+  selfReportedCreditScore?: number;
+  aiRecommendation?: string; // JSON-encoded AIUnderwritingResult
   createdAt: string;
   updatedAt: string;
 }
@@ -304,7 +309,13 @@ export async function createLoanApplication(
   requestedAmount: number,
   requestedTerm: number,
   purpose: string,
-  applicantPhone?: string
+  applicantPhone?: string,
+  financials?: {
+    annualIncomeCents?: number;
+    monthlyDebtPaymentsCents?: number;
+    employmentStatus?: string;
+    selfReportedCreditScore?: number;
+  }
 ): Promise<LoanApplication> {
   const db = coreDb();
   const id = crypto.randomUUID();
@@ -314,8 +325,10 @@ export async function createLoanApplication(
     .prepare(
       `INSERT INTO loan_applications (
         id, tenant_id, applicant_id, applicant_email, applicant_phone, product_id,
-        requested_amount, requested_term, purpose, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        requested_amount, requested_term, purpose, status,
+        annual_income_cents, monthly_debt_payments_cents, employment_status, self_reported_credit_score,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -328,6 +341,10 @@ export async function createLoanApplication(
       requestedTerm,
       purpose,
       "STARTED",
+      financials?.annualIncomeCents ?? null,
+      financials?.monthlyDebtPaymentsCents ?? null,
+      financials?.employmentStatus ?? null,
+      financials?.selfReportedCreditScore ?? null,
       now,
       now
     )
@@ -344,6 +361,10 @@ export async function createLoanApplication(
     requestedTerm,
     purpose,
     status: "STARTED",
+    annualIncomeCents: financials?.annualIncomeCents,
+    monthlyDebtPaymentsCents: financials?.monthlyDebtPaymentsCents,
+    employmentStatus: financials?.employmentStatus,
+    selfReportedCreditScore: financials?.selfReportedCreditScore,
     createdAt: now,
     updatedAt: now,
   };

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 const times = [
   "9:00 AM",
@@ -18260,7 +18260,21 @@ function CRMLending({ onFlash }: { onFlash: (message: string) => void }) {
     [loans, setLoans] = useState<Row[]>([]),
     [loaded, setLoaded] = useState(false),
     [adding, setAdding] = useState<"product" | "application" | "underwrite" | "offer" | null>(null),
-    [activeAppId, setActiveAppId] = useState<string>("");
+    [activeAppId, setActiveAppId] = useState<string>(""),
+    [aiRunning, setAiRunning] = useState<string>("");
+  type AIRec = { recommendedDecision: string; riskLevel: string; debtToIncomeRatio: number; recommendedAPR: number | null; recommendedMonthlyPayment: number | null; reasoning: string; redFlags: string[]; confidence: string };
+  const parseAIRec = (row: Row): AIRec | null => {
+    if (!row.ai_recommendation) return null;
+    try { return JSON.parse(String(row.ai_recommendation)) as AIRec; } catch { return null; }
+  };
+  const runAIUnderwriting = async (appId: string) => {
+    setAiRunning(appId);
+    const res = await fetch(`/api/lending?resource=applications&id=${appId}&action=ai-underwrite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    setAiRunning("");
+    if (!res.ok) { onFlash("AI underwriting failed"); return; }
+    await load();
+    onFlash("AI underwriting recommendation ready");
+  };
   const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n || 0);
   const load = async () => {
     const [p, a, l] = await Promise.all([
@@ -18287,7 +18301,7 @@ function CRMLending({ onFlash }: { onFlash: (message: string) => void }) {
       return;
     }
     if (adding === "application") {
-      const res = await fetch("/api/lending?resource=applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicantId: values.applicantId, applicantEmail: values.applicantEmail, productId: values.productId, requestedAmount: Number(values.requestedAmount), requestedTerm: Number(values.requestedTerm), purpose: values.purpose }) });
+      const res = await fetch("/api/lending?resource=applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicantId: values.applicantId, applicantEmail: values.applicantEmail, productId: values.productId, requestedAmount: Number(values.requestedAmount), requestedTerm: Number(values.requestedTerm), purpose: values.purpose, annualIncome: values.annualIncome || undefined, monthlyDebtPayments: values.monthlyDebtPayments || undefined, employmentStatus: values.employmentStatus || undefined, selfReportedCreditScore: values.selfReportedCreditScore || undefined }) });
       if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Application could not be created"); return; }
       setAdding(null); await load(); onFlash("Application submitted for intake");
       return;
@@ -18342,19 +18356,36 @@ function CRMLending({ onFlash }: { onFlash: (message: string) => void }) {
         {applications.length ? (
           <div className="dataTableWrap"><table className="dataTable">
             <thead><tr><th>Applicant</th><th>Amount</th><th>Term</th><th>Status</th><th></th></tr></thead>
-            <tbody>{applications.map((a) => (
-              <tr key={String(a.id)}>
+            <tbody>{applications.map((a) => {
+              const rec = parseAIRec(a);
+              return (
+              <Fragment key={String(a.id)}>
+              <tr>
                 <td>{String(a.applicant_email)}</td>
                 <td>{money(Number(a.requested_amount))}</td>
                 <td>{String(a.requested_term)}mo</td>
                 <td><span className={`statusPill ${statusClass(a.status)}`}>{String(a.status)}</span></td>
                 <td className="opsRowActions">
-                  {a.status === "DRAFT" && <button onClick={() => void submitApplication(String(a.id))}>Submit</button>}
+                  {a.status === "STARTED" && <button onClick={() => void submitApplication(String(a.id))}>Submit</button>}
+                  {a.status === "SUBMITTED" && <button disabled={aiRunning === String(a.id)} onClick={() => void runAIUnderwriting(String(a.id))}>{aiRunning === String(a.id) ? "Analyzing…" : "AI underwrite"}</button>}
                   {a.status === "SUBMITTED" && <button onClick={() => { setActiveAppId(String(a.id)); setAdding("underwrite"); }}>Underwrite</button>}
                   {a.status === "APPROVED" && <button onClick={() => { setActiveAppId(String(a.id)); setAdding("offer"); }}>Create offer</button>}
                 </td>
               </tr>
-            ))}</tbody>
+              {rec && (
+                <tr>
+                  <td colSpan={5} style={{ background: "#1c1516", fontSize: 12, padding: "8px 12px" }}>
+                    <b>AI recommendation: {rec.recommendedDecision}</b>
+                    {rec.recommendedAPR != null && <> · {rec.recommendedAPR}% APR · ${(rec.recommendedMonthlyPayment || 0) / 100}/mo</>}
+                    {" "}· DTI {(rec.debtToIncomeRatio * 100).toFixed(0)}% · {rec.riskLevel} risk · {rec.confidence} confidence
+                    <div style={{ color: "#a79b9e", marginTop: 4 }}>{rec.reasoning}</div>
+                    {rec.redFlags.length > 0 && <div style={{ color: "#e0725a", marginTop: 4 }}>⚠ {rec.redFlags.join(" · ")}</div>}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+              );
+            })}</tbody>
           </table></div>
         ) : loaded ? <p className="opsEmpty">No applications yet.</p> : null}
       </section>
@@ -18381,8 +18412,20 @@ function CRMLending({ onFlash }: { onFlash: (message: string) => void }) {
               <button type="button" onClick={() => setAdding(null)}>×</button>
             </div>
             {adding === "product" && <><input name="name" placeholder="Product name" required autoFocus /><select name="type"><option value="PERSONAL">Personal</option><option value="AUTO">Auto</option><option value="HOME">Home</option><option value="BUSINESS">Business</option><option value="STUDENT">Student</option></select><input name="minAmount" type="number" placeholder="Min amount ($)" required /><input name="maxAmount" type="number" placeholder="Max amount ($)" required /><input name="minTerm" type="number" placeholder="Min term (months)" required /><input name="maxTerm" type="number" placeholder="Max term (months)" required /><input name="baseInterestRate" type="number" step=".01" placeholder="Base APR (%)" required /><input name="description" placeholder="Description" /></>}
-            {adding === "application" && <><input name="applicantId" placeholder="Applicant ID" required autoFocus /><input name="applicantEmail" type="email" placeholder="Applicant email" required /><select name="productId" required>{products.length ? products.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>) : <option value="">Create a product first</option>}</select><input name="requestedAmount" type="number" placeholder="Requested amount ($)" required /><input name="requestedTerm" type="number" placeholder="Requested term (months)" required /><input name="purpose" placeholder="Purpose" /></>}
-            {adding === "underwrite" && <><input name="creditScore" type="number" placeholder="Credit score" required autoFocus /><input name="debtToIncomeRatio" type="number" step=".1" placeholder="Debt-to-income (%)" required /><select name="riskLevel"><option value="LOW">Low risk</option><option value="MEDIUM">Medium risk</option><option value="HIGH">High risk</option></select><select name="decision"><option value="APPROVED">Approved</option><option value="DECLINED">Declined</option><option value="MANUAL_REVIEW">Manual review</option></select><input name="estimatedAPR" type="number" step=".01" placeholder="Estimated APR (%)" /><input name="monthlyPayment" type="number" placeholder="Est. monthly payment ($)" /></>}
+            {adding === "application" && <><input name="applicantId" placeholder="Applicant ID" required autoFocus /><input name="applicantEmail" type="email" placeholder="Applicant email" required /><select name="productId" required>{products.length ? products.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>) : <option value="">Create a product first</option>}</select><input name="requestedAmount" type="number" placeholder="Requested amount ($)" required /><input name="requestedTerm" type="number" placeholder="Requested term (months)" required /><input name="purpose" placeholder="Purpose" /><input name="annualIncome" type="number" placeholder="Annual income ($)" /><input name="monthlyDebtPayments" type="number" placeholder="Existing monthly debt payments ($)" /><select name="employmentStatus"><option value="">Employment status (optional)</option><option value="EMPLOYED">Employed</option><option value="SELF_EMPLOYED">Self-employed</option><option value="UNEMPLOYED">Unemployed</option><option value="RETIRED">Retired</option></select><input name="selfReportedCreditScore" type="number" placeholder="Self-reported credit score" /></>}
+            {adding === "underwrite" && (() => {
+              const activeApp = applications.find((a) => String(a.id) === activeAppId);
+              const rec = activeApp ? parseAIRec(activeApp) : null;
+              return <>
+                {rec && <p style={{ fontSize: 12, color: "#a79b9e", gridColumn: "1 / -1" }}>AI suggested: {rec.recommendedDecision} · {rec.riskLevel} risk · {rec.recommendedAPR != null ? `${rec.recommendedAPR}% APR` : "no rate (decline)"} — review and confirm below.</p>}
+                <input name="creditScore" type="number" placeholder="Credit score" defaultValue={activeApp ? String(activeApp.self_reported_credit_score || "") : ""} required autoFocus />
+                <input name="debtToIncomeRatio" type="number" step=".1" placeholder="Debt-to-income (%)" defaultValue={rec ? String(Math.round(rec.debtToIncomeRatio * 1000) / 10) : ""} required />
+                <select name="riskLevel" defaultValue={rec?.riskLevel || "MEDIUM"}><option value="LOW">Low risk</option><option value="MEDIUM">Medium risk</option><option value="HIGH">High risk</option><option value="VERY_HIGH">Very high risk</option></select>
+                <select name="decision" defaultValue={rec?.recommendedDecision === "APPROVE" ? "APPROVED" : rec?.recommendedDecision === "DECLINE" ? "DECLINED" : "MANUAL_REVIEW"}><option value="APPROVED">Approved</option><option value="DECLINED">Declined</option><option value="MANUAL_REVIEW">Manual review</option></select>
+                <input name="estimatedAPR" type="number" step=".01" placeholder="Estimated APR (%)" defaultValue={rec?.recommendedAPR != null ? String(rec.recommendedAPR) : ""} />
+                <input name="monthlyPayment" type="number" placeholder="Est. monthly payment ($)" defaultValue={rec?.recommendedMonthlyPayment != null ? String(Math.round(rec.recommendedMonthlyPayment / 100)) : ""} />
+              </>;
+            })()}
             {adding === "offer" && <><input name="loanAmount" type="number" placeholder="Loan amount ($)" required autoFocus /><input name="interestRate" type="number" step=".01" placeholder="Interest rate (%)" required /><input name="term" type="number" placeholder="Term (months)" required /></>}
             <button className="crmCreate" type="submit">Save</button>
           </form>
