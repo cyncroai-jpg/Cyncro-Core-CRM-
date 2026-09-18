@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       totalTouchpoints: events.length,
     });
 
-    const prompt = `You are the Cyncro Growth Intelligence command bar. Real data (JSON):
+    const prompt = `You are the Cyncro Intelligence command bar. Real data (JSON):
 ${dataContext}
 
 User question: "${query}"

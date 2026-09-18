@@ -37,7 +37,7 @@ export default function GrowthIntelligence() {
   return (
     <div className="giApp">
       <aside className="giNav">
-        <div className="giBrand"><b>CYNCRO</b><span>GROWTH INTELLIGENCE</span></div>
+        <div className="giBrand"><b>CYNCRO</b><span>INTELLIGENCE</span></div>
         <nav>
           {MODULES.map((m) => (
             <button key={m.id} className={module === m.id ? "giNavActive" : ""} onClick={() => setModule(m.id)}>{m.label}</button>
@@ -82,7 +82,7 @@ function GiCommandBar({ onFlash, onNavigate }: { onFlash: (m: string) => void; o
   };
   return (
     <div className="giCommandBar">
-      <input placeholder="Ask Growth Intelligence — “which campaign produced the most revenue?”" value={query}
+      <input placeholder="Ask Cyncro Intelligence — “which campaign produced the most revenue?”" value={query}
         onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void ask()} />
       <button disabled={asking} onClick={() => void ask()}>{asking ? "Thinking…" : "Ask →"}</button>
       {answer && <div className="giCommandAnswer">{answer}</div>}
@@ -118,10 +118,10 @@ function GiOverview({ onNavigate }: { onNavigate: (m: GrowthModule) => void }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (!data || seeding) return <div className="giLoading">{seeding ? "Loading live example data…" : "Loading Growth Intelligence…"}</div>;
+  if (!data || seeding) return <div className="giLoading">{seeding ? "Loading live example data…" : "Loading Cyncro Intelligence…"}</div>;
   return (
     <section className="giOverview">
-      <header><small>CYNCRO GROWTH INTELLIGENCE</small><h1>Acquisition to revenue, in one truth layer.</h1></header>
+      <header><small>CYNCRO INTELLIGENCE</small><h1>Acquisition to revenue, in one truth layer.</h1></header>
       <div className="giStatGrid">
         <article><small>ATTRIBUTED REVENUE</small><b>{money(data.attributedRevenueCents)}</b></article>
         <article><small>OPEN ATTRIBUTED PIPELINE</small><b>{money(data.openPipelineCents)}</b></article>

@@ -206,7 +206,7 @@ export default function Home() {
               </button>
             ))}
           <span>● CORE BETA</span>
-          <a className="productSwitcherBtn" href="/growth" title="Growth Intelligence">◐ Growth</a>
+          <a className="productSwitcherBtn" href="/growth" title="Cyncro Intelligence">◐ Intelligence</a>
           <button className="productSwitcherBtn" onClick={() => setProduct("switcher")} title="All products">⬡ Products</button>
         </nav>
       </header>
@@ -1510,7 +1510,7 @@ function FrontExperience({
       action: "Explore Finance",
     },
     {
-      name: "Apex Funds",
+      name: "Cyncro Funds",
       label: "CONNECT + FUND",
       headline: "One command center for the entire lender network.",
       copy: "Purpose-built fintech infrastructure for lending brokers. Normalize live application status, rates, terms, stipulations, and lender decisions across every connected lender—then recover declined applicants instead of losing the deal.",
@@ -1523,9 +1523,9 @@ function FrontExperience({
       proofLabel: "lenders connected",
       image: "/module-images/cyncro-finance.webp",
       imageAlt:
-        "Apex Funds lender network dashboard with applications, offers, and recovery workflows",
+        "Cyncro Funds lender network dashboard with applications, offers, and recovery workflows",
       route: "apex" as Tab,
-      action: "Open Apex Funds",
+      action: "Open Cyncro Funds",
     },
     {
       name: "Cyncro Dispute",
@@ -1618,7 +1618,7 @@ function FrontExperience({
     },
     {
       capability: "Lending-broker infrastructure",
-      cyncro: "Apex Funds",
+      cyncro: "Cyncro Funds",
       highlevel: "Not purpose-built",
       clickfunnels: "Not purpose-built",
     },
@@ -1658,7 +1658,7 @@ function FrontExperience({
     [
       "SPECIALIZE",
       "Industry Systems",
-      "Automotive Finance, Dispute operations + Apex Funds lending infrastructure",
+      "Automotive Finance, Dispute operations + Cyncro Funds lending infrastructure",
     ],
     [
       "UNDERSTAND",
@@ -5485,7 +5485,7 @@ function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       <aside className="disputeSidebar">
         <div className="disputeBrand">
           <span>AF</span>
-          <div><b>Apex Funds</b><small>Lending-broker infrastructure</small></div>
+          <div><b>Cyncro Funds</b><small>Lending-broker infrastructure</small></div>
         </div>
         <nav>
           {nav.map((item) => (
@@ -21610,7 +21610,7 @@ const CYNCRO_PRODUCTS: {
   },
   {
     id: "apex",
-    name: "Apex Funds",
+    name: "Cyncro Funds",
     tagline: "Lending-broker fintech infrastructure",
     color: "#B45309",
     icon: "▲",
@@ -21618,7 +21618,7 @@ const CYNCRO_PRODUCTS: {
   },
   {
     id: "growth",
-    name: "Growth Intelligence",
+    name: "Cyncro Intelligence",
     tagline: "Acquisition, attribution & AI agents",
     color: "#C1283E",
     icon: "◐",
