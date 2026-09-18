@@ -1,7 +1,10 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ReactFlow, Background, Controls, Handle, Position, addEdge, useNodesState, useEdgesState, type Node, type Edge, type Connection, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { DndContext, useDraggable, useDroppable, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type GrowthModule = "overview" | "forms" | "landing-pages" | "journeys" | "attribution" | "tracking" | "campaigns" | "automations" | "agents" | "conversations" | "revenue-intelligence" | "experiments" | "integrations";
 
@@ -220,6 +223,49 @@ function NewFormDialog({ onCreate, onCancel }: { onCreate: (name: string, type: 
 }
 
 const FIELD_TYPES = ["TEXT", "EMAIL", "PHONE", "ADDRESS", "DROPDOWN", "RADIO", "CHECKBOX", "DATE", "CURRENCY", "NUMBER", "FILE"];
+const FIELD_TYPE_META: Record<string, { label: string; icon: string }> = {
+  TEXT: { label: "Text", icon: "✎" }, EMAIL: { label: "Email", icon: "@" }, PHONE: { label: "Phone", icon: "☎" },
+  ADDRESS: { label: "Address", icon: "⌂" }, DROPDOWN: { label: "Dropdown", icon: "▾" }, RADIO: { label: "Radio", icon: "◉" },
+  CHECKBOX: { label: "Checkbox", icon: "☑" }, DATE: { label: "Date", icon: "▦" }, CURRENCY: { label: "Currency", icon: "$" },
+  NUMBER: { label: "Number", icon: "#" }, FILE: { label: "File upload", icon: "⇧" },
+};
+const CHOICE_FIELD_TYPES = new Set(["DROPDOWN", "RADIO", "CHECKBOX"]);
+
+function PaletteItem({ type }: { type: string }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `palette-${type}`, data: { source: "palette", fieldType: type } });
+  const meta = FIELD_TYPE_META[type];
+  return (
+    <button ref={setNodeRef} className={`dndPaletteItem${isDragging ? " dndDragging" : ""}`} {...listeners} {...attributes} type="button">
+      <i>{meta.icon}</i>{meta.label}
+    </button>
+  );
+}
+
+function StepDropZone({ step, children }: { step: GiStep; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `step-${step.id}`, data: { source: "step", stepId: step.id } });
+  return <div ref={setNodeRef} className={`dndStepZone${isOver ? " dndOver" : ""}`}>{children}</div>;
+}
+
+function SortableFieldRow({ field, stepId, onUpdate, onRemove }: { field: GiField; stepId: string; onUpdate: (patch: Partial<GiField>) => void; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, data: { source: "field", stepId } });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} className="giFieldRow">
+      <span className="dndHandle" {...attributes} {...listeners}>⠿</span>
+      <input value={field.label} onChange={(e) => onUpdate({ label: e.target.value })} />
+      <select value={field.type} onChange={(e) => onUpdate({ type: e.target.value, options: CHOICE_FIELD_TYPES.has(e.target.value) && !field.options.length ? ["Option 1", "Option 2"] : field.options })}>
+        {FIELD_TYPES.map((t) => <option key={t} value={t}>{FIELD_TYPE_META[t].label}</option>)}
+      </select>
+      <input className="dndOptionsInput" style={{ visibility: CHOICE_FIELD_TYPES.has(field.type) ? "visible" : "hidden" }}
+        placeholder="Option 1, Option 2, …" value={field.options.join(", ")} onChange={(e) => onUpdate({ options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })} />
+      <select value={field.role || ""} onChange={(e) => onUpdate({ role: (e.target.value || null) as FieldRole })}>
+        <option value="">No identity role</option><option value="NAME">Identity: Name</option><option value="EMAIL">Identity: Email</option><option value="PHONE">Identity: Phone</option>
+      </select>
+      <label className="dndRequiredLabel"><input type="checkbox" checked={field.required} onChange={(e) => onUpdate({ required: e.target.checked })} /> Required</label>
+      <button onClick={onRemove}>✕</button>
+    </div>
+  );
+}
 
 function GiFormEditor({ form, onBack, onFlash, leak, onAnalyze }: {
   form: Record<string, unknown>; onBack: () => void; onFlash: (m: string) => void;
@@ -260,6 +306,35 @@ function GiFormEditor({ form, onBack, onFlash, leak, onAnalyze }: {
   };
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/gf?form=${form.public_token}` : "";
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const activeData = active.data.current as { source?: string; fieldType?: string; stepId?: string } | undefined;
+    const overData = over.data.current as { source?: string; stepId?: string } | undefined;
+    if (!activeData) return;
+    if (activeData.source === "palette") {
+      const targetStepId = overData?.stepId;
+      const fieldType = activeData.fieldType;
+      if (!targetStepId || !fieldType) return;
+      const isChoice = CHOICE_FIELD_TYPES.has(fieldType);
+      setSteps((prev) => prev.map((s) => s.id === targetStepId
+        ? { ...s, fields: [...s.fields, { id: uid(), label: `${FIELD_TYPE_META[fieldType]?.label || fieldType} question`, type: fieldType, required: false, options: isChoice ? ["Option 1", "Option 2"] : [], role: fieldType === "EMAIL" ? "EMAIL" : fieldType === "PHONE" ? "PHONE" : null }] }
+        : s));
+      return;
+    }
+    if (activeData.source === "field" && activeData.stepId && active.id !== over.id) {
+      const stepId = activeData.stepId;
+      setSteps((prev) => prev.map((s) => {
+        if (s.id !== stepId) return s;
+        const oldIndex = s.fields.findIndex((f) => f.id === active.id);
+        const newIndex = s.fields.findIndex((f) => f.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return s;
+        return { ...s, fields: arrayMove(s.fields, oldIndex, newIndex) };
+      }));
+    }
+  };
 
   return (
     <section className="giSection">
@@ -274,34 +349,59 @@ function GiFormEditor({ form, onBack, onFlash, leak, onAnalyze }: {
         <button disabled={generating} onClick={() => void generateWithAi()}>{generating ? "Generating…" : "✦ Generate with AI"}</button>
       </div>
 
-      {steps.map((step, stepIndex) => (
-        <article className="giPanel giFormStep" key={step.id}>
-          <header><small>STEP {stepIndex + 1}</small>
-            <input className="giInlineTitle" value={step.title} onChange={(e) => setSteps(steps.map((s) => s.id === step.id ? { ...s, title: e.target.value } : s))} />
-            <button onClick={() => addField(step.id)}>+ Field</button>
-          </header>
-          {step.fields.map((field) => (
-            <div className="giFieldRow" key={field.id}>
-              <input value={field.label} onChange={(e) => updateField(step.id, field.id, { label: e.target.value })} />
-              <select value={field.type} onChange={(e) => updateField(step.id, field.id, { type: e.target.value })}>{FIELD_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
-              <select value={field.role || ""} onChange={(e) => updateField(step.id, field.id, { role: (e.target.value || null) as FieldRole })}>
-                <option value="">No identity role</option><option value="NAME">Identity: Name</option><option value="EMAIL">Identity: Email</option><option value="PHONE">Identity: Phone</option>
-              </select>
-              <label><input type="checkbox" checked={field.required} onChange={(e) => updateField(step.id, field.id, { required: e.target.checked })} /> Required</label>
-              <button onClick={() => removeField(step.id, field.id)}>✕</button>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="dndFormLayout">
+          <aside className="dndPalette">
+            <small>DRAG A FIELD ONTO A STEP</small>
+            {FIELD_TYPES.map((t) => <PaletteItem key={t} type={t} />)}
+          </aside>
+          <div className="dndSteps">
+            {steps.map((step, stepIndex) => (
+              <article className="giPanel giFormStep" key={step.id}>
+                <header><small>STEP {stepIndex + 1}</small>
+                  <input className="giInlineTitle" value={step.title} onChange={(e) => setSteps(steps.map((s) => s.id === step.id ? { ...s, title: e.target.value } : s))} />
+                  <button onClick={() => addField(step.id)}>+ Field</button>
+                </header>
+                <StepDropZone step={step}>
+                  <SortableContext items={step.fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                    {step.fields.map((field) => (
+                      <SortableFieldRow key={field.id} field={field} stepId={step.id}
+                        onUpdate={(patch) => updateField(step.id, field.id, patch)} onRemove={() => removeField(step.id, field.id)} />
+                    ))}
+                  </SortableContext>
+                  {!step.fields.length && <p className="giEmpty">Drag a field type here, or click "+ Field".</p>}
+                </StepDropZone>
+              </article>
+            ))}
+            <button className="giAddStep" onClick={addStep}>+ Add step</button>
+          </div>
+          <aside className="dndPreview">
+            <small>LIVE PREVIEW</small>
+            <div className="dndPreviewCard">
+              {steps.flatMap((s) => s.fields).length ? steps.map((step) => (
+                <div key={step.id} className="dndPreviewStep">
+                  <b>{step.title}</b>
+                  {step.fields.map((f) => (
+                    <label key={f.id} className="dndPreviewField">
+                      <span>{f.label}{f.required && <em>*</em>}</span>
+                      {f.type === "DROPDOWN" ? <select disabled><option>{f.options[0] || "Choose…"}</option></select>
+                        : f.type === "CHECKBOX" || f.type === "RADIO" ? <div className="dndPreviewChoices">{f.options.map((o) => <span key={o}>{o}</span>)}</div>
+                        : <input disabled placeholder={FIELD_TYPE_META[f.type]?.label} />}
+                    </label>
+                  ))}
+                </div>
+              )) : <p className="giEmpty">Add fields to see the live preview.</p>}
             </div>
-          ))}
-          {!step.fields.length && <p className="giEmpty">No fields yet.</p>}
-        </article>
-      ))}
-      <button className="giAddStep" onClick={addStep}>+ Add step</button>
+          </aside>
+        </div>
+      </DndContext>
 
       <article className="giPanel">
         <header><small>THANK-YOU + CRM SYNC</small></header>
         <label>Thank-you message<input value={thankYou.message || ""} onChange={(e) => setThankYou({ ...thankYou, message: e.target.value })} /></label>
         <label>Redirect URL (optional)<input value={thankYou.redirectUrl || ""} onChange={(e) => setThankYou({ ...thankYou, redirectUrl: e.target.value })} placeholder="https://…" /></label>
-        <label><input type="checkbox" checked={!!syncConfig.createOpportunity} onChange={(e) => setSyncConfig({ ...syncConfig, createOpportunity: e.target.checked })} /> Create a CRM opportunity on submit</label>
-        <label><input type="checkbox" checked={!!syncConfig.qualifyWithAI} onChange={(e) => setSyncConfig({ ...syncConfig, qualifyWithAI: e.target.checked })} /> Run AI lead qualification on submit</label>
+        <label className="giCheckboxLabel"><input type="checkbox" checked={!!syncConfig.createOpportunity} onChange={(e) => setSyncConfig({ ...syncConfig, createOpportunity: e.target.checked })} /> Create a CRM opportunity on submit</label>
+        <label className="giCheckboxLabel"><input type="checkbox" checked={!!syncConfig.qualifyWithAI} onChange={(e) => setSyncConfig({ ...syncConfig, qualifyWithAI: e.target.checked })} /> Run AI lead qualification on submit</label>
         {syncConfig.qualifyWithAI && (
           <label>Qualification agent
             <select value={syncConfig.qualificationAgentId || ""} onChange={(e) => setSyncConfig({ ...syncConfig, qualificationAgentId: e.target.value })}>
