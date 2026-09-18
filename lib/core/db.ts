@@ -368,6 +368,49 @@ export async function ensureCoreSchema() {
       outcome TEXT NOT NULL DEFAULT 'USED', used_by TEXT, created_at TEXT NOT NULL,
       FOREIGN KEY(playbook_id) REFERENCES crm_sales_playbooks(id)
     )`),
+    // ============ CRM AUTOMATIONS — a real rule engine, not a mockup ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_automation_rules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      trigger_event TEXT NOT NULL,
+      trigger_filter TEXT NOT NULL DEFAULT '{}',
+      action_type TEXT NOT NULL,
+      action_config TEXT NOT NULL DEFAULT '{}',
+      active INTEGER NOT NULL DEFAULT 1,
+      run_count INTEGER NOT NULL DEFAULT 0,
+      last_run_at TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_automation_rules_trigger_idx ON crm_automation_rules(trigger_event, active)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_automation_runs (
+      id TEXT PRIMARY KEY,
+      rule_id TEXT NOT NULL,
+      trigger_event TEXT NOT NULL,
+      context TEXT NOT NULL DEFAULT '{}',
+      result TEXT NOT NULL,
+      detail TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(rule_id) REFERENCES crm_automation_rules(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_automation_runs_rule_idx ON crm_automation_runs(rule_id, created_at DESC)"),
+    // ============ CRM AGENT TEAM — real AI-powered actions, run through Anthropic ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_agent_runs (
+      id TEXT PRIMARY KEY,
+      agent_type TEXT NOT NULL,
+      contact_id TEXT,
+      opportunity_id TEXT,
+      input_summary TEXT,
+      output TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      error TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(contact_id) REFERENCES crm_contacts(id),
+      FOREIGN KEY(opportunity_id) REFERENCES crm_opportunities(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS crm_agent_runs_contact_idx ON crm_agent_runs(contact_id, created_at DESC)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS attribution_touchpoints (
       id TEXT PRIMARY KEY, visitor_id TEXT, contact_id TEXT, opportunity_id TEXT, channel TEXT NOT NULL DEFAULT 'DIRECT',
       source TEXT NOT NULL DEFAULT 'Direct', medium TEXT, campaign TEXT, content TEXT, term TEXT, landing_page TEXT,

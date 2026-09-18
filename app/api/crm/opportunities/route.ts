@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, isWorkspaceOwner, requestUser } from "@/lib/core/db";
+import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     await coreDb().prepare(`INSERT INTO crm_opportunities
       (id, account_id, primary_contact_id, pipeline_id, name, stage, value_cents, cost_cents, probability, assigned_rep, commission_rate_bps,
        commission_status, payment_status, collected_cents, residual_rate_bps, residual_months, residual_flat_cents, expected_close_date, source, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(id, accountId, cleanText(body.primaryContactId, 80) || null, pipelineId, name, stage, valueCents, Math.max(0, Math.round(Number(body.cost || 0) * 100)), probability,
         cleanText(body.assignedRep, 160) || requestUser(request), commissionRateBps, cleanText(body.paymentStatus, 30).toUpperCase() || "UNPAID",
         Math.max(0, Math.round(Number(body.collected || 0) * 100)), 0, 0, residualFlatCents, cleanText(body.expectedCloseDate, 20) || null,
@@ -65,7 +66,7 @@ export async function PATCH(request: Request) {
     const compensationKeys = ["commissionRate","commissionStatus","residualRate","residualMonths","residualFlat","collected","paymentStatus","commissionNotes"];
     const isOwner = await isWorkspaceOwner(request);
     const userEmail = requestUser(request);
-    const deal = await coreDb().prepare("SELECT assigned_rep FROM crm_opportunities WHERE id=?").bind(id).first<{assigned_rep:string}>();
+    const deal = await coreDb().prepare("SELECT assigned_rep, stage, account_id, primary_contact_id FROM crm_opportunities WHERE id=?").bind(id).first<{assigned_rep:string; stage:string; account_id:string; primary_contact_id:string|null}>();
     const isAssignedRep = deal?.assigned_rep && deal.assigned_rep.toLowerCase() === userEmail.toLowerCase();
     if (compensationKeys.some((key) => updates[key] !== undefined) && !isOwner && !isAssignedRep) return Response.json({ error: "Owner or assigned rep permission is required to change compensation." }, { status: 403 });
     const fields: string[] = []; const values: unknown[] = [];
@@ -90,7 +91,21 @@ export async function PATCH(request: Request) {
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString()); values.push(id);
     await coreDb().prepare(`UPDATE crm_opportunities SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
-    return Response.json({ opportunity: await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ?").bind(id).first() });
+    const updatedOpportunity = await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ?").bind(id).first<Record<string, unknown>>();
+    if (updates.stage !== undefined) {
+      const newStage = cleanText(updates.stage, 80).toUpperCase();
+      const previousStage = deal?.stage || "";
+      if (newStage !== previousStage) {
+        const automationContext = {
+          opportunityId: id, accountId: deal?.account_id || "", contactId: deal?.primary_contact_id || "",
+          assignedRep: deal?.assigned_rep || "", stage: newStage, previousStage,
+        };
+        await runAutomations(request, "OPPORTUNITY_STAGE_CHANGED", automationContext);
+        if (newStage === "CLOSED WON") await runAutomations(request, "OPPORTUNITY_WON", automationContext);
+        if (newStage === "CLOSED LOST") await runAutomations(request, "OPPORTUNITY_LOST", automationContext);
+      }
+    }
+    return Response.json({ opportunity: updatedOpportunity });
   } catch (error) {
     console.error("crm.opportunities.update_failed", error);
     return Response.json({ error: "Unable to update opportunity." }, { status: 500 });

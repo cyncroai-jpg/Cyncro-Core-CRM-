@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, hasModuleAccess, normalizeEmail, normalizePhone, requestUser } from "@/lib/core/db";
+import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
   try {
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
         .bind(opportunityId, accountId, id, defaultPipeline.id, `${fullName} opportunity`, firstStage.name, cleanText(body.assignedRep,160) || requestUser(request), cleanText(body.source,80) || "MANUAL", now, now).run();
     }
     const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ?").bind(id).first();
+    await runAutomations(request, "CONTACT_CREATED", { contactId: id, accountId, opportunityId, source: cleanText(body.source, 80) || "MANUAL" });
     return Response.json({ contact, accountId, opportunityId }, { status: 201 });
   } catch (error) {
     console.error("crm.contacts.create_failed", error);

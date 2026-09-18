@@ -10954,7 +10954,7 @@ function UniversalCRM({
     { name: "Journeys", icon: "↝" },
     { name: "Automations", icon: "⌁" },
     { name: "Data Graph", icon: "⌘" },
-    { name: "Agent Team", icon: "✧", count: "5" },
+    { name: "Agent Team", icon: "✧" },
     { name: "Team Access", icon: "♙", permission:"manage_users" },
     { name: "Compensation", icon: "%", permission:"compensation_access" },
     { name: "Invoices", icon: "$", permission:"invoice_access" },
@@ -10969,7 +10969,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -14904,87 +14904,149 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+type CrmAutomationRule = {
+  id: string; name: string; trigger_event: string; trigger_filter: string; action_type: string; action_config: string;
+  active: number; run_count: number; last_run_at: string | null;
+};
+type CrmAutomationRun = { id: string; rule_id: string; trigger_event: string; result: string; detail: string | null; created_at: string };
+const AUTOMATION_TRIGGERS = [
+  { value: "CONTACT_CREATED", label: "A contact is created" },
+  { value: "OPPORTUNITY_STAGE_CHANGED", label: "An opportunity's stage changes" },
+  { value: "OPPORTUNITY_WON", label: "An opportunity is marked Closed Won" },
+  { value: "OPPORTUNITY_LOST", label: "An opportunity is marked Closed Lost" },
+];
+const AUTOMATION_ACTIONS = [
+  { value: "CREATE_TASK", label: "Create a task" },
+  { value: "ADD_ACTIVITY_NOTE", label: "Add a note to the contact" },
+  { value: "ASSIGN_REP", label: "Assign the opportunity to a rep" },
+];
+
 function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
+  const [rules, setRules] = useState<CrmAutomationRule[]>([]);
+  const [runs, setRuns] = useState<CrmAutomationRun[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ name: "", triggerEvent: "OPPORTUNITY_STAGE_CHANGED", stageFilter: "", actionType: "CREATE_TASK", taskTitle: "", dueInDays: "1", noteTitle: "", noteDetails: "", rep: "" });
+  const load = () => {
+    void fetch("/api/crm/automations").then((r) => r.json()).then((d: { rules?: CrmAutomationRule[]; runs?: CrmAutomationRun[] }) => {
+      setRules(d.rules || []); setRuns(d.runs || []);
+    });
+  };
+  useEffect(load, []);
+
+  const activeCount = rules.filter((r) => r.active).length;
+  const successCount = runs.filter((r) => r.result === "SUCCESS").length;
+  const successRate = runs.length ? Math.round((successCount / runs.length) * 100) : 0;
+
+  const createRule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { onFlash("Give the rule a name"); return; }
+    const triggerFilter = form.triggerEvent === "OPPORTUNITY_STAGE_CHANGED" && form.stageFilter ? { stage: form.stageFilter.toUpperCase() } : {};
+    const actionConfig = form.actionType === "CREATE_TASK" ? { title: form.taskTitle || "Follow up", dueInDays: Number(form.dueInDays) || 1 }
+      : form.actionType === "ADD_ACTIVITY_NOTE" ? { title: form.noteTitle || "Automation note", details: form.noteDetails }
+      : { rep: form.rep };
+    void fetch("/api/crm/automations", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: form.name, triggerEvent: form.triggerEvent, triggerFilter, actionType: form.actionType, actionConfig }),
+    }).then((r) => r.json()).then((d: { id?: string; error?: string }) => {
+      if (d.error) { onFlash(d.error); return; }
+      onFlash("Automation rule created"); setCreating(false);
+      setForm({ name: "", triggerEvent: "OPPORTUNITY_STAGE_CHANGED", stageFilter: "", actionType: "CREATE_TASK", taskTitle: "", dueInDays: "1", noteTitle: "", noteDetails: "", rep: "" });
+      load();
+    });
+  };
+  const toggleRule = (rule: CrmAutomationRule) => {
+    void fetch("/api/crm/automations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: rule.id, active: !rule.active }) })
+      .then((r) => { if (r.ok) load(); });
+  };
+  const deleteRule = (id: string) => {
+    void fetch(`/api/crm/automations?id=${id}`, { method: "DELETE" }).then((r) => { if (r.ok) { onFlash("Rule deleted"); load(); } });
+  };
+
   return (
     <div className="automationWorkspace">
-      <p className="disputeEmpty">CONCEPT PREVIEW — automation systems aren't connected yet. Everything below is example data.</p>
+      <div className="dispatchPageHead">
+        <div>
+          <span>CRM AUTOMATIONS</span>
+          <h1>Real rules that run against your real data.</h1>
+          <p>When a contact is created or an opportunity's stage changes, matching rules create a task, log a note, or reassign
+            the deal automatically — no AI persona, just a real trigger → action engine you can audit.</p>
+        </div>
+        <button onClick={() => setCreating(!creating)}>{creating ? "Cancel" : "＋ New rule"}</button>
+      </div>
       <div className="automationSummary">
-        {[
-          ["18", "ACTIVE SYSTEMS"],
-          ["4,286", "ACTIONS THIS MONTH"],
-          ["96.8%", "SUCCESS RATE"],
-          ["132 hrs", "TIME RETURNED"],
-        ].map((item) => (
-          <div key={item[1]}>
-            <b>{item[0]}</b>
-            <small>{item[1]}</small>
+        {[[String(activeCount), "ACTIVE RULES"], [String(runs.length), "RUNS LOGGED"], [`${successRate}%`, "SUCCESS RATE"]].map((item) => (
+          <div key={item[1]}><b>{item[0]}</b><small>{item[1]}</small></div>
+        ))}
+      </div>
+      {creating && (
+        <form className="disputeAddClientForm" onSubmit={createRule}>
+          <input placeholder="Rule name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <select value={form.triggerEvent} onChange={(e) => setForm({ ...form, triggerEvent: e.target.value })}>
+            {AUTOMATION_TRIGGERS.map((t) => <option value={t.value} key={t.value}>{t.label}</option>)}
+          </select>
+          {form.triggerEvent === "OPPORTUNITY_STAGE_CHANGED" && (
+            <input placeholder="Only when stage becomes (optional, e.g. PROPOSAL)" value={form.stageFilter} onChange={(e) => setForm({ ...form, stageFilter: e.target.value })} />
+          )}
+          <select value={form.actionType} onChange={(e) => setForm({ ...form, actionType: e.target.value })}>
+            {AUTOMATION_ACTIONS.map((a) => <option value={a.value} key={a.value}>{a.label}</option>)}
+          </select>
+          {form.actionType === "CREATE_TASK" && (
+            <>
+              <input placeholder="Task title" value={form.taskTitle} onChange={(e) => setForm({ ...form, taskTitle: e.target.value })} />
+              <input type="number" min="0" placeholder="Due in N days" value={form.dueInDays} onChange={(e) => setForm({ ...form, dueInDays: e.target.value })} />
+            </>
+          )}
+          {form.actionType === "ADD_ACTIVITY_NOTE" && (
+            <>
+              <input placeholder="Note title" value={form.noteTitle} onChange={(e) => setForm({ ...form, noteTitle: e.target.value })} />
+              <input placeholder="Note details" value={form.noteDetails} onChange={(e) => setForm({ ...form, noteDetails: e.target.value })} />
+            </>
+          )}
+          {form.actionType === "ASSIGN_REP" && (
+            <input placeholder="Rep email" value={form.rep} onChange={(e) => setForm({ ...form, rep: e.target.value })} />
+          )}
+          <button type="submit">Create rule</button>
+        </form>
+      )}
+      <div className="automationGrid">
+        {rules.map((rule) => {
+          let filter: Record<string, unknown> = {};
+          try { filter = JSON.parse(rule.trigger_filter || "{}"); } catch { /* ignore */ }
+          return (
+            <article className="crmPanel" key={rule.id}>
+              <header>
+                <span>{AUTOMATION_TRIGGERS.find((t) => t.value === rule.trigger_event)?.label || rule.trigger_event}</span>
+                <i className={rule.active ? "on" : ""}>{rule.active ? "ACTIVE" : "PAUSED"}</i>
+              </header>
+              <h2>{rule.name}</h2>
+              <p>{AUTOMATION_ACTIONS.find((a) => a.value === rule.action_type)?.label || rule.action_type}
+                {Object.keys(filter).length ? ` — only when ${Object.entries(filter).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}</p>
+              <footer>
+                <small>{rule.run_count} run(s){rule.last_run_at ? ` · last ${new Date(rule.last_run_at).toLocaleString()}` : ""}</small>
+                <button onClick={() => toggleRule(rule)}>{rule.active ? "Pause" : "Activate"}</button>
+                <button onClick={() => deleteRule(rule.id)}>Delete</button>
+              </footer>
+            </article>
+          );
+        })}
+        {!rules.length && <p className="disputeEmpty">No automation rules yet — create one above. It'll run for real the next time its trigger happens.</p>}
+      </div>
+      <section className="dispatchPanel">
+        <header><div><small>RUN LOG</small><h2>What actually happened</h2></div></header>
+        {runs.slice(0, 20).map((run) => (
+          <div className="disputeListRow" key={run.id}>
+            <b>{rules.find((r) => r.id === run.rule_id)?.name || "Deleted rule"}</b>
+            <span>{run.detail || run.trigger_event}</span>
+            <em style={{ color: run.result === "SUCCESS" ? undefined : "#ff8fa3" }}>{run.result}</em>
+            <small>{new Date(run.created_at).toLocaleString()}</small>
           </div>
         ))}
-      </div>
-      <div className="automationGrid">
-        {[
-          [
-            "Booking → Opportunity",
-            "When a qualified booking is created, enrich the contact, open an opportunity, and assign the correct owner.",
-            "1,248 runs",
-            "LIVE",
-          ],
-          [
-            "No-show recovery",
-            "Send a recovery sequence, reopen availability, and notify the owner when a customer rebooks.",
-            "184 runs",
-            "LIVE",
-          ],
-          [
-            "High-intent escalation",
-            "Detect proposal views, payment activity, and decision language—then create the next best action.",
-            "96 runs",
-            "LIVE",
-          ],
-          [
-            "Customer onboarding",
-            "After payment, create tasks, collect documents, book kickoff, and move the lifecycle stage.",
-            "72 runs",
-            "LIVE",
-          ],
-          [
-            "Waitlist conversion",
-            "Fill cancelled seats automatically and stop the sequence when capacity is restored.",
-            "318 runs",
-            "LIVE",
-          ],
-          [
-            "Reactivation engine",
-            "Identify dormant contacts with buying signals and launch a personalized re-engagement path.",
-            "Ready",
-            "DRAFT",
-          ],
-        ].map((item, index) => (
-          <article className="crmPanel" key={item[0]}>
-            <header>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <i className={item[3] === "LIVE" ? "on" : ""}>{item[3]}</i>
-            </header>
-            <h2>{item[0]}</h2>
-            <p>{item[1]}</p>
-            <footer>
-              <small>{item[2]}</small>
-              <button onClick={() => onFlash("Automation systems aren't connected yet — this is a concept preview")}>
-                Open system →
-              </button>
-            </footer>
-          </article>
-        ))}
-      </div>
-      <button
-        className="newAutomation"
-        onClick={() => onFlash("Automation builder isn't connected yet")}
-      >
-        ＋ Build a new operating system
-      </button>
+        {!runs.length && <p className="disputeEmpty">No rules have run yet.</p>}
+      </section>
     </div>
   );
 }
+
 function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
   const [focus, setFocus] = useState("Alexandra Lewis");
   const nodes = [
@@ -15103,98 +15165,75 @@ function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+type CrmAgentContact = { id: string; full_name: string; company_name: string | null };
+type CrmAgentRun = { id: string; agent_type: string; contact_id: string; contact_name?: string; output: string | null; status: string; error: string | null; created_at: string };
+const CRM_AGENT_TYPES: { value: string; label: string; desc: string }[] = [
+  { value: "SUMMARIZE_CONTACT", label: "Summarize", desc: "3-5 sentence summary of where this contact stands, grounded in their real activity and opportunities." },
+  { value: "DRAFT_FOLLOWUP", label: "Draft follow-up", desc: "A short, real follow-up email drafted from this contact's actual open opportunities and recent activity." },
+  { value: "SCORE_LEAD", label: "Score lead", desc: "A 0-100 likelihood-to-close score with reasoning, based only on this contact's real data." },
+];
+
 function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
-  const agents = [
-    [
-      "Atlas",
-      "Revenue strategist",
-      "Prioritizes pipeline, forecasts outcomes, and builds next-best actions.",
-      "128 decisions",
-      "LIVE",
-    ],
-    [
-      "Nova",
-      "Conversation agent",
-      "Handles inbound qualification and maintains context across every channel.",
-      "84 conversations",
-      "LIVE",
-    ],
-    [
-      "Sage",
-      "Customer intelligence",
-      "Enriches records, maps relationships, and monitors health and intent.",
-      "2,418 records",
-      "LIVE",
-    ],
-    [
-      "Kronos",
-      "Operations agent",
-      "Coordinates tasks, bookings, owners, resources, deadlines, and SLAs.",
-      "396 actions",
-      "LIVE",
-    ],
-    [
-      "Onyx",
-      "Governance agent",
-      "Monitors permissions, data quality, duplicates, risk, and audit policy.",
-      "14 reviews",
-      "GUARDED",
-    ],
-  ];
+  const [contacts, setContacts] = useState<CrmAgentContact[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [runs, setRuns] = useState<CrmAgentRun[]>([]);
+  const [running, setRunning] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/crm/contacts").then((r) => r.json()).then((d: { contacts?: CrmAgentContact[] }) => {
+      setContacts(d.contacts || []);
+      setSelectedContactId((prev) => prev || d.contacts?.[0]?.id || "");
+    });
+  }, []);
+  const loadRuns = () => {
+    void fetch("/api/crm/agents?contactId=" + selectedContactId).then((r) => r.json()).then((d: { runs?: CrmAgentRun[] }) => setRuns(d.runs || []));
+  };
+  useEffect(() => { if (selectedContactId) loadRuns(); }, [selectedContactId]);
+
+  const runAgent = (agentType: string) => {
+    if (!selectedContactId) { onFlash("Select a contact first"); return; }
+    setRunning(agentType);
+    void fetch("/api/crm/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agentType, contactId: selectedContactId }) })
+      .then(async (r) => {
+        const d = await r.json() as { output?: string; error?: string };
+        setRunning(null);
+        if (!r.ok) { onFlash(d.error || "Agent run failed"); return; }
+        onFlash("Agent finished — see the result below");
+        loadRuns();
+      });
+  };
+  const selectedContact = contacts.find((c) => c.id === selectedContactId);
+
   return (
     <div className="agentWorkspace">
       <section className="agentHero">
         <div>
-          <small>AGENTIC REVENUE OPERATING SYSTEM · CONCEPT PREVIEW</small>
-          <h2>Your AI team works across the entire customer lifecycle.</h2>
+          <small>CRM AGENT TEAM</small>
+          <h2>Real AI actions, grounded in your real contact data.</h2>
           <p>
-            Each agent has a defined role, access boundary, approval policy, memory scope, and
-            measurable business outcome — no agents are connected or running yet.
+            Pick a contact, run an agent, and it calls Claude with that contact's actual activity and opportunities —
+            never a fabricated persona or invented number. If no AI key is configured, you'll get a clear error,
+            not a fake result.
           </p>
         </div>
         <aside>
-          <button onClick={() => onFlash("No AI agents are connected yet — this is a concept preview")}>
-            Open orchestration map →
-          </button>
+          <select value={selectedContactId} onChange={(e) => setSelectedContactId(e.target.value)}>
+            <option value="">Select a contact…</option>
+            {contacts.map((c) => <option value={c.id} key={c.id}>{c.full_name}{c.company_name ? ` — ${c.company_name}` : ""}</option>)}
+          </select>
         </aside>
       </section>
       <div className="agentGrid">
-        {agents.map((agent, index) => (
-          <article className="crmPanel" key={agent[0]}>
+        {CRM_AGENT_TYPES.map((agent) => (
+          <article className="crmPanel" key={agent.value}>
             <header>
-              <span>{agent[0][0]}</span>
-              <div>
-                <small>AGENT {String(index + 1).padStart(2, "0")}</small>
-                <h3>{agent[0]}</h3>
-              </div>
-              <i className={agent[4] === "LIVE" ? "live" : "guarded"}>
-                {agent[4]}
-              </i>
+              <span>{agent.label[0]}</span>
+              <div><h3>{agent.label}</h3></div>
             </header>
-            <b>{agent[1]}</b>
-            <p>{agent[2]}</p>
-            <div className="agentStats">
-              <span>
-                <small>LAST 30 DAYS</small>
-                <b>{agent[3]}</b>
-              </span>
-              <span>
-                <small>AUTHORITY</small>
-                <b>
-                  {index < 2
-                    ? "Approve to send"
-                    : index === 4
-                      ? "Audit only"
-                      : "Internal actions"}
-                </b>
-              </span>
-            </div>
+            <p>{agent.desc}</p>
             <footer>
-              <button onClick={() => onFlash(`${agent[0]} isn't connected yet — no real activity to show`)}>
-                View activity
-              </button>
-              <button onClick={() => onFlash(`${agent[0]} isn't connected yet`)}>
-                Permissions
+              <button disabled={!selectedContactId || running === agent.value} onClick={() => runAgent(agent.value)}>
+                {running === agent.value ? "Running…" : `Run on ${selectedContact?.full_name || "contact"}`}
               </button>
             </footer>
           </article>
@@ -15202,43 +15241,18 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
       </div>
       <section className="agentCommand crmPanel">
         <div>
-          <small>SHARED MISSION CONTROL</small>
-          <h2>Coordinate agents around an outcome—not disconnected tasks.</h2>
+          <small>RUN HISTORY</small>
+          <h2>{selectedContact ? `Results for ${selectedContact.full_name}` : "Select a contact to see its agent history"}</h2>
         </div>
-        <div className="missionFlow">
-          <article>
-            <span>01</span>
-            <b>Observe</b>
-            <small>Business event stream</small>
-          </article>
-          <i>→</i>
-          <article>
-            <span>02</span>
-            <b>Reason</b>
-            <small>Shared context + policy</small>
-          </article>
-          <i>→</i>
-          <article>
-            <span>03</span>
-            <b>Propose</b>
-            <small>Plan + predicted impact</small>
-          </article>
-          <i>→</i>
-          <article>
-            <span>04</span>
-            <b>Approve</b>
-            <small>Human or policy gate</small>
-          </article>
-          <i>→</i>
-          <article>
-            <span>05</span>
-            <b>Execute</b>
-            <small>Action + full audit</small>
-          </article>
-        </div>
-        <button onClick={() => onFlash("Agent mission builder isn't connected yet")}>
-          ＋ Build an agent mission
-        </button>
+        {runs.map((run) => (
+          <div className="disputeListRow" key={run.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <b>{CRM_AGENT_TYPES.find((a) => a.value === run.agent_type)?.label || run.agent_type} · {run.status}</b>
+            {run.status === "COMPLETE" && run.output && <p style={{ whiteSpace: "pre-wrap" }}>{run.output}</p>}
+            {run.status === "FAILED" && <p style={{ color: "#ff8fa3" }}>{run.error}</p>}
+            <small>{new Date(run.created_at).toLocaleString()}</small>
+          </div>
+        ))}
+        {!runs.length && <p className="disputeEmpty">No agent runs for this contact yet.</p>}
       </section>
     </div>
   );
