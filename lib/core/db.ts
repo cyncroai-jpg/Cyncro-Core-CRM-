@@ -3315,6 +3315,9 @@ export function requestTenantId(request: Request): string | null {
  * Single-tenant users get migrated to a "default" tenant automatically.
  */
 export async function ensureUserDefaultTenant(email: string): Promise<string> {
+  if (email === "platform-owner") {
+    throw new Error("ensureUserDefaultTenant called with the platform-owner sentinel identity, not a real user email.");
+  }
   const db = coreDb();
   const now = new Date().toISOString();
 
@@ -3360,7 +3363,9 @@ export async function ensureUserDefaultTenant(email: string): Promise<string> {
 
 export async function getTenantContext(request: Request): Promise<TenantContext | null> {
   const email = await resolveRequestEmail(request);
-  if (!email) return null;
+  // "platform-owner" is a bootstrap-only sentinel for pre-setup access; it has no
+  // real account to own a tenant, so never persist a tenant/user for it.
+  if (!email || email === "platform-owner") return null;
 
   let tenantId = requestTenantId(request);
 
