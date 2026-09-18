@@ -68,9 +68,10 @@ export async function POST(request: Request) {
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(pageId, "Fall Roof Inspection Promo", "fall-roof-inspection", "PUBLISHED",
         JSON.stringify([
-          { id: uid(), type: "HEADLINE", text: "Free roof inspection this fall.", sub: "Catch damage before winter — 20-minute visit, no obligation." },
-          { id: uid(), type: "BENEFITS", heading: "What's included", body: "Full roof + gutter inspection, photo report, same-day repair estimate if needed." },
-          { id: uid(), type: "BUTTON", text: "Book my free inspection" },
+          { id: uid(), type: "HEADLINE", data: { headline: "Free roof inspection this fall.", sub: "Catch damage before winter — 20-minute visit, no obligation." } },
+          { id: uid(), type: "TEXT", data: { heading: "What's included", body: "Full roof + gutter inspection, photo report, same-day repair estimate if needed." } },
+          { id: uid(), type: "TESTIMONIAL", data: { quote: "They caught a leak before it became a real problem. Booked in two minutes, showed up on time.", author: "A real customer" } },
+          { id: uid(), type: "FORM", data: { formToken, formName: "Free Roof Inspection" } },
         ]), formId, null, JSON.stringify({ title: "Free Roof Inspection — Fall Promo" }), "form_submitted", 612, createdBy, daysAgo(58), daysAgo(58)).run();
 
     // ---- Campaigns ----
