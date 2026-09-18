@@ -2826,6 +2826,119 @@ export async function ensureCoreSchema() {
       owner TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`),
+    // ============ CYNCRO DISPATCH ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_customers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_properties (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(customer_id) REFERENCES dispatch_customers(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_properties_customer ON dispatch_properties(customer_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_equipment (
+      id TEXT PRIMARY KEY,
+      property_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      model TEXT,
+      serial_number TEXT,
+      installed_at TEXT,
+      warranty_expires_at TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(property_id) REFERENCES dispatch_properties(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_equipment_property ON dispatch_equipment(property_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_technicians (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      role TEXT NOT NULL DEFAULT 'TECHNICIAN',
+      hourly_rate_cents INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_jobs (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      property_id TEXT,
+      service_type TEXT NOT NULL,
+      description TEXT,
+      address TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'BOOKED',
+      assigned_tech_id TEXT,
+      revenue_cents INTEGER NOT NULL DEFAULT 0,
+      estimated_minutes INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(customer_id) REFERENCES dispatch_customers(id),
+      FOREIGN KEY(property_id) REFERENCES dispatch_properties(id),
+      FOREIGN KEY(assigned_tech_id) REFERENCES dispatch_technicians(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_jobs_status ON dispatch_jobs(status, scheduled_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_jobs_tech ON dispatch_jobs(assigned_tech_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_jobs_customer ON dispatch_jobs(customer_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_job_notes (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      author TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(job_id) REFERENCES dispatch_jobs(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_job_notes_job ON dispatch_job_notes(job_id, created_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_job_time_entries (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      tech_id TEXT,
+      clock_in_at TEXT NOT NULL,
+      clock_out_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(job_id) REFERENCES dispatch_jobs(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_time_job ON dispatch_job_time_entries(job_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_job_materials (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      quantity REAL NOT NULL DEFAULT 1,
+      unit_cost_cents INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(job_id) REFERENCES dispatch_jobs(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_materials_job ON dispatch_job_materials(job_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_invoices (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      issued_at TEXT,
+      paid_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(job_id) REFERENCES dispatch_jobs(id),
+      FOREIGN KEY(customer_id) REFERENCES dispatch_customers(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_invoices_job ON dispatch_invoices(job_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_invoices_customer ON dispatch_invoices(customer_id)"),
   ]);
   // Migration: add tenant_id columns to tables that predate multi-tenancy, then their
   // indexes. Run sequentially with try/catch (not inside the batch above) because

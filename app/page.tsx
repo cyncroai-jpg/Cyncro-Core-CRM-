@@ -7833,63 +7833,58 @@ type DispatchView =
   | "Team"
   | "Settings";
 
-const dispatchJobs = [
-  {
-    id: "JOB-2841",
-    time: "8:30 AM",
-    customer: "Morrison Residence",
-    service: "Home theater calibration",
-    address: "145 Ocean Breeze Dr, Wellington",
-    tech: "Andre Cole",
-    status: "IN PROGRESS",
-    revenue: "$1,850",
-    eta: "On site",
-    color: "red",
-  },
-  {
-    id: "JOB-2842",
-    time: "11:15 AM",
-    customer: "Atlas Dental Group",
-    service: "Digital signage service",
-    address: "2101 S Congress Ave, Palm Springs",
-    tech: "Andre Cole",
-    status: "ASSIGNED",
-    revenue: "$2,400",
-    eta: "24 min",
-    color: "amber",
-  },
-  {
-    id: "JOB-2843",
-    time: "1:45 PM",
-    customer: "Carter Collective",
-    service: "Access control installation",
-    address: "675 Royal Palm Beach Blvd",
-    tech: "Maya Torres",
-    status: "ASSIGNED",
-    revenue: "$4,200",
-    eta: "38 min",
-    color: "blue",
-  },
-  {
-    id: "JOB-2844",
-    time: "3:30 PM",
-    customer: "Villa Rosa HOA",
-    service: "Camera system inspection",
-    address: "880 Forest Hill Blvd, WPB",
-    tech: "Derek Stone",
-    status: "BOOKED",
-    revenue: "$975",
-    eta: "1 hr 12 min",
-    color: "green",
-  },
-];
+type DispatchJob = {
+  id: string;
+  time: string;
+  customer: string;
+  service: string;
+  address: string;
+  tech: string;
+  techId: string | null;
+  customerId: string;
+  status: string;
+  revenueCents: number;
+  revenue: string;
+  eta: string;
+  color: string;
+};
+type DispatchCustomer = { id: string; name: string; phone: string | null; email: string | null };
+type DispatchTechnician = { id: string; name: string; role: string; active_jobs: number };
+
+function jobColor(status: string) {
+  if (status === "IN PROGRESS") return "red";
+  if (status === "ASSIGNED") return "amber";
+  if (status === "BOOKED") return "green";
+  return "blue";
+}
+function mapDispatchJob(row: Record<string, unknown>): DispatchJob {
+  const scheduled = row.scheduled_at ? new Date(String(row.scheduled_at)) : null;
+  return {
+    id: String(row.id),
+    time: scheduled ? scheduled.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—",
+    customer: String(row.customer_name || "Unknown customer"),
+    service: String(row.service_type || ""),
+    address: String(row.address || ""),
+    tech: String(row.tech_name || "Unassigned"),
+    techId: row.assigned_tech_id ? String(row.assigned_tech_id) : null,
+    customerId: String(row.customer_id || ""),
+    status: String(row.status || "BOOKED"),
+    revenueCents: Number(row.revenue_cents || 0),
+    revenue: `$${(Number(row.revenue_cents || 0) / 100).toLocaleString()}`,
+    eta: String(row.status) === "COMPLETE" || String(row.status) === "INVOICED" ? "Done" : "Not routed",
+    color: jobColor(String(row.status || "BOOKED")),
+  };
+}
 
 function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [role, setRole] = useState<DispatchRole>("Owner");
   const [view, setView] = useState<DispatchView>("Dashboard");
   const [notice, setNotice] = useState("");
-  const [jobs, setJobs] = useState(dispatchJobs);
+  const [jobs, setJobs] = useState<DispatchJob[]>([]);
+  const [customers, setCustomers] = useState<DispatchCustomer[]>([]);
+  const [technicians, setTechnicians] = useState<DispatchTechnician[]>([]);
   const [selectedJob, setSelectedJob] = useState(0);
   const [techStatus, setTechStatus] = useState("EN ROUTE");
   const [loginEmail, setLoginEmail] = useState("");
@@ -7898,10 +7893,39 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
   };
+  const loadJobs = () => {
+    void fetch("/api/dispatch/jobs").then((r) => (r.ok ? r.json() : null)).then((data: { jobs?: Record<string, unknown>[] } | null) => {
+      if (data?.jobs) setJobs(data.jobs.map(mapDispatchJob));
+    });
+  };
+  const loadCustomers = () => {
+    void fetch("/api/dispatch/customers").then((r) => (r.ok ? r.json() : null)).then((data: { customers?: DispatchCustomer[] } | null) => {
+      if (data?.customers) setCustomers(data.customers);
+    });
+  };
+  const loadTechnicians = () => {
+    void fetch("/api/dispatch/technicians").then((r) => (r.ok ? r.json() : null)).then((data: { technicians?: DispatchTechnician[] } | null) => {
+      if (data?.technicians) setTechnicians(data.technicians);
+    });
+  };
+  useEffect(() => {
+    void fetch("/api/auth/me").then((r) => {
+      if (r.ok) {
+        setAuthenticated(true);
+        loadJobs();
+        loadCustomers();
+        loadTechnicians();
+      }
+      setCheckingSession(false);
+    });
+  }, []);
   const login = (nextRole: DispatchRole) => {
     setRole(nextRole);
     setAuthenticated(true);
     setView(nextRole === "Technician" ? "Jobs" : "Dashboard");
+    loadJobs();
+    loadCustomers();
+    loadTechnicians();
     flash(`${nextRole} workspace unlocked`);
   };
   const moveJob = (index: number, direction: number) => {
@@ -7911,62 +7935,79 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
     [next[index], next[target]] = [next[target], next[index]];
     setJobs(next);
     setSelectedJob(target);
-    flash("Route order updated · ETA recalculated");
+    flash("Route order updated locally · optimization not yet automated");
   };
   const createJob = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const customer = String(data.get("customer") || "").trim();
+    const customerName = String(data.get("customer") || "").trim();
     const service = String(data.get("service") || "").trim();
     const address = String(data.get("address") || "").trim();
-    if (!customer || !service || !address) {
+    const time = String(data.get("time") || "09:00");
+    const revenue = Number(data.get("revenue") || 0);
+    const techId = String(data.get("tech") || "");
+    if (!customerName || !service || !address) {
       flash("Customer, service, and address are required");
       return;
     }
-    const newJob = {
-      id: `JOB-${2841 + jobs.length}`,
-      time: String(data.get("time") || "9:00 AM"),
-      customer,
-      service,
-      address,
-      tech: String(data.get("tech") || "Unassigned"),
-      status: "BOOKED",
-      revenue: `$${Number(data.get("revenue") || 0).toLocaleString()}`,
-      eta: "Not routed",
-      color: "green",
-    };
-    setJobs((current) => [...current, newJob]);
-    setSelectedJob(jobs.length);
-    setView("Jobs");
-    setJobModalOpen(false);
-    flash(`${newJob.id} created`);
+    void (async () => {
+      let customerId = customers.find((c) => c.name.toLowerCase() === customerName.toLowerCase())?.id;
+      if (!customerId) {
+        const res = await fetch("/api/dispatch/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: customerName, address }),
+        });
+        if (!res.ok) { flash("Unable to create customer"); return; }
+        const created = await res.json() as { id: string };
+        customerId = created.id;
+        loadCustomers();
+      }
+      const scheduledAt = new Date();
+      const [h, m] = time.split(":").map(Number);
+      scheduledAt.setHours(h || 9, m || 0, 0, 0);
+      const res = await fetch("/api/dispatch/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId, serviceType: service, address, scheduledAt: scheduledAt.toISOString(),
+          revenue, assignedTechId: techId || undefined,
+        }),
+      });
+      if (!res.ok) { flash("Unable to create job"); return; }
+      const created = await res.json() as { id: string };
+      loadJobs();
+      loadTechnicians();
+      setView("Jobs");
+      setJobModalOpen(false);
+      flash(`Job created`);
+      void created;
+    })();
   };
   const advanceJob = (index: number) => {
-    const lifecycle = [
-      "BOOKED",
-      "ASSIGNED",
-      "IN PROGRESS",
-      "COMPLETE",
-      "INVOICED",
-    ];
-    setJobs((current) =>
-      current.map((job, jobIndex) => {
-        if (jobIndex !== index) return job;
-        const next =
-          lifecycle[
-            Math.min(lifecycle.indexOf(job.status) + 1, lifecycle.length - 1)
-          ];
-        return { ...job, status: next };
-      }),
-    );
-    flash("Job status advanced");
+    const lifecycle = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED"];
+    const job = jobs[index];
+    if (!job) return;
+    const next = lifecycle[Math.min(lifecycle.indexOf(job.status) + 1, lifecycle.length - 1)];
+    void fetch("/api/dispatch/jobs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: job.id, status: next }),
+    }).then((r) => {
+      if (r.ok) { loadJobs(); flash("Job status advanced"); }
+      else flash("Unable to update job");
+    });
   };
   const cancelJob = (index: number) => {
-    setJobs((current) => current.filter((_, jobIndex) => jobIndex !== index));
-    setSelectedJob(0);
-    flash("Job cancelled");
+    const job = jobs[index];
+    if (!job) return;
+    void fetch(`/api/dispatch/jobs?id=${encodeURIComponent(job.id)}`, { method: "DELETE" }).then((r) => {
+      if (r.ok) { loadJobs(); setSelectedJob(0); flash("Job cancelled"); }
+      else flash("Unable to cancel job");
+    });
   };
 
+  if (checkingSession) return null;
   if (!authenticated) {
     return (
       <section className="dispatchGate">
@@ -8319,11 +8360,11 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
             </div>
             <label>
               Assign technician
-              <select name="tech" defaultValue="Unassigned">
-                <option>Unassigned</option>
-                <option>Andre Cole</option>
-                <option>Maya Torres</option>
-                <option>Derek Stone</option>
+              <select name="tech" defaultValue="">
+                <option value="">Unassigned</option>
+                {technicians.map((t) => (
+                  <option value={t.id} key={t.id}>{t.name}</option>
+                ))}
               </select>
             </label>
             <footer>
@@ -8447,7 +8488,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
               }}
             />
           )}
-          {view === "Payments" && <DispatchPayments onFlash={flash} />}
+          {view === "Payments" && <DispatchPayments jobs={jobs} onFlash={flash} />}
           {view === "GPS Map" && (
             <DispatchMap jobs={jobs} onFlash={flash} onMove={moveJob} />
           )}
@@ -8456,6 +8497,8 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           {view === "Equipment" && <DispatchEquipment onFlash={flash} />}
           {view === "Team" && (
             <DispatchTeam
+              technicians={technicians}
+              onReload={loadTechnicians}
               onTech={() => setRole("Technician")}
               onFlash={flash}
             />
@@ -8474,7 +8517,7 @@ function DispatchDashboard({
   onMove,
   role,
 }: {
-  jobs: typeof dispatchJobs;
+  jobs: DispatchJob[];
   onView: (view: DispatchView) => void;
   onFlash: (message: string) => void;
   onMove: (index: number, direction: number) => void;
@@ -8720,7 +8763,7 @@ function DispatchJobs({
   onAdvance,
   onCancel,
 }: {
-  jobs: typeof dispatchJobs;
+  jobs: DispatchJob[];
   selected: number;
   setSelected: (index: number) => void;
   onFlash: (message: string) => void;
@@ -8732,52 +8775,74 @@ function DispatchJobs({
   const [inspectorTab, setInspectorTab] = useState<
     "Overview" | "Notes" | "Photos" | "Time" | "Work order"
   >("Overview");
-  const [notes, setNotes] = useState<Record<string, string[]>>({
-    "JOB-2841": [
-      "Customer reports rear-zone audio dropping after 20 minutes.",
-      "Network test passed. Replaced damaged HDMI termination and recalibrated system.",
-    ],
-  });
+  const [notes, setNotes] = useState<Record<string, string>[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
-  const [photos, setPhotos] = useState<Record<string, string[]>>({
-    "JOB-2841": ["Before · rack wiring.jpg", "After · calibrated theater.jpg"],
-  });
-  const [clockedIn, setClockedIn] = useState<Record<string, boolean>>({});
-  const [elapsed, setElapsed] = useState<Record<string, number>>({
-    "JOB-2841": 94,
-  });
+  const [clockedIn, setClockedIn] = useState(false);
+  const [timeEntries, setTimeEntries] = useState<{ clock_in_at: string; clock_out_at: string | null }[]>([]);
+  const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit_cost_cents: number }[]>([]);
+  const [materialDraft, setMaterialDraft] = useState({ name: "", quantity: "1", unitCost: "" });
+  const reloadJobDetail = () => {
+    if (!job) return;
+    void fetch(`/api/dispatch/jobs?id=${encodeURIComponent(job.id)}`).then((r) => (r.ok ? r.json() : null)).then((data: { notes?: Record<string, string>[]; time?: { clock_in_at: string; clock_out_at: string | null }[]; materials?: { id: string; name: string; quantity: number; unit_cost_cents: number }[] } | null) => {
+      if (!data) return;
+      setNotes(data.notes || []);
+      setTimeEntries(data.time || []);
+      setMaterials(data.materials || []);
+      setClockedIn(Boolean((data.time || []).some((t) => !t.clock_out_at)));
+    });
+  };
+  useEffect(reloadJobDetail, [job?.id]);
+  const addMaterial = () => {
+    if (!job || !materialDraft.name.trim()) return;
+    void fetch("/api/dispatch/materials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: job.id, name: materialDraft.name.trim(), quantity: Number(materialDraft.quantity) || 1, unitCost: Number(materialDraft.unitCost) || 0 }),
+    }).then((r) => {
+      if (!r.ok) { onFlash("Unable to add material"); return; }
+      setMaterialDraft({ name: "", quantity: "1", unitCost: "" });
+      reloadJobDetail();
+      onFlash("Material added");
+    });
+  };
+  const removeMaterial = (id: string) => {
+    void fetch(`/api/dispatch/materials?id=${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+      if (r.ok) reloadJobDetail();
+    });
+  };
+  const materialsCost = materials.reduce((s, m) => s + m.quantity * m.unit_cost_cents, 0);
+  const [profitability, setProfitability] = useState<{ revenueCents: number; materialsCents: number; laborCents: number; profitCents: number } | null>(null);
+  useEffect(() => {
+    if (!job) return;
+    void fetch(`/api/dispatch/invoices?jobId=${encodeURIComponent(job.id)}`).then((r) => (r.ok ? r.json() : null)).then((data: { profitability?: typeof profitability } | null) => {
+      if (data) setProfitability(data.profitability || null);
+    });
+  }, [job?.id, materials, timeEntries]);
   const addNote = () => {
     const clean = noteDraft.trim();
-    if (!clean) return;
-    setNotes((current) => ({
-      ...current,
-      [job.id]: [...(current[job.id] || []), clean],
-    }));
-    setNoteDraft("");
-    onFlash("Technical note saved to work order");
-  };
-  const addPhotos = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    setPhotos((current) => ({
-      ...current,
-      [job.id]: [...(current[job.id] || []), ...files.map((file) => file.name)],
-    }));
-    onFlash(`${files.length} job photo${files.length > 1 ? "s" : ""} added`);
-    event.target.value = "";
+    if (!clean || !job) return;
+    void fetch("/api/dispatch/jobs/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: job.id, body: clean }),
+    }).then((r) => {
+      if (!r.ok) { onFlash("Unable to save note"); return; }
+      setNotes((current) => [{ body: clean, created_at: new Date().toISOString() }, ...current]);
+      setNoteDraft("");
+      onFlash("Technical note saved to work order");
+    });
   };
   const toggleClock = () => {
-    const isIn = !!clockedIn[job.id];
-    setClockedIn((current) => ({ ...current, [job.id]: !isIn }));
-    if (isIn) {
-      setElapsed((current) => ({
-        ...current,
-        [job.id]: (current[job.id] || 0) + 47,
-      }));
-    }
-    onFlash(
-      isIn ? "Clocked out · labor entry saved" : "Clocked in · GPS verified",
-    );
+    if (!job) return;
+    void fetch("/api/dispatch/jobs/time", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: job.id, techId: job.techId }),
+    }).then((r) => (r.ok ? r.json() : null)).then((data: { clockedIn?: boolean } | null) => {
+      if (!data) { onFlash("Unable to update time entry"); return; }
+      setClockedIn(Boolean(data.clockedIn));
+      onFlash(data.clockedIn ? "Clocked in" : "Clocked out · labor entry saved");
+    });
   };
   if (!job) {
     return (
@@ -8861,28 +8926,26 @@ function DispatchJobs({
         {inspectorTab === "Overview" && (
           <>
             <div className="jobTimeline">
-              {[
-                ["BOOKED", "Calendar created job", "8:02 AM"],
-                ["ASSIGNED", `${job.tech} assigned`, "8:05 AM"],
-                ["EN ROUTE", "GPS tracking started", "8:18 AM"],
-                ["ARRIVED", "Geofence verified", "8:29 AM"],
-              ].map((event, index) => (
-                <div className={index < 3 ? "done" : ""} key={event[0]}>
-                  <i>{index < 3 ? "✓" : ""}</i>
-                  <span>
-                    <b>{event[0]}</b>
-                    <small>{event[1]}</small>
-                  </span>
-                  <time>{event[2]}</time>
-                </div>
-              ))}
+              {["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED"].map((status) => {
+                const lifecycle = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED"];
+                const done = lifecycle.indexOf(job.status) >= lifecycle.indexOf(status);
+                return (
+                  <div className={done ? "done" : ""} key={status}>
+                    <i>{done ? "✓" : ""}</i>
+                    <span>
+                      <b>{status}</b>
+                      <small>{status === job.status ? "Current status" : ""}</small>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="jobEconomics">
               {[
                 ["Revenue", job.revenue],
-                ["Labor", "$420"],
-                ["Materials", "$315"],
-                ["Projected profit", "$1,115"],
+                ["Labor", `$${((profitability?.laborCents ?? 0) / 100).toLocaleString()}`],
+                ["Materials", `$${((profitability?.materialsCents ?? materialsCost) / 100).toLocaleString()}`],
+                ["Projected profit", `$${((profitability?.profitCents ?? (job.revenueCents - materialsCost)) / 100).toLocaleString()}`],
               ].map((item) => (
                 <span key={item[0]}>
                   <small>{item[0]}</small>
@@ -8890,11 +8953,6 @@ function DispatchJobs({
                 </span>
               ))}
             </div>
-            <button
-              onClick={() => onFlash("Customer update queued for SMS delivery")}
-            >
-              Send customer update
-            </button>
             <button onClick={() => onAdvance(selected)}>
               Advance job status
             </button>
@@ -8908,23 +8966,23 @@ function DispatchJobs({
             <header>
               <div>
                 <small>FIELD NOTES</small>
-                <b>{(notes[job.id] || []).length} entries</b>
+                <b>{notes.length} entries</b>
               </div>
               <span>Visible to office + assigned tech</span>
             </header>
             <div className="jobNotesList">
-              {(notes[job.id] || []).map((note, index) => (
-                <article key={`${job.id}-${index}`}>
+              {notes.map((note, index) => (
+                <article key={note.id || index}>
                   <i>{index + 1}</i>
                   <div>
-                    <p>{note}</p>
+                    <p>{note.body}</p>
                     <small>
-                      {job.tech} · Today, {index ? "10:42 AM" : "9:18 AM"}
+                      {note.author || job.tech} · {note.created_at ? new Date(note.created_at).toLocaleString() : ""}
                     </small>
                   </div>
                 </article>
               ))}
-              {!(notes[job.id] || []).length && (
+              {!notes.length && (
                 <p className="emptyRecord">
                   No notes yet. Add diagnostics, work performed, unresolved
                   issues, or next steps.
@@ -8944,67 +9002,51 @@ function DispatchJobs({
             <header>
               <div>
                 <small>JOB DOCUMENTATION</small>
-                <b>{(photos[job.id] || []).length} uploads</b>
+                <b>Photo storage not yet connected</b>
               </div>
               <span>Before · after · serials · test results</span>
             </header>
-            <div className="jobPhotoGrid">
-              {(photos[job.id] || []).map((photo, index) => (
-                <article key={`${photo}-${index}`}>
-                  <div>
-                    <span>{index % 2 ? "AFTER" : "BEFORE"}</span>▧
-                  </div>
-                  <b>{photo}</b>
-                  <small>Uploaded by {job.tech}</small>
-                </article>
-              ))}
-            </div>
-            <label className="photoUploadButton">
-              ＋ Upload job photos
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={addPhotos}
-              />
-            </label>
+            <p className="emptyRecord">
+              Photo uploads need cloud file storage enabled on this account
+              before they can be saved to the job record. This is on the
+              roadmap — for now, attach photos to the job note above by
+              describing what they show.
+            </p>
           </div>
         )}
         {inspectorTab === "Time" && (
           <div className="jobRecordPanel timeClockPanel">
             <header>
               <div>
-                <small>GPS-VERIFIED TIME</small>
-                <b>{clockedIn[job.id] ? "Shift active" : "Not clocked in"}</b>
+                <small>TRACKED TIME</small>
+                <b>{clockedIn ? "Shift active" : "Not clocked in"}</b>
               </div>
-              <span>Geofence · labor · drive time</span>
+              <span>Labor logged against this job</span>
             </header>
-            <div className={`clockHero ${clockedIn[job.id] ? "active" : ""}`}>
-              <span>{clockedIn[job.id] ? "● LIVE" : "○ READY"}</span>
+            <div className={`clockHero ${clockedIn ? "active" : ""}`}>
+              <span>{clockedIn ? "● LIVE" : "○ READY"}</span>
               <b>
-                {Math.floor((elapsed[job.id] || 0) / 60)}h{" "}
-                {(elapsed[job.id] || 0) % 60}m
+                {(() => {
+                  const totalMinutes = timeEntries.reduce((sum, entry) => {
+                    if (!entry.clock_out_at) return sum;
+                    return sum + (new Date(entry.clock_out_at).getTime() - new Date(entry.clock_in_at).getTime()) / 60000;
+                  }, 0);
+                  return `${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m`;
+                })()}
               </b>
               <small>Total labor recorded</small>
             </div>
             <button className="clockAction" onClick={toggleClock}>
-              {clockedIn[job.id]
-                ? "Clock out and save time"
-                : "Clock in to this job"}
+              {clockedIn ? "Clock out and save time" : "Clock in to this job"}
             </button>
             <div className="timeEntries">
-              <article>
-                <span>Arrival verified</span>
-                <b>8:29 AM</b>
-              </article>
-              <article>
-                <span>Drive time</span>
-                <b>24 min</b>
-              </article>
-              <article>
-                <span>Billable labor</span>
-                <b>{elapsed[job.id] || 0} min</b>
-              </article>
+              {timeEntries.map((entry, index) => (
+                <article key={index}>
+                  <span>{new Date(entry.clock_in_at).toLocaleString()}</span>
+                  <b>{entry.clock_out_at ? `${Math.round((new Date(entry.clock_out_at).getTime() - new Date(entry.clock_in_at).getTime()) / 60000)} min` : "In progress"}</b>
+                </article>
+              ))}
+              {!timeEntries.length && <p className="emptyRecord">No time logged yet.</p>}
             </div>
           </div>
         )}
@@ -9057,6 +9099,25 @@ function DispatchJobs({
             >
               Request customer signature
             </button>
+            <section>
+              <small>MATERIALS &amp; PARTS</small>
+              {materials.map((m) => (
+                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
+                  <span>{m.quantity}× {m.name}</span>
+                  <span>
+                    ${((m.quantity * m.unit_cost_cents) / 100).toLocaleString()}
+                    <button onClick={() => removeMaterial(m.id)} style={{ marginLeft: 8 }}>✕</button>
+                  </span>
+                </div>
+              ))}
+              {!materials.length && <p className="emptyRecord">No materials logged for this job yet.</p>}
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input placeholder="Material name" value={materialDraft.name} onChange={(e) => setMaterialDraft((d) => ({ ...d, name: e.target.value }))} style={{ flex: 2 }} />
+                <input placeholder="Qty" type="number" min="0" step="1" value={materialDraft.quantity} onChange={(e) => setMaterialDraft((d) => ({ ...d, quantity: e.target.value }))} style={{ flex: 1 }} />
+                <input placeholder="Unit cost $" type="number" min="0" step="0.01" value={materialDraft.unitCost} onChange={(e) => setMaterialDraft((d) => ({ ...d, unitCost: e.target.value }))} style={{ flex: 1 }} />
+                <button onClick={addMaterial}>Add</button>
+              </div>
+            </section>
           </div>
         )}
       </aside>
@@ -9069,7 +9130,7 @@ function DispatchWorkOrders({
   onFlash,
   onViewJob,
 }: {
-  jobs: typeof dispatchJobs;
+  jobs: DispatchJob[];
   onFlash: (message: string) => void;
   onViewJob: (index: number) => void;
 }) {
@@ -9168,30 +9229,41 @@ function DispatchWorkOrders({
   );
 }
 
-function DispatchPayments({ onFlash }: { onFlash: (message: string) => void }) {
+function DispatchPayments({ jobs, onFlash }: { jobs: DispatchJob[]; onFlash: (message: string) => void }) {
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<Record<string, string>>({
-    "INV-8821": "PAID",
-    "INV-8822": "DUE",
-    "INV-8823": "DEPOSIT PAID",
-    "INV-8824": "DRAFT",
-  });
-  const invoices = [
-    ["INV-8821", "Morrison Residence", "$1,850", "Card · ending 4028", "PAID"],
-    ["INV-8822", "Atlas Dental Group", "$2,400", "Net 15 · Aug 28", "DUE"],
-    [
-      "INV-8823",
-      "Carter Collective",
-      "$4,200",
-      "$1,500 deposit",
-      "DEPOSIT PAID",
-    ],
-    ["INV-8824", "Villa Rosa HOA", "$975", "Awaiting completion", "DRAFT"],
-  ];
-  const collect = (id: string) => {
-    setPaymentStatus((current) => ({ ...current, [id]: "PAYMENT LINK SENT" }));
-    onFlash("Secure payment link created and queued");
+  const [invoices, setInvoices] = useState<Record<string, unknown>[]>([]);
+  const loadInvoices = () => {
+    void fetch("/api/dispatch/invoices").then((r) => (r.ok ? r.json() : null)).then((data: { invoices?: Record<string, unknown>[] } | null) => {
+      if (data?.invoices) setInvoices(data.invoices);
+    });
   };
+  useEffect(() => { loadInvoices(); }, []);
+  const invoicedJobIds = new Set(invoices.map((i) => String(i.job_id)));
+  const readyToInvoice = jobs.filter((j) => j.status === "COMPLETE" && !invoicedJobIds.has(j.id));
+  const createInvoice = (jobId: string) => {
+    void fetch("/api/dispatch/invoices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId }),
+    }).then((r) => {
+      if (!r.ok) { onFlash("Unable to create invoice"); return; }
+      loadInvoices();
+      onFlash("Invoice created");
+    });
+  };
+  const markPaid = (id: string) => {
+    void fetch("/api/dispatch/invoices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, markPaid: true }),
+    }).then((r) => {
+      if (!r.ok) { onFlash("Unable to update invoice"); return; }
+      loadInvoices();
+      onFlash("Marked as paid");
+    });
+  };
+  const collectedCents = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + Number(i.amount_cents || 0), 0);
+  const outstandingCents = invoices.filter((i) => i.status !== "PAID").reduce((s, i) => s + Number(i.amount_cents || 0), 0);
   return (
     <div className="dispatchPaymentsWorkspace">
       <div className="dispatchPageHead">
@@ -9199,20 +9271,16 @@ function DispatchPayments({ onFlash }: { onFlash: (message: string) => void }) {
           <span>REVENUE OPERATIONS</span>
           <h1>From completed work to collected cash.</h1>
           <p>
-            Deposits, invoices, payment links, reconciliation, disputes, and
-            accounting sync.
+            Invoices generate from completed jobs and track through payment.
           </p>
         </div>
-        <button onClick={() => onFlash("Invoice composer opened")}>
-          ＋ Create invoice
-        </button>
       </div>
       <div className="paymentMetrics">
         {[
-          ["COLLECTED THIS WEEK", "$36,840", "+18.2%"],
-          ["OUTSTANDING", "$11,410", "8 invoices"],
-          ["AVG DAYS TO PAY", "4.2", "−1.8 days"],
-          ["AUTO-RECONCILED", "94%", "QuickBooks-ready"],
+          ["COLLECTED", `$${(collectedCents / 100).toLocaleString()}`, `${invoices.filter((i) => i.status === "PAID").length} invoices`],
+          ["OUTSTANDING", `$${(outstandingCents / 100).toLocaleString()}`, `${invoices.filter((i) => i.status !== "PAID").length} invoices`],
+          ["READY TO INVOICE", String(readyToInvoice.length), "completed, not yet billed"],
+          ["TOTAL INVOICES", String(invoices.length), "all time"],
         ].map((metric) => (
           <article className="dispatchPanel" key={metric[0]}>
             <small>{metric[0]}</small>
@@ -9225,28 +9293,44 @@ function DispatchPayments({ onFlash }: { onFlash: (message: string) => void }) {
         <section className="dispatchPanel invoiceCommand">
           <header>
             <div>
+              <small>READY TO INVOICE</small>
+              <h2>Completed jobs</h2>
+            </div>
+          </header>
+          {readyToInvoice.map((job) => (
+            <article key={job.id}>
+              <span>
+                <b>{job.customer}</b>
+                <small>{job.service}</small>
+              </span>
+              <strong>{job.revenue}</strong>
+              <em>COMPLETE</em>
+              <button onClick={() => createInvoice(job.id)}>Create invoice</button>
+            </article>
+          ))}
+          {!readyToInvoice.length && <p className="emptyRecord">No completed jobs waiting to be invoiced.</p>}
+        </section>
+        <section className="dispatchPanel invoiceCommand">
+          <header>
+            <div>
               <small>INVOICE COMMAND</small>
               <h2>Job payments</h2>
             </div>
-            <button onClick={() => onFlash("Payment report exported")}>
-              Export
-            </button>
           </header>
           {invoices.map((invoice) => (
-            <article key={invoice[0]}>
+            <article key={String(invoice.id)}>
               <span>
-                <b>
-                  {invoice[0]} · {invoice[1]}
-                </b>
-                <small>{invoice[3]}</small>
+                <b>{String(invoice.customer_name || "Unknown")}</b>
+                <small>{String(invoice.service_type || "")}</small>
               </span>
-              <strong>{invoice[2]}</strong>
-              <em>{paymentStatus[invoice[0]] || invoice[4]}</em>
-              <button onClick={() => collect(invoice[0])}>
-                {paymentStatus[invoice[0]] === "PAID" ? "Receipt" : "Collect"}
+              <strong>${(Number(invoice.amount_cents || 0) / 100).toLocaleString()}</strong>
+              <em>{String(invoice.status)}</em>
+              <button onClick={() => markPaid(String(invoice.id))} disabled={invoice.status === "PAID"}>
+                {invoice.status === "PAID" ? "Paid" : "Mark paid"}
               </button>
             </article>
           ))}
+          {!invoices.length && <p className="emptyRecord">No invoices yet.</p>}
         </section>
         <aside className="dispatchPanel quickBooksCard">
           <header>
@@ -9299,7 +9383,7 @@ function DispatchMap({
   onFlash,
   onMove,
 }: {
-  jobs: typeof dispatchJobs;
+  jobs: DispatchJob[];
   onFlash: (message: string) => void;
   onMove: (index: number, direction: number) => void;
 }) {
@@ -9827,12 +9911,39 @@ function DispatchEquipment({
 }
 
 function DispatchTeam({
+  technicians,
+  onReload,
   onTech,
   onFlash,
 }: {
+  technicians: DispatchTechnician[];
+  onReload: () => void;
   onTech: () => void;
   onFlash: (message: string) => void;
 }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const addTechnician = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const name = String(data.get("name") || "").trim();
+    if (!name) return;
+    void fetch("/api/dispatch/technicians", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email: String(data.get("email") || "").trim() || undefined,
+        phone: String(data.get("phone") || "").trim() || undefined,
+        role: String(data.get("role") || "TECHNICIAN"),
+        hourlyRate: Number(data.get("hourlyRate") || 0),
+      }),
+    }).then((r) => {
+      if (!r.ok) { onFlash("Unable to add teammate"); return; }
+      onReload();
+      setFormOpen(false);
+      onFlash(`${name} added to the team`);
+    });
+  };
   return (
     <div className="teamWorkspace">
       <div className="dispatchPageHead">
@@ -9844,81 +9955,71 @@ function DispatchTeam({
             see assigned work only.
           </p>
         </div>
-        <button onClick={() => onFlash("Team invitation created")}>
+        <button onClick={() => setFormOpen((v) => !v)}>
           ＋ Invite teammate
         </button>
       </div>
+      {formOpen && (
+        <form className="dispatchPanel" onSubmit={addTechnician} style={{ display: "grid", gap: 10, padding: 20, marginBottom: 16 }}>
+          <input name="name" placeholder="Full name" required />
+          <input name="email" placeholder="Email" type="email" />
+          <input name="phone" placeholder="Phone" />
+          <select name="role" defaultValue="TECHNICIAN">
+            <option value="OWNER">Owner</option>
+            <option value="DISPATCHER">Dispatcher</option>
+            <option value="MANAGER">Manager</option>
+            <option value="TECHNICIAN">Technician</option>
+          </select>
+          <input name="hourlyRate" placeholder="Hourly rate ($)" type="number" min="0" step="1" />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+            <button type="submit">Add teammate</button>
+          </div>
+        </form>
+      )}
       <div className="teamRoleCards">
         {[
-          [
-            "OWNER",
-            "Full CRM + Dispatch + Analytics",
-            "2 users",
-            "All records, revenue, settings, billing",
-          ],
-          [
-            "DISPATCHER",
-            "Field command access",
-            "3 users",
-            "Jobs, crews, GPS, routes, customers",
-          ],
-          [
-            "TECHNICIAN",
-            "Assigned work only",
-            "7 users",
-            "Today’s jobs, work orders, photos, notes",
-          ],
-        ].map((i) => (
-          <article className="dispatchPanel" key={i[0]}>
-            <small>{i[0]}</small>
-            <h2>{i[1]}</h2>
-            <b>{i[2]}</b>
-            <p>{i[3]}</p>
-            <button
-              onClick={() =>
-                i[0] === "TECHNICIAN"
-                  ? onTech()
-                  : onFlash(`${i[0]} access opened`)
-              }
-            >
-              Preview access →
-            </button>
-          </article>
-        ))}
+          ["OWNER", "Full CRM + Dispatch + Analytics", "All records, revenue, settings, billing"],
+          ["DISPATCHER", "Field command access", "Jobs, crews, GPS, routes, customers"],
+          ["TECHNICIAN", "Assigned work only", "Today's jobs, work orders, photos, notes"],
+        ].map((i) => {
+          const count = technicians.filter((t) => t.role === i[0]).length;
+          return (
+            <article className="dispatchPanel" key={i[0]}>
+              <small>{i[0]}</small>
+              <h2>{i[1]}</h2>
+              <b>{count} {count === 1 ? "user" : "users"}</b>
+              <p>{i[2]}</p>
+              <button onClick={() => (i[0] === "TECHNICIAN" ? onTech() : onFlash(`${i[0]} access opened`))}>
+                Preview access →
+              </button>
+            </article>
+          );
+        })}
       </div>
       <section className="dispatchPanel teamTable">
         <header>
           <span>TEAM MEMBER</span>
           <span>ROLE</span>
-          <span>TODAY</span>
+          <span>ACTIVE JOBS</span>
           <span>STATUS</span>
           <span>ACCESS</span>
         </header>
-        {[
-          ["AC", "Andre Cole", "Technician", "3 jobs · $4.2K", "On job"],
-          ["MT", "Maya Torres", "Technician", "3 jobs · $5.8K", "Moving"],
-          ["DS", "Derek Stone", "Technician", "2 jobs · $2.9K", "Available"],
-          ["DP", "Dana Pierce", "Dispatcher", "12 jobs managed", "Online"],
-          ["AO", "Account Owner", "Owner", "Full command", "Online"],
-        ].map((i) => (
-          <article className="teamMemberRow" key={i[1]}>
+        {technicians.map((t) => (
+          <article className="teamMemberRow" key={t.id}>
             <span>
-              <i>{i[0]}</i>
-              <b>{i[1]}</b>
+              <i>{t.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}</i>
+              <b>{t.name}</b>
             </span>
-            <em>{i[2]}</em>
-            <strong>{i[3]}</strong>
-            <span>{i[4]}</span>
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                onFlash(`${i[1]} permissions opened`);
-              }}
-            >
+            <em>{t.role}</em>
+            <strong>{t.active_jobs} active</strong>
+            <span>{t.active_jobs > 0 ? "On job" : "Available"}</span>
+            <button onClick={(event) => { event.stopPropagation(); onFlash(`${t.name} permissions opened`); }}>
               Manage
             </button>
           </article>
         ))}
+        {!technicians.length && <p className="emptyRecord">No teammates yet. Invite your first technician above.</p>}
       </section>
     </div>
   );
