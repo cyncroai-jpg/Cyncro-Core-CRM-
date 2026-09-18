@@ -6382,7 +6382,7 @@ function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
 
 // ─── Cyncro Automotive — dealership finance & deal management (standalone product) ──
 
-type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Analytics";
+type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Analytics";
 type AutoCustomer = { id: string; first_name: string; last_name: string; email: string | null; phone: string | null };
 type AutoVehicle = {
   id: string; stock_number: string; vin: string | null; year: number | null; make: string | null; model: string | null;
@@ -6435,6 +6435,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
     { name: "Deal Queue", icon: "▦" },
     { name: "Inventory", icon: "◎" },
     { name: "Lenders", icon: "▤" },
+    { name: "Service", icon: "◈" },
     { name: "Analytics", icon: "⌁" },
   ];
 
@@ -6473,6 +6474,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
           )}
           {view === "Inventory" && <AutoInventory onFlash={flash} />}
           {view === "Lenders" && <AutoLenders onFlash={flash} />}
+          {view === "Service" && <AutoService onFlash={flash} />}
           {view === "Analytics" && <AutoAnalytics summary={summary} />}
         </div>
       </main>
@@ -6893,6 +6895,304 @@ function AutoAnalytics({ summary }: { summary: AutoSummary | null }) {
         {!byStatus.length && <p className="disputeEmpty">No deals yet.</p>}
       </section>
     </div>
+  );
+}
+
+// ─── Cyncro Automotive — Service Department ─────────────────────────────────
+
+type ServiceSubView = "Appointments" | "Repair Orders" | "Technicians" | "Parts";
+type ServiceTechnician = { id: string; name: string; email: string | null; specialty: string | null; active: number };
+type ServicePart = { id: string; part_number: string; description: string | null; quantity_on_hand: number; reorder_threshold: number; cost_cents: number; price_cents: number };
+type ServiceAppointment = {
+  id: string; customer_name: string; customer_phone: string | null; vehicle_description: string | null;
+  requested_service: string | null; scheduled_at: string; status: string;
+};
+type ServiceRepairOrderRow = {
+  id: string; ro_number: string; customer_name: string; year: number | null; make: string | null; model: string | null;
+  status: string; total_cents: number; technician_name: string | null; opened_at: string;
+};
+type ServiceRepairOrderDetail = ServiceRepairOrderRow & {
+  vin: string | null; mileage_in: number | null; complaint: string | null; cause: string | null; correction: string | null;
+  labor_cents: number; parts_cents: number; sublet_cents: number; tax_cents: number; technician_id: string | null; promised_at: string | null;
+};
+type ServiceRoLine = { id: string; line_type: string; description: string; quantity: number; unit_price_cents: number };
+type ServiceSummary = { openRepairOrders: number; waitingOnParts: number; appointmentsToday: number; totalServiceRevenueCents: number };
+const SERVICE_RO_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_PARTS", "COMPLETE", "INVOICED", "CLOSED"];
+
+function AutoService({ onFlash }: { onFlash: (m: string) => void }) {
+  const [sub, setSub] = useState<ServiceSubView>("Repair Orders");
+  const [summary, setSummary] = useState<ServiceSummary | null>(null);
+  const loadSummary = () => void fetch("/api/automotive-service?resource=summary").then((r) => r.json()).then((d: ServiceSummary) => setSummary(d));
+  useEffect(loadSummary, []);
+  const subs: ServiceSubView[] = ["Repair Orders", "Appointments", "Technicians", "Parts"];
+  return (
+    <div className="serviceWorkspace">
+      <div className="disputeHero compact">
+        <div><span>SERVICE DEPARTMENT</span><h1>Repair orders, techs, and parts — one real shop floor.</h1></div>
+      </div>
+      <div className="disputeMetrics">
+        {[
+          ["OPEN REPAIR ORDERS", String(summary?.openRepairOrders ?? "—"), ""],
+          ["WAITING ON PARTS", String(summary?.waitingOnParts ?? "—"), ""],
+          ["APPOINTMENTS TODAY", String(summary?.appointmentsToday ?? "—"), ""],
+          ["SERVICE REVENUE", autoMoney(summary?.totalServiceRevenueCents), "Invoiced + closed"],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <div className="financeFilters">
+        {subs.map((s) => (<button className={sub === s ? "active" : ""} key={s} onClick={() => setSub(s)}>{s}</button>))}
+      </div>
+      {sub === "Repair Orders" && <ServiceRepairOrders onFlash={onFlash} onReload={loadSummary} />}
+      {sub === "Appointments" && <ServiceAppointments onFlash={onFlash} onReload={loadSummary} />}
+      {sub === "Technicians" && <ServiceTechnicians onFlash={onFlash} />}
+      {sub === "Parts" && <ServiceParts onFlash={onFlash} />}
+    </div>
+  );
+}
+
+function ServiceRepairOrders({ onFlash, onReload }: { onFlash: (m: string) => void; onReload: () => void }) {
+  const [orders, setOrders] = useState<ServiceRepairOrderRow[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<ServiceRepairOrderDetail | null>(null);
+  const [lines, setLines] = useState<ServiceRoLine[]>([]);
+  const [technicians, setTechnicians] = useState<ServiceTechnician[]>([]);
+  const [parts, setParts] = useState<ServicePart[]>([]);
+  const [adding, setAdding] = useState(false);
+
+  const loadOrders = () => {
+    void fetch("/api/automotive-service?resource=repair-orders").then((r) => r.json()).then((d: { repairOrders?: ServiceRepairOrderRow[] }) => {
+      setOrders(d.repairOrders || []);
+      setSelectedId((prev) => prev || d.repairOrders?.[0]?.id || "");
+    });
+  };
+  useEffect(() => {
+    loadOrders();
+    void fetch("/api/automotive-service?resource=technicians").then((r) => r.json()).then((d: { technicians?: ServiceTechnician[] }) => setTechnicians(d.technicians || []));
+    void fetch("/api/automotive-service?resource=parts").then((r) => r.json()).then((d: { parts?: ServicePart[] }) => setParts(d.parts || []));
+  }, []);
+
+  const loadDetail = () => {
+    if (!selectedId) { setDetail(null); return; }
+    void fetch(`/api/automotive-service?resource=repair-orders&id=${selectedId}`).then((r) => r.json()).then((d: { repairOrder?: ServiceRepairOrderDetail; lines?: ServiceRoLine[] }) => {
+      setDetail(d.repairOrder || null); setLines(d.lines || []);
+    });
+  };
+  useEffect(loadDetail, [selectedId]);
+
+  const createRo = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive-service?resource=repair-orders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: data.get("customerName"), customerPhone: data.get("customerPhone"), vin: data.get("vin"),
+        year: data.get("year"), make: data.get("make"), model: data.get("model"), mileageIn: data.get("mileageIn"),
+        complaint: data.get("complaint"), technicianId: data.get("technicianId"),
+      }),
+    }).then(async (r) => {
+      const d = await r.json() as { id?: string; error?: string };
+      if (!r.ok) { onFlash(d.error || "Could not create repair order"); return; }
+      onFlash("Repair order opened"); setAdding(false); loadOrders(); onReload();
+      if (d.id) setSelectedId(d.id);
+    });
+  };
+
+  const updateStatus = (status: string) => {
+    if (!detail) return;
+    void fetch(`/api/automotive-service?resource=repair-orders&id=${detail.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+      .then((r) => { if (r.ok) { onFlash(`RO marked ${status}`); loadDetail(); loadOrders(); onReload(); } });
+  };
+
+  const addLine = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!detail) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive-service?resource=lines", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roId: detail.id, lineType: data.get("lineType"), description: data.get("description"), quantity: data.get("quantity") || 1, unitPrice: data.get("unitPrice"), partId: data.get("partId") || undefined }),
+    }).then((r) => { if (r.ok) { onFlash("Line added"); loadDetail(); (e.target as HTMLFormElement).reset(); } });
+  };
+  const removeLine = (id: string) => void fetch(`/api/automotive-service?resource=lines&id=${id}`, { method: "DELETE" }).then((r) => { if (r.ok) loadDetail(); });
+
+  return (
+    <div className="disputeCases apexApplicants">
+      <section className="disputePanel disputeCaseList">
+        <header><div><small>SHOP FLOOR</small><h1>Repair orders</h1></div><button onClick={() => setAdding(!adding)}>+ New RO</button></header>
+        {adding && (
+          <form className="disputeAddClientForm apexApplicantForm" onSubmit={createRo}>
+            <input name="customerName" placeholder="Customer name" required />
+            <input name="customerPhone" placeholder="Phone" />
+            <input name="vin" placeholder="VIN" />
+            <input name="year" type="number" placeholder="Year" />
+            <input name="make" placeholder="Make" />
+            <input name="model" placeholder="Model" />
+            <input name="mileageIn" type="number" placeholder="Mileage in" />
+            <select name="technicianId"><option value="">Assign technician…</option>{technicians.map((t) => <option value={t.id} key={t.id}>{t.name}</option>)}</select>
+            <input name="complaint" placeholder="Customer complaint" />
+            <button type="submit">Open RO</button>
+          </form>
+        )}
+        {orders.map((o) => (
+          <button className={selectedId === o.id ? "active" : ""} onClick={() => setSelectedId(o.id)} key={o.id}>
+            <span><b>{o.ro_number} · {o.customer_name}</b><small>{o.year} {o.make} {o.model} · {o.technician_name || "Unassigned"}</small></span>
+            <em>{o.status}</em>
+          </button>
+        ))}
+        {!orders.length && <p className="disputeEmpty">No repair orders yet.</p>}
+      </section>
+      <aside className="disputePanel disputeInspector apexInspector">
+        {!detail && <p className="disputeEmpty">Select a repair order.</p>}
+        {detail && (
+          <>
+            <header><div><small>{detail.ro_number}</small><h2>{detail.customer_name}</h2></div><em className="caseStatus">● {detail.status}</em></header>
+            <div className="caseFacts">
+              <span><small>VEHICLE</small><b>{detail.year} {detail.make} {detail.model}</b></span>
+              <span><small>VIN</small><b>{detail.vin || "—"}</b></span>
+              <span><small>MILEAGE IN</small><b>{detail.mileage_in ?? "—"}</b></span>
+              <span><small>TECHNICIAN</small><b>{detail.technician_name || "Unassigned"}</b></span>
+              <span><small>COMPLAINT</small><b>{detail.complaint || "—"}</b></span>
+            </div>
+            <div className="apexLenderPicker">
+              {SERVICE_RO_STATUSES.map((s) => (
+                <button key={s} className={detail.status === s ? "selected" : ""} onClick={() => updateStatus(s)}>{s}</button>
+              ))}
+            </div>
+
+            <h3>Labor / parts / sublet</h3>
+            <form className="disputeInlineForm" onSubmit={addLine}>
+              <select name="lineType" defaultValue="LABOR">
+                <option value="LABOR">Labor</option>
+                <option value="PART">Part</option>
+                <option value="SUBLET">Sublet</option>
+              </select>
+              <input name="description" placeholder="Description" required />
+              <select name="partId"><option value="">No linked part</option>{parts.map((p) => <option value={p.id} key={p.id}>{p.part_number}</option>)}</select>
+              <input name="quantity" type="number" step="0.1" placeholder="Qty" defaultValue={1} />
+              <input name="unitPrice" type="number" step="0.01" placeholder="Unit price $" required />
+              <button type="submit">+ Add line</button>
+            </form>
+            {lines.map((l) => (
+              <div className="disputeListRow" key={l.id}>
+                <b>{l.description}</b><span>{l.line_type} · {l.quantity} × {autoMoney(l.unit_price_cents)}</span>
+                <button onClick={() => removeLine(l.id)}>Remove</button>
+              </div>
+            ))}
+            <div className="caseFacts">
+              <span><small>LABOR</small><b>{autoMoney(detail.labor_cents)}</b></span>
+              <span><small>PARTS</small><b>{autoMoney(detail.parts_cents)}</b></span>
+              <span><small>SUBLET</small><b>{autoMoney(detail.sublet_cents)}</b></span>
+              <span><small>TOTAL</small><b>{autoMoney(detail.total_cents)}</b></span>
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function ServiceAppointments({ onFlash, onReload }: { onFlash: (m: string) => void; onReload: () => void }) {
+  const [appointments, setAppointments] = useState<ServiceAppointment[]>([]);
+  const load = () => void fetch("/api/automotive-service?resource=appointments").then((r) => r.json()).then((d: { appointments?: ServiceAppointment[] }) => setAppointments(d.appointments || []));
+  useEffect(load, []);
+  const addAppt = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive-service?resource=appointments", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: data.get("customerName"), customerPhone: data.get("customerPhone"), vehicleDescription: data.get("vehicleDescription"),
+        requestedService: data.get("requestedService"), scheduledAt: data.get("scheduledAt"),
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Appointment scheduled"); load(); onReload(); (e.target as HTMLFormElement).reset(); } });
+  };
+  const complete = (id: string) => void fetch(`/api/automotive-service?resource=appointments&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "CHECKED_IN" }) })
+    .then((r) => { if (r.ok) { onFlash("Checked in"); load(); } });
+  return (
+    <section className="disputePanel">
+      <form className="disputeAddClientForm apexApplicantForm" onSubmit={addAppt}>
+        <input name="customerName" placeholder="Customer name" required />
+        <input name="customerPhone" placeholder="Phone" />
+        <input name="vehicleDescription" placeholder="Vehicle (e.g. 2022 Civic)" />
+        <input name="requestedService" placeholder="Requested service" />
+        <input name="scheduledAt" type="datetime-local" required />
+        <button type="submit">+ Schedule appointment</button>
+      </form>
+      {appointments.map((a) => (
+        <div className="disputeListRow" key={a.id}>
+          <b>{a.customer_name}</b>
+          <span>{a.vehicle_description || "—"} · {new Date(a.scheduled_at).toLocaleString()}</span>
+          <small>{a.requested_service || ""}</small>
+          <em>{a.status}</em>
+          {a.status === "SCHEDULED" && <button onClick={() => complete(a.id)}>Check in</button>}
+        </div>
+      ))}
+      {!appointments.length && <p className="disputeEmpty">No appointments scheduled yet.</p>}
+    </section>
+  );
+}
+
+function ServiceTechnicians({ onFlash }: { onFlash: (m: string) => void }) {
+  const [technicians, setTechnicians] = useState<ServiceTechnician[]>([]);
+  const load = () => void fetch("/api/automotive-service?resource=technicians").then((r) => r.json()).then((d: { technicians?: ServiceTechnician[] }) => setTechnicians(d.technicians || []));
+  useEffect(load, []);
+  const addTech = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive-service?resource=technicians", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.get("name"), email: data.get("email"), specialty: data.get("specialty") }),
+    }).then((r) => { if (r.ok) { onFlash("Technician added"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  return (
+    <section className="disputePanel">
+      <form className="disputeAddClientForm" onSubmit={addTech}>
+        <input name="name" placeholder="Technician name" required />
+        <input name="email" type="email" placeholder="Email" />
+        <input name="specialty" placeholder="Specialty" />
+        <button type="submit">+ Add technician</button>
+      </form>
+      {technicians.map((t) => (
+        <div className="disputeListRow" key={t.id}><b>{t.name}</b><span>{t.specialty || "General"}</span><small>{t.email || ""}</small></div>
+      ))}
+      {!technicians.length && <p className="disputeEmpty">No technicians yet.</p>}
+    </section>
+  );
+}
+
+function ServiceParts({ onFlash }: { onFlash: (m: string) => void }) {
+  const [parts, setParts] = useState<ServicePart[]>([]);
+  const load = () => void fetch("/api/automotive-service?resource=parts").then((r) => r.json()).then((d: { parts?: ServicePart[] }) => setParts(d.parts || []));
+  useEffect(load, []);
+  const addPart = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive-service?resource=parts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        partNumber: data.get("partNumber"), description: data.get("description"), quantityOnHand: data.get("quantity"),
+        reorderThreshold: data.get("reorderThreshold"), cost: data.get("cost"), price: data.get("price"),
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Part added"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  return (
+    <section className="disputePanel">
+      <form className="disputeAddClientForm apexApplicantForm" onSubmit={addPart}>
+        <input name="partNumber" placeholder="Part #" required />
+        <input name="description" placeholder="Description" />
+        <input name="quantity" type="number" placeholder="Qty on hand" />
+        <input name="reorderThreshold" type="number" placeholder="Reorder threshold" />
+        <input name="cost" type="number" step="0.01" placeholder="Cost $" />
+        <input name="price" type="number" step="0.01" placeholder="Price $" />
+        <button type="submit">+ Add part</button>
+      </form>
+      {parts.map((p) => (
+        <div className={`disputeListRow ${p.quantity_on_hand <= p.reorder_threshold ? "servicePartLow" : ""}`} key={p.id}>
+          <b>{p.part_number}</b><span>{p.description || ""}</span>
+          <small>{p.quantity_on_hand} on hand{p.quantity_on_hand <= p.reorder_threshold ? " · REORDER" : ""}</small>
+          <em>{autoMoney(p.price_cents)}</em>
+        </div>
+      ))}
+      {!parts.length && <p className="disputeEmpty">No parts in inventory yet.</p>}
+    </section>
   );
 }
 

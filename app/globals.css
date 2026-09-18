@@ -23742,3 +23742,9 @@ button.crmUser i {
 .autoPaymentOutput b i{font-style:normal;font-size:12px;color:#8a7a7d;margin-left:4px}
 .autoPaymentOutput span{display:block;color:#a99c9f;font-size:11px;margin-top:4px}
 .autoDocChecklistRow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #201a1c;font-size:11px;color:#c9babe}
+
+/* ===== Automotive Service Department ===== */
+.serviceWorkspace .financeFilters{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.serviceWorkspace .financeFilters button{border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#c9babe;padding:8px 14px;font-size:11px}
+.serviceWorkspace .financeFilters button.active{background:#8b2a3d;color:#fff;border-color:#8b2a3d}
+.servicePartLow{border-left:2px solid #e0a24a}
