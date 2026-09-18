@@ -263,8 +263,8 @@ export async function generateDisputeLetter(
       disputeReason,
       accountNumber,
       accountName,
-      accountDetails?.reportedAmount,
-      accountDetails?.reportedStatus,
+      accountDetails?.reportedAmount ?? null,
+      accountDetails?.reportedStatus ?? null,
       customNarrative || "",
       JSON.stringify(applicableSections),
       letterContent,
@@ -564,7 +564,7 @@ export async function recordLetterResponse(
        SET response_date = ?, response_status = ?, response_content = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`
     )
-    .bind(now, responseStatus, responseContent, now, tenantId, letterId)
+    .bind(now, responseStatus, responseContent ?? null, now, tenantId, letterId)
     .run();
 
   const letter = await getDisputeLetter(tenantId, letterId);

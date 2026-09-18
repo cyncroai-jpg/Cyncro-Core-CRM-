@@ -17978,6 +17978,16 @@ function CRMPayments({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
+// Credit-repair dispute reasons -> FCRA letter-generation dispute reasons (different vocabularies, same concepts)
+const FCRA_REASON_MAP: Record<string, string> = {
+  NOT_MINE: "NOT_MINE",
+  INACCURATE_BALANCE: "WRONG_AMOUNT",
+  PAID_IN_FULL: "ALREADY_PAID",
+  DUPLICATE: "DUPLICATE",
+  IDENTITY_THEFT: "IDENTITY_THEFT",
+  OTHER: "NOT_ACCURATE",
+};
+
 function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
   type Row = Record<string, unknown>;
   const [clients, setClients] = useState<Row[]>([]),
@@ -17985,8 +17995,11 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
     [selectedClient, setSelectedClient] = useState<Row | null>(null),
     [disputes, setDisputes] = useState<Row[]>([]),
     [scores, setScores] = useState<Row[]>([]),
+    [letters, setLetters] = useState<Row[]>([]),
+    [viewingLetter, setViewingLetter] = useState<Row | null>(null),
     [loaded, setLoaded] = useState(false),
-    [adding, setAdding] = useState<"client" | "dispute" | "score" | "template" | null>(null);
+    [adding, setAdding] = useState<"client" | "dispute" | "score" | "template" | null>(null),
+    [generatingFor, setGeneratingFor] = useState<Row | null>(null);
   const load = async () => {
     const [clientsRes, templatesRes] = await Promise.all([
       fetch("/api/credit-repair", { cache: "no-store" }),
@@ -18000,12 +18013,49 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
   const openClient = async (client: Row) => {
     setSelectedClient(client);
     const id = String(client.id);
-    const [disputesRes, scoresRes] = await Promise.all([
+    const [disputesRes, scoresRes, lettersRes] = await Promise.all([
       fetch(`/api/credit-repair?clientId=${id}&section=disputes`, { cache: "no-store" }),
       fetch(`/api/credit-repair?clientId=${id}&section=scores`, { cache: "no-store" }),
+      fetch(`/api/fcra-compliance?section=letters&clientId=${id}`, { cache: "no-store" }),
     ]);
     setDisputes(disputesRes.ok ? ((await disputesRes.json()) as { disputes?: Row[] }).disputes || [] : []);
     setScores(scoresRes.ok ? ((await scoresRes.json()) as { scores?: Row[] }).scores || [] : []);
+    setLetters(lettersRes.ok ? ((await lettersRes.json()) as { letters?: Row[] }).letters || [] : []);
+  };
+  const generateLetter = async (dispute: Row, values: Record<string, string>) => {
+    if (!selectedClient) return;
+    const res = await fetch("/api/fcra-compliance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "generate-letter",
+        clientId: selectedClient.id,
+        letterType: values.letterType || "INITIAL_DISPUTE",
+        creditBureau: dispute.credit_bureau,
+        disputeReason: FCRA_REASON_MAP[String(dispute.reason)] || "NOT_ACCURATE",
+        accountNumber: values.accountNumber,
+        accountName: values.accountName,
+        clientName: `${selectedClient.first_name} ${selectedClient.last_name}`,
+        clientEmail: selectedClient.email,
+        clientPhone: selectedClient.phone_number,
+        customNarrative: dispute.description,
+      }),
+    });
+    if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Letter could not be generated"); return; }
+    setGeneratingFor(null);
+    await openClient(selectedClient);
+    onFlash("FCRA dispute letter generated");
+  };
+  const markLetterSent = async (letterId: string) => {
+    if (!selectedClient) return;
+    const res = await fetch("/api/fcra-compliance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark-sent", letterId }),
+    });
+    if (!res.ok) { onFlash("Could not mark letter as sent"); return; }
+    await openClient(selectedClient);
+    onFlash("Letter marked as sent");
   };
   const totalClients = clients.length;
   const activeClients = clients.filter((c) => c.subscription_status === "ACTIVE" || c.onboarding_status === "COMPLETE").length;
@@ -18020,7 +18070,8 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
     }
     if (adding === "dispute" && selectedClient) {
       const id = String(selectedClient.id);
-      const res = await fetch(`/api/credit-repair?clientId=${id}&action=disputes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creditBureau: values.creditBureau, reason: values.reason, description: values.description }) });
+      const accountInfo = JSON.stringify({ accountName: values.accountName || "", accountNumber: values.accountNumber || "" });
+      const res = await fetch(`/api/credit-repair?clientId=${id}&action=disputes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creditBureau: values.creditBureau, reason: values.reason, description: values.description, accountInfo }) });
       if (!res.ok) { const d = await res.json() as { error?: string }; onFlash(d.error || "Dispute could not be created"); return; }
       setAdding(null); await openClient(selectedClient); onFlash("Dispute filed");
       return;
@@ -18080,7 +18131,7 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
                 <div className="dataTableWrap"><table className="dataTable">
                   <thead><tr><th>Bureau</th><th>Reason</th><th>Status</th><th>Filed</th><th></th></tr></thead>
                   <tbody>{disputes.map((d) => (
-                    <tr key={String(d.id)}><td>{String(d.credit_bureau)}</td><td>{String(d.reason).replace(/_/g, " ")}</td><td><span className={`statusPill ${statusClass(d.status)}`}>{String(d.status)}</span></td><td>{new Date(String(d.created_at)).toLocaleDateString()}</td><td>{d.status === "DRAFT" && <button onClick={() => void submitDispute(String(d.id))}>Submit</button>}</td></tr>
+                    <tr key={String(d.id)}><td>{String(d.credit_bureau)}</td><td>{String(d.reason).replace(/_/g, " ")}</td><td><span className={`statusPill ${statusClass(d.status)}`}>{String(d.status)}</span></td><td>{new Date(String(d.created_at)).toLocaleDateString()}</td><td style={{ display: "flex", gap: 6 }}>{d.status === "DRAFT" && <button onClick={() => void submitDispute(String(d.id))}>Submit</button>}<button onClick={() => setGeneratingFor(d)}>Generate letter</button></td></tr>
                   ))}</tbody>
                 </table></div>
               ) : <p className="opsEmpty">No disputes filed for this client yet.</p>}
@@ -18093,6 +18144,24 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
                   ))}</tbody>
                 </table></div>
               ) : <p className="opsEmpty">No score records yet.</p>}
+              <h3 style={{ fontSize: 12, color: "#a79b9e", marginTop: 18 }}>FCRA DISPUTE LETTERS</h3>
+              {letters.length ? (
+                <div className="dataTableWrap"><table className="dataTable">
+                  <thead><tr><th>Type</th><th>Bureau</th><th>Generated</th><th>Status</th><th></th></tr></thead>
+                  <tbody>{letters.map((l) => (
+                    <tr key={String(l.id)}>
+                      <td>{String(l.letter_type).replace(/_/g, " ")}</td>
+                      <td>{String(l.credit_bureau)}</td>
+                      <td>{new Date(String(l.generated_date)).toLocaleDateString()}</td>
+                      <td><span className={`statusPill ${l.sent_date ? "good" : ""}`}>{l.sent_date ? "SENT" : "DRAFT"}</span></td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setViewingLetter(l)}>View</button>
+                        {!l.sent_date && <button onClick={() => void markLetterSent(String(l.id))}>Mark sent</button>}
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              ) : <p className="opsEmpty">No dispute letters generated yet. Generate one from a dispute above.</p>}
             </>
           ) : <p className="opsEmpty">Select a client to view their disputes and score history.</p>}
         </section>
@@ -18115,11 +18184,69 @@ function CRMCreditRepair({ onFlash }: { onFlash: (message: string) => void }) {
               <button type="button" onClick={() => setAdding(null)}>×</button>
             </div>
             {adding === "client" && <><input name="firstName" placeholder="First name" required autoFocus /><input name="lastName" placeholder="Last name" required /><input name="email" type="email" placeholder="Email" required /><input name="phoneNumber" placeholder="Phone (optional)" /><select name="accessLevel"><option value="FREE">Free — 1 dispute/mo</option><option value="PREMIUM">Premium — 5 disputes/mo</option><option value="PROFESSIONAL">Professional — 20 disputes/mo</option><option value="UNLIMITED">Unlimited — 100 disputes/mo</option></select></>}
-            {adding === "dispute" && <><select name="creditBureau"><option value="EQUIFAX">Equifax</option><option value="EXPERIAN">Experian</option><option value="TRANSUNION">TransUnion</option><option value="ALL">All bureaus</option></select><select name="reason"><option value="NOT_MINE">Not mine</option><option value="INACCURATE_BALANCE">Inaccurate balance</option><option value="PAID_IN_FULL">Paid in full</option><option value="DUPLICATE">Duplicate account</option><option value="IDENTITY_THEFT">Identity theft</option><option value="OTHER">Other</option></select><textarea name="description" placeholder="Describe the inaccuracy…" required autoFocus /></>}
+            {adding === "dispute" && <><select name="creditBureau"><option value="EQUIFAX">Equifax</option><option value="EXPERIAN">Experian</option><option value="TRANSUNION">TransUnion</option><option value="ALL">All bureaus</option></select><select name="reason"><option value="NOT_MINE">Not mine</option><option value="INACCURATE_BALANCE">Inaccurate balance</option><option value="PAID_IN_FULL">Paid in full</option><option value="DUPLICATE">Duplicate account</option><option value="IDENTITY_THEFT">Identity theft</option><option value="OTHER">Other</option></select><input name="accountName" placeholder="Creditor / account name" required autoFocus /><input name="accountNumber" placeholder="Account number (last 4 is fine)" required /><textarea name="description" placeholder="Describe the inaccuracy…" required /></>}
             {adding === "score" && <><input name="equifaxScore" type="number" placeholder="Equifax score" /><input name="experianScore" type="number" placeholder="Experian score" /><input name="transunionScore" type="number" placeholder="TransUnion score" /></>}
             {adding === "template" && <><input name="name" placeholder="Template name" required autoFocus /><select name="reason"><option value="NOT_MINE">Not mine</option><option value="INACCURATE_BALANCE">Inaccurate balance</option><option value="PAID_IN_FULL">Paid in full</option><option value="DUPLICATE">Duplicate account</option><option value="IDENTITY_THEFT">Identity theft</option><option value="OTHER">Other</option></select><select name="creditBureau"><option value="ALL">All bureaus</option><option value="EQUIFAX">Equifax</option><option value="EXPERIAN">Experian</option><option value="TRANSUNION">TransUnion</option></select><textarea name="templateContent" placeholder="Letter content…" required /></>}
             <button className="crmCreate" type="submit">Save</button>
           </form>
+        </div>
+      )}
+
+      {generatingFor && (() => {
+        let accountName = "", accountNumber = "";
+        try {
+          const parsed = JSON.parse(String(generatingFor.account_info || "{}"));
+          accountName = parsed.accountName || "";
+          accountNumber = parsed.accountNumber || "";
+        } catch { /* account_info wasn't stored as JSON — leave blank, user can fill it in */ }
+        return (
+          <div className="crmModalBack" onClick={() => setGeneratingFor(null)}>
+            <form
+              className="crmModal miniDataForm"
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const values = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+                void generateLetter(generatingFor, values);
+              }}
+            >
+              <div className="crmModalHead">
+                <div><label>FCRA LETTER GENERATOR</label><h2>Generate dispute letter</h2></div>
+                <button type="button" onClick={() => setGeneratingFor(null)}>×</button>
+              </div>
+              <select name="letterType" defaultValue="INITIAL_DISPUTE">
+                <option value="INITIAL_DISPUTE">Initial dispute</option>
+                <option value="INVESTIGATION_FOLLOW_UP">Investigation follow-up</option>
+                <option value="SECOND_DISPUTE">Second dispute</option>
+                <option value="DEBT_VALIDATION">Debt validation</option>
+                <option value="CEASE_AND_DESIST">Cease and desist</option>
+                <option value="REINVESTIGATION_REQUEST">Reinvestigation request</option>
+                <option value="FURNISHER_DISPUTE">Furnisher dispute</option>
+                <option value="GOODWILL_LETTER">Goodwill letter</option>
+                <option value="PAY_FOR_DELETE">Pay for delete</option>
+              </select>
+              <input name="accountName" placeholder="Creditor / account name" defaultValue={accountName} required autoFocus />
+              <input name="accountNumber" placeholder="Account number" defaultValue={accountNumber} required />
+              <button className="crmCreate" type="submit">Generate FCRA-compliant letter</button>
+            </form>
+          </div>
+        );
+      })()}
+
+      {viewingLetter && (
+        <div className="crmModalBack" onClick={() => setViewingLetter(null)}>
+          <div className="crmModal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, maxHeight: "80vh", overflow: "auto" }}>
+            <div className="crmModalHead">
+              <div><label>{String(viewingLetter.letter_type).replace(/_/g, " ")}</label><h2>{String(viewingLetter.credit_bureau)} · {String(viewingLetter.account_name)}</h2></div>
+              <button type="button" onClick={() => setViewingLetter(null)}>×</button>
+            </div>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, lineHeight: 1.6, padding: "0 4px" }}>{String(viewingLetter.letter_content)}</pre>
+            {viewingLetter.legal_references && (
+              <p style={{ fontSize: 11, color: "#a79b9e", marginTop: 12 }}>
+                Legal references: {(() => { try { return (JSON.parse(String(viewingLetter.legal_references)) as string[]).join(", "); } catch { return ""; } })()}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>
