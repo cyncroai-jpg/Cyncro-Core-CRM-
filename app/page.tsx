@@ -124,15 +124,20 @@ export default function Home() {
   if (product === "switcher") {
     return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={setProduct} />;
   }
-  // Dispatch is a real, separate product — hand off to the actual app
+  // Dispatch is a real, separate product — hand off to the actual app.
+  // "readable" carries the app-wide font-size legibility boost (see
+  // ".readable ..." rules in globals.css); without it Dispatch's base
+  // styles (many 5-9px labels) are unreadably small.
   if (product === "dispatch") {
     return (
-      <CyncroDispatch
-        onNavigate={(destination) => {
-          setProduct("core");
-          navigate(destination);
-        }}
-      />
+      <div className="readable">
+        <CyncroDispatch
+          onNavigate={(destination) => {
+            setProduct("core");
+            navigate(destination);
+          }}
+        />
+      </div>
     );
   }
   // Show gated screen for non-active products
