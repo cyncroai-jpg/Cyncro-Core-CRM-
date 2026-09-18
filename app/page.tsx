@@ -5045,6 +5045,39 @@ function DisputeAnalytics({ summary, clients }: { summary: DisputeSummary | null
 }
 
 function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
+  const exportReport = () => {
+    void Promise.all([
+      fetch("/api/dispute?resource=summary").then((r) => r.json()),
+      fetch("/api/dispute?resource=tasks").then((r) => r.json()),
+      fetch("/api/dispute?resource=mail").then((r) => r.json()),
+    ]).then(([summary, tasksRes, mailRes]: [Record<string, unknown>, { tasks?: DisputeTaskRow[] }, { mail?: { status: string }[] }]) => {
+      const tasks = tasksRes.tasks || [];
+      const mail = mailRes.mail || [];
+      const lines = [
+        `Cyncro Dispute — Compliance Report`,
+        `Generated: ${new Date().toLocaleString()}`,
+        ``,
+        `Active clients: ${summary.activeClients ?? 0}`,
+        `Open dispute items: ${summary.openItems ?? 0}`,
+        `Items corrected (verified deletions): ${summary.itemsCorrected ?? 0}`,
+        `Certified mail in transit: ${summary.mailInTransit ?? 0}`,
+        ``,
+        `Open follow-up tasks: ${tasks.filter((t) => t.status === "OPEN").length}`,
+        `Overdue tasks: ${tasks.filter((t) => t.status === "OPEN" && t.due_date && new Date(t.due_date) < new Date()).length}`,
+        ``,
+        `Mail tracking by status:`,
+        ...Object.entries(mail.reduce((acc: Record<string, number>, m) => { acc[m.status] = (acc[m.status] || 0) + 1; return acc; }, {})).map(([status, count]) => `  ${status}: ${count}`),
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `compliance-report-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      onFlash("Compliance report downloaded");
+    });
+  };
   return (
     <div className="complianceWorkspace">
       <div className="disputeHero compact">
@@ -5056,7 +5089,7 @@ function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
             contracts, consent, billing gates, and audit evidence.
           </p>
         </div>
-        <button onClick={() => onFlash("Compliance report generated")}>
+        <button onClick={exportReport}>
           Export compliance report
         </button>
       </div>
@@ -5110,9 +5143,6 @@ function DisputeCompliance({ onFlash }: { onFlash: (m: string) => void }) {
             </header>
             <h2>{x[0]}</h2>
             <p>{x[1]}</p>
-            <button onClick={() => onFlash(`${x[0]} control opened`)}>
-              Review control →
-            </button>
           </article>
         ))}
       </div>
@@ -7275,7 +7305,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           </button>
           <button
             className="dispatchSSO"
-            onClick={() => flash("Secure sign-in prepared")}
+            onClick={() => flash("SSO is not connected yet — no identity provider configured")}
           >
             Continue with company SSO
           </button>
@@ -7299,7 +7329,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
               </b>
             </div>
             <span>Up to 10 technicians · Cancel anytime</span>
-            <button onClick={() => flash("Dispatch checkout opened")}>
+            <button onClick={() => flash("Billing is not connected yet — no payment processor configured")}>
               Start contractor account
             </button>
           </div>
@@ -7594,10 +7624,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
               >
                 <i>{item.icon}</i>
                 <span>{item.name}</span>
-                {item.name === "Jobs" && <em>12</em>}
-                {item.name === "AI Agents" && (
-                  <em className="agentLive">LIVE</em>
-                )}
+                {item.name === "Jobs" && <em>{jobs.length}</em>}
               </button>
             ))}
         </nav>
@@ -7630,7 +7657,15 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
             <b>{view === "Dashboard" ? `${role} Command Center` : view}</b>
           </div>
           <div>
-            <button onClick={() => flash("Search opened")}>⌕</button>
+            <button onClick={() => {
+              const q = window.prompt("Search jobs by customer or service type");
+              if (!q) return;
+              const matches = jobs.filter((j) => j.customer.toLowerCase().includes(q.toLowerCase()) || j.service.toLowerCase().includes(q.toLowerCase()));
+              if (!matches.length) { flash(`No jobs match "${q}"`); return; }
+              setSelectedJob(jobs.indexOf(matches[0]));
+              setView("Jobs");
+              flash(`${matches.length} job(s) match "${q}"`);
+            }}>⌕</button>
             <button onClick={() => flash("No dispatch alerts")}>
               ◌<i />
             </button>
@@ -7742,6 +7777,28 @@ function DispatchDashboard({
   const topTechs = (analytics?.techProductivity || []).slice(0, 3);
   const maxRevPerHour = topTechs.reduce((max, t) => Math.max(max, t.revenuePerHourCents || 0), 1);
   const isEmpty = jobs.length === 0;
+  const generateBrief = () => {
+    const today = jobs.filter((j) => j.status !== "COMPLETE" && j.status !== "INVOICED" && j.status !== "CANCELLED");
+    const lines = [
+      `Cyncro Dispatch — Daily Brief`,
+      `Generated: ${new Date().toLocaleString()}`,
+      ``,
+      `Booked this week: ${analytics ? money(analytics.bookedThisWeekCents) : "—"}`,
+      `Collected: ${analytics ? money(analytics.collectedCents) : "—"}`,
+      `Outstanding: ${analytics ? `${money(analytics.outstandingCents)} across ${analytics.outstandingCount} invoice(s)` : "—"}`,
+      ``,
+      `Open jobs (${today.length}):`,
+      ...today.map((j) => `  ${j.time} — ${j.customer} — ${j.service} — ${j.status}${j.tech ? ` — ${j.tech}` : " — unassigned"}`),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dispatch-brief-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onFlash("Daily dispatch brief downloaded");
+  };
   const loadDemoData = () => {
     void fetch("/api/dispatch/seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
@@ -7766,7 +7823,7 @@ function DispatchDashboard({
         </div>
         {isEmpty
           ? <button onClick={loadDemoData}>◈ Load demo data</button>
-          : <button onClick={() => onFlash("Daily dispatch brief generated")}>✦ Generate daily brief</button>}
+          : <button onClick={generateBrief}>✦ Generate daily brief</button>}
       </div>
       {isEmpty && <p className="disputeEmpty">This workspace is empty. "Load demo data" seeds real sample customers, technicians, and jobs across booked, in-progress, and invoiced-and-paid stages — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
       <div className="dispatchMetrics">
@@ -7995,6 +8052,8 @@ function DispatchJobs({
   onAdvance: (index: number) => void;
   onCancel: (index: number) => void;
 }) {
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const filteredJobs = statusFilter === "ALL" ? jobs : jobs.filter((j) => j.status === statusFilter);
   const job = jobs[selected];
   const [inspectorTab, setInspectorTab] = useState<
     "Overview" | "Notes" | "Photos" | "Time" | "Work order"
@@ -8087,9 +8146,10 @@ function DispatchJobs({
             <h1>All field work</h1>
           </div>
           <div>
-            <button onClick={() => onFlash("Job filters opened")}>
-              Filter
-            </button>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter jobs by status">
+              <option value="ALL">All statuses</option>
+              {["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"].map((s) => <option value={s} key={s}>{s}</option>)}
+            </select>
             <button onClick={onNew}>＋ Job</button>
           </div>
         </header>
@@ -8099,7 +8159,10 @@ function DispatchJobs({
           <span>STATUS</span>
           <span>VALUE</span>
         </div>
-        {jobs.map((item, index) => (
+        {!filteredJobs.length && <p className="disputeEmpty">No jobs match this filter.</p>}
+        {filteredJobs.map((item) => {
+          const index = jobs.indexOf(item);
+          return (
           <button
             className={selected === index ? "active" : ""}
             onClick={() => setSelected(index)}
@@ -8120,7 +8183,8 @@ function DispatchJobs({
             <em>{item.status}</em>
             <b>{item.revenue}</b>
           </button>
-        ))}
+          );
+        })}
       </section>
       <aside className="jobInspector dispatchPanel">
         <header>
@@ -8128,7 +8192,6 @@ function DispatchJobs({
             <small>WORK ORDER</small>
             <h2>{job.id}</h2>
           </div>
-          <button onClick={() => onFlash("Job actions opened")}>•••</button>
         </header>
         <span className="jobStatusLarge">● {job.status}</span>
         <h3>{job.customer}</h3>
@@ -8319,7 +8382,7 @@ function DispatchJobs({
               <input type="checkbox" /> Customer/site sign-off obtained
             </label>
             <button
-              onClick={() => onFlash("Work order sent for customer signature")}
+              onClick={() => onFlash("Customer e-signature isn't connected yet — collect it on-site for now")}
             >
               Request customer signature
             </button>
@@ -8370,16 +8433,16 @@ function DispatchWorkOrders({
             readiness in one record.
           </p>
         </div>
-        <button onClick={() => onFlash("Blank work-order template created")}>
+        <button onClick={() => onFlash("Create a job from the Jobs tab — every job is its own work order")}>
           ＋ Work order
         </button>
       </div>
       <div className="workOrderMetrics">
         {[
-          ["OPEN", "12", "7 assigned"],
-          ["AWAITING SIGNATURE", "3", "$8.4K value"],
-          ["READY TO INVOICE", "6", "$14.7K"],
-          ["DOCUMENTATION SCORE", "96%", "+8% this month"],
+          ["OPEN", String(jobs.filter((j) => !["COMPLETE", "INVOICED", "CANCELLED"].includes(j.status)).length), `${jobs.filter((j) => j.techId && !["COMPLETE", "INVOICED", "CANCELLED"].includes(j.status)).length} assigned`],
+          ["AWAITING INVOICE", String(jobs.filter((j) => j.status === "COMPLETE").length), money(jobs.filter((j) => j.status === "COMPLETE").reduce((s, j) => s + j.revenueCents, 0))],
+          ["INVOICED", String(jobs.filter((j) => j.status === "INVOICED").length), money(jobs.filter((j) => j.status === "INVOICED").reduce((s, j) => s + j.revenueCents, 0))],
+          ["TOTAL VALUE", money(jobs.reduce((s, j) => s + j.revenueCents, 0)), `${jobs.length} job(s)`],
         ].map((metric) => (
           <article className="dispatchPanel" key={metric[0]}>
             <small>{metric[0]}</small>
@@ -8616,16 +8679,11 @@ function DispatchMap({
       <section className="fullDispatchMap dispatchPanel">
         <header>
           <div>
-            <small>REAL-TIME GPS</small>
+            <small>GPS MAP · PREVIEW</small>
             <h1>Field visibility</h1>
           </div>
-          <div>
-            <button onClick={() => onFlash("Map layers opened")}>Layers</button>
-            <button onClick={() => onFlash("Map centered on all crews")}>
-              Fit all
-            </button>
-          </div>
         </header>
+        <p className="disputeEmpty">Live GPS tracking isn't connected yet — this is a preview of the crew map. Wire up a location-sharing feed to make these positions real.</p>
         <div className="bigMap">
           <i className="mapRoad r1" />
           <i className="mapRoad r2" />
@@ -8638,7 +8696,7 @@ function DispatchMap({
           ].map((t) => (
             <button
               style={{ left: t[1], top: t[2] }}
-              onClick={() => onFlash(`${t[0]} live location selected`)}
+              disabled
               key={t[0]}
             >
               <span>{t[0]}</span>
@@ -8653,23 +8711,9 @@ function DispatchMap({
         </div>
       </section>
       <aside className="routeDrawer dispatchPanel">
-        <small>ROUTE COMMAND</small>
-        <h2>Andre Cole</h2>
-        <p>Thursday · 3 stops · 42.6 miles</p>
-        <div className="routeSummary">
-          <span>
-            <small>DRIVE</small>
-            <b>1h 42m</b>
-          </span>
-          <span>
-            <small>SAVED</small>
-            <b>31m</b>
-          </span>
-          <span>
-            <small>ON TIME</small>
-            <b>98%</b>
-          </span>
-        </div>
+        <small>ROUTE ORDER · MANUAL</small>
+        <h2>Today's run</h2>
+        <p>{Math.min(jobs.length, 3)} stop(s) — reorder manually below</p>
         {jobs.slice(0, 3).map((job, index) => (
           <article key={job.id}>
             <span>{index + 1}</span>
@@ -8688,45 +8732,69 @@ function DispatchMap({
         ))}
         <button
           className="optimizeRoute"
-          onClick={() => onFlash("Route optimized with live traffic")}
+          onClick={() => onFlash("Automatic route optimization needs a maps/routing integration — reorder manually with the buttons above for now")}
         >
           ✦ Re-optimize route
-        </button>
-        <button onClick={() => onFlash("Optimized route sent to Andre")}>
-          Send to technician
         </button>
       </aside>
     </div>
   );
 }
 
-function DispatchAnalytics({
-  onFlash,
-}: {
-  onFlash: (message: string) => void;
-}) {
+function DispatchAnalytics({ onFlash }: { onFlash: (message: string) => void }) {
+  const [analytics, setAnalytics] = useState<DispatchAnalytics | null>(null);
+  useEffect(() => {
+    void fetch("/api/dispatch/analytics").then((r) => (r.ok ? r.json() : null)).then((d: DispatchAnalytics | null) => setAnalytics(d));
+  }, []);
+  const profitability = analytics?.profitability;
+  const techs = analytics?.techProductivity || [];
+  const maxRevPerHour = techs.reduce((max, t) => Math.max(max, t.revenuePerHourCents || 0), 1);
+  const exportReport = () => {
+    if (!analytics) return;
+    const lines = [
+      `Cyncro Dispatch — Profit & Performance Report`,
+      `Generated: ${new Date().toLocaleString()}`,
+      ``,
+      `Booked this week: ${money(analytics.bookedThisWeekCents)}`,
+      `Collected: ${money(analytics.collectedCents)}`,
+      `Outstanding: ${money(analytics.outstandingCents)} across ${analytics.outstandingCount} invoice(s)`,
+      `Jobs completed this week: ${analytics.jobsCompletedThisWeek}`,
+      ``,
+      `Profitability (completed jobs):`,
+      `  Revenue: ${money(profitability?.revenueCents || 0)}`,
+      `  Labor cost: ${money(profitability?.laborCents || 0)}`,
+      `  Materials cost: ${money(profitability?.materialsCents || 0)}`,
+      `  Profit: ${money(profitability?.profitCents || 0)} (${profitability?.marginPct ?? 0}% margin)`,
+      ``,
+      `Revenue by technician:`,
+      ...techs.map((t) => `  ${t.name}: ${money(t.revenueCents)} over ${t.hours}h (${t.revenuePerHourCents !== null ? money(t.revenuePerHourCents) + "/hr" : "no hours logged"})`),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dispatch-analytics-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onFlash("Analytics report downloaded");
+  };
   return (
     <div className="dispatchAnalytics">
       <div className="dispatchPageHead">
         <div>
           <span>PROFIT + PERFORMANCE</span>
           <h1>Know what every job is worth.</h1>
-          <p>
-            Revenue, labor, material, source, technician, and lifecycle
-            intelligence.
-          </p>
+          <p>Revenue, labor, materials, and technician productivity — computed from real jobs, time entries, and invoices.</p>
         </div>
-        <button onClick={() => onFlash("Analytics report exported")}>
-          Export report
-        </button>
+        <button onClick={exportReport} disabled={!analytics}>Export report</button>
       </div>
       <div className="dispatchMetrics">
         {[
-          ["WEEKLY PROFIT", "$18,530", "38.4% margin"],
-          ["AVG PROFIT / JOB", "$882", "+$96 WoW"],
-          ["REVENUE / HOUR", "$72.40", "+$6.20"],
-          ["LEAD SOURCE ROI", "1,640%", "Google Ads"],
-        ].map((i, index) => (
+          ["WEEKLY BOOKED", money(analytics?.bookedThisWeekCents || 0), "Last 7 days"],
+          ["WEEKLY COLLECTED", money(analytics?.collectedCents || 0), "Last 7 days"],
+          ["PROFIT (COMPLETED JOBS)", money(profitability?.profitCents || 0), `${profitability?.marginPct ?? 0}% margin`],
+          ["JOBS COMPLETED THIS WEEK", String(analytics?.jobsCompletedThisWeek ?? 0), ""],
+        ].map((i) => (
           <article key={i[0]}>
             <small>{i[0]}</small>
             <b>{i[1]}</b>
@@ -8739,166 +8807,52 @@ function DispatchAnalytics({
           <header>
             <div>
               <small>REVENUE BY TECHNICIAN</small>
-              <h2>Productivity comparison</h2>
+              <h2>Productivity comparison — all completed jobs</h2>
             </div>
-            <button onClick={() => onFlash("Date range changed")}>
-              This month ▾
-            </button>
           </header>
           <div>
-            {[
-              ["Andre", "$24.8K", "88%"],
-              ["Maya", "$21.2K", "76%"],
-              ["Derek", "$18.9K", "67%"],
-              ["Luis", "$15.4K", "55%"],
-            ].map((i) => (
-              <article key={i[0]}>
-                <span>{i[0]}</span>
+            {techs.map((t) => (
+              <article key={t.id}>
+                <span>{t.name}</span>
                 <em>
-                  <i style={{ width: i[2] }} />
+                  <i style={{ width: `${Math.max(4, Math.round(((t.revenuePerHourCents || 0) / maxRevPerHour) * 100))}%` }} />
                 </em>
-                <b>{i[1]}</b>
+                <b>{money(t.revenueCents)}</b>
               </article>
             ))}
+            {!techs.length && <p className="disputeEmpty">No completed jobs with logged hours yet.</p>}
           </div>
-        </section>
-        <section className="dispatchPanel sourceROI">
-          <header>
-            <div>
-              <small>LEAD SOURCE ECONOMICS</small>
-              <h2>Spend to lifetime value</h2>
-            </div>
-          </header>
-          {[
-            ["Google Ads", "$500", "10", "3", "$8,100", "1,520%"],
-            ["Referral", "$0", "8", "6", "$24,000", "∞"],
-            ["Facebook", "$680", "14", "4", "$9,600", "1,312%"],
-            ["Organic", "$0", "12", "5", "$14,200", "∞"],
-          ].map((i) => (
-            <div key={i[0]}>
-              <b>{i[0]}</b>
-              <span>{i[1]} spend</span>
-              <span>{i[2]} leads</span>
-              <span>{i[3]} booked</span>
-              <strong>{i[4]}</strong>
-              <em>{i[5]}</em>
-            </div>
-          ))}
         </section>
         <section className="dispatchPanel marginBreakdown">
           <header>
             <div>
               <small>JOB PROFITABILITY</small>
-              <h2>Margin by service type</h2>
+              <h2>Across all completed jobs</h2>
             </div>
           </header>
-          {[
-            ["Access control", "46.2%", "$8.4K"],
-            ["Digital signage", "41.8%", "$6.7K"],
-            ["Home theater", "38.4%", "$5.2K"],
-            ["Camera systems", "34.1%", "$4.8K"],
-          ].map((i) => (
-            <button
-              onClick={() => onFlash(`${i[0]} profitability opened`)}
-              key={i[0]}
-            >
-              <span>
-                <b>{i[0]}</b>
-                <small>{i[2]} profit</small>
-              </span>
-              <em>{i[1]}</em>
-              <i>
-                <span style={{ width: i[1] }} />
-              </i>
-            </button>
-          ))}
-        </section>
-        <section className="dispatchPanel learningTrend">
-          <small>AGENT LEARNING TREND</small>
-          <h2>Every conversation makes the system smarter.</h2>
-          <div>
-            <span>
-              <i style={{ height: "42%" }} />
-              <small>W1</small>
-              <b>72%</b>
-            </span>
-            <span>
-              <i style={{ height: "55%" }} />
-              <small>W2</small>
-              <b>75%</b>
-            </span>
-            <span>
-              <i style={{ height: "72%" }} />
-              <small>W3</small>
-              <b>81%</b>
-            </span>
-            <span>
-              <i style={{ height: "83%" }} />
-              <small>W4</small>
-              <b>84%</b>
-            </span>
-          </div>
-          <button onClick={() => onFlash("Learning insights opened")}>
-            Review 3 new learnings →
-          </button>
-        </section>
-        <section className="dispatchPanel fieldEfficiencyPanel">
-          <header>
-            <div>
-              <small>FIELD EFFICIENCY</small>
-              <h2>Paid hours vs. operational time</h2>
-            </div>
-            <span>92.4% verified</span>
-          </header>
-          {[
-            ["Billable labor", "148h", "74%"],
-            ["Drive time", "31h", "16%"],
-            ["Unallocated time", "12h", "6%"],
-            ["Overtime", "8h", "4%"],
-          ].map((row) => (
-            <article key={row[0]}>
-              <span>
-                <b>{row[0]}</b>
-                <small>{row[1]}</small>
-              </span>
-              <em>
-                <i style={{ width: row[2] }} />
-              </em>
-              <strong>{row[2]}</strong>
-            </article>
-          ))}
-        </section>
-        <section className="dispatchPanel cashVelocityPanel">
-          <small>CASH VELOCITY</small>
-          <h2>Work completed to money collected.</h2>
-          <div>
-            <span>
-              <b>1.2d</b>
-              <small>Complete → invoice</small>
-            </span>
-            <span>
-              <b>4.2d</b>
-              <small>Invoice → paid</small>
-            </span>
-            <span>
-              <b>94%</b>
-              <small>Auto-reconciled</small>
-            </span>
-          </div>
-          <article>
-            <span>Documentation-ready invoices</span>
-            <b>96%</b>
-          </article>
-          <article>
-            <span>Deposit coverage</span>
-            <b>72%</b>
-          </article>
-          <article>
-            <span>Payment disputes</span>
-            <b>0.8%</b>
-          </article>
+          {profitability ? (
+            <>
+              <article>
+                <span><b>Revenue</b></span>
+                <em>{money(profitability.revenueCents)}</em>
+              </article>
+              <article>
+                <span><b>Labor cost</b></span>
+                <em>{money(profitability.laborCents)}</em>
+              </article>
+              <article>
+                <span><b>Materials cost</b></span>
+                <em>{money(profitability.materialsCents)}</em>
+              </article>
+              <article>
+                <span><b>Profit</b></span>
+                <em>{money(profitability.profitCents)} · {profitability.marginPct}% margin</em>
+              </article>
+            </>
+          ) : <p className="disputeEmpty">No completed jobs yet.</p>}
         </section>
       </div>
+      <p className="disputeEmpty">Lead-source ROI and per-service-type margins aren't tracked yet — jobs don't currently record a lead source or a cost breakdown by service type.</p>
     </div>
   );
 }
@@ -8908,14 +8862,14 @@ function DispatchAgents({ onFlash }: { onFlash: (message: string) => void }) {
     <div className="dispatchAgents">
       <div className="dispatchPageHead">
         <div>
-          <span>AI FIELD WORKFORCE</span>
+          <span>AI FIELD WORKFORCE · CONCEPT</span>
           <h1>Agents that book, recover, notify, and learn.</h1>
           <p>
-            Controlled automation with full conversation history and human
-            approval.
+            A preview of planned automation. No AI agents are connected or running yet — this shows what's
+            on the roadmap, not live activity.
           </p>
         </div>
-        <button onClick={() => onFlash("New field agent created")}>
+        <button onClick={() => onFlash("AI agents aren't connected yet — this is a roadmap preview")}>
           ＋ Create agent
         </button>
       </div>
@@ -8957,23 +8911,20 @@ function DispatchAgents({ onFlash }: { onFlash: (message: string) => void }) {
                 <small>AGENT {String(index + 1).padStart(2, "0")}</small>
                 <h2>{agent[0]}</h2>
               </div>
-              <em>● LIVE</em>
+              <em>◌ NOT CONNECTED</em>
             </header>
             <b>{agent[1]}</b>
             <strong>{agent[2]}</strong>
             <p>{agent[3]}</p>
             <div>
-              <small>LAST 30 DAYS</small>
+              <small>PROJECTED — LAST 30 DAYS</small>
               <b>{agent[4]}</b>
             </div>
             <footer>
               <button
-                onClick={() => onFlash(`${agent[0]} conversations opened`)}
+                onClick={() => onFlash(`${agent[0]} isn't connected yet — no real conversations to show`)}
               >
                 Activity
-              </button>
-              <button onClick={() => onFlash(`${agent[0]} permissions opened`)}>
-                Controls
               </button>
             </footer>
           </article>
@@ -8982,10 +8933,10 @@ function DispatchAgents({ onFlash }: { onFlash: (message: string) => void }) {
       <section className="agentLearningTable dispatchPanel">
         <header>
           <div>
-            <small>LEARNING APPROVAL QUEUE</small>
-            <h2>What the agents discovered</h2>
+            <small>LEARNING APPROVAL QUEUE · CONCEPT</small>
+            <h2>What agents would surface, once connected</h2>
           </div>
-          <span>Human approval required</span>
+          <span>Illustrative examples — not real findings</span>
         </header>
         {[
           [
@@ -9011,14 +8962,6 @@ function DispatchAgents({ onFlash }: { onFlash: (message: string) => void }) {
               <p>{i[1]}</p>
               <small>{i[2]}</small>
             </div>
-            <button
-              onClick={() => onFlash("Learning approved and prompt updated")}
-            >
-              Approve
-            </button>
-            <button onClick={() => onFlash("Learning details opened")}>
-              Review
-            </button>
           </article>
         ))}
       </section>
@@ -9035,14 +8978,14 @@ function DispatchEquipment({
     <div className="equipmentWorkspace">
       <div className="dispatchPageHead">
         <div>
-          <span>INSTALLED ASSET REGISTRY</span>
+          <span>INSTALLED ASSET REGISTRY · EXAMPLE DATA</span>
           <h1>Equipment intelligence after the job.</h1>
           <p>
-            Every model, serial, installation, warranty, and maintenance
-            opportunity.
+            Every model, serial, installation, warranty, and maintenance opportunity — shown here as
+            example rows. Equipment tracking isn't wired to a live registry yet.
           </p>
         </div>
-        <button onClick={() => onFlash("Equipment registered")}>
+        <button onClick={() => onFlash("Equipment registration isn't connected to a live registry yet")}>
           ＋ Register equipment
         </button>
       </div>
@@ -9084,7 +9027,7 @@ function DispatchEquipment({
             "EXPIRING",
           ],
         ].map((i, index) => (
-          <button onClick={() => onFlash(`${i[0]} registry opened`)} key={i[0]}>
+          <button disabled key={i[0]}>
             <span>
               <i>◇</i>
               <div>
@@ -9103,31 +9046,17 @@ function DispatchEquipment({
       </section>
       <div className="equipmentInsights">
         <section className="dispatchPanel">
-          <small>WARRANTY AUTOMATION</small>
-          <h2>12 upcoming opportunities</h2>
+          <small>WARRANTY AUTOMATION · NOT CONNECTED</small>
+          <h2>Automatic reminders aren't set up yet</h2>
           <p>
-            Automatic SMS reminders 30 days before warranty or maintenance
-            milestones.
+            Once equipment tracking is live, this would send SMS reminders 30 days before warranty
+            or maintenance milestones.
           </p>
-          <div>
-            <b>35%</b>
-            <span>book service</span>
-          </div>
-          <button onClick={() => onFlash("Warranty campaign opened")}>
-            Open reminder system →
-          </button>
         </section>
         <section className="dispatchPanel">
           <small>INSTALLED BASE</small>
-          <h2>$428K customer equipment</h2>
-          <p>186 registered assets across 84 active customer locations.</p>
-          <div>
-            <b>$82K</b>
-            <span>service opportunity</span>
-          </div>
-          <button onClick={() => onFlash("Installed base analyzed")}>
-            Analyze installed base →
-          </button>
+          <h2>Example data — not your real numbers</h2>
+          <p>The figures above are illustrative until equipment tracking is connected to real installs.</p>
         </section>
       </div>
     </div>
@@ -9254,14 +9183,13 @@ function DispatchSettings({ onFlash }: { onFlash: (message: string) => void }) {
     <div className="dispatchSettings">
       <div className="dispatchPageHead">
         <div>
-          <span>DISPATCH CONFIGURATION</span>
+          <span>DISPATCH CONFIGURATION · EXAMPLE DATA</span>
           <h1>Built around your field operation.</h1>
           <p>
-            Service rules, territories, notifications, roles, integrations, and
-            billing.
+            Service rules, territories, notifications, roles, integrations, and billing — shown here
+            as an example of what's configurable. These panels aren't editable yet.
           </p>
         </div>
-        <button onClick={() => onFlash("Settings saved")}>Save changes</button>
       </div>
       <div className="settingsDispatchGrid">
         {[
@@ -9324,7 +9252,7 @@ function DispatchSettings({ onFlash }: { onFlash: (message: string) => void }) {
             <small>{i[0].toUpperCase()}</small>
             <h2>{i[1]}</h2>
             <p>{i[2]}</p>
-            <button onClick={() => onFlash(`${i[0]} opened`)}>{i[3]} →</button>
+            <button onClick={() => onFlash(`${i[0]} settings aren't editable yet`)}>{i[3]} →</button>
           </article>
         ))}
       </div>
