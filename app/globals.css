@@ -23712,3 +23712,22 @@ button.crmUser i {
 .disputePortalNotice{color:#82d19d;font-size:11px;margin-bottom:10px}
 .disputePortalFooter{margin-top:24px;color:#726668;font-size:10px;line-height:1.6;text-align:center}
 .letterEditor{width:100%;min-height:340px;border:1px solid #d8cfc4;border-radius:6px;background:#f7f3ee;resize:vertical}
+
+/* ===== Apex Funds ===== */
+.apexApplicantForm{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.apexApplicantForm input{border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:9px;font-size:11px}
+.apexApplicantForm button{grid-column:1/-1;border:0;border-radius:6px;background:#8b2a3d;color:#fff;padding:9px 16px;font-size:11px;font-weight:600}
+.apexInspector h3{font-size:12px;font-weight:600;margin:18px 0 6px;color:#e5dadc}
+.apexLenderPicker{display:flex;flex-direction:column;gap:6px;padding:10px 0}
+.apexLenderPicker label{display:flex;align-items:center;gap:8px;font-size:11px;color:#c9babe}
+.apexEligibilityWarn{color:#e0a24a;font-style:normal}
+.apexSubmissionRow{border:1px solid #2b2426;border-radius:8px;padding:10px;margin-bottom:8px}
+.apexSubmissionHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.apexSubmissionHead b{font-size:12px}
+.apexSubmissionHead select{border:1px solid #3a2c30;border-radius:5px;background:#171114;color:#fff;padding:6px;font-size:10px}
+.apexSubmissionFields{display:flex;flex-wrap:wrap;gap:6px}
+.apexSubmissionFields input{flex:1;min-width:90px;border:1px solid #3a2c30;border-radius:5px;background:#171114;color:#fff;padding:6px;font-size:10px}
+.apexBestOffer{margin-top:16px;padding:14px;border:1px solid #2f5c3f;border-radius:8px;background:#0f1c13}
+.apexBestOffer small{display:block;color:#6fbf8b;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+.apexBestOffer b{display:block;font-size:14px}
+.apexBestOffer span{display:block;color:#a9c9b3;font-size:11px;margin-top:2px}

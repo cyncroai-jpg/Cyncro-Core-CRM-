@@ -30,7 +30,7 @@ type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive"
 
 export default function Home() {
   // ACTIVE products — Core and Dispatch are real, working products
-  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute"];
+  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex"];
   // Land directly in Core by default; the switcher is one click away via "Products"
   const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
@@ -45,8 +45,7 @@ export default function Home() {
     [time, setTime] = useState(""),
     [view, setView] = useState("Month"),
     [date, setDate] = useState(18);
-  // apex is the only remaining pure-roadmap gate
-  const roadmapTabs: Tab[] = ["apex"];
+  const roadmapTabs: Tab[] = [];
 
   const canAccess = (destination: Tab) =>
     destination === "home" ||
@@ -58,7 +57,7 @@ export default function Home() {
       Boolean(permissions.calendar_access)) ||
     (destination === "prospecting" && Boolean(permissions.prospecting_access)) ||
     // live modules — all authenticated members can access
-    (["messages", "prime", "dispatch", "dispute", "finance", "sign", "form"].includes(destination) &&
+    (["messages", "prime", "dispatch", "dispute", "finance", "apex", "sign", "form"].includes(destination) &&
       Boolean(permissions));
   const navigate = (destination: Tab) => {
     if (!canAccess(destination)) {
@@ -152,6 +151,18 @@ export default function Home() {
       </div>
     );
   }
+  if (product === "apex") {
+    return (
+      <div className="readable">
+        <CyncroApexFunds
+          onNavigate={(destination) => {
+            setProduct("core");
+            navigate(destination);
+          }}
+        />
+      </div>
+    );
+  }
   // Show gated screen for non-active products
   if (product !== "core") {
     return <CyncroProductGate product={product} onBack={() => setProduct("switcher")} />;
@@ -214,7 +225,7 @@ export default function Home() {
       ) : tab === "finance" ? (
         <CyncroFinance />
       ) : tab === "apex" ? (
-        <CyncroComingSoonGate product="Apex Funds" />
+        <CyncroApexFunds onNavigate={navigate} />
       ) : tab === "sign" ? (
         <ContractSigning />
       ) : tab === "form" ? (
@@ -5874,6 +5885,485 @@ function DisputeTeam({ onFlash }: { onFlash: (m: string) => void }) {
         ))}
         {!team.length && <p className="disputeEmpty">No team members yet — invited via Cyncro Core → Team Access.</p>}
       </section>
+    </div>
+  );
+}
+
+// ─── Apex Funds — lending-broker fintech (standalone product) ──────────────
+
+type ApexView = "Command" | "Applicants" | "Lenders" | "Commissions" | "Team" | "Analytics";
+type ApexApplicant = {
+  id: string; applicant_name: string; applicant_email: string | null; business_name: string | null;
+  industry: string | null; time_in_business_months: number | null; monthly_revenue_cents: number | null;
+  credit_score_self_reported: number | null; funding_amount_requested_cents: number; funding_purpose: string | null;
+  status: string; broker_email: string | null; manager_email: string | null;
+  ofac_checked: number; ofac_clear: number | null; funded_amount_cents: number | null;
+};
+type ApexOwner = { id: string; full_name: string; ownership_pct: number | null; ssn_last4: string | null };
+type ApexDocument = { id: string; doc_type: string; file_name: string; created_at: string };
+type ApexLender = {
+  id: string; name: string; min_credit_score: number | null; min_time_in_business_months: number | null;
+  min_monthly_revenue_cents: number | null; max_funding_amount_cents: number | null; active: number;
+};
+type ApexSubmission = {
+  id: string; applicant_id: string; lender_id: string; lender_name: string; status: string;
+  rate: number | null; term_months: number | null; payment_cents: number | null; factor_rate: number | null;
+  approval_amount_cents: number | null; decline_reason: string | null; stipulations: string;
+  submitted_at: string; responded_at: string | null;
+};
+type ApexCommission = { id: string; applicant_id: string; applicant_name: string; business_name: string | null; amount_cents: number; status: string; broker_email: string | null };
+type ApexSummary = { totalApplicants: number; activeSubmissions: number; fundedDeals: number; pendingCommissionCents: number };
+
+const APEX_SUBMISSION_STATUSES = ["SUBMITTED", "UNDER_REVIEW", "STIPS_REQUESTED", "APPROVED", "DECLINED", "OFFER_ACCEPTED", "FUNDED", "WITHDRAWN"];
+
+function apexMoney(cents: number | null | undefined) {
+  return `$${Math.round((cents || 0) / 100).toLocaleString()}`;
+}
+
+function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
+  const [view, setView] = useState<ApexView>("Command");
+  const [notice, setNotice] = useState("");
+  const [applicants, setApplicants] = useState<ApexApplicant[]>([]);
+  const [selectedApplicantId, setSelectedApplicantId] = useState("");
+  const [summary, setSummary] = useState<ApexSummary | null>(null);
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(""), 1900); };
+  const loadApplicants = () => {
+    void fetch("/api/apex?resource=applicants").then((r) => r.json()).then((d: { applicants?: ApexApplicant[] }) => {
+      setApplicants(d.applicants || []);
+      setSelectedApplicantId((prev) => prev || d.applicants?.[0]?.id || "");
+    });
+  };
+  const loadSummary = () => void fetch("/api/apex?resource=summary").then((r) => r.json()).then((d: ApexSummary) => setSummary(d));
+  useEffect(() => { loadApplicants(); loadSummary(); }, []);
+
+  const nav: { name: ApexView; icon: string }[] = [
+    { name: "Command", icon: "⌂" },
+    { name: "Applicants", icon: "◎" },
+    { name: "Lenders", icon: "▤" },
+    { name: "Commissions", icon: "$" },
+    { name: "Team", icon: "♙" },
+    { name: "Analytics", icon: "⌁" },
+  ];
+
+  return (
+    <section className="disputeShell apexShell">
+      {notice && <div className="dispatchToast">✓ {notice}</div>}
+      <aside className="disputeSidebar">
+        <div className="disputeBrand">
+          <span>AF</span>
+          <div><b>Apex Funds</b><small>Lending-broker infrastructure</small></div>
+        </div>
+        <nav>
+          {nav.map((item) => (
+            <button className={view === item.name ? "active" : ""} onClick={() => setView(item.name)} key={item.name}>
+              <i>{item.icon}</i><span>{item.name}</span>
+              {item.name === "Applicants" && summary ? <em>{summary.totalApplicants}</em> : null}
+            </button>
+          ))}
+        </nav>
+        <div className="disputeGuard">
+          <span>LENDER NETWORK STATUS</span>
+          <b>◌ Manual registry</b>
+          <small>No live lender API connected — submissions are tracked here, not transmitted automatically.</small>
+        </div>
+        <button className="exitDispute" onClick={() => (onNavigate ? onNavigate("crm") : (window.location.hash = "#crm"))}>
+          Cyncro Core modules ↗
+        </button>
+      </aside>
+      <main className="disputeMain">
+        <header className="disputeTopbar">
+          <div><small>APEX FUNDS</small><b>{view}</b></div>
+        </header>
+        <div className="disputeContent">
+          {view === "Command" && <ApexCommand summary={summary} applicants={applicants} onView={setView} />}
+          {view === "Applicants" && (
+            <ApexApplicants
+              applicants={applicants}
+              selectedId={selectedApplicantId}
+              onSelect={setSelectedApplicantId}
+              onReload={() => { loadApplicants(); loadSummary(); }}
+              onFlash={flash}
+            />
+          )}
+          {view === "Lenders" && <ApexLenders onFlash={flash} />}
+          {view === "Commissions" && <ApexCommissions onFlash={flash} />}
+          {view === "Team" && <ApexTeam onFlash={flash} />}
+          {view === "Analytics" && <ApexAnalytics summary={summary} />}
+        </div>
+      </main>
+    </section>
+  );
+}
+
+function ApexCommand({ summary, applicants, onView }: { summary: ApexSummary | null; applicants: ApexApplicant[]; onView: (v: ApexView) => void }) {
+  return (
+    <>
+      <div className="disputeHero">
+        <div>
+          <span>MULTI-LENDER FUNDING OPERATIONS</span>
+          <h1>One applicant.<br /><i>Every lender's own answer.</i></h1>
+          <p>Submit once, track every lender's status, rate, and stipulations independently — then compare real offers side by side.</p>
+        </div>
+        <button onClick={() => onView("Applicants")}>✦ New applicant</button>
+      </div>
+      <div className="disputeMetrics">
+        {[
+          ["TOTAL APPLICANTS", String(summary?.totalApplicants ?? applicants.length), ""],
+          ["ACTIVE SUBMISSIONS", String(summary?.activeSubmissions ?? "—"), "Across all lenders"],
+          ["FUNDED DEALS", String(summary?.fundedDeals ?? "—"), ""],
+          ["PENDING COMMISSION", apexMoney(summary?.pendingCommissionCents), ""],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <section className="disputePanel casePulse">
+        <header><div><small>RECENT APPLICANTS</small><h2>Pipeline</h2></div><button onClick={() => onView("Applicants")}>All applicants →</button></header>
+        {applicants.slice(0, 8).map((a) => (
+          <button onClick={() => onView("Applicants")} key={a.id}>
+            <span><i>{a.applicant_name.slice(0, 2).toUpperCase()}</i><div><b>{a.applicant_name}</b><small>{a.business_name || "—"}</small></div></span>
+            <em>{apexMoney(a.funding_amount_requested_cents)}</em>
+            <strong>{a.status}</strong>
+          </button>
+        ))}
+        {!applicants.length && <p className="disputeEmpty">No applicants yet.</p>}
+      </section>
+    </>
+  );
+}
+
+function ApexApplicants({
+  applicants, selectedId, onSelect, onReload, onFlash,
+}: {
+  applicants: ApexApplicant[]; selectedId: string; onSelect: (id: string) => void; onReload: () => void; onFlash: (m: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [owners, setOwners] = useState<ApexOwner[]>([]);
+  const [documents, setDocuments] = useState<ApexDocument[]>([]);
+  const [submissions, setSubmissions] = useState<ApexSubmission[]>([]);
+  const [lenders, setLenders] = useState<ApexLender[]>([]);
+  const [selectedLenderIds, setSelectedLenderIds] = useState<Set<string>>(new Set());
+
+  const applicant = applicants.find((a) => a.id === selectedId) || null;
+
+  const loadDetail = () => {
+    if (!selectedId) return;
+    void fetch(`/api/apex?resource=applicants&id=${selectedId}`).then((r) => r.json()).then((d: { owners?: ApexOwner[]; documents?: ApexDocument[]; submissions?: ApexSubmission[] }) => {
+      setOwners(d.owners || []); setDocuments(d.documents || []); setSubmissions(d.submissions || []);
+    });
+  };
+  useEffect(loadDetail, [selectedId]);
+  useEffect(() => { void fetch("/api/apex?resource=lenders").then((r) => r.json()).then((d: { lenders?: ApexLender[] }) => setLenders((d.lenders || []).filter((l) => l.active))); }, []);
+
+  const addApplicant = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/apex?resource=applicants", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        applicantName: data.get("applicantName"), applicantEmail: data.get("applicantEmail"), applicantPhone: data.get("applicantPhone"),
+        businessName: data.get("businessName"), industry: data.get("industry"),
+        timeInBusinessMonths: data.get("timeInBusiness"), monthlyRevenue: data.get("monthlyRevenue"),
+        creditScore: data.get("creditScore"), fundingAmount: data.get("fundingAmount"), fundingPurpose: data.get("fundingPurpose"),
+      }),
+    }).then(async (r) => {
+      const d = await r.json() as { id?: string; error?: string };
+      if (!r.ok) { onFlash(d.error || "Could not add applicant"); return; }
+      onFlash("Applicant created"); setAdding(false); onReload();
+      if (d.id) onSelect(d.id);
+    });
+  };
+
+  const addOwner = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!applicant) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/apex?resource=owners", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicantId: applicant.id, fullName: data.get("fullName"), ownershipPct: data.get("pct"), ssnLast4: data.get("ssn4") }),
+    }).then((r) => { if (r.ok) { onFlash("Owner added"); loadDetail(); (e.target as HTMLFormElement).reset(); } });
+  };
+
+  const addDocument = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!applicant) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/apex?resource=documents", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicantId: applicant.id, docType: data.get("docType"), fileName: data.get("fileName") }),
+    }).then((r) => { if (r.ok) { onFlash("Document logged"); loadDetail(); (e.target as HTMLFormElement).reset(); } });
+  };
+
+  const submitToLenders = () => {
+    if (!applicant || !selectedLenderIds.size) return;
+    void fetch("/api/apex?resource=submissions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicantId: applicant.id, lenderIds: Array.from(selectedLenderIds) }),
+    }).then((r) => { if (r.ok) { onFlash(`Submitted to ${selectedLenderIds.size} lender(s)`); setSelectedLenderIds(new Set()); loadDetail(); onReload(); } });
+  };
+
+  const updateSubmission = (submissionId: string, patch: Record<string, unknown>) => {
+    void fetch(`/api/apex?resource=submissions&id=${submissionId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
+      .then((r) => { if (r.ok) { onFlash("Submission updated"); loadDetail(); } });
+  };
+
+  const bestOffer = submissions
+    .filter((s) => s.status === "APPROVED" || s.status === "OFFER_ACCEPTED")
+    .filter((s) => s.approval_amount_cents)
+    .sort((a, b) => (a.rate ?? a.factor_rate ?? 999) - (b.rate ?? b.factor_rate ?? 999))[0];
+
+  return (
+    <div className="disputeCases apexApplicants">
+      <section className="disputePanel disputeCaseList">
+        <header><div><small>PIPELINE</small><h1>Applicants</h1></div><button onClick={() => setAdding(!adding)}>+ New applicant</button></header>
+        {adding && (
+          <form className="disputeAddClientForm apexApplicantForm" onSubmit={addApplicant}>
+            <input name="applicantName" placeholder="Applicant full name" required />
+            <input name="applicantEmail" type="email" placeholder="Email" />
+            <input name="applicantPhone" placeholder="Phone" />
+            <input name="businessName" placeholder="Business name" />
+            <input name="industry" placeholder="Industry" />
+            <input name="timeInBusiness" type="number" placeholder="Time in business (months)" />
+            <input name="monthlyRevenue" type="number" step="0.01" placeholder="Monthly revenue $" />
+            <input name="creditScore" type="number" placeholder="Credit score (self-reported)" />
+            <input name="fundingAmount" type="number" step="0.01" placeholder="Funding requested $" required />
+            <input name="fundingPurpose" placeholder="Funding purpose" />
+            <button type="submit">Create applicant</button>
+          </form>
+        )}
+        {applicants.map((a) => (
+          <button className={selectedId === a.id ? "active" : ""} onClick={() => onSelect(a.id)} key={a.id}>
+            <span><b>{a.applicant_name}</b><small>{a.business_name || "Individual"} · {apexMoney(a.funding_amount_requested_cents)}</small></span>
+            <em>{a.status}</em>
+          </button>
+        ))}
+        {!applicants.length && <p className="disputeEmpty">No applicants yet.</p>}
+      </section>
+      <aside className="disputePanel disputeInspector apexInspector">
+        {!applicant && <p className="disputeEmpty">Select an applicant.</p>}
+        {applicant && (
+          <>
+            <header><div><small>APPLICANT FILE</small><h2>{applicant.applicant_name}</h2></div><em className="caseStatus">● {applicant.status}</em></header>
+            <div className="caseFacts">
+              <span><small>BUSINESS</small><b>{applicant.business_name || "—"}</b></span>
+              <span><small>FUNDING REQUEST</small><b>{apexMoney(applicant.funding_amount_requested_cents)}</b></span>
+              <span><small>MONTHLY REVENUE</small><b>{apexMoney(applicant.monthly_revenue_cents)}</b></span>
+              <span><small>CREDIT SCORE</small><b>{applicant.credit_score_self_reported ?? "—"}</b></span>
+              <span><small>TIME IN BUSINESS</small><b>{applicant.time_in_business_months ? `${applicant.time_in_business_months} mo` : "—"}</b></span>
+              <span><small>BROKER</small><b>{applicant.broker_email || "Unassigned"}</b></span>
+            </div>
+
+            <h3>Owners / co-buyers</h3>
+            <form className="disputeInlineForm" onSubmit={addOwner}>
+              <input name="fullName" placeholder="Owner full name" required />
+              <input name="pct" type="number" placeholder="Ownership %" />
+              <input name="ssn4" placeholder="SSN last 4" maxLength={4} />
+              <button type="submit">+ Add owner</button>
+            </form>
+            {owners.map((o) => <div className="disputeListRow" key={o.id}><b>{o.full_name}</b><span>{o.ownership_pct ?? "—"}% ownership</span></div>)}
+            {!owners.length && <p className="disputeEmpty">No owners added.</p>}
+
+            <h3>Documents</h3>
+            <form className="disputeInlineForm" onSubmit={addDocument}>
+              <select name="docType" defaultValue="BANK_STATEMENT">
+                <option value="BANK_STATEMENT">Bank statement</option>
+                <option value="ID">ID</option>
+                <option value="VOIDED_CHECK">Voided check</option>
+                <option value="TAX_RETURN">Tax return</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <input name="fileName" placeholder="File description" required />
+              <button type="submit">+ Log document</button>
+            </form>
+            {documents.map((d) => <div className="disputeListRow" key={d.id}><b>{d.file_name}</b><small>{d.doc_type}</small></div>)}
+            {!documents.length && <p className="disputeEmpty">No documents logged. File storage isn't wired to R2 yet — this logs the request.</p>}
+
+            <h3>Submit to lenders</h3>
+            <div className="apexLenderPicker">
+              {lenders.map((l) => (
+                <label key={l.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedLenderIds.has(l.id)}
+                    onChange={(e) => {
+                      const next = new Set(selectedLenderIds);
+                      if (e.target.checked) next.add(l.id); else next.delete(l.id);
+                      setSelectedLenderIds(next);
+                    }}
+                  />
+                  {l.name}
+                  {l.min_credit_score && applicant.credit_score_self_reported && applicant.credit_score_self_reported < l.min_credit_score && (
+                    <em className="apexEligibilityWarn"> below {l.min_credit_score} min score</em>
+                  )}
+                </label>
+              ))}
+              {!lenders.length && <p className="disputeEmpty">No lenders in your registry yet — add one from Lenders.</p>}
+            </div>
+            <button disabled={!selectedLenderIds.size} onClick={submitToLenders}>✦ Submit to {selectedLenderIds.size || ""} lender(s)</button>
+
+            <h3>Per-lender status</h3>
+            {submissions.map((s) => (
+              <div className="apexSubmissionRow" key={s.id}>
+                <div className="apexSubmissionHead">
+                  <b>{s.lender_name}</b>
+                  <select value={s.status} onChange={(e) => updateSubmission(s.id, { status: e.target.value })}>
+                    {APEX_SUBMISSION_STATUSES.map((st) => <option value={st} key={st}>{st}</option>)}
+                  </select>
+                </div>
+                <div className="apexSubmissionFields">
+                  <input placeholder="Rate %" defaultValue={s.rate ?? ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { rate: e.target.value })} />
+                  <input placeholder="Term (mo)" defaultValue={s.term_months ?? ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { termMonths: e.target.value })} />
+                  <input placeholder="Payment $" defaultValue={s.payment_cents ? s.payment_cents / 100 : ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { payment: e.target.value })} />
+                  <input placeholder="Factor rate" defaultValue={s.factor_rate ?? ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { factorRate: e.target.value })} />
+                  <input placeholder="Approval $" defaultValue={s.approval_amount_cents ? s.approval_amount_cents / 100 : ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { approvalAmount: e.target.value })} />
+                  {s.status === "DECLINED" && <input placeholder="Decline reason" defaultValue={s.decline_reason ?? ""} onBlur={(e) => updateSubmission(s.id, { declineReason: e.target.value })} />}
+                </div>
+              </div>
+            ))}
+            {!submissions.length && <p className="disputeEmpty">Not submitted to any lenders yet.</p>}
+
+            {bestOffer && (
+              <div className="apexBestOffer">
+                <small>RECOMMENDED — LOWEST RATE AMONG APPROVED OFFERS</small>
+                <b>{bestOffer.lender_name}</b>
+                <span>{bestOffer.rate ? `${bestOffer.rate}% APR` : bestOffer.factor_rate ? `${bestOffer.factor_rate} factor` : ""} · {apexMoney(bestOffer.approval_amount_cents)} approved</span>
+              </div>
+            )}
+          </>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function ApexLenders({ onFlash }: { onFlash: (m: string) => void }) {
+  const [lenders, setLenders] = useState<ApexLender[]>([]);
+  const load = () => void fetch("/api/apex?resource=lenders").then((r) => r.json()).then((d: { lenders?: ApexLender[] }) => setLenders(d.lenders || []));
+  useEffect(load, []);
+  const addLender = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/apex?resource=lenders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.get("name"), minCreditScore: data.get("minScore"), minTimeInBusinessMonths: data.get("minTib"),
+        minMonthlyRevenue: data.get("minRevenue"), maxFundingAmount: data.get("maxFunding"),
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Lender added to registry"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  return (
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>LENDER NETWORK REGISTRY</span>
+          <h1>Your lender relationships, tracked — not synced.</h1>
+          <p>
+            This is a manually managed registry of lenders you work with and their eligibility
+            rules. No lender here is connected via a live API or secure feed — submissions are
+            logged for your own tracking, not transmitted automatically.
+          </p>
+        </div>
+      </div>
+      <section className="disputePanel">
+        <form className="disputeAddClientForm" onSubmit={addLender}>
+          <input name="name" placeholder="Lender name" required />
+          <input name="minScore" type="number" placeholder="Min credit score" />
+          <input name="minTib" type="number" placeholder="Min time in business (mo)" />
+          <input name="minRevenue" type="number" step="0.01" placeholder="Min monthly revenue $" />
+          <input name="maxFunding" type="number" step="0.01" placeholder="Max funding amount $" />
+          <button type="submit">+ Add lender</button>
+        </form>
+        {lenders.map((l) => (
+          <div className="disputeListRow" key={l.id}>
+            <b>{l.name}</b>
+            <span>{l.min_credit_score ? `${l.min_credit_score}+ score` : "No score min"} · {l.min_time_in_business_months ? `${l.min_time_in_business_months}mo+ TIB` : "No TIB min"}</span>
+            <small>{l.max_funding_amount_cents ? `Up to ${apexMoney(l.max_funding_amount_cents)}` : ""}</small>
+          </div>
+        ))}
+        {!lenders.length && <p className="disputeEmpty">No lenders yet. Add your first one above.</p>}
+      </section>
+    </div>
+  );
+}
+
+function ApexCommissions({ onFlash }: { onFlash: (m: string) => void }) {
+  const [commissions, setCommissions] = useState<ApexCommission[]>([]);
+  const load = () => void fetch("/api/apex?resource=commissions").then((r) => r.json()).then((d: { commissions?: ApexCommission[] }) => setCommissions(d.commissions || []));
+  useEffect(load, []);
+  const markPaid = (id: string) => void fetch(`/api/apex?resource=commissions&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "PAID" }) })
+    .then((r) => { if (r.ok) { onFlash("Commission marked paid"); load(); } });
+  const total = commissions.filter((c) => c.status === "PENDING").reduce((sum, c) => sum + c.amount_cents, 0);
+  return (
+    <div className="apexCommissionsWorkspace">
+      <div className="disputeHero compact">
+        <div><span>COMMISSION TRACKING</span><h1>What's owed, what's paid.</h1></div>
+      </div>
+      <div className="disputeMetrics">
+        <article><small>PENDING</small><b>{apexMoney(total)}</b><span>{commissions.filter((c) => c.status === "PENDING").length} deals</span></article>
+      </div>
+      <section className="disputePanel">
+        {commissions.map((c) => (
+          <div className="disputeListRow" key={c.id}>
+            <b>{c.applicant_name}</b>
+            <span>{c.business_name || "—"} · {apexMoney(c.amount_cents)}</span>
+            <em>{c.status}</em>
+            {c.status === "PENDING" && <button onClick={() => markPaid(c.id)}>Mark paid</button>}
+          </div>
+        ))}
+        {!commissions.length && <p className="disputeEmpty">No commissions logged yet — add one from a funded applicant.</p>}
+      </section>
+    </div>
+  );
+}
+
+function ApexTeam({ onFlash }: { onFlash: (m: string) => void }) {
+  const [team, setTeam] = useState<DisputeTeamRow[]>([]);
+  useEffect(() => { void fetch("/api/dispute?resource=team").then((r) => r.json()).then((d: { team?: DisputeTeamRow[] }) => setTeam(d.team || [])); }, []);
+  return (
+    <div className="disputeTeamWorkspace">
+      <div className="disputeHero compact"><div><span>TEAM</span><h1>Brokers and managers with access.</h1></div></div>
+      <section className="disputePanel">
+        <header><span>NAME</span><span>EMAIL</span><span>ROLE</span><span>STATUS</span></header>
+        {team.map((t) => (
+          <div className="disputeListRow teamRow" key={t.id}><b>{t.display_name}</b><span>{t.email}</span><em>{t.role}</em><small>{t.active ? "ACTIVE" : "INACTIVE"}</small></div>
+        ))}
+        {!team.length && <p className="disputeEmpty">No team members yet — invited via Cyncro Core → Team Access.</p>}
+      </section>
+    </div>
+  );
+}
+
+function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
+  const [submissions, setSubmissions] = useState<ApexSubmission[]>([]);
+  useEffect(() => { void fetch("/api/apex?resource=submissions").then((r) => r.json()).then((d: { submissions?: ApexSubmission[] }) => setSubmissions(d.submissions || [])); }, []);
+  const byLender = Object.entries(
+    submissions.reduce((acc, s) => { acc[s.lender_name] = (acc[s.lender_name] || 0) + 1; return acc; }, {} as Record<string, number>),
+  ).sort((a, b) => b[1] - a[1]);
+  const byStatus = Object.entries(
+    submissions.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {} as Record<string, number>),
+  );
+  const total = submissions.length || 1;
+  return (
+    <div className="disputeAnalytics">
+      <div className="disputeHero compact"><div><span>REAL SUBMISSION DATA</span><h1>Broker and lender performance.</h1></div></div>
+      <div className="disputeMetrics">
+        {[
+          ["TOTAL SUBMISSIONS", String(submissions.length), ""],
+          ["FUNDED DEALS", String(summary?.fundedDeals ?? 0), ""],
+          ["ACTIVE SUBMISSIONS", String(summary?.activeSubmissions ?? 0), ""],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <div className="analyticsDisputeGrid">
+        <section className="disputePanel outcomeBars">
+          <small>SUBMISSIONS BY LENDER</small><h2>Volume</h2>
+          {byLender.map(([name, count]) => (
+            <article key={name}><span>{name}</span><em><i style={{ width: `${Math.round((count / total) * 100)}%` }} /></em><b>{count}</b></article>
+          ))}
+          {!byLender.length && <p className="disputeEmpty">No submissions yet.</p>}
+        </section>
+        <section className="disputePanel bureauScore">
+          <small>SUBMISSIONS BY STATUS</small><h2>Where deals stand</h2>
+          {byStatus.map(([status, count]) => (<article key={status}><b>{status}</b><span>{count}</span></article>))}
+          {!byStatus.length && <p className="disputeEmpty">No submissions yet.</p>}
+        </section>
+      </div>
     </div>
   );
 }
@@ -23304,7 +23794,6 @@ const CYNCRO_PRODUCTS: {
     tagline: "Lending-broker fintech infrastructure",
     color: "#B45309",
     icon: "▲",
-    badge: "Coming Soon",
     features: ["100+ lender network", "Multi-lender submissions", "Offer comparison", "Decline recovery", "Stipulation tracking", "Broker analytics", "API & webhooks"],
   },
   {
