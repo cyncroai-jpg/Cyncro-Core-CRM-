@@ -3283,15 +3283,13 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
     <div className="advanced">
       <div className="advancedTitle">
         <div>
-          <label>ADVANCED SCHEDULING OS</label>
+          <label>ADVANCED SCHEDULING OS · CONCEPT PREVIEW</label>
           <h2>Calendar Command Center</h2>
           <p>
-            Every rule, workflow, team member, payment, and customer touchpoint
-            in one operating system.
+            Every rule, workflow, team member, payment, and customer touchpoint in one operating
+            system — shown here with example data. This advanced layer isn't wired to your real
+            bookings yet; use the Calendar tab for real scheduling.
           </p>
-        </div>
-        <div className="health">
-          <i /> All systems operational
         </div>
       </div>
       <div className="advancedNav">
@@ -3314,7 +3312,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                 <small>LIVE OPERATIONS</small>
                 <h3>Today’s scheduling pulse</h3>
               </div>
-              <button onClick={() => flash("Schedule optimized")}>
+              <button onClick={() => flash("Preview only — this control center isn't connected to your real schedule yet")}>
                 Run optimization
               </button>
             </div>
@@ -3364,13 +3362,13 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
             <h3>Operate faster</h3>
             <div className="quickgrid">
               <button onClick={onCreate}>＋ New event</button>
-              <button onClick={() => flash("Booking created")}>
+              <button onClick={() => flash("Preview only — use the Calendar tab to create a real booking")}>
                 ＋ Manual booking
               </button>
-              <button onClick={() => flash("Hours overridden")}>
+              <button onClick={() => flash("Preview only — availability overrides aren't connected yet")}>
                 Override hours
               </button>
-              <button onClick={() => flash("Share page copied")}>
+              <button onClick={() => flash("Preview only — use the Calendar tab's real booking page link")}>
                 Share booking page
               </button>
             </div>
@@ -3398,7 +3396,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                   <b>{r[0]}</b>
                   <span>{r[1]}</span>
                 </div>
-                <button onClick={() => flash(`${r[0]} resolved`)}>
+                <button onClick={() => flash("Preview only — this exception queue isn't connected to real bookings yet")}>
                   {r[2]}
                 </button>
               </div>
@@ -3414,7 +3412,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                 <small>AVAILABILITY ENGINE</small>
                 <h3>Layered scheduling rules</h3>
               </div>
-              <button onClick={() => flash("Rule added")}>+ Add rule</button>
+              <button onClick={() => flash("Preview only — automation rules aren't connected yet")}>+ Add rule</button>
             </div>
             {[
               [
@@ -3495,7 +3493,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                 <small>WORKFLOW BUILDER</small>
                 <h3>Booking journey automation</h3>
               </div>
-              <button onClick={() => flash("Workflow step added")}>
+              <button onClick={() => flash("Preview only — workflow builder isn't connected yet")}>
                 + Add step
               </button>
             </div>
@@ -3553,7 +3551,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
               <p>{x[1]}</p>
               <div>
                 <em>{x[2]}</em>
-                <button onClick={() => flash(`${x[0]} toggled`)}>Active</button>
+                <button onClick={() => flash("Preview only — this toggle isn't connected yet")}>Active</button>
               </div>
             </div>
           ))}
@@ -3567,7 +3565,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                 <small>MONETIZATION</small>
                 <h3>Offers, packages & subscriptions</h3>
               </div>
-              <button onClick={() => flash("Offer builder opened")}>
+              <button onClick={() => flash("Preview only — offers & payments aren't connected yet")}>
                 + Create offer
               </button>
             </div>
@@ -3618,7 +3616,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
             <p>$2,394 outstanding · 3 scheduled retries</p>
             <button
               className="outline"
-              onClick={() => flash("Revenue report opened")}
+              onClick={() => flash("Preview only — revenue reporting isn't connected yet")}
             >
               View transactions
             </button>
@@ -3678,7 +3676,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
                 </div>
               </div>
             ))}
-            <button className="outline" onClick={() => flash("Resource added")}>
+            <button className="outline" onClick={() => flash("Preview only — team & resource management isn't connected yet")}>
               + Add resource
             </button>
           </div>
@@ -3713,7 +3711,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
               </div>
               <button
                 className={x[2] === "Connected" ? "connected" : ""}
-                onClick={() => flash(`${x[0]} settings opened`)}
+                onClick={() => flash("Preview only — this integration isn't connected yet")}
               >
                 {x[2]}
               </button>
@@ -3781,7 +3779,7 @@ function AdvancedSuite({ onCreate }: { onCreate: () => void }) {
             ))}
             <button
               className="outline"
-              onClick={() => flash("Analytics exported")}
+              onClick={() => flash("Preview only — this analytics export isn't connected to real data yet")}
             >
               Export report
             </button>
@@ -13316,10 +13314,10 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
       <aside>
         <div className="inboxHead">
           <div>
-            <small>UNIFIED INBOX</small>
+            <small>UNIFIED INBOX · EXAMPLE DATA</small>
             <h2>All conversations</h2>
           </div>
-          <button onClick={() => onFlash("Inbox filters opened")}>⌁</button>
+          <button onClick={() => onFlash("This is example conversation data — no live channel is connected yet")}>⌁</button>
         </div>
         {threads.map((item, index) => (
           <button
@@ -13357,8 +13355,8 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
             </span>
           </div>
           <div>
-            <button onClick={() => onFlash("Call started")}>Call</button>
-            <button onClick={() => onFlash("Contact opened")}>
+            <button onClick={() => onFlash("Calling isn't connected yet — no telephony provider configured")}>Call</button>
+            <button onClick={() => onFlash("This is example conversation data — no matching contact record exists")}>
               Open record
             </button>
           </div>
@@ -13376,7 +13374,7 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
         <footer>
           <button>＋</button>
           <input placeholder="Reply by SMS…" />
-          <button onClick={() => onFlash("Reply sent")}>Send ↑</button>
+          <button onClick={() => onFlash("No live channel is connected yet — nothing was sent")}>Send ↑</button>
         </footer>
       </article>
       <aside className="conversationContext">
@@ -13393,7 +13391,7 @@ function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
           Send the proposal and payment link, then create a 24-hour follow-up
           task.
         </p>
-        <button onClick={() => onFlash("Next move executed")}>
+        <button onClick={() => onFlash("AI next-move suggestions aren't connected yet")}>
           ✦ Execute next move
         </button>
       </aside>
@@ -13612,7 +13610,7 @@ function CRMSocialAutomations({
             <small>CONNECTED CHANNELS</small>
             <h2>Your social front desk</h2>
           </div>
-          <button onClick={() => onFlash("Channel settings opened")}>
+          <button onClick={() => onFlash("No live social channel is connected yet — this is example data")}>
             Manage permissions
           </button>
         </div>
@@ -13657,7 +13655,7 @@ function CRMSocialAutomations({
           </article>
           <button
             className="channelAdd"
-            onClick={() => onFlash("WhatsApp connection ready")}
+            onClick={() => onFlash("WhatsApp isn't connected yet — no messaging API configured")}
           >
             <span>＋</span>
             <b>Add WhatsApp</b>
@@ -13707,7 +13705,7 @@ function CRMSocialAutomations({
             ))}
             <button
               className="flowTemplate"
-              onClick={() => onFlash("Template library opened")}
+              onClick={() => onFlash("Template library isn't connected yet")}
             >
               ✦ Browse conversion templates
             </button>
@@ -13770,7 +13768,7 @@ function CRMSocialAutomations({
                   <div className="keywordEditor">
                     {[active.trigger, "INFO", ...extraKeywords].map((word) => (
                       <button
-                        onClick={() => onFlash(`${word} keyword selected`)}
+                        onClick={() => onFlash("Preview only — edit the trigger keyword in the flow editor to save it for real")}
                         key={word}
                       >
                         {word} ×
@@ -13815,14 +13813,14 @@ function CRMSocialAutomations({
                     {["Book a demo", "See pricing", "Ask a question"].map(
                       (item) => (
                         <button
-                          onClick={() => onFlash(`${item} reply edited`)}
+                          onClick={() => onFlash("Preview only — quick replies aren't saved yet")}
                           key={item}
                         >
                           {item}
                         </button>
                       ),
                     )}
-                    <button onClick={() => onFlash("Quick reply added")}>
+                    <button onClick={() => onFlash("Preview only — quick replies aren't saved yet")}>
                       ＋
                     </button>
                   </div>
@@ -13843,7 +13841,7 @@ function CRMSocialAutomations({
                       Name, email, phone, social profile, source, consent, and
                       intent.
                     </p>
-                    <button onClick={() => onFlash("Contact mapping opened")}>
+                    <button onClick={() => onFlash("Field mapping isn't connected yet")}>
                       Edit field mapping →
                     </button>
                   </article>
@@ -13859,14 +13857,14 @@ function CRMSocialAutomations({
                       Send booking link, payment request, offer, or human
                       handoff.
                     </p>
-                    <button onClick={() => onFlash("Conversion action opened")}>
+                    <button onClick={() => onFlash("Conversion actions aren't connected yet")}>
                       Book a strategy call ▾
                     </button>
                   </article>
                 </div>
                 <button
                   className="addFlowStep"
-                  onClick={() => onFlash("Flow step library opened")}
+                  onClick={() => onFlash("The flow step library isn't connected yet")}
                 >
                   ＋ Add condition, message, delay, action, or AI decision
                 </button>
@@ -13941,7 +13939,7 @@ function CRMSocialAutomations({
                 <b>Sophia Lewis</b>
                 <small>Instagram · High buying intent · Contact matched</small>
               </div>
-              <button onClick={() => onFlash("Conversation assigned")}>
+              <button onClick={() => onFlash("This is example conversation data — no live channel is connected yet")}>
                 Assign ▾
               </button>
             </header>
@@ -13958,7 +13956,7 @@ function CRMSocialAutomations({
                   and recommend the best setup based on your goals. Want the
                   private booking link?
                 </p>
-                <button onClick={() => onFlash("AI reply inserted")}>
+                <button onClick={() => onFlash("AI reply suggestions aren't connected yet")}>
                   Use reply
                 </button>
               </div>
@@ -13966,7 +13964,7 @@ function CRMSocialAutomations({
             <footer>
               <button>＋</button>
               <input placeholder="Reply as Cyncro Media…" />
-              <button onClick={() => onFlash("Social reply sent")}>
+              <button onClick={() => onFlash("No live social channel is connected yet — nothing was sent")}>
                 Send ↑
               </button>
             </footer>
@@ -13988,7 +13986,7 @@ function CRMSocialAutomations({
               <small>ATTRIBUTION</small>
               <b>Instagram Reel</b>
             </div>
-            <button onClick={() => onFlash("CRM record opened")}>
+            <button onClick={() => onFlash("This is example conversation data — no matching CRM record exists")}>
               Open CRM record →
             </button>
           </aside>
@@ -14003,7 +14001,7 @@ function CRMSocialAutomations({
                 <small>SMART AUDIENCES</small>
                 <h2>Segments that update themselves</h2>
               </div>
-              <button onClick={() => onFlash("Segment builder opened")}>
+              <button onClick={() => onFlash("Smart audience segments aren't connected yet")}>
                 ＋ New segment
               </button>
             </div>
@@ -14035,7 +14033,7 @@ function CRMSocialAutomations({
             ].map((item) => (
               <button
                 className="audienceRow"
-                onClick={() => onFlash(`${item[0]} opened`)}
+                onClick={() => onFlash("This is example audience data")}
                 key={item[0]}
               >
                 <span>
@@ -14058,7 +14056,7 @@ function CRMSocialAutomations({
                 <small>reachable</small>
               </span>
             </div>
-            <button onClick={() => onFlash("Audience opportunity analyzed")}>
+            <button onClick={() => onFlash("Audience analysis isn't connected yet")}>
               ✦ Find revenue opportunity
             </button>
           </aside>
@@ -14073,7 +14071,7 @@ function CRMSocialAutomations({
                 <small>CONVERSION ANALYTICS</small>
                 <h2>From keyword to revenue</h2>
               </div>
-              <button onClick={() => onFlash("Analytics exported")}>
+              <button onClick={() => onFlash("Conversion analytics aren't connected to real data yet")}>
                 Export report
               </button>
             </div>
@@ -14112,7 +14110,7 @@ function CRMSocialAutomations({
                 <em>{item[1]}</em>
               </div>
             ))}
-            <button onClick={() => onFlash("AI keywords discovered")}>
+            <button onClick={() => onFlash("AI keyword discovery isn't connected yet")}>
               ✦ Discover hidden keywords
             </button>
           </aside>
@@ -14756,9 +14754,9 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
     <div className="journeyWorkspace">
       <aside className="journeyLibrary crmPanel">
         <div>
-          <small>JOURNEY ORCHESTRATOR</small>
+          <small>JOURNEY ORCHESTRATOR · CONCEPT PREVIEW</small>
           <h2>Lifecycle systems</h2>
-          <p>Coordinate every customer moment across teams and channels.</p>
+          <p>Coordinate every customer moment across teams and channels — shown here as example data, not yet connected to real contacts.</p>
         </div>
         {journeys.map((item, index) => (
           <button
@@ -14780,7 +14778,7 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
         ))}
         <button
           className="newJourney"
-          onClick={() => onFlash("Journey builder opened")}
+          onClick={() => onFlash("Journey builder isn't connected yet — this is a concept preview")}
         >
           ＋ Create journey
         </button>
@@ -14793,7 +14791,7 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
           </div>
           <div>
             <span>● 842 enrolled</span>
-            <button onClick={() => onFlash("Journey published")}>
+            <button onClick={() => onFlash("Journeys aren't connected yet — nothing was published")}>
               Publish changes
             </button>
           </div>
@@ -14891,7 +14889,7 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
           </div>
           <button
             className="journeyAdd"
-            onClick={() => onFlash("Journey step added")}
+            onClick={() => onFlash("Journey builder isn't connected yet")}
           >
             ＋ Add decision, action, delay, experiment, or AI agent
           </button>
@@ -14904,6 +14902,7 @@ function CRMJourneys({ onFlash }: { onFlash: (message: string) => void }) {
 function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
   return (
     <div className="automationWorkspace">
+      <p className="disputeEmpty">CONCEPT PREVIEW — automation systems aren't connected yet. Everything below is example data.</p>
       <div className="automationSummary">
         {[
           ["18", "ACTIVE SYSTEMS"],
@@ -14965,7 +14964,7 @@ function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
             <p>{item[1]}</p>
             <footer>
               <small>{item[2]}</small>
-              <button onClick={() => onFlash(`${item[0]} opened`)}>
+              <button onClick={() => onFlash("Automation systems aren't connected yet — this is a concept preview")}>
                 Open system →
               </button>
             </footer>
@@ -14974,7 +14973,7 @@ function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
       </div>
       <button
         className="newAutomation"
-        onClick={() => onFlash("Automation builder opened")}
+        onClick={() => onFlash("Automation builder isn't connected yet")}
       >
         ＋ Build a new operating system
       </button>
@@ -14997,14 +14996,14 @@ function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
       <section className="graphCanvas crmPanel">
         <header>
           <div>
-            <small>UNIVERSAL RELATIONSHIP GRAPH</small>
+            <small>UNIVERSAL RELATIONSHIP GRAPH · CONCEPT PREVIEW</small>
             <h2>Every record. Every relationship. One truth.</h2>
           </div>
           <div>
-            <button onClick={() => onFlash("Graph filter opened")}>
+            <button onClick={() => onFlash("Filtering isn't connected yet — this is example graph data")}>
               Filter objects
             </button>
-            <button onClick={() => onFlash("Graph expanded")}>
+            <button onClick={() => onFlash("This relationship graph isn't connected to real records yet")}>
               Expand network
             </button>
           </div>
@@ -15090,7 +15089,7 @@ function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
           "What changed this week?",
           "Show the shortest path to revenue",
         ].map((item) => (
-          <button onClick={() => onFlash("Graph answer generated")} key={item}>
+          <button onClick={() => onFlash("AI graph queries aren't connected yet")} key={item}>
             ✦ {item}
           </button>
         ))}
@@ -15141,18 +15140,15 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
     <div className="agentWorkspace">
       <section className="agentHero">
         <div>
-          <small>AGENTIC REVENUE OPERATING SYSTEM</small>
+          <small>AGENTIC REVENUE OPERATING SYSTEM · CONCEPT PREVIEW</small>
           <h2>Your AI team works across the entire customer lifecycle.</h2>
           <p>
-            Each agent has a defined role, access boundary, approval policy,
-            memory scope, and measurable business outcome.
+            Each agent has a defined role, access boundary, approval policy, memory scope, and
+            measurable business outcome — no agents are connected or running yet.
           </p>
         </div>
         <aside>
-          <span>5 agents online</span>
-          <b>99.98%</b>
-          <small>CONTROLLED EXECUTION RATE</small>
-          <button onClick={() => onFlash("Agent orchestration opened")}>
+          <button onClick={() => onFlash("No AI agents are connected yet — this is a concept preview")}>
             Open orchestration map →
           </button>
         </aside>
@@ -15189,10 +15185,10 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
               </span>
             </div>
             <footer>
-              <button onClick={() => onFlash(`${agent[0]} activity opened`)}>
+              <button onClick={() => onFlash(`${agent[0]} isn't connected yet — no real activity to show`)}>
                 View activity
               </button>
-              <button onClick={() => onFlash(`${agent[0]} controls opened`)}>
+              <button onClick={() => onFlash(`${agent[0]} isn't connected yet`)}>
                 Permissions
               </button>
             </footer>
@@ -15235,7 +15231,7 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
             <small>Action + full audit</small>
           </article>
         </div>
-        <button onClick={() => onFlash("Mission builder opened")}>
+        <button onClick={() => onFlash("Agent mission builder isn't connected yet")}>
           ＋ Build an agent mission
         </button>
       </section>
@@ -17471,30 +17467,30 @@ function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
     <div className="intelligenceWorkspace">
       <section className="intelligenceHero">
         <div>
-          <span>✦ CYNCRO INTELLIGENCE</span>
+          <span>✦ CYNCRO INTELLIGENCE · CONCEPT PREVIEW</span>
           <h2>
             Ask your entire business.
             <br />
             Act from one answer.
           </h2>
           <p>
-            Reason across contacts, bookings, conversations, revenue, payments,
-            tasks, and attribution—then execute with permission.
+            Reason across contacts, bookings, conversations, revenue, payments, tasks, and
+            attribution—then execute with permission. Not connected yet — the cards below are examples.
           </p>
           <div>
-            <button onClick={() => onFlash("Revenue analysis ready")}>
+            <button onClick={() => onFlash("AI business analysis isn't connected yet — this is a concept preview")}>
               Why did revenue change?
             </button>
-            <button onClick={() => onFlash("At-risk deals identified")}>
+            <button onClick={() => onFlash("AI business analysis isn't connected yet")}>
               Which deals are at risk?
             </button>
-            <button onClick={() => onFlash("Growth plan generated")}>
+            <button onClick={() => onFlash("AI business analysis isn't connected yet")}>
               Build my growth plan
             </button>
           </div>
         </div>
         <aside>
-          <small>LIVE BUSINESS MODEL</small>
+          <small>EXAMPLE BUSINESS MODEL</small>
           {[
             ["Customer graph", "2,418 entities"],
             ["Revenue context", "$284K analyzed"],
@@ -17536,7 +17532,7 @@ function CRMIntelligence({ onFlash }: { onFlash: (message: string) => void }) {
             <small>{item[0]}</small>
             <h3>{item[1]}</h3>
             <b>{item[2]}</b>
-            <button onClick={() => onFlash("Insight opened")}>
+            <button onClick={() => onFlash("This insight isn't connected to real data yet")}>
               Inspect reasoning →
             </button>
           </article>
