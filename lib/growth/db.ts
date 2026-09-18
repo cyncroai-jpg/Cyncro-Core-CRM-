@@ -206,6 +206,32 @@ export async function ensureGrowthSchema() {
       ended_at TEXT,
       created_at TEXT NOT NULL
     )`),
+    // ============ VISUAL AUTOMATION BUILDER ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS gi_automations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      nodes_json TEXT NOT NULL DEFAULT '[]',
+      edges_json TEXT NOT NULL DEFAULT '[]',
+      run_count INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS gi_automation_runs (
+      id TEXT PRIMARY KEY,
+      automation_id TEXT NOT NULL,
+      trigger_event TEXT NOT NULL,
+      context_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'RUNNING',
+      current_node_id TEXT,
+      resume_at TEXT,
+      trace_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_gi_automation_runs_automation ON gi_automation_runs(automation_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_gi_automation_runs_waiting ON gi_automation_runs(status, resume_at)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS gi_experiment_events (
       id TEXT PRIMARY KEY,
       experiment_id TEXT NOT NULL,

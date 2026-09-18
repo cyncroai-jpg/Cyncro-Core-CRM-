@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ReactFlow, Background, Controls, Handle, Position, addEdge, useNodesState, useEdgesState, type Node, type Edge, type Connection, type NodeProps } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
-type GrowthModule = "overview" | "forms" | "landing-pages" | "journeys" | "attribution" | "tracking" | "campaigns" | "agents" | "conversations" | "revenue-intelligence" | "experiments" | "integrations";
+type GrowthModule = "overview" | "forms" | "landing-pages" | "journeys" | "attribution" | "tracking" | "campaigns" | "automations" | "agents" | "conversations" | "revenue-intelligence" | "experiments" | "integrations";
 
 const MODULES: { id: GrowthModule; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -11,6 +13,7 @@ const MODULES: { id: GrowthModule; label: string }[] = [
   { id: "attribution", label: "Attribution" },
   { id: "tracking", label: "Tracking" },
   { id: "campaigns", label: "Campaigns" },
+  { id: "automations", label: "Automations" },
   { id: "agents", label: "AI Agents" },
   { id: "conversations", label: "Conversations" },
   { id: "revenue-intelligence", label: "Revenue Intelligence" },
@@ -48,6 +51,7 @@ export default function GrowthIntelligence() {
         {module === "attribution" && <GiAttribution onFlash={onFlash} />}
         {module === "tracking" && <GiTracking onFlash={onFlash} />}
         {module === "campaigns" && <GiCampaigns onFlash={onFlash} />}
+        {module === "automations" && <GiAutomations onFlash={onFlash} />}
         {module === "agents" && <GiAgents onFlash={onFlash} />}
         {module === "conversations" && <GiConversations />}
         {module === "revenue-intelligence" && <GiRevenueIntelligence onFlash={onFlash} />}
@@ -807,4 +811,243 @@ function GiIntegrations({ onFlash }: { onFlash: (m: string) => void }) {
       </div>
     </section>
   );
+}
+
+// ============ AUTOMATIONS (visual node-graph builder) ============
+type FlowNodeType = "trigger" | "condition" | "action" | "delay";
+const TRIGGER_EVENTS = ["FORM_SUBMITTED", "CONTACT_CREATED", "OPPORTUNITY_CREATED"];
+const ACTION_TYPES = ["CREATE_TASK", "ADD_NOTE", "ADD_TAG", "ASSIGN_REP", "UPDATE_STAGE"];
+const ACTION_LABELS: Record<string, string> = { CREATE_TASK: "Create task", ADD_NOTE: "Add CRM note", ADD_TAG: "Add tag", ASSIGN_REP: "Assign rep", UPDATE_STAGE: "Update opportunity stage" };
+const CONDITION_FIELDS = ["source", "campaign", "contact.gi_lead_score", "contact.lifecycle", "opportunity.value_cents", "opportunity.stage"];
+const CONDITION_OPERATORS = ["equals", "not_equals", "contains", "greater_than", "less_than"];
+
+function TriggerFlowNode({ data, selected }: NodeProps) {
+  const d = data as Record<string, unknown>;
+  return (
+    <div className={`flowNode flowNodeTrigger${selected ? " flowNodeSelected" : ""}`}>
+      <small>TRIGGER</small>
+      <b>{String(d.event || "Choose event")}</b>
+      {!!d.filterField && <span>if {String(d.filterField)} {String(d.filterOperator)} {String(d.filterValue ?? "")}</span>}
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  );
+}
+function ConditionFlowNode({ data, selected }: NodeProps) {
+  const d = data as Record<string, unknown>;
+  return (
+    <div className={`flowNode flowNodeCondition${selected ? " flowNodeSelected" : ""}`}>
+      <Handle type="target" position={Position.Top} />
+      <small>CONDITION</small>
+      <b>{String(d.field || "field")} {String(d.operator || "equals")} {String(d.value ?? "")}</b>
+      <div className="flowNodeBranches"><span>Yes</span><span>No</span></div>
+      <Handle type="source" position={Position.Bottom} id="yes" style={{ left: "30%" }} />
+      <Handle type="source" position={Position.Bottom} id="no" style={{ left: "70%" }} />
+    </div>
+  );
+}
+function ActionFlowNode({ data, selected }: NodeProps) {
+  const d = data as Record<string, unknown>;
+  return (
+    <div className={`flowNode flowNodeAction${selected ? " flowNodeSelected" : ""}`}>
+      <Handle type="target" position={Position.Top} />
+      <small>ACTION</small>
+      <b>{ACTION_LABELS[String(d.actionType)] || "Choose action"}</b>
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  );
+}
+function DelayFlowNode({ data, selected }: NodeProps) {
+  const d = data as Record<string, unknown>;
+  return (
+    <div className={`flowNode flowNodeDelay${selected ? " flowNodeSelected" : ""}`}>
+      <Handle type="target" position={Position.Top} />
+      <small>WAIT</small>
+      <b>{String(d.amount ?? 1)} {String(d.unit || "hours")}</b>
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  );
+}
+const flowNodeTypes = { trigger: TriggerFlowNode, condition: ConditionFlowNode, action: ActionFlowNode, delay: DelayFlowNode };
+
+interface GiAutomationRow { id: string; name: string; status: string; run_count: number }
+function GiAutomations({ onFlash }: { onFlash: (m: string) => void }) {
+  const [automations, setAutomations] = useState<GiAutomationRow[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const load = async () => { const d = (await (await fetch("/api/growth/automations")).json()) as { automations?: GiAutomationRow[] }; setAutomations(d.automations || []); };
+  useEffect(() => { void load(); }, []);
+
+  const create = async (name: string) => {
+    const r = await fetch("/api/growth/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    const d = (await r.json()) as { automation?: { id: string }; error?: string };
+    if (!r.ok) return onFlash(d.error || "Could not create automation");
+    setCreating(false); await load(); setEditingId(d.automation?.id || null);
+  };
+
+  if (editingId) return <GiAutomationEditor id={editingId} onBack={() => { setEditingId(null); void load(); }} onFlash={onFlash} />;
+
+  return (
+    <section className="giSection">
+      <header><h1>Automations</h1><button onClick={() => setCreating(true)}>+ New automation</button></header>
+      {creating && <div className="giDialog"><label>Automation name<input id="newAutomationName" placeholder="Qualify new roofing leads" /></label>
+        <div><button onClick={() => setCreating(false)}>Cancel</button>
+          <button onClick={() => { const el = document.getElementById("newAutomationName") as HTMLInputElement; if (el?.value.trim()) void create(el.value.trim()); }}>Create</button></div>
+      </div>}
+      <div className="giTable">
+        <header><span>Name</span><span>Status</span><span>Runs</span></header>
+        {automations.map((a) => (
+          <button key={a.id} onClick={() => setEditingId(a.id)}>
+            <b>{a.name}</b><span className={`giBadge giBadge-${a.status === "ACTIVE" ? "PUBLISHED" : a.status === "PAUSED" ? "ARCHIVED" : "DRAFT"}`}>{a.status}</span><span>{a.run_count}</span>
+          </button>
+        ))}
+        {!automations.length && <p className="giEmpty">No automations yet — build one visually: trigger → condition → action → delay.</p>}
+      </div>
+    </section>
+  );
+}
+
+interface GiAutomationRun { id: string; status: string; trace_json: string; created_at: string }
+function GiAutomationEditor({ id, onBack, onFlash }: { id: string; onBack: () => void; onFlash: (m: string) => void }) {
+  const [automation, setAutomation] = useState<{ id: string; name: string } | null>(null);
+  const [status, setStatus] = useState("DRAFT");
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [runs, setRuns] = useState<GiAutomationRun[]>([]);
+
+  const loadRuns = async () => { const d = (await (await fetch(`/api/growth/automations/runs?automationId=${id}`)).json()) as { runs?: GiAutomationRun[] }; setRuns(d.runs || []); };
+
+  useEffect(() => {
+    void fetch(`/api/growth/automations?id=${id}`).then((r) => r.json()).then((d) => {
+      const a = (d as { automation?: Record<string, unknown> }).automation;
+      if (!a) return;
+      setAutomation({ id: String(a.id), name: String(a.name) });
+      setStatus(String(a.status));
+      setNodes(JSON.parse(String(a.nodes_json || "[]")));
+      setEdges(JSON.parse(String(a.edges_json || "[]")));
+    });
+    void loadRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge({ ...connection, id: uid() }, eds)), [setEdges]);
+
+  const addNode = (type: FlowNodeType) => {
+    const nodeId = uid();
+    const defaults: Record<FlowNodeType, Record<string, unknown>> = {
+      trigger: { event: "FORM_SUBMITTED" }, condition: { field: "source", operator: "equals", value: "" },
+      action: { actionType: "CREATE_TASK", title: "Follow up", dueInDays: 1 }, delay: { amount: 1, unit: "hours" },
+    };
+    setNodes((nds) => [...nds, { id: nodeId, type, data: defaults[type], position: { x: 80 + (nds.length % 3) * 220, y: 80 + Math.floor(nds.length / 3) * 160 } }]);
+  };
+
+  const updateSelectedData = (patch: Record<string, unknown>) => {
+    setNodes((nds) => nds.map((n) => (n.id === selectedNode?.id ? { ...n, data: { ...n.data, ...patch } } : n)));
+    setSelectedNode((sn) => (sn ? { ...sn, data: { ...sn.data, ...patch } } : sn));
+  };
+
+  const deleteSelected = () => {
+    if (!selectedNode) return;
+    setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
+    setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
+    setSelectedNode(null);
+  };
+
+  const save = async () => {
+    const r = await fetch("/api/growth/automations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, updates: { nodes, edges, status } }) });
+    if (!r.ok) return onFlash("Could not save automation");
+    onFlash("Automation saved");
+  };
+
+  const checkDelayedSteps = async () => {
+    const r = await fetch("/api/growth/automations/resume", { method: "POST" });
+    const d = (await r.json()) as { resumed?: number; error?: string };
+    if (!r.ok) return onFlash(d.error || "Could not check for due steps");
+    await loadRuns();
+    onFlash(`Checked — ${d.resumed || 0} run(s) resumed`);
+  };
+
+  if (!automation) return <div className="giLoading">Loading…</div>;
+
+  return (
+    <section className="giSection giAutomationEditor">
+      <header>
+        <button className="giBack" onClick={onBack}>← Automations</button><h1>{automation.name}</h1>
+        <div>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option></select>
+          <button onClick={() => void save()}>Save</button>
+        </div>
+      </header>
+      <div className="flowPalette">
+        <button onClick={() => addNode("trigger")}>+ Trigger</button>
+        <button onClick={() => addNode("condition")}>+ Condition</button>
+        <button onClick={() => addNode("action")}>+ Action</button>
+        <button onClick={() => addNode("delay")}>+ Delay</button>
+        {selectedNode && <button className="flowDeleteBtn" onClick={deleteSelected}>Delete selected</button>}
+      </div>
+      <div className="flowCanvasWrap">
+        <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
+          nodeTypes={flowNodeTypes} onNodeClick={(_, node) => setSelectedNode(node)} onPaneClick={() => setSelectedNode(null)} fitView colorMode="dark">
+          <Background gap={18} color="#241a1c" />
+          <Controls />
+        </ReactFlow>
+      </div>
+      {selectedNode && <NodeInspector node={selectedNode} onChange={updateSelectedData} />}
+      <article className="giPanel">
+        <header><small>RUN HISTORY</small><button onClick={() => void checkDelayedSteps()}>Check delayed steps now</button></header>
+        {runs.map((r) => (
+          <div className="giRunRow" key={r.id}>
+            <span className={`giBadge giBadge-${r.status === "COMPLETE" ? "PUBLISHED" : r.status === "FAILED" ? "ARCHIVED" : "DRAFT"}`}>{r.status}</span>
+            <p>{(JSON.parse(r.trace_json || "[]") as Array<{ type: string; result: string }>).map((t) => `${t.type}: ${t.result}`).join(" → ")}</p>
+            <small>{new Date(r.created_at).toLocaleString()}</small>
+          </div>
+        ))}
+        {!runs.length && <p className="giEmpty">No runs yet — this fires on real form submissions once the automation is Active.</p>}
+      </article>
+    </section>
+  );
+}
+
+function NodeInspector({ node, onChange }: { node: Node; onChange: (patch: Record<string, unknown>) => void }) {
+  const d = node.data as Record<string, unknown>;
+  if (node.type === "trigger") return (
+    <div className="giDialog flowInspector">
+      <label>Event<select value={String(d.event || "")} onChange={(e) => onChange({ event: e.target.value })}>{TRIGGER_EVENTS.map((ev) => <option key={ev}>{ev}</option>)}</select></label>
+      <label>Only if (optional)<select value={String(d.filterField || "")} onChange={(e) => onChange({ filterField: e.target.value })}><option value="">No filter</option><option value="source">source</option><option value="campaign">campaign</option></select></label>
+      {!!d.filterField && <>
+        <label>Operator<select value={String(d.filterOperator || "equals")} onChange={(e) => onChange({ filterOperator: e.target.value })}>{CONDITION_OPERATORS.map((o) => <option key={o}>{o}</option>)}</select></label>
+        <label>Value<input value={String(d.filterValue || "")} onChange={(e) => onChange({ filterValue: e.target.value })} /></label>
+      </>}
+    </div>
+  );
+  if (node.type === "condition") return (
+    <div className="giDialog flowInspector">
+      <label>Field<select value={String(d.field || "")} onChange={(e) => onChange({ field: e.target.value })}>{CONDITION_FIELDS.map((f) => <option key={f}>{f}</option>)}</select></label>
+      <label>Operator<select value={String(d.operator || "equals")} onChange={(e) => onChange({ operator: e.target.value })}>{CONDITION_OPERATORS.map((o) => <option key={o}>{o}</option>)}</select></label>
+      <label>Value<input value={String(d.value ?? "")} onChange={(e) => onChange({ value: e.target.value })} /></label>
+    </div>
+  );
+  if (node.type === "action") return (
+    <div className="giDialog flowInspector">
+      <label>Action<select value={String(d.actionType || "")} onChange={(e) => onChange({ actionType: e.target.value })}>{ACTION_TYPES.map((a) => <option key={a} value={a}>{ACTION_LABELS[a]}</option>)}</select></label>
+      {d.actionType === "CREATE_TASK" && <>
+        <label>Task title<input value={String(d.title || "")} onChange={(e) => onChange({ title: e.target.value })} /></label>
+        <label>Due in days<input type="number" value={Number(d.dueInDays ?? 1)} onChange={(e) => onChange({ dueInDays: Number(e.target.value) })} /></label>
+      </>}
+      {d.actionType === "ADD_NOTE" && <>
+        <label>Note title<input value={String(d.title || "")} onChange={(e) => onChange({ title: e.target.value })} /></label>
+        <label>Details<textarea value={String(d.details || "")} onChange={(e) => onChange({ details: e.target.value })} /></label>
+      </>}
+      {d.actionType === "ADD_TAG" && <label>Tag<input value={String(d.tag || "")} onChange={(e) => onChange({ tag: e.target.value })} /></label>}
+      {d.actionType === "ASSIGN_REP" && <label>Rep email<input value={String(d.rep || "")} onChange={(e) => onChange({ rep: e.target.value })} /></label>}
+      {d.actionType === "UPDATE_STAGE" && <label>Stage<input value={String(d.stage || "")} onChange={(e) => onChange({ stage: e.target.value })} /></label>}
+    </div>
+  );
+  if (node.type === "delay") return (
+    <div className="giDialog flowInspector">
+      <label>Wait<input type="number" value={Number(d.amount ?? 1)} onChange={(e) => onChange({ amount: Number(e.target.value) })} /></label>
+      <label>Unit<select value={String(d.unit || "hours")} onChange={(e) => onChange({ unit: e.target.value })}><option value="minutes">minutes</option><option value="hours">hours</option><option value="days">days</option></select></label>
+    </div>
+  );
+  return null;
 }

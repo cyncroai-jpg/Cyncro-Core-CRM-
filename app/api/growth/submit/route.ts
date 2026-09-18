@@ -13,6 +13,7 @@ import { resolveVisitorSession, recordEvent } from "@/lib/growth/events";
 import { syncContact, createOpportunityForContact, addActivityNote } from "@/lib/growth/crmSync";
 import { readCookie, setCookie, VISITOR_COOKIE, SESSION_COOKIE, VISITOR_MAX_AGE, SESSION_MAX_AGE } from "@/lib/growth/http";
 import { loadAgent, runLeadQualification } from "@/lib/growth/agents";
+import { runGrowthAutomations } from "@/lib/growth/automationEngine";
 
 interface FormField { id: string; label: string; type: string; required: boolean; options: string[]; role?: "NAME" | "EMAIL" | "PHONE" | null }
 interface FormStep { id: string; title: string; fields: FormField[] }
@@ -124,6 +125,11 @@ export async function POST(request: Request) {
       await recordEvent({ visitorId, sessionId, contactId, opportunityId, eventType: "form.submitted", formId: String(form.id) });
       await recordEvent({ visitorId, sessionId, contactId, opportunityId, eventType: created ? "crm.contact_created" : "crm.contact_updated", formId: String(form.id) });
       if (opportunityId) await recordEvent({ visitorId, sessionId, contactId, opportunityId, eventType: "crm.opportunity_created", formId: String(form.id) });
+
+      const automationContext = { formId: String(form.id), contactId, opportunityId, visitorId, source: session?.source || "growth-intelligence", campaign: session?.campaign || null };
+      await runGrowthAutomations("FORM_SUBMITTED", automationContext);
+      if (created) await runGrowthAutomations("CONTACT_CREATED", automationContext);
+      if (opportunityId) await runGrowthAutomations("OPPORTUNITY_CREATED", automationContext);
 
       let qualification: { score: number; output: string } | null = null;
       if (syncConfig.qualifyWithAI && syncConfig.qualificationAgentId) {

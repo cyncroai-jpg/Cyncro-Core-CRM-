@@ -23908,3 +23908,33 @@ button.crmUser i {
 .giProgress span{width:26px;height:3px;border-radius:2px;background:#241a1c}
 .giProgress span.giProgressDone{background:var(--red)}
 @media (max-width:900px){.giApp{flex-direction:column}.giNav{width:100%;flex:none;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:14px}.giNav nav{flex-direction:row}.giBrand{display:none}.giCoreLink{display:none}.giMain{padding:20px 16px 40px}.giTable>header,.giTable>button,.giTableRow{grid-template-columns:1fr}}
+
+/* ============ GROWTH INTELLIGENCE — AUTOMATION CANVAS ============ */
+.giAutomationEditor{display:flex;flex-direction:column;gap:14px}
+.flowPalette{display:flex;gap:8px;flex-wrap:wrap}
+.flowPalette button{background:#140f10;border:1px solid #241a1c;border-radius:8px;color:#f3ecec;padding:8px 14px;font-size:12px;font-weight:600}
+.flowDeleteBtn{background:#1c0f12!important;border-color:#3a1f26!important;color:#e8a6b1!important;margin-left:auto}
+.flowCanvasWrap{height:460px;background:#050505;border:1px solid #1c1516;border-radius:12px;overflow:hidden}
+.flowCanvasWrap .react-flow__attribution{display:none}
+.flowCanvasWrap .react-flow__controls{background:#0c0708;border:1px solid #241a1c;border-radius:8px;overflow:hidden}
+.flowCanvasWrap .react-flow__controls-button{background:#0c0708;border-bottom:1px solid #1c1516;fill:#f3ecec;color:#f3ecec}
+.flowCanvasWrap .react-flow__controls-button:hover{background:#1c0f12}
+.flowCanvasWrap .react-flow__edge-path{stroke:#3a2c30;stroke-width:1.6}
+.flowCanvasWrap .react-flow__edge.selected .react-flow__edge-path{stroke:var(--red)}
+.flowCanvasWrap .react-flow__handle{background:var(--red);border:2px solid #050505;width:9px;height:9px}
+.flowNode{background:#0c0708;border:1.5px solid #241a1c;border-radius:10px;padding:12px 14px;min-width:170px;display:flex;flex-direction:column;gap:5px;font-size:12px}
+.flowNode small{font-size:9px;letter-spacing:1.2px;font-weight:700;color:var(--muted)}
+.flowNode b{color:#fff;font-size:12.5px;font-weight:600}
+.flowNode span{color:var(--muted);font-size:10.5px}
+.flowNodeSelected{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+.flowNodeTrigger{border-left:3px solid #6fd897}
+.flowNodeTrigger small{color:#6fd897}
+.flowNodeCondition{border-left:3px solid #f5b942}
+.flowNodeCondition small{color:#f5b942}
+.flowNodeAction{border-left:3px solid var(--red)}
+.flowNodeAction small{color:#e8798a}
+.flowNodeDelay{border-left:3px solid #7c9cd9}
+.flowNodeDelay small{color:#7c9cd9}
+.flowNodeBranches{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:2px}
+.flowInspector{max-width:100%;flex-direction:row;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.flowInspector label{min-width:160px}

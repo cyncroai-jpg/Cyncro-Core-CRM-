@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runReminders } from "../app/api/cron/reminders/route";
+import { resumeGrowthAutomations } from "../lib/growth/automationEngine";
 
 interface Env {
   ASSETS: Fetcher;
@@ -33,6 +34,9 @@ const worker = {
   async scheduled(_event: unknown, _env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       runReminders().then((r) => console.info("scheduled.reminders.done", r)),
+    );
+    ctx.waitUntil(
+      resumeGrowthAutomations().then((r) => console.info("scheduled.growth_automations.done", r)),
     );
   },
 
