@@ -9358,6 +9358,24 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [results, setResults] = useState<Prospect[]>([]);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [selected, setSelected] = useState<Prospect | null>(null);
+  const [outreachEmail, setOutreachEmail] = useState("");
+  const [draftingOutreach, setDraftingOutreach] = useState(false);
+  useEffect(() => { setOutreachEmail(""); }, [selected?.id, selected?.businessName]);
+  const draftOutreach = async (prospect: Prospect) => {
+    setDraftingOutreach(true);
+    setOutreachEmail("");
+    const r = await fetch("/api/prospecting/outreach", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        businessName: prospect.businessName, category: prospect.category, whyCall: prospect.whyCall,
+        whatFound: prospect.whatFound, recommendedSolution: prospect.recommendedSolution, pitchAngle: prospect.whyCall,
+      }),
+    });
+    const d = await r.json() as { email?: string; error?: string };
+    setDraftingOutreach(false);
+    if (!r.ok || d.error) { setError(d.error || "Could not draft outreach email"); return; }
+    setOutreachEmail(d.email || "");
+  };
   const [searching, setSearching] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -10365,6 +10383,15 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                   <p>{value || "Run analysis to generate this sales brief."}</p>
                 </section>
               ))}
+            </div>
+            <div className="drawerBrief">
+              <section>
+                <small>AI-DRAFTED OUTREACH EMAIL</small>
+                <button disabled={draftingOutreach} onClick={() => void draftOutreach(selected)}>
+                  {draftingOutreach ? "Drafting…" : "✦ Draft outreach email"}
+                </button>
+                {outreachEmail && <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{outreachEmail}</p>}
+              </section>
             </div>
             {selected.signals && (
               <div className="signalGrid">
