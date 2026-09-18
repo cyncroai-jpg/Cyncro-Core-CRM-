@@ -7250,11 +7250,11 @@ label {
 }
 .dispatchProductPreview footer small {
   color: #766b6e;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchProductPreview footer b {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
 }
 .dispatchLoginCard {
@@ -7364,7 +7364,7 @@ label {
 }
 .dispatchPlan small {
   color: #cf7184;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchPlan b {
   font-size: 17px;
@@ -7378,7 +7378,7 @@ label {
 .dispatchPlan > span {
   margin: 8px 0;
   color: #9d8f92;
-  font-size: 11px;
+  font-size: 12px;
 }
 .dispatchPlan > button {
   width: 100%;
@@ -7388,7 +7388,7 @@ label {
   margin-top: 15px;
   color: #73686a;
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchToast {
   position: fixed;
@@ -7448,7 +7448,7 @@ label {
 .dispatchBrand small {
   margin-top: 3px;
   color: #8c7f82;
-  font-size: 11px;
+  font-size: 12px;
 }
 .dispatchRole {
   margin: 22px 0 12px;
@@ -7458,7 +7458,7 @@ label {
   display: block;
   margin: 0 7px 7px;
   color: #726668;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 .dispatchRole > button {
@@ -7478,7 +7478,7 @@ label {
   border-radius: 6px;
   background: #2e1a20;
   color: #e8a5b2;
-  font-size: 11px;
+  font-size: 12px;
 }
 .dispatchRole button > div {
   flex: 1;
@@ -7490,7 +7490,7 @@ label {
 .dispatchRole small {
   margin-top: 2px;
   color: #8d8083;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchRole button > i {
   color: #74676a;
@@ -7532,7 +7532,7 @@ label {
 .dispatchSidebar nav em,
 .dispatchSideSystem em {
   color: #817477;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
 }
 .dispatchSidebar nav em.agentLive {
@@ -7557,19 +7557,19 @@ label {
   place-items: center;
   border-radius: 6px;
   background: #8f2035;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchSubscription > div {
   flex: 1;
 }
 .dispatchSubscription b {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .dispatchSubscription small {
   margin-top: 3px;
   color: #8e8084;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchSubscription > button {
   border: 0;
@@ -7599,12 +7599,12 @@ label {
 }
 .dispatchTopbar small {
   color: #7c7073;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 .dispatchTopbar b {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .dispatchTopbar > div:last-child {
@@ -7671,7 +7671,7 @@ label {
 }
 .dispatchPanel header small {
   color: #a74c5f;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.11em;
 }
 .dispatchPanel header h2 {
@@ -7685,7 +7685,7 @@ label {
   background: transparent;
   color: #c77687;
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .dispatchPanelEmpty {
   margin: 0;
@@ -7714,7 +7714,7 @@ label {
 }
 .dispatchMetrics small {
   color: #8d8083;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 .dispatchMetrics b {
@@ -7727,7 +7727,7 @@ label {
   right: 14px;
   bottom: 17px;
   color: #82d19d;
-  font-size: 11px;
+  font-size: 12px;
 }
 .dispatchDashboardGrid {
   display: grid;
@@ -8570,11 +8570,11 @@ label {
   background: #8d2036;
 }
 .dispatchAgentGrid header h2 {
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchAgentGrid header > em {
   color: #7fd09b;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
 }
 .dispatchAgentGrid article > b {
@@ -8593,7 +8593,7 @@ label {
 .dispatchAgentGrid article > p {
   min-height: 55px;
   color: #9c8e92;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .dispatchAgentGrid article > div {
@@ -8607,11 +8607,11 @@ label {
 }
 .dispatchAgentGrid article > div small {
   color: #786c6f;
-  font-size: 10px;
+  font-size: 12px;
 }
 .dispatchAgentGrid article > div b {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .dispatchAgentGrid article > footer {
