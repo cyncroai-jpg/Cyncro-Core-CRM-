@@ -464,10 +464,13 @@ function GiLandingPages({ onFlash }: { onFlash: (m: string) => void }) {
       <div className="giTable">
         <header><span>Name</span><span>Slug</span><span>Status</span><span>Views</span></header>
         {pages.map((p) => (
-          <div key={p.id} className="giTableRow">
-            <button className="giTableRowLink" onClick={() => setEditingId(p.id)}><b>{p.name}</b></button>
+          <div key={p.id} className="giTableRow giTableRowClickable" onClick={() => setEditingId(p.id)}>
+            <b>{p.name}</b>
             <span>/{p.slug}</span><span className={`giBadge giBadge-${p.status}`}>{p.status}</span><span>{p.views}</span>
-            <div><a href={`/gp?slug=${p.slug}`} target="_blank" rel="noreferrer">View →</a></div>
+            <div>
+              <span className="giEditHint">✎ Edit</span>
+              <a href={`/gp?slug=${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>View →</a>
+            </div>
           </div>
         ))}
         {!pages.length && <p className="giEmpty">No landing pages yet.</p>}

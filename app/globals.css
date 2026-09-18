@@ -23970,8 +23970,11 @@ button.crmUser i {
 .giPanel label.giCheckboxLabel input{width:auto}
 
 /* ============ GROWTH INTELLIGENCE — LANDING PAGE BUILDER ============ */
-.giTableRowLink{background:transparent;border:0;text-align:left;padding:0;color:inherit;cursor:pointer}
-.giTableRowLink:hover b{color:var(--red)}
+.giTableRowClickable{cursor:pointer;transition:background .12s ease}
+.giTableRowClickable:hover{background:#120b0c}
+.giTableRowClickable:hover b{color:var(--red)}
+.giEditHint{color:var(--red);font-size:11px;font-weight:600;opacity:0;transition:opacity .12s ease}
+.giTableRowClickable:hover .giEditHint{opacity:1}
 .lpCanvasZone{gap:12px}
 .lpSectionCard{background:#0a0506;border:1px solid #1c1516;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .lpSectionHead{display:flex;align-items:center;gap:8px}
