@@ -72,7 +72,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error ?? "Login failed.");
       } else {
-        window.location.href = "/";
+        window.location.href = "/#crm";
       }
     } catch {
       setError("Network error. Please try again.");
@@ -107,7 +107,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error ?? "Setup failed.");
       } else {
-        window.location.href = "/";
+        window.location.href = "/#crm";
       }
     } catch {
       setError("Network error. Please try again.");
@@ -142,7 +142,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error ?? "Failed to accept invite.");
       } else {
-        window.location.href = "/";
+        window.location.href = "/#crm";
       }
     } catch {
       setError("Network error. Please try again.");

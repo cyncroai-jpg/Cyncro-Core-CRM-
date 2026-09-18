@@ -2717,6 +2717,115 @@ export async function ensureCoreSchema() {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_tenant ON payment_disputes(tenant_id, status)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_customer ON payment_disputes(customer_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_payment_disputes_deadline ON payment_disputes(response_deadline)"),
+    // ============ TEAM CHAT ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_channels (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'PUBLIC',
+      description TEXT,
+      created_by TEXT NOT NULL,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_channels_type ON team_chat_channels(type, archived)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_channel_members (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      member_email TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'MEMBER',
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(channel_id) REFERENCES team_chat_channels(id)
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_channel_members_unique ON team_chat_channel_members(channel_id, member_email)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_channel_members_email ON team_chat_channel_members(member_email)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_messages (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      author_email TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      body TEXT NOT NULL,
+      thread_parent_id TEXT,
+      attachments_json TEXT NOT NULL DEFAULT '[]',
+      crm_link_type TEXT,
+      crm_link_id TEXT,
+      edited_at TEXT,
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(channel_id) REFERENCES team_chat_channels(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_channel_time ON team_chat_messages(channel_id, created_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON team_chat_messages(thread_parent_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_messages_author ON team_chat_messages(author_email, created_at)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_chat_reads (
+      channel_id TEXT NOT NULL,
+      member_email TEXT NOT NULL,
+      last_read_at TEXT NOT NULL,
+      PRIMARY KEY(channel_id, member_email)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_chat_reads_email ON team_chat_reads(member_email)"),
+    // ============ CRM FORMS ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_forms (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      public_token TEXT NOT NULL,
+      fields_json TEXT NOT NULL DEFAULT '[]',
+      requires_signature INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_forms_token ON crm_forms(public_token)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_form_submissions (
+      id TEXT PRIMARY KEY,
+      form_id TEXT NOT NULL,
+      contact_id TEXT,
+      respondent_name TEXT NOT NULL,
+      respondent_email TEXT NOT NULL,
+      answers_json TEXT NOT NULL DEFAULT '{}',
+      signature_name TEXT,
+      consent_text TEXT,
+      signer_ip TEXT,
+      status TEXT NOT NULL DEFAULT 'SUBMITTED',
+      submitted_at TEXT NOT NULL,
+      FOREIGN KEY(form_id) REFERENCES crm_forms(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_crm_form_submissions_form ON crm_form_submissions(form_id, submitted_at DESC)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_form_files (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL,
+      question_id TEXT,
+      filename TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      object_key TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(submission_id) REFERENCES crm_form_submissions(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_crm_form_files_submission ON crm_form_files(submission_id)"),
+    // ============ COMMISSION RULES ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS crm_commission_rules (
+      id TEXT PRIMARY KEY,
+      service_name TEXT NOT NULL,
+      applies_to TEXT NOT NULL,
+      percentage_bps INTEGER NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_commission_rules_sort ON crm_commission_rules(sort_order)"),
+    // ============ CALENDAR EXTERNAL SYNC ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS calendar_external_events (
+      booking_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      external_event_id TEXT NOT NULL,
+      owner TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
   ]);
   // Migration: add tenant_id columns to tables that predate multi-tenancy, then their
   // indexes. Run sequentially with try/catch (not inside the batch above) because
