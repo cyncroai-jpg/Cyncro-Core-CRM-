@@ -30,7 +30,7 @@ type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive"
 
 export default function Home() {
   // ACTIVE products — Core and Dispatch are real, working products
-  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex"];
+  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex", "automotive"];
   // Land directly in Core by default; the switcher is one click away via "Products"
   const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
@@ -155,6 +155,18 @@ export default function Home() {
     return (
       <div className="readable">
         <CyncroApexFunds
+          onNavigate={(destination) => {
+            setProduct("core");
+            navigate(destination);
+          }}
+        />
+      </div>
+    );
+  }
+  if (product === "automotive") {
+    return (
+      <div className="readable">
+        <CyncroFinance
           onNavigate={(destination) => {
             setProduct("core");
             navigate(destination);
@@ -6368,2052 +6380,519 @@ function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
   );
 }
 
-type FinanceView =
-  | "Command"
-  | "Deal Queue"
-  | "Deal Architect"
-  | "Performance"
-  | "Inventory"
-  | "Deal Documents"
-  | "Lenders"
-  | "Product Menu"
-  | "Contracts"
-  | "Funding"
-  | "Tax & Lease Lab"
-  | "Compliance"
-  | "Customers"
-  | "Analytics";
+// ─── Cyncro Automotive — dealership finance & deal management (standalone product) ──
 
-const financeDeals = [
-  {
-    customer: "Olivia Bennett",
-    vehicle: "2026 Porsche Macan S",
-    stock: "P24018",
-    score: "742",
-    payment: "$1,146",
-    gross: "$6,840",
-    status: "READY TO PRESENT",
-    lender: "Chase Auto",
-    risk: "LOW",
-    salesperson: "Maya Torres",
-    financeManager: "Finance Manager",
-    frontGross: "$4,120",
-    backGross: "$2,720",
-    pointsHeld: "2.00 pts",
-    reserve: "$1,425",
-  },
-  {
-    customer: "Noah Williams",
-    vehicle: "2025 BMW X5 xDrive40i",
-    stock: "B51882",
-    score: "681",
-    payment: "$984",
-    gross: "$5,420",
-    status: "LENDER REVIEW",
-    lender: "BMW Financial",
-    risk: "MEDIUM",
-    salesperson: "Andre Cole",
-    financeManager: "Dana Pierce",
-    frontGross: "$3,240",
-    backGross: "$2,180",
-    pointsHeld: "1.75 pts",
-    reserve: "$1,180",
-  },
-  {
-    customer: "Sophia Carter",
-    vehicle: "2026 Mercedes GLC 300",
-    stock: "M60117",
-    score: "718",
-    payment: "$862",
-    gross: "$7,190",
-    status: "STIPS NEEDED",
-    lender: "Mercedes-Benz FS",
-    risk: "MEDIUM",
-    salesperson: "Maya Torres",
-    financeManager: "Finance Manager",
-    frontGross: "$4,505",
-    backGross: "$2,685",
-    pointsHeld: "2.25 pts",
-    reserve: "$1,695",
-  },
-  {
-    customer: "Liam Rodriguez",
-    vehicle: "2025 Audi Q7 Premium Plus",
-    stock: "A74221",
-    score: "655",
-    payment: "$1,032",
-    gross: "$4,980",
-    status: "CONTRACTING",
-    lender: "Ally",
-    risk: "WATCH",
-    salesperson: "Jason Cole",
-    financeManager: "Jason Cole",
-    frontGross: "$2,910",
-    backGross: "$2,070",
-    pointsHeld: "1.50 pts",
-    reserve: "$1,040",
-  },
-];
+type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Analytics";
+type AutoCustomer = { id: string; first_name: string; last_name: string; email: string | null; phone: string | null };
+type AutoVehicle = {
+  id: string; stock_number: string; vin: string | null; year: number | null; make: string | null; model: string | null;
+  trim: string | null; mileage: number | null; book_value_cents: number | null; asking_price_cents: number; status: string;
+};
+type AutoDealRow = {
+  id: string; first_name: string; last_name: string; stock_number: string; year: number | null; make: string | null; model: string | null;
+  sale_price_cents: number; monthly_payment_cents: number; status: string;
+};
+type AutoDealDetail = AutoDealRow & {
+  customer_email: string | null; credit_score_pulled: number | null; vin: string | null; trim: string | null; mileage: number | null;
+  book_value_cents: number | null; trade_description: string | null; trade_allowance_cents: number; trade_payoff_cents: number;
+  down_payment_cents: number; tax_cents: number; fees_cents: number; amount_financed_cents: number; term_months: number;
+  interest_rate: number; front_gross_cents: number; back_gross_cents: number; contract_status: string; funding_status: string;
+  finance_manager_email: string | null; vehicle_id: string;
+};
+type AutoCoBuyer = { id: string; full_name: string; relationship: string | null };
+type AutoProduct = { id: string; product_type: string; name: string; price_cents: number; cost_cents: number };
+type AutoLenderRow = { id: string; name: string; min_credit_score: number | null; max_advance_pct: number | null; buy_rate: number | null; reserve_pct: number | null; active: number };
+type AutoSubmission = {
+  id: string; lender_id: string; lender_name: string; status: string; approved_rate: number | null; approved_term: number | null;
+  approved_amount_cents: number | null; decline_reason: string | null;
+};
+type AutoDocument = { id: string; doc_type: string; checked: number };
+type AutoSummary = { availableUnits: number; activeDeals: number; fundedDeals: number; totalFrontGrossCents: number; totalBackGrossCents: number };
 
-function CyncroFinance() {
-  const [view, setView] = useState<FinanceView>("Command");
-  const [deal, setDeal] = useState(0);
+const AUTO_SUBMISSION_STATUSES = ["SUBMITTED", "UNDER_REVIEW", "STIPS_REQUESTED", "APPROVED", "DECLINED", "FUNDED", "WITHDRAWN"];
+function autoMoney(cents: number | null | undefined) {
+  return `$${Math.round((cents || 0) / 100).toLocaleString()}`;
+}
+
+function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
+  const [view, setView] = useState<AutoView>("Command");
   const [notice, setNotice] = useState("");
-  const [aiOpen, setAiOpen] = useState(true);
-  const flash = (message: string) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 1800);
+  const [deals, setDeals] = useState<AutoDealRow[]>([]);
+  const [selectedDealId, setSelectedDealId] = useState("");
+  const [summary, setSummary] = useState<AutoSummary | null>(null);
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(""), 1900); };
+  const loadDeals = () => {
+    void fetch("/api/automotive?resource=deals").then((r) => r.json()).then((d: { deals?: AutoDealRow[] }) => {
+      setDeals(d.deals || []);
+      setSelectedDealId((prev) => prev || d.deals?.[0]?.id || "");
+    });
   };
-  const nav: { name: FinanceView; icon: string }[] = [
+  const loadSummary = () => void fetch("/api/automotive?resource=summary").then((r) => r.json()).then((d: AutoSummary) => setSummary(d));
+  useEffect(() => { loadDeals(); loadSummary(); }, []);
+
+  const nav: { name: AutoView; icon: string }[] = [
     { name: "Command", icon: "⌂" },
     { name: "Deal Queue", icon: "▦" },
-    { name: "Deal Architect", icon: "✦" },
-    { name: "Performance", icon: "↗" },
-    { name: "Inventory", icon: "▥" },
-    { name: "Deal Documents", icon: "▤" },
-    { name: "Lenders", icon: "◎" },
-    { name: "Product Menu", icon: "◇" },
-    { name: "Contracts", icon: "▤" },
-    { name: "Funding", icon: "$" },
-    { name: "Tax & Lease Lab", icon: "%" },
-    { name: "Compliance", icon: "◈" },
-    { name: "Customers", icon: "♙" },
+    { name: "Inventory", icon: "◎" },
+    { name: "Lenders", icon: "▤" },
     { name: "Analytics", icon: "⌁" },
   ];
+
   return (
-    <section className="financeShell">
+    <section className="disputeShell apexShell">
       {notice && <div className="dispatchToast">✓ {notice}</div>}
-      <aside className="financeSidebar">
-        <div className="financeBrand">
-          <span>CF</span>
-          <div>
-            <b>Cyncro Finance</b>
-            <small>AUTOMOTIVE F&amp;I INTELLIGENCE</small>
-          </div>
+      <aside className="disputeSidebar">
+        <div className="disputeBrand">
+          <span>CA</span>
+          <div><b>Cyncro Automotive</b><small>Dealership finance & deals</small></div>
         </div>
-        <button
-          className="rooftopPicker"
-          onClick={() => flash("Rooftop switcher opened")}
-        >
-          <span>VP</span>
-          <div>
-            <small>ACTIVE ROOFTOP</small>
-            <b>Vivid Premier Auto</b>
-          </div>
-          <i>⌄</i>
-        </button>
         <nav>
           {nav.map((item) => (
-            <button
-              key={item.name}
-              className={view === item.name ? "active" : ""}
-              onClick={() => setView(item.name)}
-            >
-              <i>{item.icon}</i>
-              <span>{item.name}</span>
-              {item.name === "Deal Queue" && <em>18</em>}
+            <button className={view === item.name ? "active" : ""} onClick={() => setView(item.name)} key={item.name}>
+              <i>{item.icon}</i><span>{item.name}</span>
+              {item.name === "Deal Queue" && summary ? <em>{summary.activeDeals}</em> : null}
             </button>
           ))}
         </nav>
-        <div className="financePulse">
-          <span>FUNDING PULSE</span>
-          <b>$428,600</b>
-          <small>14 contracts pending · 2 aging alerts</small>
-          <div>
-            <i style={{ width: "78%" }} />
-          </div>
-        </div>
+        <button className="exitDispute" onClick={() => (onNavigate ? onNavigate("crm") : (window.location.hash = "#crm"))}>
+          Cyncro Core modules ↗
+        </button>
       </aside>
-      <main className="financeMain">
-        <header className="financeTopbar">
-          <div>
-            <small>THURSDAY, AUGUST 13</small>
-            <b>{view === "Command" ? "Finance Command" : view}</b>
-          </div>
-          <div>
-            <button
-              onClick={() =>
-                flash("Global vehicle, customer and deal search opened")
-              }
-            >
-              ⌕ Search
-            </button>
-            <button onClick={() => setAiOpen(!aiOpen)}>✦ Cyncro AI</button>
-            <button
-              onClick={() => {
-                setView("Deal Architect");
-                flash("New deal jacket created");
-              }}
-            >
-              ＋ New deal
-            </button>
-          </div>
-        </header>
-        <div className="financeContent">
-          {view === "Command" && (
-            <FinanceCommand
-              onView={setView}
-              onFlash={flash}
-              onDeal={(i) => {
-                setDeal(i);
-                setView("Deal Architect");
-              }}
-            />
-          )}
+      <main className="disputeMain">
+        <header className="disputeTopbar"><div><small>CYNCRO AUTOMOTIVE</small><b>{view}</b></div></header>
+        <div className="disputeContent">
+          {view === "Command" && <AutoCommand summary={summary} deals={deals} onView={setView} />}
           {view === "Deal Queue" && (
-            <FinanceDealQueue
-              onOpen={(i) => {
-                setDeal(i);
-                setView("Deal Architect");
-              }}
+            <AutoDealQueue
+              deals={deals}
+              selectedId={selectedDealId}
+              onSelect={setSelectedDealId}
+              onReload={() => { loadDeals(); loadSummary(); }}
               onFlash={flash}
             />
           )}
-          {view === "Deal Architect" && (
-            <FinanceArchitect deal={financeDeals[deal]} onFlash={flash} />
-          )}
-          {view === "Performance" && (
-            <FinancePerformance
-              onOpen={(i) => {
-                setDeal(i);
-                setView("Deal Architect");
-              }}
-              onFlash={flash}
-            />
-          )}
-          {view === "Inventory" && <FinanceInventory onFlash={flash} />}
-          {view === "Deal Documents" && (
-            <FinanceDealDocuments onFlash={flash} />
-          )}
-          {view === "Tax & Lease Lab" && <TaxLeaseLab onFlash={flash} />}
-          {view !== "Command" &&
-            view !== "Deal Queue" &&
-            view !== "Deal Architect" &&
-            view !== "Performance" &&
-            view !== "Inventory" &&
-            view !== "Deal Documents" &&
-            view !== "Tax & Lease Lab" && (
-              <FinanceWorkspace view={view} onFlash={flash} />
-            )}
+          {view === "Inventory" && <AutoInventory onFlash={flash} />}
+          {view === "Lenders" && <AutoLenders onFlash={flash} />}
+          {view === "Analytics" && <AutoAnalytics summary={summary} />}
         </div>
       </main>
-      {aiOpen && <FinanceAI onClose={() => setAiOpen(false)} onFlash={flash} />}
     </section>
   );
 }
 
-function FinanceCommand({
-  onView,
-  onFlash,
-  onDeal,
-}: {
-  onView: (v: FinanceView) => void;
-  onFlash: (m: string) => void;
-  onDeal: (i: number) => void;
-}) {
+function AutoCommand({ summary, deals, onView }: { summary: AutoSummary | null; deals: AutoDealRow[]; onView: (v: AutoView) => void }) {
   return (
     <>
-      <section className="financeHero">
+      <div className="disputeHero">
         <div>
-          <span>LIVE F&amp;I OPERATING SYSTEM</span>
-          <h1>
-            Move every deal.
-            <br />
-            <i>Protect every dollar.</i>
-          </h1>
-          <p>
-            One intelligent command layer for desking, lender strategy, product
-            presentation, compliance, contracting, funding and customer
-            delivery.
-          </p>
+          <span>DEALERSHIP FINANCE OPERATIONS</span>
+          <h1>Every deal.<br /><i>One real number at a time.</i></h1>
+          <p>Structure, lender matching, F&amp;I menu, and gross — computed from the actual deal, not a demo script.</p>
         </div>
-        <div className="financeHeroActions">
-          <button onClick={() => onView("Deal Architect")}>
-            ✦ Architect a deal
-          </button>
-          <button onClick={() => onView("Deal Queue")}>
-            Open live queue →
-          </button>
-        </div>
-      </section>
-      <section className="financeKpis">
-        {[
-          ["TODAY'S FRONT GROSS", "$48,920", "+12.8% vs pace"],
-          ["BACK GROSS / DEAL", "$2,418", "+$284 MTD"],
-          ["PRODUCT PENETRATION", "68.4%", "VSC · GAP · Tire"],
-          ["AVG FUNDING TIME", "1.7 days", "−0.6 days"],
-        ].map((x) => (
-          <article key={x[0]}>
-            <small>{x[0]}</small>
-            <b>{x[1]}</b>
-            <span>{x[2]}</span>
-          </article>
-        ))}
-      </section>
-      <div className="financeCommandGrid">
-        <section className="financePanel liveDeals">
-          <header>
-            <div>
-              <small>REAL-TIME DEAL FLOW</small>
-              <h2>Deals requiring attention</h2>
-            </div>
-            <button onClick={() => onView("Deal Queue")}>View all 18 →</button>
-          </header>
-          {financeDeals.map((d, i) => (
-            <button key={d.stock} onClick={() => onDeal(i)}>
-              <span className={`riskDot ${d.risk.toLowerCase()}`} />
-              <div>
-                <b>{d.customer}</b>
-                <small>
-                  {d.vehicle} · {d.stock}
-                </small>
-              </div>
-              <div>
-                <small>PAYMENT</small>
-                <b>{d.payment}</b>
-              </div>
-              <div>
-                <small>BACK GROSS</small>
-                <b>{d.gross}</b>
-              </div>
-              <em>{d.status}</em>
-              <i>→</i>
-            </button>
-          ))}
-        </section>
-        <section className="financePanel aiBrief">
-          <header>
-            <div>
-              <small>CYNCRO INTELLIGENCE</small>
-              <h2>Morning opportunity brief</h2>
-            </div>
-            <span>LIVE</span>
-          </header>
-          <h3>$18,420 in recoverable gross</h3>
-          <p>
-            Seven open deals have a higher approval probability or product
-            opportunity than their current structure reflects.
-          </p>
-          {[
-            ["3 deals", "Improve lender fit", "Est. +$5,800"],
-            ["4 menus", "Rebuild product mix", "Est. +$7,260"],
-            ["2 contracts", "Resolve funding holds", "Release $92K"],
-          ].map((x) => (
-            <button
-              key={x[0]}
-              onClick={() => onFlash(`${x[1]} recommendations opened`)}
-            >
-              <b>{x[0]}</b>
-              <span>{x[1]}</span>
-              <em>{x[2]}</em>
-            </button>
-          ))}
-          <button
-            className="askFinanceAI"
-            onClick={() => onFlash("Cyncro AI deal briefing opened")}
-          >
-            Ask Cyncro AI about the book →
-          </button>
-        </section>
-        <section className="financePanel fundingBoard">
-          <header>
-            <div>
-              <small>FUNDING CONTROL</small>
-              <h2>Contract aging</h2>
-            </div>
-            <button onClick={() => onView("Funding")}>Funding center →</button>
-          </header>
-          {[
-            ["0–1 DAYS", "9", "$286K", "healthy"],
-            ["2–3 DAYS", "3", "$96K", "watch"],
-            ["4+ DAYS", "2", "$46K", "danger"],
-          ].map((x) => (
-            <article key={x[0]}>
-              <span className={x[3]}>{x[0]}</span>
-              <b>{x[1]} deals</b>
-              <strong>{x[2]}</strong>
-            </article>
-          ))}
-        </section>
-        <section className="financePanel lenderPulse">
-          <header>
-            <div>
-              <small>LENDER NETWORK</small>
-              <h2>Approval performance</h2>
-            </div>
-            <button onClick={() => onView("Lenders")}>Lender matrix →</button>
-          </header>
-          {[
-            ["Chase Auto", "86%", "1.4d"],
-            ["Ally", "82%", "1.8d"],
-            ["Capital One Auto", "79%", "1.2d"],
-            ["Westlake", "71%", "2.6d"],
-          ].map((x, i) => (
-            <article key={x[0]}>
-              <b>{x[0]}</b>
-              <div>
-                <i style={{ width: x[1] }} />
-              </div>
-              <span>{x[1]} approval</span>
-              <em>{x[2]}</em>
-            </article>
-          ))}
-        </section>
+        <button onClick={() => onView("Deal Queue")}>✦ New deal</button>
       </div>
+      <div className="disputeMetrics">
+        {[
+          ["AVAILABLE UNITS", String(summary?.availableUnits ?? "—"), ""],
+          ["ACTIVE DEALS", String(summary?.activeDeals ?? deals.length), ""],
+          ["FUNDED DEALS", String(summary?.fundedDeals ?? "—"), ""],
+          ["TOTAL GROSS (FUNDED)", autoMoney((summary?.totalFrontGrossCents ?? 0) + (summary?.totalBackGrossCents ?? 0)), "Front + back"],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <section className="disputePanel casePulse">
+        <header><div><small>DEAL QUEUE</small><h2>Working deals</h2></div><button onClick={() => onView("Deal Queue")}>All deals →</button></header>
+        {deals.slice(0, 8).map((d) => (
+          <button onClick={() => onView("Deal Queue")} key={d.id}>
+            <span><i>{d.first_name[0]}{d.last_name[0]}</i><div><b>{d.first_name} {d.last_name}</b><small>{d.year} {d.make} {d.model} · {d.stock_number}</small></div></span>
+            <em>{autoMoney(d.monthly_payment_cents)}/mo</em>
+            <strong>{d.status}</strong>
+          </button>
+        ))}
+        {!deals.length && <p className="disputeEmpty">No deals yet.</p>}
+      </section>
     </>
   );
 }
 
-function FinanceDealQueue({
-  onOpen,
-  onFlash,
+function AutoDealQueue({
+  deals, selectedId, onSelect, onReload, onFlash,
 }: {
-  onOpen: (i: number) => void;
-  onFlash: (m: string) => void;
+  deals: AutoDealRow[]; selectedId: string; onSelect: (id: string) => void; onReload: () => void; onFlash: (m: string) => void;
 }) {
-  const [filter, setFilter] = useState("All deals");
-  return (
-    <div className="financeWorkspace">
-      <div className="financePageHead">
-        <div>
-          <span>18 ACTIVE DEALS · $126K GROSS AT WORK</span>
-          <h1>Deal Queue</h1>
-          <p>
-            Every handoff, approval, stipulation, signature and funding deadline
-            in one live queue.
-          </p>
-        </div>
-        <button onClick={() => onFlash("Deal imported from CRM")}>
-          ＋ Import deal
-        </button>
-      </div>
-      <div className="financeFilters">
-        {[
-          "All deals",
-          "Needs attention",
-          "Awaiting lender",
-          "Contracting",
-          "Funding",
-        ].map((x) => (
-          <button
-            className={filter === x ? "active" : ""}
-            onClick={() => setFilter(x)}
-            key={x}
-          >
-            {x}
-          </button>
-        ))}
-        <input
-          aria-label="Search deals"
-          placeholder="Search customer, VIN or stock…"
-        />
-      </div>
-      <section className="financePanel dealTable">
-        <header>
-          <span>CUSTOMER / VEHICLE</span>
-          <span>CREDIT</span>
-          <span>STRUCTURE</span>
-          <span>LENDER</span>
-          <span>STATUS</span>
-          <span>GROSS</span>
-        </header>
-        {[
-          ...financeDeals,
-          ...financeDeals.slice(0, 2).map((d, i) => ({
-            ...d,
-            customer: i ? "Ethan Parker" : "Mia Thompson",
-            stock: i ? "L51207" : "R88103",
-          })),
-        ].map((d, i) => (
-          <button
-            key={`${d.stock}-${i}`}
-            onClick={() => onOpen(i % financeDeals.length)}
-          >
-            <div>
-              <b>{d.customer}</b>
-              <small>
-                {d.vehicle} · {d.stock}
-              </small>
-            </div>
-            <span>
-              {d.score}
-              <small>{d.risk} RISK</small>
-            </span>
-            <span>
-              {d.payment}
-              <small>72 mo · 7.49%</small>
-            </span>
-            <span>
-              {d.lender}
-              <small>Top match</small>
-            </span>
-            <em>{d.status}</em>
-            <strong>{d.gross}</strong>
-          </button>
-        ))}
-      </section>
-    </div>
-  );
-}
+  const [adding, setAdding] = useState(false);
+  const [customers, setCustomers] = useState<AutoCustomer[]>([]);
+  const [vehicles, setVehicles] = useState<AutoVehicle[]>([]);
+  const [deal, setDeal] = useState<AutoDealDetail | null>(null);
+  const [cobuyers, setCobuyers] = useState<AutoCoBuyer[]>([]);
+  const [products, setProducts] = useState<AutoProduct[]>([]);
+  const [submissions, setSubmissions] = useState<AutoSubmission[]>([]);
+  const [documents, setDocuments] = useState<AutoDocument[]>([]);
+  const [lenders, setLenders] = useState<AutoLenderRow[]>([]);
+  const [selectedLenderIds, setSelectedLenderIds] = useState<Set<string>>(new Set());
+  const [newCustomer, setNewCustomer] = useState(false);
 
-function FinanceArchitect({
-  deal,
-  onFlash,
-}: {
-  deal: (typeof financeDeals)[number];
-  onFlash: (m: string) => void;
-}) {
-  const [term, setTerm] = useState(72);
-  const [down, setDown] = useState(7500);
-  const [selected, setSelected] = useState([
-    "Vehicle Service Contract",
-    "GAP Protection",
-  ]);
-  const payment = Math.round(
-    890 + (72 - term) * 8 - down * 0.014 + selected.length * 34,
-  );
-  return (
-    <div className="financeWorkspace">
-      <div className="dealIdentity">
-        <div>
-          <span>ACTIVE DEAL · {deal.stock}</span>
-          <h1>{deal.customer}</h1>
-          <p>
-            {deal.vehicle} · Score {deal.score} · {deal.lender}
-          </p>
-        </div>
-        <div>
-          <button onClick={() => onFlash("Customer co-browse link sent")}>
-            Invite customer
-          </button>
-          <button onClick={() => onFlash("Deal saved and compliance checked")}>
-            Save deal
-          </button>
-          <button onClick={() => onFlash("Deal advanced to contracting")}>
-            Send to contract →
-          </button>
-        </div>
-      </div>
-      <div className="architectGrid">
-        <section className="financePanel structurePanel">
-          <header>
-            <div>
-              <small>LIVE DEAL STRUCTURE</small>
-              <h2>Build the approval</h2>
-            </div>
-            <em>AI OPTIMIZED</em>
-          </header>
-          <div className="vehiclePrice">
-            <span>Selling price</span>
-            <b>$78,450</b>
-            <small>Market position: 97%</small>
-          </div>
-          <label>
-            Cash down <b>${down.toLocaleString()}</b>
-            <input
-              type="range"
-              min="0"
-              max="20000"
-              step="500"
-              value={down}
-              onChange={(e) => setDown(Number(e.target.value))}
-            />
-          </label>
-          <div className="termOptions">
-            {[60, 72, 84].map((x) => (
-              <button
-                className={term === x ? "active" : ""}
-                onClick={() => setTerm(x)}
-                key={x}
-              >
-                <b>{x}</b>
-                <small>months</small>
-              </button>
-            ))}
-          </div>
-          <div className="paymentOutput">
-            <small>ESTIMATED PAYMENT</small>
-            <b>
-              ${payment}
-              <i>/mo</i>
-            </b>
-            <span>7.49% APR · ${down.toLocaleString()} down</span>
-          </div>
-          <div className="dealMath">
-            {[
-              ["Trade allowance", "$24,600"],
-              ["Trade payoff", "−$18,220"],
-              ["Taxes + fees", "$5,984"],
-              ["Amount financed", "$71,614"],
-            ].map((x) => (
-              <p key={x[0]}>
-                <span>{x[0]}</span>
-                <b>{x[1]}</b>
-              </p>
-            ))}
-          </div>
-        </section>
-        <section className="financePanel lenderMatches">
-          <header>
-            <div>
-              <small>REAL-TIME LENDER FIT</small>
-              <h2>Approval paths</h2>
-            </div>
-            <button onClick={() => onFlash("All lender programs compared")}>
-              Compare all
-            </button>
-          </header>
-          {[
-            ["Chase Auto", "94%", "7.49%", "$1,425", "BEST FIT"],
-            ["Capital One Auto", "89%", "7.79%", "$1,180", "FASTEST"],
-            ["Ally", "84%", "8.10%", "$1,695", "MAX ADVANCE"],
-          ].map((x, i) => (
-            <button
-              className={i === 0 ? "selected" : ""}
-              key={x[0]}
-              onClick={() => onFlash(`${x[0]} program selected`)}
-            >
-              <span>{i + 1}</span>
-              <div>
-                <b>{x[0]}</b>
-                <small>{x[4]}</small>
-              </div>
-              <strong>
-                {x[1]}
-                <small>approval</small>
-              </strong>
-              <em>
-                {x[2]}
-                <small>buy rate</small>
-              </em>
-              <i>
-                {x[3]}
-                <small>reserve</small>
-              </i>
-            </button>
-          ))}
-        </section>
-        <section className="financePanel productBuilder">
-          <header>
-            <div>
-              <small>PERSONALIZED MENU</small>
-              <h2>Protection products</h2>
-            </div>
-            <span>{selected.length} SELECTED</span>
-          </header>
-          {[
-            ["Vehicle Service Contract", "$2,895", "82% fit"],
-            ["GAP Protection", "$995", "91% fit"],
-            ["Tire & Wheel", "$1,295", "76% fit"],
-            ["Appearance Protection", "$895", "58% fit"],
-          ].map((x) => (
-            <button
-              className={selected.includes(x[0]) ? "selected" : ""}
-              onClick={() =>
-                setSelected((s) =>
-                  s.includes(x[0]) ? s.filter((y) => y !== x[0]) : [...s, x[0]],
-                )
-              }
-              key={x[0]}
-            >
-              <i>{selected.includes(x[0]) ? "✓" : "＋"}</i>
-              <div>
-                <b>{x[0]}</b>
-                <small>{x[2]} · customer profile match</small>
-              </div>
-              <strong>{x[1]}</strong>
-            </button>
-          ))}
-          <button
-            className="presentMenu"
-            onClick={() => onFlash("Interactive customer menu launched")}
-          >
-            Present customer menu →
-          </button>
-        </section>
-        <section className="financePanel dealGuard">
-          <header>
-            <div>
-              <small>AUTOMATED DEAL GUARD</small>
-              <h2>Compliance + funding readiness</h2>
-            </div>
-            <em>7/8 CLEAR</em>
-          </header>
-          {[
-            ["OFAC / identity verification", "PASS"],
-            ["Credit authorization", "SIGNED"],
-            ["Adverse action logic", "CLEAR"],
-            ["Income verification", "NEEDED"],
-            ["Red Flags review", "PASS"],
-            ["Menu disclosure", "TRACKED"],
-          ].map((x) => (
-            <p key={x[0]}>
-              <span>{x[0]}</span>
-              <b className={x[1] === "NEEDED" ? "warn" : ""}>{x[1]}</b>
-            </p>
-          ))}
-          <button
-            onClick={() => onFlash("Secure income verification request sent")}
-          >
-            Request missing stipulation →
-          </button>
-        </section>
-      </div>
-    </div>
-  );
-}
+  useEffect(() => {
+    void fetch("/api/automotive?resource=customers").then((r) => r.json()).then((d: { customers?: AutoCustomer[] }) => setCustomers(d.customers || []));
+    void fetch("/api/automotive?resource=inventory").then((r) => r.json()).then((d: { inventory?: AutoVehicle[] }) => setVehicles((d.inventory || []).filter((v) => v.status === "AVAILABLE")));
+    void fetch("/api/automotive?resource=lenders").then((r) => r.json()).then((d: { lenders?: AutoLenderRow[] }) => setLenders((d.lenders || []).filter((l) => l.active)));
+  }, []);
 
-const stateTaxRules = [
-  ["AL", "Alabama", 4],
-  ["AK", "Alaska", 0],
-  ["AZ", "Arizona", 5.6],
-  ["AR", "Arkansas", 6.5],
-  ["CA", "California", 7.25],
-  ["CO", "Colorado", 2.9],
-  ["CT", "Connecticut", 6.35],
-  ["DE", "Delaware", 0],
-  ["DC", "District of Columbia", 6],
-  ["FL", "Florida", 6],
-  ["GA", "Georgia", 7],
-  ["HI", "Hawaii", 4],
-  ["ID", "Idaho", 6],
-  ["IL", "Illinois", 6.25],
-  ["IN", "Indiana", 7],
-  ["IA", "Iowa", 6],
-  ["KS", "Kansas", 6.5],
-  ["KY", "Kentucky", 6],
-  ["LA", "Louisiana", 5],
-  ["ME", "Maine", 5.5],
-  ["MD", "Maryland", 6],
-  ["MA", "Massachusetts", 6.25],
-  ["MI", "Michigan", 6],
-  ["MN", "Minnesota", 6.875],
-  ["MS", "Mississippi", 5],
-  ["MO", "Missouri", 4.225],
-  ["MT", "Montana", 0],
-  ["NE", "Nebraska", 5.5],
-  ["NV", "Nevada", 6.85],
-  ["NH", "New Hampshire", 0],
-  ["NJ", "New Jersey", 6.625],
-  ["NM", "New Mexico", 4.875],
-  ["NY", "New York", 4],
-  ["NC", "North Carolina", 3],
-  ["ND", "North Dakota", 5],
-  ["OH", "Ohio", 5.75],
-  ["OK", "Oklahoma", 3.25],
-  ["OR", "Oregon", 0],
-  ["PA", "Pennsylvania", 6],
-  ["RI", "Rhode Island", 7],
-  ["SC", "South Carolina", 5],
-  ["SD", "South Dakota", 4.2],
-  ["TN", "Tennessee", 7],
-  ["TX", "Texas", 6.25],
-  ["UT", "Utah", 6.1],
-  ["VT", "Vermont", 6],
-  ["VA", "Virginia", 4.15],
-  ["WA", "Washington", 6.5],
-  ["WV", "West Virginia", 6],
-  ["WI", "Wisconsin", 5],
-  ["WY", "Wyoming", 4],
-] as const;
-
-function TaxLeaseLab({ onFlash }: { onFlash: (m: string) => void }) {
-  const [state, setState] = useState("FL");
-  const [zip, setZip] = useState("33411");
-  const [price, setPrice] = useState(78450);
-  const [trade, setTrade] = useState(24600);
-  const [payoff, setPayoff] = useState(18220);
-  const [rebate, setRebate] = useState(1500);
-  const [fees, setFees] = useState(1295);
-  const [localRate, setLocalRate] = useState(1);
-  const [term, setTerm] = useState(36);
-  const [miles, setMiles] = useState(10000);
-  const [residual, setResidual] = useState(58);
-  const [moneyFactor, setMoneyFactor] = useState(0.00215);
-  const [driveOff, setDriveOff] = useState(3500);
-  const [taxMode, setTaxMode] = useState<"monthly" | "upfront">("monthly");
-  const rule = stateTaxRules.find((x) => x[0] === state) ?? stateTaxRules[9];
-  const combinedRate = Number(rule[2]) + localRate;
-  const equity = Math.max(0, trade - payoff);
-  const taxablePurchase = Math.max(0, price - trade - rebate);
-  const purchaseTax = taxablePurchase * (combinedRate / 100);
-  const outTheDoor = price - equity - rebate + fees + purchaseTax;
-  const residualValue = price * (residual / 100);
-  const adjustedCap = Math.max(0, price + fees - rebate - equity - driveOff);
-  const depreciation = (adjustedCap - residualValue) / term;
-  const rentCharge = (adjustedCap + residualValue) * moneyFactor;
-  const baseLease = Math.max(0, depreciation + rentCharge);
-  const monthlyTax =
-    taxMode === "monthly" ? baseLease * (combinedRate / 100) : 0;
-  const upfrontTax =
-    taxMode === "upfront" ? baseLease * term * (combinedRate / 100) : 0;
-  const leasePayment = baseLease + monthlyTax;
-  const totalLease = leasePayment * term + driveOff + upfrontTax;
-  const apr = moneyFactor * 2400;
-  const mileageAdjustment =
-    miles === 7500 ? 2 : miles === 10000 ? 0 : miles === 12000 ? -1 : -3;
-  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
-  const scenarios = [
-    [
-      "Lowest payment",
-      term + 3,
-      residual + 2 + mileageAdjustment,
-      Math.max(0.0001, moneyFactor - 0.0002),
-      driveOff + 2500,
-    ],
-    ["Balanced", term, residual + mileageAdjustment, moneyFactor, driveOff],
-    [
-      "Lowest drive-off",
-      term,
-      residual + mileageAdjustment,
-      moneyFactor + 0.0001,
-      995,
-    ],
-  ] as const;
-  return (
-    <div className="financeWorkspace taxLeaseLab">
-      <div className="financePageHead taxLabHead">
-        <div>
-          <span>50-STATE + D.C. DEAL INTELLIGENCE</span>
-          <h1>Tax &amp; Lease Intelligence Lab</h1>
-          <p>
-            Model the complete transaction—not just a payment. Compare
-            jurisdiction logic, trade treatment, rebates, fees, residual
-            exposure and lease structures in one customer-ready workspace.
-          </p>
-        </div>
-        <div>
-          <button onClick={() => onFlash("State rule verification requested")}>
-            Verify jurisdiction
-          </button>
-          <button onClick={() => onFlash("Customer comparison link generated")}>
-            Share live comparison →
-          </button>
-        </div>
-      </div>
-      <div className="taxConfidence">
-        <div>
-          <span>◈</span>
-          <p>
-            <b>Jurisdiction confidence layer</b>
-            <small>
-              {rule[1]} baseline loaded · ZIP {zip || "required"} · Local rate
-              manually confirmed at {localRate.toFixed(2)}%
-            </small>
-          </p>
-        </div>
-        <em>ESTIMATE · VERIFY BEFORE CONTRACT</em>
-      </div>
-      <div className="taxLeaseGrid">
-        <section className="financePanel calculatorInputs">
-          <header>
-            <div>
-              <small>TRANSACTION INPUTS</small>
-              <h2>Vehicle + jurisdiction</h2>
-            </div>
-            <button onClick={() => onFlash("VIN decoded and fees refreshed")}>
-              Decode VIN
-            </button>
-          </header>
-          <div className="calcFields">
-            <label>
-              State
-              <select value={state} onChange={(e) => setState(e.target.value)}>
-                {stateTaxRules.map((x) => (
-                  <option key={x[0]} value={x[0]}>
-                    {x[1]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Registration ZIP
-              <input
-                value={zip}
-                onChange={(e) =>
-                  setZip(e.target.value.replace(/\D/g, "").slice(0, 5))
-                }
-              />
-            </label>
-            <CalcInput label="Selling price" value={price} set={setPrice} />
-            <CalcInput label="Trade allowance" value={trade} set={setTrade} />
-            <CalcInput label="Trade payoff" value={payoff} set={setPayoff} />
-            <CalcInput
-              label="Rebate / incentive"
-              value={rebate}
-              set={setRebate}
-            />
-            <CalcInput label="Taxable fees" value={fees} set={setFees} />
-            <label>
-              Local + district rate
-              <input
-                type="number"
-                step="0.01"
-                value={localRate}
-                onChange={(e) => setLocalRate(Number(e.target.value))}
-              />
-              <small>State baseline {Number(rule[2]).toFixed(3)}%</small>
-            </label>
-          </div>
-          <div className="taxRuleStack">
-            {[
-              ["State baseline", `${Number(rule[2]).toFixed(3)}%`],
-              ["Local override", `${localRate.toFixed(3)}%`],
-              ["Combined estimate", `${combinedRate.toFixed(3)}%`],
-              ["Trade equity", fmt(equity)],
-            ].map((x) => (
-              <p key={x[0]}>
-                <span>{x[0]}</span>
-                <b>{x[1]}</b>
-              </p>
-            ))}
-          </div>
-        </section>
-        <section className="financePanel taxOutput">
-          <header>
-            <div>
-              <small>OUT-THE-DOOR ENGINE</small>
-              <h2>{rule[1]} purchase estimate</h2>
-            </div>
-            <em>ZIP-AWARE READY</em>
-          </header>
-          <div className="taxHeroNumber">
-            <small>ESTIMATED OUT-THE-DOOR</small>
-            <b>{fmt(outTheDoor)}</b>
-            <span>{combinedRate.toFixed(3)}% modeled combined rate</span>
-          </div>
-          <div className="taxBreakdown">
-            {[
-              ["Selling price", fmt(price)],
-              ["Net trade equity", `−${fmt(equity)}`],
-              ["Rebates", `−${fmt(rebate)}`],
-              ["Estimated taxable base", fmt(taxablePurchase)],
-              ["Government + dealer fees", fmt(fees)],
-              ["Estimated tax", fmt(purchaseTax)],
-            ].map((x) => (
-              <p key={x[0]}>
-                <span>{x[0]}</span>
-                <b>{x[1]}</b>
-              </p>
-            ))}
-          </div>
-          <button
-            onClick={() => onFlash("Line-by-line tax worksheet generated")}
-          >
-            Generate audit-ready worksheet →
-          </button>
-        </section>
-        <section className="financePanel leaseInputs">
-          <header>
-            <div>
-              <small>LEASE STRUCTURE</small>
-              <h2>Build the lease</h2>
-            </div>
-            <span>MF = {moneyFactor.toFixed(5)}</span>
-          </header>
-          <div className="leaseControls">
-            <label>
-              Term
-              <div>
-                {[24, 36, 39, 48].map((x) => (
-                  <button
-                    className={term === x ? "active" : ""}
-                    onClick={() => setTerm(x)}
-                    key={x}
-                  >
-                    {x} mo
-                  </button>
-                ))}
-              </div>
-            </label>
-            <label>
-              Annual mileage
-              <div>
-                {[7500, 10000, 12000, 15000].map((x) => (
-                  <button
-                    className={miles === x ? "active" : ""}
-                    onClick={() => setMiles(x)}
-                    key={x}
-                  >
-                    {x.toLocaleString()}
-                  </button>
-                ))}
-              </div>
-            </label>
-            <label>
-              Residual{" "}
-              <b>
-                {residual}% · {fmt(residualValue)}
-              </b>
-              <input
-                type="range"
-                min="40"
-                max="75"
-                value={residual}
-                onChange={(e) => setResidual(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              Money factor{" "}
-              <b>
-                {moneyFactor.toFixed(5)} · {apr.toFixed(2)}% APR equiv.
-              </b>
-              <input
-                type="range"
-                min="0.0001"
-                max="0.005"
-                step="0.00005"
-                value={moneyFactor}
-                onChange={(e) => setMoneyFactor(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              Drive-off reduction <b>{fmt(driveOff)}</b>
-              <input
-                type="range"
-                min="0"
-                max="10000"
-                step="250"
-                value={driveOff}
-                onChange={(e) => setDriveOff(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              Tax method
-              <div>
-                <button
-                  className={taxMode === "monthly" ? "active" : ""}
-                  onClick={() => setTaxMode("monthly")}
-                >
-                  Tax payment
-                </button>
-                <button
-                  className={taxMode === "upfront" ? "active" : ""}
-                  onClick={() => setTaxMode("upfront")}
-                >
-                  Tax upfront
-                </button>
-              </div>
-            </label>
-          </div>
-        </section>
-        <section className="financePanel leaseOutput">
-          <header>
-            <div>
-              <small>LEASE PAYMENT ENGINE</small>
-              <h2>Transparent payment anatomy</h2>
-            </div>
-            <em>
-              {term} MO · {miles.toLocaleString()} MI
-            </em>
-          </header>
-          <div className="leasePayment">
-            <small>ESTIMATED PAYMENT</small>
-            <b>
-              {fmt(leasePayment)}
-              <i>/mo</i>
-            </b>
-            <span>{fmt(driveOff + upfrontTax)} estimated due at signing</span>
-          </div>
-          <div className="paymentAnatomy">
-            {[
-              ["Monthly depreciation", fmt(depreciation)],
-              ["Monthly rent charge", fmt(rentCharge)],
-              ["Monthly tax", fmt(monthlyTax)],
-              ["Residual value", fmt(residualValue)],
-              ["Total lease commitment", fmt(totalLease)],
-              ["Effective monthly", fmt(totalLease / term)],
-            ].map((x) => (
-              <p key={x[0]}>
-                <span>{x[0]}</span>
-                <b>{x[1]}</b>
-              </p>
-            ))}
-          </div>
-        </section>
-      </div>
-      <section className="financePanel scenarioLab">
-        <header>
-          <div>
-            <small>CYNCRO STRUCTURE DNA™</small>
-            <h2>Three paths from the same deal</h2>
-          </div>
-          <button
-            onClick={() => onFlash("AI structure optimization completed")}
-          >
-            ✦ Optimize with AI
-          </button>
-        </header>
-        <div>
-          {scenarios.map((s, i) => {
-            const rVal = price * (s[2] / 100);
-            const cap = Math.max(0, price + fees - rebate - equity - s[4]);
-            const base = Math.max(0, (cap - rVal) / s[1] + (cap + rVal) * s[3]);
-            const pay = base * (1 + combinedRate / 100);
-            return (
-              <article className={i === 1 ? "featured" : ""} key={s[0]}>
-                <span>{i === 1 ? "RECOMMENDED" : "SCENARIO 0" + (i + 1)}</span>
-                <h3>{s[0]}</h3>
-                <b>
-                  {fmt(pay)}
-                  <i>/mo</i>
-                </b>
-                <p>
-                  <span>Due at signing</span>
-                  <strong>{fmt(s[4])}</strong>
-                </p>
-                <p>
-                  <span>Term / residual</span>
-                  <strong>
-                    {s[1]} mo · {s[2]}%
-                  </strong>
-                </p>
-                <p>
-                  <span>Total commitment</span>
-                  <strong>{fmt(pay * s[1] + s[4])}</strong>
-                </p>
-                <button onClick={() => onFlash(`${s[0]} scenario selected`)}>
-                  Use this structure →
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-      <div className="taxDisclaimer">
-        <b>Important calculation boundary</b>
-        <p>
-          This tool provides dealership estimates. Final tax and lease figures
-          must be verified against current state, county, city, registration
-          address, vehicle classification, incentives, lender program, DMV and
-          dealer-specific rules before contracting.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FinancePerformance({
-  onOpen,
-  onFlash,
-}: {
-  onOpen: (i: number) => void;
-  onFlash: (m: string) => void;
-}) {
-  const [period, setPeriod] = useState("Month to date");
-  return (
-    <div className="financeWorkspace financePerformance">
-      <div className="financePageHead">
-        <div>
-          <span>SALES + F&amp;I PERFORMANCE</span>
-          <h1>See who sold it—and who protected the deal.</h1>
-          <p>
-            Separate sales and finance-manager production with lender reserve,
-            points held, product gross, total PVR and funding status on every
-            transaction.
-          </p>
-        </div>
-        <div className="performanceActions">
-          {["Today", "Month to date", "Quarter"].map((item) => (
-            <button
-              className={period === item ? "active" : ""}
-              key={item}
-              onClick={() => {
-                setPeriod(item);
-                onFlash(item + " performance loaded");
-              }}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </div>
-      <section className="financeKpis">
-        {[
-          ["TOTAL DEAL GROSS", "$24,430", "+14.2% vs pace"],
-          ["FINANCE PVR", "$2,414", "$9,655 back gross"],
-          ["LENDER RESERVE", "$5,340", "1.88 avg points held"],
-          ["FUNDED DEALS", "37", "96% clean funding"],
-        ].map((item) => (
-          <article key={item[0]}>
-            <small>{item[0]}</small>
-            <b>{item[1]}</b>
-            <span>{item[2]}</span>
-          </article>
-        ))}
-      </section>
-      <div className="performanceSplit">
-        <section className="financePanel managerScoreboard">
-          <header>
-            <div>
-              <small>FINANCE MANAGER STATUS</small>
-              <h2>F&amp;I production</h2>
-            </div>
-            <span>{period.toUpperCase()}</span>
-          </header>
-          {[
-            ["Finance Manager", "18 deals", "$2,684 PVR", "2.12 pts", "112%"],
-            ["Dana Pierce", "14 deals", "$2,420 PVR", "1.84 pts", "104%"],
-            ["Jason Cole", "11 deals", "$2,186 PVR", "1.61 pts", "96%"],
-          ].map((row) => (
-            <button
-              key={row[0]}
-              onClick={() => onFlash(row[0] + " performance profile opened")}
-            >
-              <span className="managerAvatar">{row[0][0]}</span>
-              <b>{row[0]}</b>
-              <span>{row[1]}</span>
-              <span>{row[2]}</span>
-              <span>{row[3]}</span>
-              <em>{row[4]} TARGET</em>
-            </button>
-          ))}
-        </section>
-        <section className="financePanel salesScoreboard">
-          <header>
-            <div>
-              <small>SALES PERFORMANCE</small>
-              <h2>Salesperson production</h2>
-            </div>
-            <button onClick={() => onFlash("Sales coaching report exported")}>
-              Export report
-            </button>
-          </header>
-          {[
-            ["Maya Torres", "16 units", "$4,312 front avg", "$98.6K total"],
-            ["Andre Cole", "13 units", "$3,884 front avg", "$76.2K total"],
-            ["Jason Cole", "10 units", "$3,240 front avg", "$54.9K total"],
-          ].map((row) => (
-            <button
-              key={row[0]}
-              onClick={() => onFlash(row[0] + " sales profile opened")}
-            >
-              <b>{row[0]}</b>
-              <span>{row[1]}</span>
-              <span>{row[2]}</span>
-              <strong>{row[3]}</strong>
-            </button>
-          ))}
-        </section>
-      </div>
-      <section className="financePanel dealProfitLedger">
-        <header>
-          <div>
-            <small>PER-DEAL SALES + FINANCE DATA</small>
-            <h2>Deal profitability ledger</h2>
-          </div>
-          <button onClick={() => onFlash("Profit ledger filters opened")}>
-            Filter deals
-          </button>
-        </header>
-        <div className="dealProfitHead">
-          {[
-            "DEAL / CUSTOMER",
-            "SALESPERSON",
-            "FRONT GROSS",
-            "FINANCE MANAGER",
-            "BACK GROSS",
-            "POINTS HELD",
-            "RESERVE",
-            "TOTAL",
-          ].map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
-        {financeDeals.map((deal, index) => (
-          <button key={deal.stock} onClick={() => onOpen(index)}>
-            <span>
-              <b>{deal.stock}</b>
-              <small>{deal.customer}</small>
-            </span>
-            <span>{deal.salesperson}</span>
-            <strong>{deal.frontGross}</strong>
-            <span>{deal.financeManager}</span>
-            <strong>{deal.backGross}</strong>
-            <em>{deal.pointsHeld}</em>
-            <span>{deal.reserve}</span>
-            <b>{deal.gross}</b>
-          </button>
-        ))}
-      </section>
-    </div>
-  );
-}
-
-function FinanceInventory({ onFlash }: { onFlash: (m: string) => void }) {
-  const [filter, setFilter] = useState("All inventory");
-  const inventory = [
-    [
-      "P24018",
-      "2026 Porsche Macan S",
-      "12 days",
-      "$71,820",
-      "$78,450",
-      "AVAILABLE",
-    ],
-    [
-      "B51882",
-      "2025 BMW X5 xDrive40i",
-      "38 days",
-      "$66,100",
-      "$72,980",
-      "PENDING",
-    ],
-    [
-      "M60117",
-      "2026 Mercedes GLC 300",
-      "21 days",
-      "$54,440",
-      "$61,290",
-      "AVAILABLE",
-    ],
-    [
-      "A74221",
-      "2025 Audi Q7 Premium Plus",
-      "67 days",
-      "$63,280",
-      "$69,995",
-      "AGED",
-    ],
-    [
-      "L51207",
-      "2026 Lexus RX 350",
-      "8 days",
-      "$48,620",
-      "$55,440",
-      "IN TRANSIT",
-    ],
-  ];
-  return (
-    <div className="financeWorkspace financeInventory">
-      <div className="financePageHead">
-        <div>
-          <span>LIVE VEHICLE INVENTORY</span>
-          <h1>Every unit connected to every deal.</h1>
-          <p>
-            Track availability, age, acquisition cost, asking price, estimated
-            margin, floorplan exposure and the customer deal attached to each
-            vehicle.
-          </p>
-        </div>
-        <button onClick={() => onFlash("New inventory record opened")}>
-          ＋ Add vehicle
-        </button>
-      </div>
-      <section className="financeKpis">
-        {[
-          ["TOTAL UNITS", "284", "New + pre-owned"],
-          ["INVENTORY VALUE", "$18.6M", "Across rooftops"],
-          ["AVG AGE", "31 days", "−4 days"],
-          ["AGED 60+ DAYS", "18", "$1.12M exposed"],
-        ].map((item) => (
-          <article key={item[0]}>
-            <small>{item[0]}</small>
-            <b>{item[1]}</b>
-            <span>{item[2]}</span>
-          </article>
-        ))}
-      </section>
-      <div className="financeFilters inventoryFilters">
-        {["All inventory", "Available", "Pending", "Aged"].map((item) => (
-          <button
-            className={filter === item ? "active" : ""}
-            key={item}
-            onClick={() => setFilter(item)}
-          >
-            {item}
-          </button>
-        ))}
-        <input placeholder="Search VIN, stock, make or model…" />
-      </div>
-      <section className="financePanel inventoryLedger">
-        <header className="inventoryHead">
-          {[
-            "STOCK / VEHICLE",
-            "AGE",
-            "ACQUISITION",
-            "ASKING",
-            "EST. MARGIN",
-            "STATUS",
-          ].map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </header>
-        {inventory
-          .filter((row) =>
-            filter === "All inventory"
-              ? true
-              : row[5].includes(filter.toUpperCase()),
-          )
-          .map((row) => {
-            const margin =
-              Number(row[4].replace(/[$,]/g, "")) -
-              Number(row[3].replace(/[$,]/g, ""));
-            return (
-              <button
-                key={row[0]}
-                onClick={() => onFlash(row[0] + " inventory record opened")}
-              >
-                <span>
-                  <b>{row[0]}</b>
-                  <small>{row[1]}</small>
-                </span>
-                <span>{row[2]}</span>
-                <span>{row[3]}</span>
-                <strong>{row[4]}</strong>
-                <b>
-                  {"$"}
-                  {margin.toLocaleString()}
-                </b>
-                <em>{row[5]}</em>
-              </button>
-            );
-          })}
-      </section>
-    </div>
-  );
-}
-
-function FinanceDealDocuments({ onFlash }: { onFlash: (m: string) => void }) {
-  const [selectedStock, setSelectedStock] = useState(financeDeals[0].stock);
-  const [documents, setDocuments] = useState([
-    {
-      stock: "P24018",
-      name: "Retail Installment Contract.pdf",
-      source: "E-SIGNED",
-      time: "10:42 AM",
-    },
-    {
-      stock: "P24018",
-      name: "Driver License — Olivia Bennett.jpg",
-      source: "SCANNED",
-      time: "10:38 AM",
-    },
-    {
-      stock: "P24018",
-      name: "Proof of Insurance.pdf",
-      source: "UPLOADED",
-      time: "10:34 AM",
-    },
-    {
-      stock: "B51882",
-      name: "Credit Application.pdf",
-      source: "UPLOADED",
-      time: "9:51 AM",
-    },
-  ]);
-  const deal = financeDeals.find((item) => item.stock === selectedStock)!;
-  const attachFiles = (
-    event: ChangeEvent<HTMLInputElement>,
-    source: "UPLOADED" | "SCANNED",
-  ) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    setDocuments((current) => [
-      ...files.map((file) => ({
-        stock: selectedStock,
-        name: file.name,
-        source,
-        time: "Just now",
-      })),
-      ...current,
-    ]);
-    onFlash(
-      String(files.length) +
-        (source === "SCANNED" ? " scan" : " document") +
-        (files.length > 1 ? "s" : "") +
-        " attached to deal " +
-        selectedStock,
-    );
-    event.target.value = "";
+  const loadDetail = () => {
+    if (!selectedId) { setDeal(null); return; }
+    void fetch(`/api/automotive?resource=deals&id=${selectedId}`).then((r) => r.json()).then((d: { deal?: AutoDealDetail; cobuyers?: AutoCoBuyer[]; products?: AutoProduct[]; submissions?: AutoSubmission[]; documents?: AutoDocument[] }) => {
+      setDeal(d.deal || null); setCobuyers(d.cobuyers || []); setProducts(d.products || []); setSubmissions(d.submissions || []); setDocuments(d.documents || []);
+    });
   };
-  const dealDocs = documents.filter((item) => item.stock === selectedStock);
+  useEffect(loadDetail, [selectedId]);
+
+  const createDeal = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void (async () => {
+      let customerId = data.get("existingCustomer") as string;
+      if (newCustomer || !customerId) {
+        const cr = await fetch("/api/automotive?resource=customers", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstName: data.get("firstName"), lastName: data.get("lastName"), email: data.get("email"), phone: data.get("phone") }),
+        });
+        const cd = await cr.json() as { id?: string; error?: string };
+        if (!cr.ok || !cd.id) { onFlash(cd.error || "Could not create customer"); return; }
+        customerId = cd.id;
+      }
+      const vehicleId = data.get("vehicleId") as string;
+      if (!vehicleId) { onFlash("Select a vehicle"); return; }
+      const dr = await fetch("/api/automotive?resource=deals", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId, vehicleId, salePrice: data.get("salePrice"), downPayment: data.get("downPayment"),
+          tax: data.get("tax"), fees: data.get("fees"), termMonths: data.get("termMonths") || 72, interestRate: data.get("interestRate") || 7.49,
+        }),
+      });
+      const dd = await dr.json() as { id?: string; error?: string };
+      if (!dr.ok) { onFlash(dd.error || "Could not create deal"); return; }
+      onFlash("Deal created"); setAdding(false); onReload();
+      if (dd.id) onSelect(dd.id);
+    })();
+  };
+
+  const updateStructure = (patch: Record<string, unknown>) => {
+    if (!deal) return;
+    void fetch(`/api/automotive?resource=deals&id=${deal.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
+      .then((r) => { if (r.ok) loadDetail(); });
+  };
+
+  const addCobuyer = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!deal) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive?resource=cobuyers", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId: deal.id, fullName: data.get("fullName"), relationship: data.get("relationship") }),
+    }).then((r) => { if (r.ok) { onFlash("Co-buyer added"); loadDetail(); (e.target as HTMLFormElement).reset(); } });
+  };
+
+  const addProduct = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!deal) return;
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive?resource=products", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId: deal.id, productType: data.get("productType"), name: data.get("name"), price: data.get("price"), cost: data.get("cost") }),
+    }).then((r) => { if (r.ok) { onFlash("Product added to menu"); loadDetail(); (e.target as HTMLFormElement).reset(); } });
+  };
+  const removeProduct = (id: string) => void fetch(`/api/automotive?resource=products&id=${id}`, { method: "DELETE" }).then((r) => { if (r.ok) loadDetail(); });
+
+  const submitToLenders = () => {
+    if (!deal || !selectedLenderIds.size) return;
+    void fetch("/api/automotive?resource=submissions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId: deal.id, lenderIds: Array.from(selectedLenderIds) }),
+    }).then((r) => { if (r.ok) { onFlash(`Submitted to ${selectedLenderIds.size} lender(s)`); setSelectedLenderIds(new Set()); loadDetail(); onReload(); } });
+  };
+  const updateSubmission = (id: string, patch: Record<string, unknown>) =>
+    void fetch(`/api/automotive?resource=submissions&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).then((r) => { if (r.ok) loadDetail(); });
+
+  const toggleDoc = (id: string, checked: boolean) =>
+    void fetch(`/api/automotive?resource=documents&id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checked }) }).then((r) => { if (r.ok) loadDetail(); });
+
+  const bestOffer = submissions.filter((s) => s.status === "APPROVED").filter((s) => s.approved_amount_cents).sort((a, b) => (a.approved_rate ?? 999) - (b.approved_rate ?? 999))[0];
+  const docsChecked = documents.filter((d) => d.checked).length;
+
   return (
-    <div className="financeWorkspace financeDocuments">
-      <div className="financePageHead">
-        <div>
-          <span>SECURE DIGITAL DEAL JACKET</span>
-          <h1>Every client document. One verified deal file.</h1>
-          <p>
-            Upload, scan, classify and attach customer documents directly to the
-            deal with source tracking, completion status and an audit-ready
-            history.
-          </p>
-        </div>
-        <div className="documentActions">
-          <label>
-            ＋ Upload documents
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,image/*"
-              onChange={(event) => attachFiles(event, "UPLOADED")}
-            />
-          </label>
-          <label className="scanAction">
-            ▣ Scan document
-            <input
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              capture="environment"
-              onChange={(event) => attachFiles(event, "SCANNED")}
-            />
-          </label>
-        </div>
-      </div>
-      <div className="dealJacketGrid">
-        <aside className="financePanel dealJacketList">
-          <header>
-            <div>
-              <small>ACTIVE DEAL JACKETS</small>
-              <h2>Client deals</h2>
+    <div className="disputeCases apexApplicants">
+      <section className="disputePanel disputeCaseList">
+        <header><div><small>DEAL QUEUE</small><h1>Deals</h1></div><button onClick={() => setAdding(!adding)}>+ New deal</button></header>
+        {adding && (
+          <form className="disputeAddClientForm apexApplicantForm" onSubmit={createDeal}>
+            <label className="autoNewCustomerToggle">
+              <input type="checkbox" checked={newCustomer} onChange={(e) => setNewCustomer(e.target.checked)} /> New customer
+            </label>
+            {newCustomer ? (
+              <>
+                <input name="firstName" placeholder="Customer first name" required />
+                <input name="lastName" placeholder="Customer last name" required />
+                <input name="email" type="email" placeholder="Email" />
+                <input name="phone" placeholder="Phone" />
+              </>
+            ) : (
+              <select name="existingCustomer">
+                <option value="">Select existing customer…</option>
+                {customers.map((c) => <option value={c.id} key={c.id}>{c.first_name} {c.last_name}</option>)}
+              </select>
+            )}
+            <select name="vehicleId" required>
+              <option value="">Select vehicle…</option>
+              {vehicles.map((v) => <option value={v.id} key={v.id}>{v.stock_number} · {v.year} {v.make} {v.model} · {autoMoney(v.asking_price_cents)}</option>)}
+            </select>
+            <input name="salePrice" type="number" step="0.01" placeholder="Sale price $" required />
+            <input name="downPayment" type="number" step="0.01" placeholder="Down payment $" />
+            <input name="tax" type="number" step="0.01" placeholder="Taxes $" />
+            <input name="fees" type="number" step="0.01" placeholder="Fees $" />
+            <input name="termMonths" type="number" placeholder="Term (months, default 72)" />
+            <input name="interestRate" type="number" step="0.01" placeholder="Interest rate % (default 7.49)" />
+            <button type="submit">Create deal</button>
+          </form>
+        )}
+        {deals.map((d) => (
+          <button className={selectedId === d.id ? "active" : ""} onClick={() => onSelect(d.id)} key={d.id}>
+            <span><b>{d.first_name} {d.last_name}</b><small>{d.year} {d.make} {d.model} · {d.stock_number}</small></span>
+            <em>{d.status}</em>
+          </button>
+        ))}
+        {!deals.length && <p className="disputeEmpty">No deals yet.</p>}
+      </section>
+      <aside className="disputePanel disputeInspector apexInspector">
+        {!deal && <p className="disputeEmpty">Select a deal.</p>}
+        {deal && (
+          <>
+            <header><div><small>DEAL JACKET</small><h2>{deal.first_name} {deal.last_name}</h2></div><em className="caseStatus">● {deal.status}</em></header>
+            <div className="caseFacts">
+              <span><small>VEHICLE</small><b>{deal.year} {deal.make} {deal.model} {deal.trim}</b></span>
+              <span><small>VIN</small><b>{deal.vin || "—"}</b></span>
+              <span><small>MILEAGE</small><b>{deal.mileage ?? "—"}</b></span>
+              <span><small>BOOK VALUE</small><b>{autoMoney(deal.book_value_cents)}</b></span>
+              <span><small>CREDIT SCORE</small><b>{deal.credit_score_pulled ?? "—"}</b></span>
+              <span><small>CONTRACT / FUNDING</small><b>{deal.contract_status} / {deal.funding_status}</b></span>
             </div>
-            <span>{financeDeals.length}</span>
-          </header>
-          {financeDeals.map((item) => (
-            <button
-              className={selectedStock === item.stock ? "active" : ""}
-              key={item.stock}
-              onClick={() => setSelectedStock(item.stock)}
-            >
-              <span>{item.customer[0]}</span>
-              <div>
-                <b>{item.customer}</b>
-                <small>{item.vehicle}</small>
+
+            <h3>Deal structure</h3>
+            <div className="apexSubmissionFields autoStructureFields">
+              <label>Sale price<input type="number" step="0.01" defaultValue={deal.sale_price_cents / 100} onBlur={(e) => updateStructure({ salePrice: e.target.value })} /></label>
+              <label>Down payment<input type="number" step="0.01" defaultValue={deal.down_payment_cents / 100} onBlur={(e) => updateStructure({ downPayment: e.target.value })} /></label>
+              <label>Trade allowance<input type="number" step="0.01" defaultValue={deal.trade_allowance_cents / 100} onBlur={(e) => updateStructure({ tradeAllowance: e.target.value })} /></label>
+              <label>Trade payoff<input type="number" step="0.01" defaultValue={deal.trade_payoff_cents / 100} onBlur={(e) => updateStructure({ tradePayoff: e.target.value })} /></label>
+              <label>Taxes<input type="number" step="0.01" defaultValue={deal.tax_cents / 100} onBlur={(e) => updateStructure({ tax: e.target.value })} /></label>
+              <label>Fees<input type="number" step="0.01" defaultValue={deal.fees_cents / 100} onBlur={(e) => updateStructure({ fees: e.target.value })} /></label>
+              <label>Term (mo)<input type="number" defaultValue={deal.term_months} onBlur={(e) => updateStructure({ termMonths: e.target.value })} /></label>
+              <label>Rate %<input type="number" step="0.01" defaultValue={deal.interest_rate} onBlur={(e) => updateStructure({ interestRate: e.target.value })} /></label>
+            </div>
+            <div className="autoPaymentOutput">
+              <small>MONTHLY PAYMENT</small>
+              <b>{autoMoney(deal.monthly_payment_cents)}<i>/mo</i></b>
+              <span>Amount financed {autoMoney(deal.amount_financed_cents)} · {deal.term_months}mo · {deal.interest_rate}% APR</span>
+            </div>
+            <div className="caseFacts">
+              <span><small>FRONT GROSS</small><b>{autoMoney(deal.front_gross_cents)}</b></span>
+              <span><small>BACK GROSS</small><b>{autoMoney(deal.back_gross_cents)}</b></span>
+            </div>
+
+            <h3>Co-buyers</h3>
+            <form className="disputeInlineForm" onSubmit={addCobuyer}>
+              <input name="fullName" placeholder="Co-buyer full name" required />
+              <input name="relationship" placeholder="Relationship" />
+              <button type="submit">+ Add co-buyer</button>
+            </form>
+            {cobuyers.map((c) => <div className="disputeListRow" key={c.id}><b>{c.full_name}</b><small>{c.relationship || "—"}</small></div>)}
+
+            <h3>F&amp;I product menu</h3>
+            <form className="disputeInlineForm" onSubmit={addProduct}>
+              <select name="productType" defaultValue="GAP">
+                <option value="GAP">GAP</option>
+                <option value="WARRANTY">Extended warranty</option>
+                <option value="SERVICE_CONTRACT">Service contract</option>
+                <option value="MAINTENANCE">Maintenance plan</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <input name="name" placeholder="Product name" required />
+              <input name="price" type="number" step="0.01" placeholder="Price $" required />
+              <input name="cost" type="number" step="0.01" placeholder="Cost $" />
+              <button type="submit">+ Add product</button>
+            </form>
+            {products.map((p) => (
+              <div className="disputeListRow" key={p.id}>
+                <b>{p.name}</b><span>{p.product_type} · {autoMoney(p.price_cents)}</span>
+                <button onClick={() => removeProduct(p.id)}>Remove</button>
               </div>
-              <em>
-                {documents.filter((doc) => doc.stock === item.stock).length}{" "}
-                DOCS
-              </em>
-            </button>
-          ))}
-        </aside>
-        <section className="financePanel documentVault">
-          <header>
-            <div>
-              <small>DEAL {deal.stock}</small>
-              <h2>{deal.customer}</h2>
-              <p>
-                {deal.vehicle} · {deal.lender} · {deal.financeManager}
-              </p>
-            </div>
-            <span>{dealDocs.length}/12 COMPLETE</span>
-          </header>
-          <div className="documentProgress">
-            <i
-              style={{
-                width:
-                  String(Math.min(100, (dealDocs.length / 12) * 100)) + "%",
-              }}
-            />
-          </div>
-          <div className="documentChecklist">
-            {dealDocs.map((document, index) => (
-              <button
-                key={document.name + "-" + String(index)}
-                onClick={() => onFlash(document.name + " preview opened")}
-              >
-                <span>
-                  {document.name.toLowerCase().endsWith(".pdf") ? "PDF" : "IMG"}
-                </span>
-                <div>
-                  <b>{document.name}</b>
-                  <small>
-                    {document.source} · {document.time}
-                  </small>
-                </div>
-                <em>✓ VERIFIED</em>
-                <i>⋮</i>
-              </button>
             ))}
-            {!dealDocs.length && (
-              <div className="emptyDocumentVault">
-                <span>▤</span>
-                <b>No documents attached yet</b>
-                <p>
-                  Upload a file or scan the first page into this deal jacket.
-                </p>
+            {!products.length && <p className="disputeEmpty">No F&amp;I products added.</p>}
+
+            <h3>Submit to lenders</h3>
+            <div className="apexLenderPicker">
+              {lenders.map((l) => (
+                <label key={l.id}>
+                  <input type="checkbox" checked={selectedLenderIds.has(l.id)} onChange={(e) => {
+                    const next = new Set(selectedLenderIds);
+                    if (e.target.checked) next.add(l.id); else next.delete(l.id);
+                    setSelectedLenderIds(next);
+                  }} />
+                  {l.name}
+                  {l.min_credit_score && deal.credit_score_pulled && deal.credit_score_pulled < l.min_credit_score && <em className="apexEligibilityWarn"> below {l.min_credit_score} min score</em>}
+                </label>
+              ))}
+              {!lenders.length && <p className="disputeEmpty">No lenders in your matrix yet — add one from Lenders.</p>}
+            </div>
+            <button disabled={!selectedLenderIds.size} onClick={submitToLenders}>✦ Submit to {selectedLenderIds.size || ""} lender(s)</button>
+
+            {submissions.map((s) => (
+              <div className="apexSubmissionRow" key={s.id}>
+                <div className="apexSubmissionHead">
+                  <b>{s.lender_name}</b>
+                  <select value={s.status} onChange={(e) => updateSubmission(s.id, { status: e.target.value })}>
+                    {AUTO_SUBMISSION_STATUSES.map((st) => <option value={st} key={st}>{st}</option>)}
+                  </select>
+                </div>
+                <div className="apexSubmissionFields">
+                  <input placeholder="Approved rate %" defaultValue={s.approved_rate ?? ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { approvedRate: e.target.value })} />
+                  <input placeholder="Approved term (mo)" defaultValue={s.approved_term ?? ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { approvedTerm: e.target.value })} />
+                  <input placeholder="Approved amount $" defaultValue={s.approved_amount_cents ? s.approved_amount_cents / 100 : ""} onBlur={(e) => e.target.value && updateSubmission(s.id, { approvedAmount: e.target.value })} />
+                  {s.status === "DECLINED" && <input placeholder="Decline reason" defaultValue={s.decline_reason ?? ""} onBlur={(e) => updateSubmission(s.id, { declineReason: e.target.value })} />}
+                </div>
+              </div>
+            ))}
+            {bestOffer && (
+              <div className="apexBestOffer">
+                <small>RECOMMENDED — LOWEST RATE AMONG APPROVED OFFERS</small>
+                <b>{bestOffer.lender_name}</b>
+                <span>{bestOffer.approved_rate}% APR · {autoMoney(bestOffer.approved_amount_cents)} approved</span>
               </div>
             )}
-          </div>
-        </section>
-        <aside className="financePanel dealCompletion">
-          <header>
-            <small>DEAL COMPLETION</small>
-            <h2>Required documents</h2>
-          </header>
-          {[
-            ["Identity", dealDocs.some((doc) => doc.name.includes("License"))],
-            [
-              "Credit application",
-              dealDocs.some((doc) => doc.name.includes("Credit")),
-            ],
-            [
-              "Insurance",
-              dealDocs.some((doc) => doc.name.includes("Insurance")),
-            ],
-            ["Buyer’s order", false],
-            [
-              "Finance contract",
-              dealDocs.some((doc) => doc.name.includes("Contract")),
-            ],
-            ["Product forms", false],
-          ].map((item) => (
-            <button
-              key={item[0] as string}
-              onClick={() => onFlash(String(item[0]) + " requirement opened")}
-            >
-              <span className={item[1] ? "complete" : ""}>
-                {item[1] ? "✓" : "○"}
-              </span>
-              <b>{item[0]}</b>
-              <em>{item[1] ? "COMPLETE" : "NEEDED"}</em>
-            </button>
-          ))}
-          <button
-            className="requestDocuments"
-            onClick={() =>
-              onFlash("Secure upload request sent to " + deal.customer)
-            }
-          >
-            Send client upload request
-          </button>
-        </aside>
-      </div>
-    </div>
-  );
-}
 
-function CalcInput({
-  label,
-  value,
-  set,
-}: {
-  label: string;
-  value: number;
-  set: (n: number) => void;
-}) {
-  return (
-    <label>
-      {label}
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => set(Number(e.target.value))}
-      />
-    </label>
-  );
-}
-
-const financeWorkspaceData: Record<
-  Exclude<
-    FinanceView,
-    | "Command"
-    | "Deal Queue"
-    | "Deal Architect"
-    | "Performance"
-    | "Inventory"
-    | "Deal Documents"
-    | "Tax & Lease Lab"
-  >,
-  {
-    eyebrow: string;
-    title: string;
-    desc: string;
-    action: string;
-    metrics: string[][];
-    sections: { title: string; rows: string[][] }[];
-  }
-> = {
-  Lenders: {
-    eyebrow: "INTELLIGENT LENDER NETWORK",
-    title: "Route every deal to its strongest approval path.",
-    desc: "Live program matrix, callback comparison, advance limits, stipulation patterns, reserve and funding-speed intelligence.",
-    action: "Compare programs",
-    metrics: [
-      ["CONNECTED LENDERS", "42", "Live programs"],
-      ["APPROVAL RATE", "81.6%", "+6.2%"],
-      ["AVG CALLBACK", "4m 12s", "−38%"],
-      ["RESERVE MTD", "$84.2K", "Protected"],
-    ],
-    sections: [
-      {
-        title: "Lender performance",
-        rows: [
-          [
-            "Chase Auto",
-            "86% approval",
-            "1.4 day funding",
-            "$1,425 avg reserve",
-          ],
-          [
-            "Capital One Auto",
-            "79% approval",
-            "1.2 day funding",
-            "$1,180 avg reserve",
-          ],
-          ["Ally", "82% approval", "1.8 day funding", "$1,695 avg reserve"],
-        ],
-      },
-      {
-        title: "Program opportunities",
-        rows: [
-          ["Prime loyalty", "6 eligible deals", "Up to −0.50%", "MATCH"],
-          ["EV incentive", "3 eligible units", "$2,500 credit", "MATCH"],
-          ["First-time buyer", "4 prospects", "Flexible history", "REVIEW"],
-        ],
-      },
-    ],
-  },
-  "Product Menu": {
-    eyebrow: "PERSONALIZED F&I PRESENTATION",
-    title: "Build value—not pressure.",
-    desc: "AI-personalized product recommendations, transparent option menus, e-signatures, declinations and penetration coaching.",
-    action: "Create menu",
-    metrics: [
-      ["PVR", "$2,418", "+$284"],
-      ["VSC PENETRATION", "54.8%", "+7.1%"],
-      ["GAP PENETRATION", "46.2%", "Target 50%"],
-      ["MENU COMPLETION", "98.6%", "Audited"],
-    ],
-    sections: [
-      {
-        title: "Live product performance",
-        rows: [
-          [
-            "Vehicle Service Contract",
-            "54.8% penetration",
-            "$1,420 avg gross",
-            "↑ 7.1%",
-          ],
-          ["GAP Protection", "46.2% penetration", "$684 avg gross", "↑ 3.8%"],
-          ["Tire & Wheel", "31.9% penetration", "$790 avg gross", "↑ 5.2%"],
-        ],
-      },
-      {
-        title: "Customer-ready menus",
-        rows: [
-          ["Olivia Bennett", "Premium protection", "2 selected", "PRESENTING"],
-          ["Noah Williams", "Essential protection", "1 selected", "REVIEW"],
-          ["Sophia Carter", "Custom menu", "3 selected", "SIGNED"],
-        ],
-      },
-    ],
-  },
-  Contracts: {
-    eyebrow: "DIGITAL DEAL JACKET",
-    title: "Contract once. Validate everything.",
-    desc: "Remote signing, document generation, version control, missing-field detection, secure vault and accounting handoff.",
-    action: "Generate contract",
-    metrics: [
-      ["CONTRACTING", "8", "Live deals"],
-      ["E-SIGN RATE", "78%", "Remote + in-store"],
-      ["AVG CONTRACT TIME", "11m", "−43%"],
-      ["ERROR RATE", "0.4%", "Auto-validated"],
-    ],
-    sections: [
-      {
-        title: "Contract desk",
-        rows: [
-          ["Liam Rodriguez", "18/21 documents", "3 signatures", "IN PROGRESS"],
-          ["Sophia Carter", "21/21 documents", "Complete", "READY TO FUND"],
-          ["Noah Williams", "14/21 documents", "Lender pending", "ON HOLD"],
-        ],
-      },
-      {
-        title: "Document intelligence",
-        rows: [
-          [
-            "Retail installment contract",
-            "All fields validated",
-            "Current version",
-            "CLEAR",
-          ],
-          [
-            "Buyer’s order",
-            "Tax + fees reconciled",
-            "Current version",
-            "CLEAR",
-          ],
-          [
-            "Privacy + credit notices",
-            "Delivery confirmed",
-            "Immutable proof",
-            "CLEAR",
-          ],
-        ],
-      },
-    ],
-  },
-  Funding: {
-    eyebrow: "CONTRACT-IN-TRANSIT CONTROL",
-    title: "Turn signed deals into cash faster.",
-    desc: "Funding packets, lender checklists, aging alerts, exception ownership, receivables, reserve reconciliation and chargeback risk.",
-    action: "Open funding packet",
-    metrics: [
-      ["PENDING FUNDING", "$428.6K", "14 contracts"],
-      ["AVG TIME TO FUND", "1.7 days", "−0.6 days"],
-      ["EXCEPTIONS", "4", "2 urgent"],
-      ["CHARGEBACK RISK", "$7.8K", "Protected"],
-    ],
-    sections: [
-      {
-        title: "Funding queue",
-        rows: [
-          ["Sophia Carter", "Mercedes-Benz FS", "$68,420", "STIP RECEIVED"],
-          ["Liam Rodriguez", "Ally", "$74,880", "CONTRACT REVIEW"],
-          ["Emma Davis", "Chase Auto", "$46,210", "FUNDED TODAY"],
-        ],
-      },
-      {
-        title: "Exceptions",
-        rows: [
-          ["Proof of income", "Noah Williams", "Owner: Jason", "2h SLA"],
-          ["Insurance binder", "Sophia Carter", "Owner: Maya", "4h SLA"],
-          ["Trade title", "Ethan Parker", "Owner: DMV desk", "1 day"],
-        ],
-      },
-    ],
-  },
-  Compliance: {
-    eyebrow: "CONTINUOUS DEAL COMPLIANCE",
-    title: "Protect the customer, manager and rooftop.",
-    desc: "OFAC, Red Flags, consent, adverse action, disclosures, identity, menu proof, audit trails and policy enforcement.",
-    action: "Run deal audit",
-    metrics: [
-      ["DEALS AUDITED", "100%", "Automatic"],
-      ["OPEN EXCEPTIONS", "3", "Owners assigned"],
-      ["POLICY SCORE", "98.7", "Enterprise"],
-      ["AUDIT EVIDENCE", "7 years", "Retained"],
-    ],
-    sections: [
-      {
-        title: "Automated controls",
-        rows: [
-          ["OFAC screening", "All active deals", "Real time", "ENFORCED"],
-          [
-            "Red Flags program",
-            "Identity + anomaly review",
-            "Risk based",
-            "ENFORCED",
-          ],
-          [
-            "Adverse action",
-            "Trigger + notice tracking",
-            "Automated",
-            "ENFORCED",
-          ],
-        ],
-      },
-      {
-        title: "Audit stream",
-        rows: [
-          [
-            "Deal P24018",
-            "Menu disclosure signed",
-            "Finance Manager",
-            "10:42 AM",
-          ],
-          ["Deal M60117", "Credit consent verified", "System", "10:31 AM"],
-          ["Deal A74221", "Rate change approved", "Dana P.", "10:08 AM"],
-        ],
-      },
-    ],
-  },
-  Customers: {
-    eyebrow: "ONE AUTOMOTIVE CUSTOMER RECORD",
-    title: "See the complete relationship—not one transaction.",
-    desc: "Identity, household, vehicles, trade equity, credit consent, communications, service history, documents and lifetime value.",
-    action: "Add customer",
-    metrics: [
-      ["ACTIVE CUSTOMERS", "12,842", "All rooftops"],
-      ["RETURNING BUYERS", "31.4%", "+4.8%"],
-      ["POSITIVE EQUITY", "1,208", "Opportunities"],
-      ["AVG LIFETIME VALUE", "$8,940", "Sales + service"],
-    ],
-    sections: [
-      {
-        title: "Priority customers",
-        rows: [
-          [
-            "Olivia Bennett",
-            "2026 Porsche Macan S",
-            "$18.4K LTV",
-            "IN DELIVERY",
-          ],
-          ["Noah Williams", "2025 BMW X5", "$11.2K LTV", "FINANCING"],
-          ["Sophia Carter", "2026 Mercedes GLC", "$14.8K LTV", "STIPS"],
-        ],
-      },
-      {
-        title: "Equity opportunities",
-        rows: [
-          [
-            "118 customers",
-            "$5K+ positive equity",
-            "0–36 months",
-            "HIGH INTENT",
-          ],
-          ["264 customers", "Lease maturity <120d", "Campaign ready", "ENGAGE"],
-          ["82 customers", "Payment reduction path", "AI matched", "REVIEW"],
-        ],
-      },
-    ],
-  },
-  Analytics: {
-    eyebrow: "MULTI-ROOFTOP FINANCE INTELLIGENCE",
-    title: "Know exactly where profit moves—and why.",
-    desc: "Real-time PVR, penetration, lender, funding, manager, compliance and chargeback analytics with AI explanations.",
-    action: "Ask finance data",
-    metrics: [
-      ["TOTAL GROSS MTD", "$1.28M", "+11.7%"],
-      ["BACK GROSS", "$486K", "38% mix"],
-      ["DEALS FUNDED", "214", "96% clean"],
-      ["FORECAST", "$1.62M", "103% target"],
-    ],
-    sections: [
-      {
-        title: "Manager performance",
-        rows: [
-          ["Finance Manager", "$2,684 PVR", "74% products", "112% target"],
-          ["Dana Pierce", "$2,420 PVR", "68% products", "104% target"],
-          ["Jason Cole", "$2,186 PVR", "61% products", "96% target"],
-        ],
-      },
-      {
-        title: "Rooftop comparison",
-        rows: [
-          ["Vivid Premier West", "$2,590 PVR", "1.4d fund", "LEADER"],
-          ["Vivid Premier Central", "$2,402 PVR", "1.8d fund", "ON PACE"],
-          ["Vivid Premier North", "$2,110 PVR", "2.6d fund", "COACH"],
-        ],
-      },
-    ],
-  },
-};
-
-function FinanceWorkspace({
-  view,
-  onFlash,
-}: {
-  view: Exclude<
-    FinanceView,
-    | "Command"
-    | "Deal Queue"
-    | "Deal Architect"
-    | "Performance"
-    | "Inventory"
-    | "Deal Documents"
-    | "Tax & Lease Lab"
-  >;
-  onFlash: (m: string) => void;
-}) {
-  const d = financeWorkspaceData[view];
-  return (
-    <div className="financeWorkspace">
-      <div className="financePageHead">
-        <div>
-          <span>{d.eyebrow}</span>
-          <h1>{d.title}</h1>
-          <p>{d.desc}</p>
-        </div>
-        <button onClick={() => onFlash(`${d.action} opened`)}>
-          {d.action} →
-        </button>
-      </div>
-      <section className="financeKpis">
-        {d.metrics.map((x) => (
-          <article key={x[0]}>
-            <small>{x[0]}</small>
-            <b>{x[1]}</b>
-            <span>{x[2]}</span>
-          </article>
-        ))}
-      </section>
-      <div className="financeDataGrid">
-        {d.sections.map((s) => (
-          <section className="financePanel financeDataTable" key={s.title}>
-            <header>
-              <div>
-                <small>LIVE OPERATIONS</small>
-                <h2>{s.title}</h2>
-              </div>
-              <button onClick={() => onFlash(`${s.title} controls opened`)}>
-                Manage →
-              </button>
-            </header>
-            {s.rows.map((r, i) => (
-              <button
-                onClick={() => onFlash(`${r[0]} opened`)}
-                key={`${r[0]}-${i}`}
-              >
-                {r.map((c, j) => (
-                  <span className={j === 0 ? "primary" : ""} key={`${c}-${j}`}>
-                    {c}
-                  </span>
-                ))}
-              </button>
+            <h3>Deal jacket / document checklist ({docsChecked}/{documents.length})</h3>
+            {documents.map((doc) => (
+              <label className="autoDocChecklistRow" key={doc.id}>
+                <input type="checkbox" checked={!!doc.checked} onChange={(e) => toggleDoc(doc.id, e.target.checked)} />
+                {doc.doc_type}
+              </label>
             ))}
-          </section>
-        ))}
-      </div>
+          </>
+        )}
+      </aside>
     </div>
   );
 }
 
-function FinanceAI({
-  onClose,
-  onFlash,
-}: {
-  onClose: () => void;
-  onFlash: (m: string) => void;
-}) {
+function AutoInventory({ onFlash }: { onFlash: (m: string) => void }) {
+  const [inventory, setInventory] = useState<AutoVehicle[]>([]);
+  const load = () => void fetch("/api/automotive?resource=inventory").then((r) => r.json()).then((d: { inventory?: AutoVehicle[] }) => setInventory(d.inventory || []));
+  useEffect(load, []);
+  const addVehicle = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive?resource=inventory", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        stockNumber: data.get("stockNumber"), vin: data.get("vin"), year: data.get("year"), make: data.get("make"), model: data.get("model"),
+        trim: data.get("trim"), mileage: data.get("mileage"), bookValue: data.get("bookValue"), askingPrice: data.get("askingPrice"), acquisitionCost: data.get("acquisitionCost"),
+      }),
+    }).then((r) => { if (r.ok) { onFlash("Vehicle added to inventory"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
   return (
-    <aside className="financeAI">
-      <header>
-        <div>
-          <span>✦</span>
-          <div>
-            <b>Cyncro Finance AI</b>
-            <small>Deal-aware intelligence</small>
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div><span>LIVE VEHICLE INVENTORY</span><h1>Every unit, with its own VIN and numbers.</h1></div>
+      </div>
+      <section className="disputePanel">
+        <form className="disputeAddClientForm apexApplicantForm" onSubmit={addVehicle}>
+          <input name="stockNumber" placeholder="Stock #" required />
+          <input name="vin" placeholder="VIN" />
+          <input name="year" type="number" placeholder="Year" />
+          <input name="make" placeholder="Make" />
+          <input name="model" placeholder="Model" />
+          <input name="trim" placeholder="Trim" />
+          <input name="mileage" type="number" placeholder="Mileage" />
+          <input name="bookValue" type="number" step="0.01" placeholder="Book value $" />
+          <input name="askingPrice" type="number" step="0.01" placeholder="Asking price $" required />
+          <input name="acquisitionCost" type="number" step="0.01" placeholder="Acquisition cost $" />
+          <button type="submit">+ Add vehicle</button>
+        </form>
+        {inventory.map((v) => (
+          <div className="disputeListRow" key={v.id}>
+            <b>{v.stock_number}</b>
+            <span>{v.year} {v.make} {v.model} {v.trim} · {v.mileage ?? "—"} mi</span>
+            <small>{autoMoney(v.book_value_cents)} book · {autoMoney(v.asking_price_cents)} asking</small>
+            <em>{v.status}</em>
           </div>
-        </div>
-        <button onClick={onClose}>×</button>
-      </header>
-      <div className="aiContext">
-        <span>LIVE BOOK CONTEXT</span>
-        <b>18 active deals · $126K gross</b>
-        <small>42 lender programs · 4 exceptions</small>
-      </div>
-      <div className="aiConversation">
-        <p>Where should I focus right now?</p>
-        <article>
-          <b>Three actions can protect approximately $18,420 in gross today.</b>
-          <ol>
-            <li>Move Noah Williams to Capital One’s current tier.</li>
-            <li>Resolve Sophia Carter’s income stipulation.</li>
-            <li>Re-present GAP on four high-LTV deals.</li>
-          </ol>
-        </article>
-      </div>
-      <div className="aiPrompts">
-        {[
-          "Optimize today’s deal book",
-          "Find funding delays",
-          "Compare manager PVR",
-        ].map((x) => (
-          <button key={x} onClick={() => onFlash(`${x} analysis generated`)}>
-            {x} →
-          </button>
         ))}
+        {!inventory.length && <p className="disputeEmpty">No inventory yet.</p>}
+      </section>
+    </div>
+  );
+}
+
+function AutoLenders({ onFlash }: { onFlash: (m: string) => void }) {
+  const [lenders, setLenders] = useState<AutoLenderRow[]>([]);
+  const load = () => void fetch("/api/automotive?resource=lenders").then((r) => r.json()).then((d: { lenders?: AutoLenderRow[] }) => setLenders(d.lenders || []));
+  useEffect(load, []);
+  const addLender = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    void fetch("/api/automotive?resource=lenders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.get("name"), minCreditScore: data.get("minScore"), maxAdvancePct: data.get("maxAdvance"), buyRate: data.get("buyRate"), reservePct: data.get("reserve") }),
+    }).then((r) => { if (r.ok) { onFlash("Lender added to matrix"); load(); (e.target as HTMLFormElement).reset(); } });
+  };
+  return (
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>LENDER MATRIX</span>
+          <h1>Your lender relationships, tracked — not synced.</h1>
+          <p>A manually managed matrix of lenders and their approval terms. No lender here is connected via a live API — submissions are logged for your own tracking.</p>
+        </div>
       </div>
-      <label>
-        <input placeholder="Ask about any deal, lender or KPI…" />
-        <button onClick={() => onFlash("AI analysis generated")}>↑</button>
-      </label>
-      <footer>AI recommendations require authorized manager review.</footer>
-    </aside>
+      <section className="disputePanel">
+        <form className="disputeAddClientForm" onSubmit={addLender}>
+          <input name="name" placeholder="Lender name" required />
+          <input name="minScore" type="number" placeholder="Min credit score" />
+          <input name="maxAdvance" type="number" step="0.01" placeholder="Max advance %" />
+          <input name="buyRate" type="number" step="0.01" placeholder="Buy rate %" />
+          <input name="reserve" type="number" step="0.01" placeholder="Reserve %" />
+          <button type="submit">+ Add lender</button>
+        </form>
+        {lenders.map((l) => (
+          <div className="disputeListRow" key={l.id}>
+            <b>{l.name}</b>
+            <span>{l.min_credit_score ? `${l.min_credit_score}+ score` : "No score min"} · {l.buy_rate ? `${l.buy_rate}% buy rate` : "—"}</span>
+            <small>{l.reserve_pct ? `${l.reserve_pct}% reserve` : ""}</small>
+          </div>
+        ))}
+        {!lenders.length && <p className="disputeEmpty">No lenders yet. Add your first one above.</p>}
+      </section>
+    </div>
+  );
+}
+
+function AutoAnalytics({ summary }: { summary: AutoSummary | null }) {
+  const [deals, setDeals] = useState<AutoDealRow[]>([]);
+  useEffect(() => { void fetch("/api/automotive?resource=deals").then((r) => r.json()).then((d: { deals?: AutoDealRow[] }) => setDeals(d.deals || [])); }, []);
+  const byStatus = Object.entries(deals.reduce((acc, d) => { acc[d.status] = (acc[d.status] || 0) + 1; return acc; }, {} as Record<string, number>));
+  return (
+    <div className="disputeAnalytics">
+      <div className="disputeHero compact"><div><span>REAL DEAL DATA</span><h1>Front and back gross, straight from the ledger.</h1></div></div>
+      <div className="disputeMetrics">
+        {[
+          ["TOTAL DEALS", String(deals.length), ""],
+          ["FUNDED", String(summary?.fundedDeals ?? 0), ""],
+          ["FRONT GROSS", autoMoney(summary?.totalFrontGrossCents), "Funded deals"],
+          ["BACK GROSS", autoMoney(summary?.totalBackGrossCents), "Funded deals"],
+        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      </div>
+      <section className="disputePanel outcomeBars">
+        <small>DEALS BY STATUS</small><h2>Pipeline</h2>
+        {byStatus.map(([status, count]) => (<article key={status}><span>{status}</span><b>{count}</b></article>))}
+        {!byStatus.length && <p className="disputeEmpty">No deals yet.</p>}
+      </section>
+    </div>
   );
 }
 
@@ -23785,7 +22264,6 @@ const CYNCRO_PRODUCTS: {
     tagline: "Dealership finance & deal OS",
     color: "#0D7F6E",
     icon: "◉",
-    badge: "Coming Soon",
     features: ["Credit applications", "Lender matrix", "Deal structuring", "Finance menu", "Deal jacket", "Funding tracking", "F&I analytics"],
   },
   {
