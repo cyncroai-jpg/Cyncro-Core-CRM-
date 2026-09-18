@@ -6,6 +6,7 @@ import { DndContext, useDraggable, useDroppable, PointerSensor, useSensor, useSe
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { LP_SECTION_META, defaultSectionData, type LpSection, type LpSectionType } from "@/lib/growth/sectionTypes";
+import { GrowthErrorBoundary } from "@/components/growth/ErrorBoundary";
 
 type GrowthModule = "overview" | "forms" | "landing-pages" | "journeys" | "attribution" | "tracking" | "campaigns" | "automations" | "agents" | "conversations" | "revenue-intelligence" | "experiments" | "integrations";
 
@@ -30,6 +31,14 @@ const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const uid = () => crypto.randomUUID();
 
 export default function GrowthIntelligence() {
+  return (
+    <GrowthErrorBoundary>
+      <GrowthIntelligenceApp />
+    </GrowthErrorBoundary>
+  );
+}
+
+function GrowthIntelligenceApp() {
   const [module, setModule] = useState<GrowthModule>("overview");
   const [flash, setFlash] = useState("");
   const onFlash = (message: string) => { setFlash(message); window.clearTimeout((window as unknown as { _giFlashTimer?: number })._giFlashTimer); (window as unknown as { _giFlashTimer?: number })._giFlashTimer = window.setTimeout(() => setFlash(""), 4000); };

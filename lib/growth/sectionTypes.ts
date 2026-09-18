@@ -19,6 +19,39 @@ export const LP_SECTION_META: Record<LpSectionType, { label: string; icon: strin
   FORM: { label: "Form embed", icon: "▤" },
 };
 
+/**
+ * Upgrades a section from any older/legacy shape (flat text/heading/body
+ * fields, or an unrecognized type like the pre-rewrite "BENEFITS") into
+ * the current {id, type, data} shape, so a page saved before a schema
+ * change keeps rendering instead of silently dropping content or
+ * crashing the renderer. Called wherever sections_json is read.
+ */
+export function normalizeSection(raw: unknown): LpSection | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === "string" ? r.id : String(Math.random());
+  let type = typeof r.type === "string" ? (r.type as string) : "TEXT";
+  if (type === "BENEFITS") type = "TEXT"; // pre-rewrite AI-generated type, closest real equivalent
+  if (!(type in LP_SECTION_META)) type = "TEXT";
+  const validType = type as LpSectionType;
+
+  if (r.data && typeof r.data === "object") {
+    return { id, type: validType, data: { ...defaultSectionData(validType), ...(r.data as Record<string, unknown>) } };
+  }
+  // Legacy flat shape — migrate known field names into the data bag.
+  const data: Record<string, unknown> = { ...defaultSectionData(validType) };
+  if (typeof r.text === "string" && r.text) data.headline = r.text, (data.text = r.text);
+  if (typeof r.sub === "string") data.sub = r.sub;
+  if (typeof r.heading === "string") data.heading = r.heading;
+  if (typeof r.body === "string") data.body = r.body;
+  return { id, type: validType, data };
+}
+
+export function normalizeSections(raw: unknown): LpSection[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(normalizeSection).filter((s): s is LpSection => s !== null);
+}
+
 export function defaultSectionData(type: LpSectionType): Record<string, unknown> {
   switch (type) {
     case "HEADLINE": return { headline: "Your headline here", sub: "A short supporting line." };

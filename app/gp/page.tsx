@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import SmartForm from "@/components/growth/SmartForm";
-import type { LpSection } from "@/lib/growth/sectionTypes";
+import { normalizeSections, type LpSection } from "@/lib/growth/sectionTypes";
+import { GrowthErrorBoundary } from "@/components/growth/ErrorBoundary";
 
 interface GiPage { id: string; name: string; sections_json: string }
 
@@ -48,6 +49,14 @@ function SectionRenderer({ section }: { section: LpSection }) {
 }
 
 export default function PublicLandingPage() {
+  return (
+    <GrowthErrorBoundary>
+      <PublicLandingPageInner />
+    </GrowthErrorBoundary>
+  );
+}
+
+function PublicLandingPageInner() {
   const slug = typeof window !== "undefined" ? new URLSearchParams(location.search).get("slug") || "" : "";
   const [page, setPage] = useState<GiPage | null>(null);
   const [error, setError] = useState("");
@@ -64,7 +73,7 @@ export default function PublicLandingPage() {
   if (error) return <section className="giPublic giLandingPublic"><main><h1>{error}</h1></main></section>;
   if (!page) return <section className="giPublic giLandingPublic"><main><h1>Loading…</h1></main></section>;
 
-  const sections: LpSection[] = JSON.parse(page.sections_json || "[]");
+  const sections: LpSection[] = normalizeSections(JSON.parse(page.sections_json || "[]"));
   return (
     <section className="giPublic giLandingPublic">
       <main>{sections.map((s) => <SectionRenderer key={s.id} section={s} />)}</main>

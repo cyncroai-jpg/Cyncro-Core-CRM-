@@ -1,5 +1,14 @@
 import { cleanText, coreDb, hasCrmAction, hasModuleAccess, requestUser } from "@/lib/core/db";
 import { ensureGrowthSchema } from "@/lib/growth/db";
+import { normalizeSections } from "@/lib/growth/sectionTypes";
+
+/** Re-serializes sections_json through normalizeSections so a page saved under an older schema (or with an unrecognized/legacy section type) still renders instead of silently dropping content. */
+function withNormalizedSections<T extends { sections_json?: unknown }>(page: T): T {
+  if (page && typeof page.sections_json === "string") {
+    return { ...page, sections_json: JSON.stringify(normalizeSections(JSON.parse(page.sections_json))) };
+  }
+  return page;
+}
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +20,13 @@ export async function GET(request: Request) {
       const page = await db.prepare("SELECT id, name, sections_json, form_id, seo_json FROM gi_landing_pages WHERE slug=? AND status='PUBLISHED'").bind(slug).first();
       if (!page) return Response.json({ error: "This page is not available." }, { status: 404 });
       await db.prepare("UPDATE gi_landing_pages SET views = views + 1 WHERE slug=?").bind(slug).run();
-      return Response.json({ page });
+      return Response.json({ page: withNormalizedSections(page) });
     }
     if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "Access required." }, { status: 403 });
     const id = cleanText(url.searchParams.get("id"), 80);
     if (id) {
       const page = await db.prepare("SELECT * FROM gi_landing_pages WHERE id=?").bind(id).first();
-      return page ? Response.json({ page }) : Response.json({ error: "Not found." }, { status: 404 });
+      return page ? Response.json({ page: withNormalizedSections(page) }) : Response.json({ error: "Not found." }, { status: 404 });
     }
     const { results } = await db.prepare("SELECT id, name, slug, status, views, created_at, updated_at FROM gi_landing_pages ORDER BY updated_at DESC").all();
     return Response.json({ pages: results });
