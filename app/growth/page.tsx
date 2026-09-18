@@ -5,6 +5,7 @@ import "@xyflow/react/dist/style.css";
 import { DndContext, useDraggable, useDroppable, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { LP_SECTION_META, defaultSectionData, type LpSection, type LpSectionType } from "@/lib/growth/sectionTypes";
 
 type GrowthModule = "overview" | "forms" | "landing-pages" | "journeys" | "attribution" | "tracking" | "campaigns" | "automations" | "agents" | "conversations" | "revenue-intelligence" | "experiments" | "integrations";
 
@@ -437,33 +438,32 @@ function GiLandingPages({ onFlash }: { onFlash: (m: string) => void }) {
   const [pages, setPages] = useState<GiPageRow[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const load = async () => { const d = (await (await fetch("/api/growth/landing-pages")).json()) as { pages?: GiPageRow[] }; setPages(d.pages || []); };
   useEffect(() => { void load(); }, []);
 
-  const createPage = async (name: string, sections: Array<Record<string, unknown>>) => {
+  const createPage = async (name: string, sections: LpSection[]) => {
     const r = await fetch("/api/growth/landing-pages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, sections }) });
-    if (!r.ok) return onFlash("Could not create landing page");
+    const d = (await r.json()) as { page?: { id: string }; error?: string };
+    if (!r.ok) return onFlash(d.error || "Could not create landing page");
     setAiOpen(false); setCreating(false); await load(); onFlash("Landing page created");
+    setEditingId(d.page?.id || null);
   };
 
-  const publish = async (id: string) => {
-    const r = await fetch("/api/growth/landing-pages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, updates: { status: "PUBLISHED" } }) });
-    if (!r.ok) return onFlash("Could not publish");
-    await load(); onFlash("Page published");
-  };
+  if (editingId) return <GiLandingPageEditor id={editingId} onBack={() => { setEditingId(null); void load(); }} onFlash={onFlash} />;
 
   return (
     <section className="giSection">
       <header><h1>Landing Pages</h1><div><button onClick={() => setCreating(true)}>+ Blank page</button><button onClick={() => setAiOpen(true)}>✦ Create with AI</button></div></header>
-      {creating && <NewPageDialog onCreate={(name) => createPage(name, [{ id: uid(), type: "HEADLINE", text: name }])} onCancel={() => setCreating(false)} />}
+      {creating && <NewPageDialog onCreate={(name) => createPage(name, [{ id: uid(), type: "HEADLINE", data: defaultSectionData("HEADLINE") }])} onCancel={() => setCreating(false)} />}
       {aiOpen && <AiLandingPageDialog onCreate={createPage} onCancel={() => setAiOpen(false)} onFlash={onFlash} />}
       <div className="giTable">
         <header><span>Name</span><span>Slug</span><span>Status</span><span>Views</span></header>
         {pages.map((p) => (
           <div key={p.id} className="giTableRow">
-            <b>{p.name}</b><span>/{p.slug}</span><span className={`giBadge giBadge-${p.status}`}>{p.status}</span><span>{p.views}</span>
-            <div>{p.status !== "PUBLISHED" && <button onClick={() => void publish(p.id)}>Publish</button>}
-              <a href={`/gp?slug=${p.slug}`} target="_blank" rel="noreferrer">View →</a></div>
+            <button className="giTableRowLink" onClick={() => setEditingId(p.id)}><b>{p.name}</b></button>
+            <span>/{p.slug}</span><span className={`giBadge giBadge-${p.status}`}>{p.status}</span><span>{p.views}</span>
+            <div><a href={`/gp?slug=${p.slug}`} target="_blank" rel="noreferrer">View →</a></div>
           </div>
         ))}
         {!pages.length && <p className="giEmpty">No landing pages yet.</p>}
@@ -475,7 +475,7 @@ function NewPageDialog({ onCreate, onCancel }: { onCreate: (name: string) => voi
   const [name, setName] = useState("");
   return <div className="giDialog"><label>Page name<input value={name} onChange={(e) => setName(e.target.value)} /></label><div><button onClick={onCancel}>Cancel</button><button disabled={!name.trim()} onClick={() => onCreate(name)}>Create</button></div></div>;
 }
-function AiLandingPageDialog({ onCreate, onCancel, onFlash }: { onCreate: (name: string, sections: Array<Record<string, unknown>>) => void; onCancel: () => void; onFlash: (m: string) => void }) {
+function AiLandingPageDialog({ onCreate, onCancel, onFlash }: { onCreate: (name: string, sections: LpSection[]) => void; onCancel: () => void; onFlash: (m: string) => void }) {
   const [business, setBusiness] = useState(""); const [offer, setOffer] = useState(""); const [industry, setIndustry] = useState(""); const [generating, setGenerating] = useState(false);
   const generate = async () => {
     setGenerating(true);
@@ -483,7 +483,11 @@ function AiLandingPageDialog({ onCreate, onCancel, onFlash }: { onCreate: (name:
     const d = (await r.json()) as { page?: { headline: string; subheadline: string; sections: Array<{ type: string; heading: string; body: string }>; ctaText: string }; error?: string };
     setGenerating(false);
     if (!r.ok || d.error) return onFlash(d.error || "AI could not generate this page");
-    const sections = [{ id: uid(), type: "HEADLINE", text: d.page?.headline, sub: d.page?.subheadline }, ...(d.page?.sections || []).map((s) => ({ id: uid(), type: s.type, heading: s.heading, body: s.body })), { id: uid(), type: "BUTTON", text: d.page?.ctaText }];
+    const sections: LpSection[] = [
+      { id: uid(), type: "HEADLINE", data: { headline: d.page?.headline || business, sub: d.page?.subheadline || "" } },
+      ...(d.page?.sections || []).map((s) => ({ id: uid(), type: "TEXT" as const, data: { heading: s.heading, body: s.body } })),
+      { id: uid(), type: "BUTTON", data: { text: d.page?.ctaText || "Get started", href: "#" } },
+    ];
     onCreate(business, sections);
   };
   return (
@@ -493,6 +497,188 @@ function AiLandingPageDialog({ onCreate, onCancel, onFlash }: { onCreate: (name:
       <label>Industry (optional)<input value={industry} onChange={(e) => setIndustry(e.target.value)} /></label>
       <div><button onClick={onCancel}>Cancel</button><button disabled={!business.trim() || !offer.trim() || generating} onClick={() => void generate()}>{generating ? "Generating…" : "Generate page"}</button></div>
     </div>
+  );
+}
+
+// ---- Landing page drag-and-drop section editor ----
+function LpPaletteItem({ type }: { type: LpSectionType }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `lp-palette-${type}`, data: { source: "palette", sectionType: type } });
+  const meta = LP_SECTION_META[type];
+  return <button ref={setNodeRef} className={`dndPaletteItem${isDragging ? " dndDragging" : ""}`} {...listeners} {...attributes} type="button"><i>{meta.icon}</i>{meta.label}</button>;
+}
+function LpCanvasDropZone({ children }: { children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "lp-canvas", data: { source: "canvas" } });
+  return <div ref={setNodeRef} className={`dndStepZone lpCanvasZone${isOver ? " dndOver" : ""}`}>{children}</div>;
+}
+function SortableLpSection({ section, onUpdate, onRemove, onRegenerate, regenerating, forms }: {
+  section: LpSection; onUpdate: (data: Record<string, unknown>) => void; onRemove: () => void;
+  onRegenerate?: () => void; regenerating?: boolean; forms: Array<{ id: string; name: string; public_token: string }>;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id, data: { source: "section" } });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+  const d = section.data;
+  const canRegenerate = ["HEADLINE", "TEXT", "TESTIMONIAL", "FAQ", "PRICING"].includes(section.type);
+  return (
+    <div ref={setNodeRef} style={style} className="lpSectionCard">
+      <div className="lpSectionHead">
+        <span className="dndHandle" {...attributes} {...listeners}>⠿</span>
+        <b>{LP_SECTION_META[section.type].label}</b>
+        {canRegenerate && onRegenerate && <button className="lpRegenBtn" disabled={regenerating} onClick={onRegenerate}>{regenerating ? "…" : "✦ Regenerate"}</button>}
+        <button onClick={onRemove}>✕</button>
+      </div>
+      {section.type === "HEADLINE" && <>
+        <input value={String(d.headline || "")} onChange={(e) => onUpdate({ headline: e.target.value })} placeholder="Headline" />
+        <input value={String(d.sub || "")} onChange={(e) => onUpdate({ sub: e.target.value })} placeholder="Supporting line" />
+      </>}
+      {section.type === "TEXT" && <>
+        <input value={String(d.heading || "")} onChange={(e) => onUpdate({ heading: e.target.value })} placeholder="Heading" />
+        <textarea value={String(d.body || "")} onChange={(e) => onUpdate({ body: e.target.value })} placeholder="Body text" />
+      </>}
+      {section.type === "IMAGE" && <>
+        <input value={String(d.url || "")} onChange={(e) => onUpdate({ url: e.target.value })} placeholder="Image URL (https://…)" />
+        <input value={String(d.alt || "")} onChange={(e) => onUpdate({ alt: e.target.value })} placeholder="Alt text" />
+      </>}
+      {section.type === "BUTTON" && <>
+        <input value={String(d.text || "")} onChange={(e) => onUpdate({ text: e.target.value })} placeholder="Button text" />
+        <input value={String(d.href || "")} onChange={(e) => onUpdate({ href: e.target.value })} placeholder="Link (https://… or #form)" />
+      </>}
+      {section.type === "TESTIMONIAL" && <>
+        <textarea value={String(d.quote || "")} onChange={(e) => onUpdate({ quote: e.target.value })} placeholder="Quote" />
+        <input value={String(d.author || "")} onChange={(e) => onUpdate({ author: e.target.value })} placeholder="Author" />
+      </>}
+      {section.type === "PRICING" && <>
+        <input value={String(d.title || "")} onChange={(e) => onUpdate({ title: e.target.value })} placeholder="Plan title" />
+        <input value={String(d.price || "")} onChange={(e) => onUpdate({ price: e.target.value })} placeholder="Price" />
+        <textarea value={String(d.features || "")} onChange={(e) => onUpdate({ features: e.target.value })} placeholder="One feature per line" />
+      </>}
+      {section.type === "FAQ" && <>
+        <input value={String(d.question || "")} onChange={(e) => onUpdate({ question: e.target.value })} placeholder="Question" />
+        <textarea value={String(d.answer || "")} onChange={(e) => onUpdate({ answer: e.target.value })} placeholder="Answer" />
+      </>}
+      {section.type === "COUNTDOWN" && <>
+        <input value={String(d.label || "")} onChange={(e) => onUpdate({ label: e.target.value })} placeholder="Label" />
+        <input type="datetime-local" value={String(d.endsAt || "").slice(0, 16)} onChange={(e) => onUpdate({ endsAt: new Date(e.target.value).toISOString() })} />
+      </>}
+      {section.type === "FORM" && (
+        <select value={String(d.formToken || "")} onChange={(e) => { const f = forms.find((x) => x.public_token === e.target.value); onUpdate({ formToken: e.target.value, formName: f?.name || "" }); }}>
+          <option value="">Choose a published form…</option>
+          {forms.map((f) => <option key={f.id} value={f.public_token}>{f.name}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+
+function GiLandingPageEditor({ id, onBack, onFlash }: { id: string; onBack: () => void; onFlash: (m: string) => void }) {
+  const [page, setPage] = useState<{ id: string; name: string; status: string; slug: string } | null>(null);
+  const [status, setStatus] = useState("DRAFT");
+  const [sections, setSections] = useState<LpSection[]>([]);
+  const [forms, setForms] = useState<Array<{ id: string; name: string; public_token: string; status: string }>>([]);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [aiBusiness, setAiBusiness] = useState("");
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  useEffect(() => {
+    void fetch(`/api/growth/landing-pages?id=${id}`).then((r) => r.json()).then((d) => {
+      const p = (d as { page?: Record<string, unknown> }).page;
+      if (!p) return;
+      setPage({ id: String(p.id), name: String(p.name), status: String(p.status), slug: String(p.slug) });
+      setStatus(String(p.status));
+      setSections(JSON.parse(String(p.sections_json || "[]")));
+      setAiBusiness(String(p.name));
+    });
+    void fetch("/api/growth/forms").then((r) => r.json()).then((d) => setForms((((d as { forms?: Array<{ id: string; name: string; public_token: string; status: string }> }).forms) || []).filter((f) => f.status === "PUBLISHED")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const save = async () => {
+    const r = await fetch("/api/growth/landing-pages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, updates: { sections, status } }) });
+    if (!r.ok) return onFlash("Could not save page");
+    onFlash("Landing page saved");
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const activeData = active.data.current as { source?: string; sectionType?: LpSectionType } | undefined;
+    if (!activeData) return;
+    if (activeData.source === "palette" && activeData.sectionType) {
+      const type = activeData.sectionType;
+      setSections((prev) => [...prev, { id: uid(), type, data: defaultSectionData(type) }]);
+      return;
+    }
+    if (activeData.source === "section" && active.id !== over.id) {
+      setSections((prev) => {
+        const oldIndex = prev.findIndex((s) => s.id === active.id);
+        const newIndex = prev.findIndex((s) => s.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const regenerate = async (section: LpSection) => {
+    setRegeneratingId(section.id);
+    const currentText = section.type === "TEXT" ? String(section.data.body || "") : section.type === "TESTIMONIAL" ? String(section.data.quote || "") : String(section.data.headline || section.data.question || "");
+    const r = await fetch("/api/growth/ai/regenerate-section", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionType: section.type, business: aiBusiness, currentText }) });
+    const d = (await r.json()) as { data?: Record<string, unknown>; error?: string };
+    setRegeneratingId(null);
+    if (!r.ok || d.error) return onFlash(d.error || "AI could not regenerate this section");
+    setSections((prev) => prev.map((s) => s.id === section.id ? { ...s, data: { ...s.data, ...d.data } } : s));
+  };
+
+  const publicUrl = typeof window !== "undefined" && page ? `${window.location.origin}/gp?slug=${page.slug}` : "";
+
+  if (!page) return <div className="giLoading">Loading…</div>;
+
+  return (
+    <section className="giSection">
+      <header><button className="giBack" onClick={onBack}>← Landing Pages</button><h1>{page.name}</h1>
+        <div><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select>
+          <button onClick={() => void save()}>Save</button></div>
+      </header>
+      {status === "PUBLISHED" && <div className="giShareUrl"><code>{publicUrl}</code><a href={publicUrl} target="_blank" rel="noreferrer">Preview →</a></div>}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="dndFormLayout">
+          <aside className="dndPalette">
+            <small>DRAG A SECTION ONTO THE PAGE</small>
+            {(Object.keys(LP_SECTION_META) as LpSectionType[]).map((t) => <LpPaletteItem key={t} type={t} />)}
+          </aside>
+          <div className="dndSteps">
+            <LpCanvasDropZone>
+              <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                {sections.map((s) => (
+                  <SortableLpSection key={s.id} section={s} forms={forms}
+                    onUpdate={(data) => setSections((prev) => prev.map((x) => x.id === s.id ? { ...x, data: { ...x.data, ...data } } : x))}
+                    onRemove={() => setSections((prev) => prev.filter((x) => x.id !== s.id))}
+                    onRegenerate={() => void regenerate(s)} regenerating={regeneratingId === s.id} />
+                ))}
+              </SortableContext>
+              {!sections.length && <p className="giEmpty">Drag a section type here to start building.</p>}
+            </LpCanvasDropZone>
+          </div>
+          <aside className="dndPreview">
+            <small>LIVE PREVIEW</small>
+            <div className="lpPreviewCard">
+              {sections.map((s) => (
+                <div key={s.id} className="lpPreviewSection">
+                  {s.type === "HEADLINE" && <><b className="lpPreviewHeadline">{String(s.data.headline || "")}</b><span>{String(s.data.sub || "")}</span></>}
+                  {s.type === "TEXT" && <><b>{String(s.data.heading || "")}</b><span>{String(s.data.body || "").slice(0, 80)}</span></>}
+                  {s.type === "IMAGE" && <span>🖼 {String(s.data.alt || "Image")}</span>}
+                  {s.type === "BUTTON" && <span className="lpPreviewBtn">{String(s.data.text || "")}</span>}
+                  {s.type === "TESTIMONIAL" && <span>&ldquo;{String(s.data.quote || "").slice(0, 60)}&rdquo;</span>}
+                  {s.type === "PRICING" && <span>{String(s.data.title || "")} — {String(s.data.price || "")}</span>}
+                  {s.type === "FAQ" && <span>{String(s.data.question || "")}</span>}
+                  {s.type === "COUNTDOWN" && <span>⏱ {String(s.data.label || "")}</span>}
+                  {s.type === "FORM" && <span>▤ {String(s.data.formName || "No form linked")}</span>}
+                </div>
+              ))}
+              {!sections.length && <p className="giEmpty">Nothing yet.</p>}
+            </div>
+          </aside>
+        </div>
+      </DndContext>
+    </section>
   );
 }
 
