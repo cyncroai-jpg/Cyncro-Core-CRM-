@@ -1,5 +1,7 @@
 "use client";
 import { Fragment, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { StudioSections } from "@/lib/studio/StudioRenderer";
+import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
 const times = [
   "9:00 AM",
@@ -398,6 +400,209 @@ function CRMForms({onFlash}:{onFlash:(message:string)=>void}){
     <div className="formsLayout"><aside className="formsList"><header><b>Form library</b><button onClick={()=>void load()}>↻</button></header>{forms.map(row=><button className={selected===row.id?"active":""} key={row.id} onClick={()=>setSelected(row.id)}><span><b>{row.title}</b><small>{row.status} · {row.submission_count||0} responses</small></span><em>→</em></button>)}{!forms.length&&<p>Create your first questionnaire.</p>}</aside>
       <main className="formsStage">{editing?<><header><div><small>FORM BUILDER</small><h3>Edit every question and requirement</h3></div><button onClick={()=>setEditing(false)}>Close</button></header><div className="formSettings"><input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} placeholder="Form title"/><textarea value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})} placeholder="Client instructions"/><div className="fieldTools">{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><button key={t} onClick={()=>addField(t)}>＋ {t.toLowerCase()}</button>)}</div>{draft.fields.map((field,index)=><article className="fieldEditor" key={field.id}><i>{index+1}</i><input value={field.label} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,label:e.target.value};setDraft({...draft,fields})}}/><select value={field.type} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,type:e.target.value};setDraft({...draft,fields})}}>{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><option key={t}>{t}</option>)}</select><label><input type="checkbox" checked={field.required} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,required:e.target.checked};setDraft({...draft,fields})}}/> Required</label><button className="dangerText" onClick={()=>setDraft({...draft,fields:draft.fields.filter(x=>x.id!==field.id)})}>Delete</button>{["SELECT","CHECKBOX"].includes(field.type)&&<input className="fieldOptions" value={field.options.join(", ")} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,options:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)};setDraft({...draft,fields})}} placeholder="Options separated by commas"/>}</article>)}<div className="formPublish"><label><input type="checkbox" checked={draft.requiresSignature} onChange={e=>setDraft({...draft,requiresSignature:e.target.checked})}/> Require electronic signature</label><select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>DRAFT</option><option>PUBLISHED</option><option>ARCHIVED</option></select><button onClick={()=>void save()}>Save form</button></div></div></>:active?<><header><div><small>{active.status}</small><h3>{active.title}</h3></div><div><button onClick={()=>openEdit(active)}>Edit form</button><button onClick={()=>void share(active)}>Copy client link</button><button className="dangerText" onClick={async()=>{if(!confirm("Delete this form and its responses?"))return;await fetch(`/api/crm/forms?id=${active.id}`,{method:"DELETE"});setSelected("");await load();onFlash("Form deleted")}}>Delete</button></div></header><div className="formSummary"><p>{active.description}</p><div>{(JSON.parse(active.fields_json||"[]") as CyncroFormField[]).map((f,i)=><span key={f.id}><i>{i+1}</i><b>{f.label}</b><small>{f.type}{f.required?" · REQUIRED":""}</small></span>)}</div></div><section className="submissionLedger"><header><b>Client responses</b><span>{submissions.length} received</span></header>{submissions.map(s=><article key={String(s.id)}><div><b>{String(s.respondent_name)}</b><small>{String(s.respondent_email)}</small></div><span>{new Date(String(s.submitted_at)).toLocaleString()}</span><em>{Number(s.file_count||0)} files</em><strong>{s.signature_name?"SIGNED":"SUBMITTED"}</strong></article>)}{!submissions.length&&<p>No responses yet. Publish and share the client link.</p>}</section></>:<div className="formEmpty"><i>▤</i><h3>Build your first client intake</h3><p>Add questions, uploads, and a signature, then send one clean link.</p><button onClick={()=>openEdit()}>Create form</button></div>}</main></div>
   </section>
+}
+
+type StudioPageRow = { id: string; slug: string; title: string; status: string; submission_count: number; updated_at: string };
+
+function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
+  const [pages, setPages] = useState<StudioPageRow[]>([]);
+  const [editingId, setEditingId] = useState<string>("");
+  const [page, setPage] = useState<{ id: string; slug: string; title: string; status: string; sections: StudioSection[]; seo_title?: string; seo_description?: string } | null>(null);
+  const [submissions, setSubmissions] = useState<Record<string, unknown>[]>([]);
+  const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
+  const [saving, setSaving] = useState(false);
+  const [addingType, setAddingType] = useState(false);
+  const [slugDraft, setSlugDraft] = useState("");
+
+  const load = async () => {
+    const r = await fetch("/api/studio/pages", { cache: "no-store" });
+    const d = await r.json() as { pages?: StudioPageRow[] };
+    setPages(d.pages || []);
+  };
+  useEffect(() => { void load(); }, []);
+
+  const openPage = async (id: string) => {
+    setEditingId(id);
+    const r = await fetch(`/api/studio/pages?id=${id}`, { cache: "no-store" });
+    const d = await r.json() as { page?: typeof page; submissions?: Record<string, unknown>[] };
+    if (d.page) { setPage(d.page); setSlugDraft(d.page.slug); }
+    setSubmissions(d.submissions || []);
+  };
+
+  const createPage = async () => {
+    const title = prompt("Page name (e.g. \"AV Roofing Promo\")");
+    if (!title) return;
+    const r = await fetch("/api/studio/pages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+    const d = await r.json() as { id?: string; error?: string };
+    if (!r.ok) { onFlash(d.error || "Page could not be created"); return; }
+    await load();
+    if (d.id) void openPage(d.id);
+    onFlash("Page created");
+  };
+
+  const patchPage = async (body: Record<string, unknown>) => {
+    if (!page) return;
+    setSaving(true);
+    const r = await fetch("/api/studio/pages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: page.id, ...body }) });
+    setSaving(false);
+    if (!r.ok) { const d = await r.json() as { error?: string }; onFlash(d.error || "Could not save"); return false; }
+    return true;
+  };
+
+  const updateSections = async (sections: StudioSection[]) => {
+    setPage((p) => (p ? { ...p, sections } : p));
+    await patchPage({ sections });
+  };
+
+  const editProp = (sectionId: string, key: string, value: unknown) => {
+    if (!page) return;
+    const sections = page.sections.map((s) => (s.id === sectionId ? { ...s, props: { ...s.props, [key]: value } } : s));
+    void updateSections(sections);
+  };
+
+  const addSection = (type: StudioSectionType) => {
+    if (!page) return;
+    const section: StudioSection = { id: crypto.randomUUID(), type, props: defaultPropsFor(type) };
+    void updateSections([...page.sections, section]);
+    setAddingType(false);
+  };
+
+  const removeSection = (id: string) => {
+    if (!page) return;
+    void updateSections(page.sections.filter((s) => s.id !== id));
+  };
+
+  const moveSection = (index: number, dir: -1 | 1) => {
+    if (!page) return;
+    const target = index + dir;
+    if (target < 0 || target >= page.sections.length) return;
+    const next = [...page.sections];
+    [next[index], next[target]] = [next[target], next[index]];
+    void updateSections(next);
+  };
+
+  const togglePublish = async () => {
+    if (!page) return;
+    const nextStatus = page.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    const ok = await patchPage({ status: nextStatus });
+    if (ok) { setPage({ ...page, status: nextStatus }); await load(); onFlash(nextStatus === "PUBLISHED" ? "Page published — it's live" : "Page unpublished"); }
+  };
+
+  const saveSlug = async () => {
+    if (!page) return;
+    const ok = await patchPage({ slug: slugDraft });
+    if (ok) { setPage({ ...page, slug: slugDraft }); await load(); onFlash("URL updated"); }
+    else setSlugDraft(page.slug);
+  };
+
+  const deletePage = async () => {
+    if (!page || !confirm(`Delete "${page.title}" and all its submissions?`)) return;
+    await fetch(`/api/studio/pages?id=${page.id}`, { method: "DELETE" });
+    setPage(null); setEditingId("");
+    await load();
+    onFlash("Page deleted");
+  };
+
+  if (!page) {
+    return (
+      <section className="studioOS">
+        <div className="formsHero">
+          <div><small>CYNCRO STUDIO</small><h2>Landing pages that feed straight into your CRM.</h2><p>Every submission becomes a real contact, account, and pipeline opportunity — no separate funnel tool to reconcile.</p></div>
+          <button onClick={() => void createPage()}>＋ New page</button>
+        </div>
+        <div className="formsMetrics">
+          {[[pages.length, "PAGES"], [pages.filter((p) => p.status === "PUBLISHED").length, "LIVE"], [pages.reduce((n, p) => n + Number(p.submission_count || 0), 0), "SUBMISSIONS"]].map((x) => (
+            <article key={String(x[1])}><b>{x[0]}</b><span>{x[1]}</span></article>
+          ))}
+        </div>
+        <div className="formsLayout">
+          <aside className="formsList" style={{ width: "100%" }}>
+            <header><b>Pages</b><button onClick={() => void load()}>↻</button></header>
+            {pages.map((row) => (
+              <button key={row.id} onClick={() => void openPage(row.id)}>
+                <span><b>{row.title}</b><small>{row.status} · {row.submission_count || 0} submissions · /s?slug={row.slug}</small></span>
+                <em>→</em>
+              </button>
+            ))}
+            {!pages.length && <p>Create your first landing page.</p>}
+          </aside>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="studioBuilder">
+      <header className="studioBuilderTop">
+        <div>
+          <button onClick={() => { setPage(null); setEditingId(""); }}>← All pages</button>
+          <input className="studioTitleInput" value={page.title} onChange={(e) => setPage({ ...page, title: e.target.value })} onBlur={() => void patchPage({ title: page.title })} />
+        </div>
+        <div className="studioBuilderActions">
+          <span className={`statusPill ${page.status === "PUBLISHED" ? "good" : ""}`}>{page.status}</span>
+          <div className="studioViewportToggle">
+            <button className={viewport === "desktop" ? "active" : ""} onClick={() => setViewport("desktop")}>Desktop</button>
+            <button className={viewport === "mobile" ? "active" : ""} onClick={() => setViewport("mobile")}>Mobile</button>
+          </div>
+          {saving && <small>Saving…</small>}
+          <button onClick={() => void togglePublish()}>{page.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
+          {page.status === "PUBLISHED" && <a className="studioViewLive" href={`/s?slug=${page.slug}`} target="_blank" rel="noreferrer">View live ↗</a>}
+        </div>
+      </header>
+      <div className="studioBuilderBody">
+        <aside className="studioSectionRail">
+          <div className="studioRailBlock">
+            <small>PAGE URL</small>
+            <div className="studioSlugRow">
+              <input value={slugDraft} onChange={(e) => setSlugDraft(e.target.value)} onBlur={() => void saveSlug()} />
+            </div>
+          </div>
+          <div className="studioRailBlock">
+            <small>SECTIONS</small>
+            {page.sections.map((s, i) => (
+              <div className="studioSectionRow" key={s.id}>
+                <span>{SECTION_LABELS[s.type]}</span>
+                <div>
+                  <button disabled={i === 0} onClick={() => moveSection(i, -1)}>↑</button>
+                  <button disabled={i === page.sections.length - 1} onClick={() => moveSection(i, 1)}>↓</button>
+                  <button className="dangerText" onClick={() => removeSection(s.id)}>✕</button>
+                </div>
+              </div>
+            ))}
+            {addingType ? (
+              <div className="studioAddSectionMenu">
+                {(Object.keys(SECTION_LABELS) as StudioSectionType[]).map((t) => (
+                  <button key={t} onClick={() => addSection(t)}>＋ {SECTION_LABELS[t]}</button>
+                ))}
+                <button onClick={() => setAddingType(false)}>Cancel</button>
+              </div>
+            ) : (
+              <button className="studioAddSectionBtn" onClick={() => setAddingType(true)}>＋ Add section</button>
+            )}
+          </div>
+          <div className="studioRailBlock">
+            <small>SEO</small>
+            <input placeholder="Page title for search" defaultValue={page.seo_title || ""} onBlur={(e) => void patchPage({ seoTitle: e.target.value })} />
+            <textarea placeholder="Meta description" defaultValue={page.seo_description || ""} onBlur={(e) => void patchPage({ seoDescription: e.target.value })} />
+          </div>
+          <div className="studioRailBlock">
+            <small>SUBMISSIONS ({submissions.length})</small>
+            {submissions.slice(0, 8).map((s) => {
+              const answers = JSON.parse(String(s.answers_json || "{}")) as Record<string, string>;
+              return <div key={String(s.id)} className="studioSubmissionRow"><b>{answers.name || answers.email || "Lead"}</b><small>{new Date(String(s.created_at)).toLocaleString()}</small></div>;
+            })}
+            {!submissions.length && <p className="opsEmpty">No submissions yet.</p>}
+          </div>
+          <button className="dangerText studioDeleteBtn" onClick={() => void deletePage()}>Delete page</button>
+        </aside>
+        <div className={`studioCanvas ${viewport === "mobile" ? "studioCanvasMobile" : ""}`}>
+          <div className="studioPublic">
+            <StudioSections sections={page.sections} editable onEditProp={editProp} onSubmitLead={() => onFlash("This is a preview — the real form works once the page is live.")} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function CyncroFormClient(){
@@ -11345,6 +11550,7 @@ type CRMView =
   | "Invoices"
   | "Contracts"
   | "Forms"
+  | "Studio"
   | "Sales Playbooks"
   | "Attribution"
   | "Cyncro Work"
@@ -11806,6 +12012,7 @@ function UniversalCRM({
     { name: "Invoices", icon: "$", permission:"invoice_access" },
     { name: "Contracts", icon: "✎", permission:"contract_access" },
     { name: "Forms", icon: "▤", count: "Build" },
+    { name: "Studio", icon: "◧", count: "New" },
     { name: "Sales Playbooks", icon: "◉", count: "Live" },
     { name: "Attribution", icon: "⌁", count: "Live", permission:"attribution_access" },
     { name: "Analytics", icon: "◒", count: "New" },
@@ -11816,7 +12023,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Sales Playbooks","Integrations","Analytics","Payments","Credit Repair","Lending"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Credit Repair","Lending"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -12269,6 +12476,7 @@ function UniversalCRM({
           {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Forms" && <CRMForms onFlash={flash} />}
+          {view === "Studio" && <CRMStudio onFlash={flash} />}
           {view === "Sales Playbooks" && <CRMSalesPlaybooks onFlash={flash} />}
           {view === "Attribution" && <CRMAttribution onFlash={flash} />}
           {view === "Analytics" && <CRMAnalytics onFlash={flash} />}

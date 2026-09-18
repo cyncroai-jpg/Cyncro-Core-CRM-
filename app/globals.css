@@ -23568,3 +23568,85 @@ button.crmUser i {
 .cmdResults button i{width:26px;height:26px;flex-shrink:0;display:grid;place-items:center;border-radius:7px;background:#201d1e;font-style:normal;font-size:13px}
 .cmdResults button span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cmdResults button em{font-style:normal;color:#85777a;font-size:10px;flex-shrink:0}
+
+/* ===== Cyncro Studio ===== */
+.studioOS{display:grid;gap:14px;margin-top:24px}
+.studioBuilder{display:grid;gap:0;margin-top:24px;border:1px solid #38282d;border-radius:12px;overflow:hidden;background:#100d0e}
+.studioBuilderTop{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #33262a;padding:14px 18px;flex-wrap:wrap}
+.studioBuilderTop>div:first-child{display:flex;align-items:center;gap:14px}
+.studioBuilderTop button{min-height:34px;border:1px solid #443137;border-radius:8px;background:#181113;color:#fff;padding:0 12px;font-size:9px}
+.studioTitleInput{border:1px solid transparent;background:transparent;color:#fff;font-size:15px;font-weight:600;padding:4px 6px;border-radius:6px;min-width:200px}
+.studioTitleInput:hover,.studioTitleInput:focus{border-color:#443137;outline:none}
+.studioBuilderActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.studioBuilderActions button{min-height:34px;border:1px solid #7d3544;border-radius:8px;background:#8e1c32;color:#fff;padding:0 14px;font-size:9px}
+.studioViewportToggle{display:flex;border:1px solid #443137;border-radius:8px;overflow:hidden}
+.studioViewportToggle button{border:0;border-radius:0;background:transparent;color:#a7969a}
+.studioViewportToggle button.active{background:#3b151e;color:#fff}
+.studioViewLive{color:#ed7187;font-size:9px;text-decoration:none;border:1px solid #66303c;border-radius:8px;padding:8px 12px}
+.studioBuilderBody{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:640px}
+.studioSectionRail{border-right:1px solid #33262a;padding:16px;overflow-y:auto;max-height:calc(100vh - 260px)}
+.studioRailBlock{display:grid;gap:8px;margin-bottom:20px}
+.studioRailBlock>small{color:#ef6e86;font-size:8px;font-weight:900;letter-spacing:.15em}
+.studioRailBlock input,.studioRailBlock textarea{width:100%;border:1px solid #443137;border-radius:8px;background:#0a0809;color:#fff;padding:9px;font-size:10px}
+.studioRailBlock textarea{min-height:60px;resize:vertical}
+.studioSlugRow{display:flex;align-items:center;gap:4px;color:#9d8d91;font-size:9px}
+.studioSectionRow{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #2c2225;border-radius:8px;background:#151012;padding:9px 11px;font-size:9px}
+.studioSectionRow>div{display:flex;gap:4px}
+.studioSectionRow button{min-height:22px;min-width:22px;border:1px solid #34262a;border-radius:5px;background:#1b1114;color:#c9babe;padding:0;font-size:9px}
+.studioSectionRow button:disabled{opacity:.3}
+.studioAddSectionBtn{border:1px dashed #4b3138;border-radius:8px;background:transparent;color:#ed7187;min-height:36px;font-size:9px}
+.studioAddSectionMenu{display:grid;gap:6px;border:1px solid #34262a;border-radius:8px;background:#0c0a0b;padding:10px}
+.studioAddSectionMenu button{min-height:30px;border:1px solid #34262a;border-radius:6px;background:#181113;color:#fff;font-size:9px;text-align:left;padding:0 10px}
+.studioSubmissionRow{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #2c2225;padding:8px 0;font-size:9px}
+.studioSubmissionRow b{color:#e5d8db;font-weight:500}
+.studioSubmissionRow small{color:#8f8084}
+.studioDeleteBtn{width:100%;min-height:34px;border:1px solid #66303c;border-radius:8px;background:transparent;font-size:9px}
+.studioCanvas{overflow-y:auto;max-height:calc(100vh - 260px);background:#080708;padding:24px}
+.studioCanvasMobile .studioPublic{max-width:390px;margin:0 auto;border:1px solid #33262a;border-radius:18px;overflow:hidden}
+
+/* Public page + shared renderer */
+.studioPublic{min-height:100vh;background:#080708;color:#fff}
+.studioNotFound,.studioLoading{display:grid;place-content:center;min-height:60vh;color:#9d8d91}
+.studioPublic section{padding:clamp(36px,6vw,80px) clamp(18px,5vw,40px);max-width:920px;margin:0 auto}
+.studioHero{display:grid;gap:14px;justify-items:center}
+.studioHero>span{color:#ef6e86;font-size:9px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}
+.studioHero h1{font-size:clamp(30px,5vw,56px);font-weight:600;max-width:780px;line-height:1.1}
+.studioHero p{color:#b7a7ab;font-size:clamp(13px,1.6vw,17px);max-width:600px;line-height:1.6}
+.studioBtn{display:inline-flex;min-height:46px;align-items:center;justify-content:center;border-radius:9px;background:#a91f39;color:#fff;padding:0 26px;font-weight:700;text-decoration:none;margin-top:6px}
+.studioText{display:grid;gap:10px}
+.studioText h2{font-size:clamp(22px,3vw,32px);font-weight:600}
+.studioText p{color:#b7a7ab;line-height:1.7}
+.studioImage{display:grid;gap:8px;justify-items:center}
+.studioImage img{max-width:100%;border-radius:12px}
+.studioImagePlaceholder{width:100%;min-height:200px;display:grid;place-content:center;border:1px dashed #4b3138;border-radius:12px;color:#8f8084;font-size:11px}
+.studioImage input{width:100%;border:1px solid #443137;border-radius:8px;background:#0a0809;color:#fff;padding:9px;font-size:10px;margin-top:6px}
+.studioTestimonial{text-align:center;display:grid;gap:8px;justify-items:center}
+.studioTestimonial p{font-size:clamp(16px,2.2vw,22px);font-style:italic;max-width:700px;line-height:1.6}
+.studioTestimonial span{color:#ef6e86;font-size:11px}
+.studioFaq{display:grid;gap:16px;max-width:700px}
+.studioFaqItem b{display:block;margin-bottom:6px;font-size:14px}
+.studioFaqItem p{color:#b7a7ab;line-height:1.6}
+.studioCta{text-align:center;display:grid;gap:14px;justify-items:center;background:radial-gradient(circle at 50% 0,#8c1a3230,transparent 60%)}
+.studioCta h2{font-size:clamp(22px,3.4vw,34px);font-weight:600}
+.studioForm{max-width:560px}
+.studioForm h2{font-size:clamp(20px,2.6vw,28px);font-weight:600;margin-bottom:6px}
+.studioForm>p{color:#b7a7ab;margin-bottom:16px}
+.studioForm form{display:grid;gap:12px}
+.studioForm label{display:grid;gap:6px;color:#c9babe;font-size:10px}
+.studioForm input,.studioForm textarea{width:100%;border:1px solid #443137;border-radius:8px;background:#0a0809;color:#fff;padding:12px;font-size:13px}
+.studioForm textarea{min-height:90px;resize:vertical}
+.studioForm button{min-height:48px;border:0;border-radius:9px;background:#a91f39;color:#fff;font-weight:700;margin-top:4px}
+.studioForm button:disabled{opacity:.6}
+.studioFormSuccess{color:#5fd399;font-size:14px;text-align:center;padding:30px 0}
+.studioFormError{color:#f68196;font-size:10px}
+.studioEditable{outline:none;border-radius:4px;transition:background .15s}
+.studioEditable:hover{background:#ffffff0d}
+.studioEditable:focus{background:#ffffff14;box-shadow:0 0 0 1px #66303c}
+
+@media(max-width:800px){
+  .studioBuilderBody{grid-template-columns:1fr}
+  .studioSectionRail{max-height:none;border-right:0;border-bottom:1px solid #33262a}
+  .studioCanvas{max-height:none}
+  .studioBuilderTop{flex-direction:column;align-items:stretch}
+  .studioBuilderActions{justify-content:space-between}
+}

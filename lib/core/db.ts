@@ -2939,6 +2939,33 @@ export async function ensureCoreSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_invoices_job ON dispatch_invoices(job_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_invoices_customer ON dispatch_invoices(customer_id)"),
+    // ============ CYNCRO STUDIO ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS studio_pages (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL,
+      sections_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      seo_title TEXT,
+      seo_description TEXT,
+      submission_count INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_studio_pages_slug ON studio_pages(slug)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_studio_pages_status ON studio_pages(status)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS studio_submissions (
+      id TEXT PRIMARY KEY,
+      page_id TEXT NOT NULL,
+      tenant_id TEXT,
+      contact_id TEXT,
+      answers_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(page_id) REFERENCES studio_pages(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_studio_submissions_page ON studio_submissions(page_id, created_at DESC)"),
   ]);
   // Migration: add tenant_id columns to tables that predate multi-tenancy, then their
   // indexes. Run sequentially with try/catch (not inside the batch above) because
