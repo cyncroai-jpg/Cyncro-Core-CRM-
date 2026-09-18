@@ -36,6 +36,10 @@
  * POST /api/automotive?resource=contract  { dealId }  — sends the contract
  * PATCH /api/automotive?resource=contract&id=dealId  { signerName, signatureData }  — signs it
  * GET  /api/automotive?resource=analytics
+ * POST /api/automotive?resource=seed-demo — populates realistic sample records
+ *   (real rows flowing through the real deal/funding/accounting logic below,
+ *   not canned numbers) so every view has something to show. No-ops if this
+ *   tenant already has inventory.
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { postJournalEntry } from "@/lib/core/accounting";
@@ -423,6 +427,167 @@ export async function POST(request: Request) {
       await db.prepare("UPDATE auto_deals SET contract_status='SENT', contract_sent_at=?, updated_at=? WHERE tenant_id=? AND id=?")
         .bind(now, now, tenant.tenantId, dealId).run();
       return Response.json({ sent: true, contractText }, { status: 201 });
+    }
+
+    if (resource === "seed-demo") {
+      const existing = await db.prepare("SELECT COUNT(*) c FROM auto_inventory WHERE tenant_id=?").bind(tenant.tenantId).first<{ c: number }>();
+      if (Number(existing?.c || 0) > 0) {
+        return Response.json({ seeded: false, reason: "This dealership already has inventory — seed only runs on an empty account." });
+      }
+
+      const mk = async (customer: { firstName: string; lastName: string; email: string; phone: string }) => {
+        const cid = uid();
+        await db.prepare(`INSERT INTO auto_customers (id,tenant_id,first_name,last_name,email,phone,credit_score_pulled,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?)`).bind(cid, tenant.tenantId, customer.firstName, customer.lastName, customer.email, customer.phone, 720, now, now).run();
+        return cid;
+      };
+      const mkVehicle = async (v: { stock: string; vin: string; year: number; make: string; model: string; trim: string; mileage: number; book: number; asking: number; acquisition: number }) => {
+        const vid = uid();
+        await db.prepare(`INSERT INTO auto_inventory (id,tenant_id,stock_number,vin,year,make,model,trim,mileage,book_value_cents,asking_price_cents,acquisition_cost_cents,status,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'AVAILABLE',?,?)`)
+          .bind(vid, tenant.tenantId, v.stock, v.vin, v.year, v.make, v.model, v.trim, v.mileage, v.book * 100, v.asking * 100, v.acquisition * 100, now, now).run();
+        return vid;
+      };
+
+      const [buyer1, buyer2, buyer3, buyer4] = await Promise.all([
+        mk({ firstName: "Marcus", lastName: "Ellison", email: "marcus.ellison@example.com", phone: "555-0142" }),
+        mk({ firstName: "Priya", lastName: "Anand", email: "priya.anand@example.com", phone: "555-0198" }),
+        mk({ firstName: "Diego", lastName: "Ramos", email: "diego.ramos@example.com", phone: "555-0177" }),
+        mk({ firstName: "Olivia", lastName: "Bennett", email: "olivia.bennett@example.com", phone: "555-0163" }),
+      ]);
+      const [veh1, veh2, veh3, veh4, veh5] = await Promise.all([
+        mkVehicle({ stock: "A24-1001", vin: "1FTFW1E50PFA10001", year: 2024, make: "Ford", model: "F-150", trim: "XLT", mileage: 8200, book: 38500, asking: 41995, acquisition: 35800 }),
+        mkVehicle({ stock: "A24-1002", vin: "5YJ3E1EA1PF100002", year: 2023, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: 12400, book: 32000, asking: 35995, acquisition: 30200 }),
+        mkVehicle({ stock: "A24-1003", vin: "1HGCV1F30PA100003", year: 2024, make: "Honda", model: "Accord", trim: "Sport", mileage: 3100, book: 27500, asking: 29995, acquisition: 25900 }),
+        mkVehicle({ stock: "A24-1004", vin: "3GNAXUEV5PL100004", year: 2023, make: "Chevrolet", model: "Equinox", trim: "LT", mileage: 15800, book: 24000, asking: 26495, acquisition: 22100 }),
+        mkVehicle({ stock: "A24-1005", vin: "WBA5R7C50PF100005", year: 2024, make: "BMW", model: "330i", trim: "Base", mileage: 5600, book: 39000, asking: 43995, acquisition: 37500 }),
+      ]);
+
+      const lenderIds = await Promise.all([
+        (async () => { const id = uid(); await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,min_credit_score,max_advance_pct,buy_rate,reserve_pct,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,?,?)`).bind(id, tenant.tenantId, "Capital One Auto", 620, 120, 6.49, 1.5, now, now).run(); return id; })(),
+        (async () => { const id = uid(); await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,min_credit_score,max_advance_pct,buy_rate,reserve_pct,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,?,?)`).bind(id, tenant.tenantId, "Chase Auto", 660, 110, 5.99, 1.25, now, now).run(); return id; })(),
+        (async () => { const id = uid(); await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,min_credit_score,max_advance_pct,buy_rate,reserve_pct,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,?,?)`).bind(id, tenant.tenantId, "Ally Financial", 600, 125, 7.25, 1.75, now, now).run(); return id; })(),
+      ]);
+
+      const mkDeal = async (customerId: string, vehicleId: string, salePrice: number, opts: { down?: number; termMonths?: number; rate?: number } = {}) => {
+        const downCents = Math.round((opts.down || 0) * 100);
+        const termMonths = opts.termMonths || 72;
+        const rate = opts.rate ?? 7.49;
+        const salePriceCents = salePrice * 100;
+        const amountFinancedCents = Math.max(0, salePriceCents - downCents);
+        const monthlyCents = monthlyPayment(amountFinancedCents, rate, termMonths);
+        const vehicle = await db.prepare("SELECT acquisition_cost_cents FROM auto_inventory WHERE id=?").bind(vehicleId).first<{ acquisition_cost_cents: number }>();
+        const frontGrossCents = salePriceCents - Number(vehicle?.acquisition_cost_cents || 0);
+        const did = uid();
+        await db.prepare(`INSERT INTO auto_deals
+          (id,tenant_id,customer_id,vehicle_id,salesperson_email,sale_price_cents,down_payment_cents,amount_financed_cents,term_months,
+           interest_rate,monthly_payment_cents,front_gross_cents,back_gross_cents,status,contract_status,funding_status,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
+          .bind(did, tenant.tenantId, customerId, vehicleId, tenant.email, salePriceCents, downCents, amountFinancedCents, termMonths,
+            rate, monthlyCents, frontGrossCents, "WORKING", "NOT_STARTED", "NOT_SUBMITTED", now, now).run();
+        await db.batch(DEAL_JACKET_CHECKLIST.map((doc) =>
+          db.prepare("INSERT INTO auto_documents (id,tenant_id,deal_id,doc_type,checked,created_at,updated_at) VALUES (?,?,?,?,0,?,?)")
+            .bind(uid(), tenant.tenantId, did, doc, now, now)));
+        return did;
+      };
+
+      // Deal 1 — early-stage, working the desk
+      await mkDeal(buyer1, veh1, 41995, { down: 3000 });
+
+      // Deal 2 — submitted to lenders, one approved
+      const deal2 = await mkDeal(buyer2, veh2, 35995, { down: 2000, rate: 6.49 });
+      await db.prepare("UPDATE auto_deals SET status='SUBMITTED', updated_at=? WHERE tenant_id=? AND id=?").bind(now, tenant.tenantId, deal2).run();
+      const sub2 = uid();
+      await db.prepare(`INSERT INTO auto_lender_submissions (id,tenant_id,deal_id,lender_id,status,approved_rate,approved_term,approved_amount_cents,submitted_at,responded_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sub2, tenant.tenantId, deal2, lenderIds[1], "APPROVED", 6.49, 72, 3399500, now, now, now, now).run();
+
+      // Deal 3 — fully funded, with an F&I product, signed contract, cleared compliance, complete jacket
+      const deal3 = await mkDeal(buyer3, veh3, 29995, { down: 1500, rate: 5.99 });
+      const prod3 = uid();
+      await db.prepare(`INSERT INTO auto_deal_products (id,tenant_id,deal_id,product_type,name,price_cents,cost_cents,created_at) VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(prod3, tenant.tenantId, deal3, "GAP", "GAP Insurance", 79500, 40000, now).run();
+      await db.prepare("UPDATE auto_deals SET back_gross_cents=39500, updated_at=? WHERE id=?").bind(now, deal3).run();
+      await db.prepare("UPDATE auto_documents SET checked=1, updated_at=? WHERE deal_id=?").bind(now, deal3).run();
+      await db.prepare("UPDATE auto_deals SET contract_status='SENT', contract_sent_at=? WHERE id=?").bind(now, deal3).run();
+      await db.prepare("UPDATE auto_deals SET contract_status='SIGNED', contract_signed_at=?, signer_name=?, signature_data=? WHERE id=?")
+        .bind(now, "Diego Ramos", "Diego Ramos", deal3).run();
+      const check3 = uid();
+      await db.prepare(`INSERT INTO auto_compliance_checks (id,tenant_id,deal_id,screened_name,match_found,checked_by,checked_at) VALUES (?,?,?,?,0,?,?)`)
+        .bind(check3, tenant.tenantId, deal3, "Diego Ramos", tenant.email, now).run();
+      const deal3Row = await db.prepare("SELECT * FROM auto_deals WHERE id=?").bind(deal3).first<Record<string, unknown>>();
+      await db.prepare("UPDATE auto_deals SET funding_status='FUNDED', status='FUNDED', updated_at=? WHERE id=?").bind(now, deal3).run();
+      try {
+        await postJournalEntry(tenant.tenantId, null, "DEAL_FUNDED", deal3, `Deal funded — ${buyer3}`, [
+          { code: "1100", debitCents: Number(deal3Row?.sale_price_cents || 0) + 79500 },
+          { code: "1300", creditCents: 25900 * 100 },
+          { code: "4000", creditCents: Number(deal3Row?.front_gross_cents || 0) },
+          { code: "4100", creditCents: 39500 },
+          { code: "2200", creditCents: 40000 },
+        ]);
+      } catch (err) { console.error("seed_demo.journal_failed", err); }
+
+      // Deal 4 — a digital-retailing lead, not yet worked
+      const deal4 = uid();
+      await db.prepare(`INSERT INTO auto_deals
+        (id,tenant_id,customer_id,vehicle_id,sale_price_cents,status,contract_status,funding_status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .bind(deal4, tenant.tenantId, buyer4, veh4, 2649500, "DIGITAL_LEAD", "NOT_STARTED", "NOT_SUBMITTED", now, now).run();
+      await db.batch(DEAL_JACKET_CHECKLIST.map((doc) =>
+        db.prepare("INSERT INTO auto_documents (id,tenant_id,deal_id,doc_type,checked,created_at,updated_at) VALUES (?,?,?,?,0,?,?)")
+          .bind(uid(), tenant.tenantId, deal4, doc, now, now)));
+
+      // Fifth vehicle (veh5) stays unsold in inventory so Inventory view has an AVAILABLE unit too.
+
+      // Compliance watchlist — one clearly-labeled example entry that won't match any seeded buyer.
+      await db.prepare("INSERT INTO auto_watchlist (id,tenant_id,full_name,reason,created_at) VALUES (?,?,?,?,?)")
+        .bind(uid(), tenant.tenantId, "Example Flagged Name", "Sample entry — replace with your dealership's own watchlist.", now).run();
+
+      // Service Department
+      const tech1 = uid();
+      const tech2 = uid();
+      await db.batch([
+        db.prepare("INSERT INTO service_technicians (id,tenant_id,name,email,specialty,active,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)").bind(tech1, tenant.tenantId, "James Okafor", "jokafor@example.com", "Drivetrain", now, now),
+        db.prepare("INSERT INTO service_technicians (id,tenant_id,name,email,specialty,active,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)").bind(tech2, tenant.tenantId, "Sara Kim", "skim@example.com", "Electrical", now, now),
+      ]);
+      const part1 = uid();
+      const part2 = uid();
+      await db.batch([
+        db.prepare("INSERT INTO service_parts (id,tenant_id,part_number,description,quantity_on_hand,reorder_threshold,cost_cents,price_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+          .bind(part1, tenant.tenantId, "OF-5W30", "Synthetic oil filter kit", 24, 5, 800, 2499, now, now),
+        db.prepare("INSERT INTO service_parts (id,tenant_id,part_number,description,quantity_on_hand,reorder_threshold,cost_cents,price_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+          .bind(part2, tenant.tenantId, "BP-4402", "Front brake pad set", 10, 3, 3200, 8900, now, now),
+      ]);
+      await db.prepare(`INSERT INTO service_appointments (id,tenant_id,customer_name,customer_phone,vehicle_description,requested_service,scheduled_at,advisor_email,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(uid(), tenant.tenantId, "Priya Anand", "555-0198", "2023 Tesla Model 3", "Tire rotation", new Date(Date.now() + 86400000).toISOString(), tenant.email, "SCHEDULED", now, now).run();
+
+      const ro1 = uid();
+      await db.prepare(`INSERT INTO service_repair_orders (id,tenant_id,ro_number,customer_name,customer_phone,vin,year,make,model,technician_id,complaint,status,opened_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(ro1, tenant.tenantId, "RO-1001", "Marcus Ellison", "555-0142", "1FTFW1E50PFA10001", 2024, "Ford", "F-150", tech1, "Squeaking front brakes", "OPEN", now, now, now).run();
+      await db.prepare(`INSERT INTO service_ro_lines (id,tenant_id,ro_id,line_type,description,part_id,quantity,unit_price_cents,created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(uid(), tenant.tenantId, ro1, "PARTS", "Front brake pad set", part2, 1, 8900, now).run();
+      await db.prepare(`INSERT INTO service_ro_lines (id,tenant_id,ro_id,line_type,description,quantity,unit_price_cents,created_at) VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(uid(), tenant.tenantId, ro1, "LABOR", "Brake pad replacement", 1.5, 9500, now).run();
+      await db.prepare("UPDATE service_repair_orders SET labor_cents=14250, parts_cents=8900, total_cents=23150, updated_at=? WHERE id=?").bind(now, ro1).run();
+
+      const ro2 = uid();
+      await db.prepare(`INSERT INTO service_repair_orders (id,tenant_id,ro_number,customer_name,customer_phone,vin,year,make,model,technician_id,complaint,status,opened_at,closed_at,labor_cents,parts_cents,total_cents,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(ro2, tenant.tenantId, "RO-1002", "Olivia Bennett", "555-0163", "3GNAXUEV5PL100004", 2023, "Chevrolet", "Equinox", tech2, "Routine oil change", "INVOICED", now, now, 4500, 2499, 6999, now, now).run();
+      await db.prepare(`INSERT INTO service_ro_lines (id,tenant_id,ro_id,line_type,description,part_id,quantity,unit_price_cents,created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(uid(), tenant.tenantId, ro2, "PARTS", "Synthetic oil filter kit", part1, 1, 2499, now).run();
+      await db.prepare(`INSERT INTO service_ro_lines (id,tenant_id,ro_id,line_type,description,quantity,unit_price_cents,created_at) VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(uid(), tenant.tenantId, ro2, "LABOR", "Oil & filter change", 0.5, 9000, now).run();
+      try {
+        await postJournalEntry(tenant.tenantId, null, "REPAIR_ORDER_INVOICED", ro2, "Repair order RO-1002 invoiced", [
+          { code: "1200", debitCents: 6999 },
+          { code: "4200", creditCents: 4500 },
+          { code: "4300", creditCents: 2499 },
+        ]);
+      } catch (err) { console.error("seed_demo.ro_journal_failed", err); }
+
+      await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "CREATE", "loan_application", deal3, { resourceName: "Demo data seeded" });
+      return Response.json({ seeded: true }, { status: 201 });
     }
 
     return Response.json({ error: "Unknown resource." }, { status: 400 });

@@ -6472,7 +6472,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
       <main className="disputeMain">
         <header className="disputeTopbar"><div><small>CYNCRO AUTOMOTIVE</small><b>{view}</b></div></header>
         <div className="disputeContent">
-          {view === "Command" && <AutoCommand summary={summary} deals={deals} onView={setView} />}
+          {view === "Command" && <AutoCommand summary={summary} deals={deals} onView={setView} onReload={() => { loadDeals(); loadSummary(); }} onFlash={flash} />}
           {view === "Deal Queue" && (
             <AutoDealQueue
               deals={deals}
@@ -6495,7 +6495,17 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   );
 }
 
-function AutoCommand({ summary, deals, onView }: { summary: AutoSummary | null; deals: AutoDealRow[]; onView: (v: AutoView) => void }) {
+function AutoCommand({
+  summary, deals, onView, onReload, onFlash,
+}: { summary: AutoSummary | null; deals: AutoDealRow[]; onView: (v: AutoView) => void; onReload: () => void; onFlash: (m: string) => void }) {
+  const isEmpty = (summary?.availableUnits ?? 0) === 0 && deals.length === 0;
+  const loadDemoData = () => {
+    void fetch("/api/automotive?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); }
+        else onFlash(d.reason || "Could not load demo data");
+      });
+  };
   return (
     <>
       <div className="disputeHero">
@@ -6504,8 +6514,9 @@ function AutoCommand({ summary, deals, onView }: { summary: AutoSummary | null; 
           <h1>Every deal.<br /><i>One real number at a time.</i></h1>
           <p>Structure, lender matching, F&amp;I menu, and gross — computed from the actual deal, not a demo script.</p>
         </div>
-        <button onClick={() => onView("Deal Queue")}>✦ New deal</button>
+        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Deal Queue")}>✦ New deal</button>}
       </div>
+      {isEmpty && <p className="disputeEmpty">This dealership is empty. "Load demo data" seeds real sample customers, inventory, deals (including a funded one with a posted journal entry), lenders, and service records — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
       <div className="disputeMetrics">
         {[
           ["AVAILABLE UNITS", String(summary?.availableUnits ?? "—"), ""],
