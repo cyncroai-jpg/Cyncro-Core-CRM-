@@ -2769,6 +2769,52 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(part_id) REFERENCES service_parts(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_service_ro_lines_ro ON service_ro_lines(ro_id)"),
+    // ============ CYNCRO AUTOMOTIVE — MULTI-STORE + ACCOUNTING BACKBONE ============
+    db.prepare(`CREATE TABLE IF NOT EXISTS auto_stores (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      address TEXT,
+      phone TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_auto_stores_tenant ON auto_stores(tenant_id, active)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS accounting_accounts (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      name TEXT NOT NULL,
+      account_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_accounting_accounts_code ON accounting_accounts(tenant_id, code)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS accounting_journal_entries (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      store_id TEXT,
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_journal_entries_tenant ON accounting_journal_entries(tenant_id, created_at DESC)"),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_journal_entries_source ON accounting_journal_entries(tenant_id, source_type, source_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS accounting_journal_lines (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      debit_cents INTEGER NOT NULL DEFAULT 0,
+      credit_cents INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY(entry_id) REFERENCES accounting_journal_entries(id),
+      FOREIGN KEY(account_id) REFERENCES accounting_accounts(id)
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON accounting_journal_lines(entry_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON accounting_journal_lines(account_id)"),
     // ============ PHASE 49: LENDING PLATFORM ============
     db.prepare(`CREATE TABLE IF NOT EXISTS loan_products (
       id TEXT PRIMARY KEY,
@@ -3515,6 +3561,12 @@ export async function ensureCoreSchema() {
     "ALTER TABLE credit_repair_clients ADD COLUMN assigned_rep TEXT",
     "ALTER TABLE credit_repair_clients ADD COLUMN portal_token TEXT",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_clients_portal_token ON credit_repair_clients(portal_token)",
+    "ALTER TABLE auto_inventory ADD COLUMN store_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_auto_inventory_store ON auto_inventory(store_id)",
+    "ALTER TABLE auto_deals ADD COLUMN store_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_auto_deals_store ON auto_deals(store_id)",
+    "ALTER TABLE service_repair_orders ADD COLUMN store_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_service_ro_store ON service_repair_orders(store_id)",
   ]) {
     try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   }

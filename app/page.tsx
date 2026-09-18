@@ -6382,7 +6382,7 @@ function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
 
 // ─── Cyncro Automotive — dealership finance & deal management (standalone product) ──
 
-type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Digital Retailing" | "Analytics";
+type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Digital Retailing" | "Accounting" | "Analytics";
 type AutoCustomer = { id: string; first_name: string; last_name: string; email: string | null; phone: string | null };
 type AutoVehicle = {
   id: string; stock_number: string; vin: string | null; year: number | null; make: string | null; model: string | null;
@@ -6440,6 +6440,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
     { name: "Lenders", icon: "▤" },
     { name: "Service", icon: "◈" },
     { name: "Digital Retailing", icon: "▱" },
+    { name: "Accounting", icon: "$" },
     { name: "Analytics", icon: "⌁" },
   ];
 
@@ -6480,6 +6481,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
           {view === "Lenders" && <AutoLenders onFlash={flash} />}
           {view === "Service" && <AutoService onFlash={flash} />}
           {view === "Digital Retailing" && <AutoDigitalRetailing summary={summary} onFlash={flash} />}
+          {view === "Accounting" && <AutoAccounting onFlash={flash} />}
           {view === "Analytics" && <AutoAnalytics summary={summary} />}
         </div>
       </main>
@@ -6941,6 +6943,109 @@ function AutoAnalytics({ summary }: { summary: AutoSummary | null }) {
         <small>DEALS BY STATUS</small><h2>Pipeline</h2>
         {byStatus.map(([status, count]) => (<article key={status}><span>{status}</span><b>{count}</b></article>))}
         {!byStatus.length && <p className="disputeEmpty">No deals yet.</p>}
+      </section>
+    </div>
+  );
+}
+
+type AutoStore = { id: string; name: string; address: string | null; phone: string | null; active: number };
+type AutoAccount = { id: string; code: string; name: string; account_type: string; balanceCents: number };
+type AutoJournalEntry = { id: string; description: string; source_type: string; source_id: string; created_at: string };
+type AutoJournalLine = { id: string; code: string; name: string; debit_cents: number; credit_cents: number };
+
+function AutoAccounting({ onFlash }: { onFlash: (m: string) => void }) {
+  const [stores, setStores] = useState<AutoStore[]>([]);
+  const [accounts, setAccounts] = useState<AutoAccount[]>([]);
+  const [entries, setEntries] = useState<AutoJournalEntry[]>([]);
+  const [openEntry, setOpenEntry] = useState<{ entry: AutoJournalEntry; lines: AutoJournalLine[] } | null>(null);
+  const [storeName, setStoreName] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+
+  const loadStores = () => void fetch("/api/automotive-accounting?resource=stores").then((r) => r.json()).then((d: { stores?: AutoStore[] }) => setStores(d.stores || []));
+  const loadAccounts = () => void fetch("/api/automotive-accounting?resource=accounts").then((r) => r.json()).then((d: { accounts?: AutoAccount[] }) => setAccounts(d.accounts || []));
+  const loadEntries = () => void fetch("/api/automotive-accounting?resource=journal").then((r) => r.json()).then((d: { entries?: AutoJournalEntry[] }) => setEntries(d.entries || []));
+  useEffect(() => { loadStores(); loadAccounts(); loadEntries(); }, []);
+
+  const addStore = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeName.trim()) return;
+    void fetch("/api/automotive-accounting?resource=stores", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: storeName, address: storeAddress || undefined }),
+    }).then((r) => r.json()).then(() => { setStoreName(""); setStoreAddress(""); loadStores(); onFlash("Store added"); });
+  };
+  const toggleStore = (s: AutoStore) => {
+    void fetch(`/api/automotive-accounting?resource=stores&id=${s.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: s.active ? 0 : 1 }),
+    }).then(() => loadStores());
+  };
+  const openEntryDetail = (id: string) => {
+    void fetch(`/api/automotive-accounting?resource=journal&id=${id}`).then((r) => r.json()).then((d: { entry: AutoJournalEntry; lines: AutoJournalLine[] }) => setOpenEntry(d));
+  };
+
+  return (
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>MULTI-STORE & ACCOUNTING</span>
+          <h1>Real double-entry books, posted from your actual deals and repair orders.</h1>
+          <p>A funded deal or an invoiced repair order posts a balanced journal entry automatically — no manual bookkeeping, no invented numbers.</p>
+        </div>
+      </div>
+      <div className="disputeMetrics">
+        <article><small>STORES</small><b>{stores.length}</b><span>{stores.filter((s) => s.active).length} active</span></article>
+        <article><small>VEHICLE GROSS</small><b>{autoMoney(accounts.find((a) => a.code === "4000")?.balanceCents)}</b><span>Account 4000</span></article>
+        <article><small>F&I GROSS</small><b>{autoMoney(accounts.find((a) => a.code === "4100")?.balanceCents)}</b><span>Account 4100</span></article>
+        <article><small>JOURNAL ENTRIES</small><b>{entries.length}</b><span>Posted this period</span></article>
+      </div>
+
+      <section className="disputePanel">
+        <header><div><small>STORES</small><h2>Locations</h2></div></header>
+        {stores.map((s) => (
+          <div className="disputeListRow" key={s.id}>
+            <b>{s.name}</b><span>{s.address || "No address on file"}</span>
+            <em>{s.active ? "ACTIVE" : "INACTIVE"}</em>
+            <button onClick={() => toggleStore(s)}>{s.active ? "Deactivate" : "Activate"}</button>
+          </div>
+        ))}
+        {!stores.length && <p className="disputeEmpty">Loading stores…</p>}
+        <form className="disputeAddClientForm" onSubmit={addStore}>
+          <input placeholder="New store name" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+          <input placeholder="Address (optional)" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} />
+          <button type="submit">Add store</button>
+        </form>
+      </section>
+
+      <section className="disputePanel">
+        <header><div><small>CHART OF ACCOUNTS</small><h2>Balances</h2></div></header>
+        {accounts.map((a) => (
+          <div className="disputeListRow" key={a.id}>
+            <b>{a.code} — {a.name}</b><span>{a.account_type}</span><em>{autoMoney(a.balanceCents)}</em>
+          </div>
+        ))}
+        {!accounts.length && <p className="disputeEmpty">No accounts yet — post a deal or repair order to seed the chart of accounts.</p>}
+      </section>
+
+      <section className="disputePanel">
+        <header><div><small>JOURNAL</small><h2>Recent entries</h2></div></header>
+        {entries.map((e) => (
+          <div className="disputeListRow" key={e.id} onClick={() => openEntryDetail(e.id)} style={{ cursor: "pointer" }}>
+            <b>{e.description}</b><span>{e.source_type} · {new Date(e.created_at).toLocaleDateString()}</span><em>View lines ›</em>
+          </div>
+        ))}
+        {!entries.length && <p className="disputeEmpty">No journal entries yet — fund a deal or invoice a repair order to post one.</p>}
+        {openEntry && (
+          <div className="disputeListRow" style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <b>{openEntry.entry.description}</b>
+            {openEntry.lines.map((l) => (
+              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <span>{l.code} — {l.name}</span>
+                <span>{l.debit_cents ? `Dr ${autoMoney(l.debit_cents)}` : `Cr ${autoMoney(l.credit_cents)}`}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

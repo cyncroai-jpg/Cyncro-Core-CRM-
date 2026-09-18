@@ -30,6 +30,7 @@
  * GET  /api/automotive?resource=summary
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
+import { postJournalEntry } from "@/lib/core/accounting";
 import { logAuditAction } from "@/lib/core/audit";
 
 function uid() {
@@ -386,6 +387,28 @@ export async function PATCH(request: Request) {
       updates.push("updated_at=?"); vals.push(now);
       vals.push(tenant.tenantId, id);
       await db.prepare(`UPDATE auto_deals SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
+
+      if (body.fundingStatus === "FUNDED") {
+        const acquisitionCostCents = Number((await db.prepare("SELECT acquisition_cost_cents FROM auto_inventory WHERE id=?").bind(current.vehicle_id).first<{ acquisition_cost_cents: number | null }>())?.acquisition_cost_cents || 0);
+        const products = await db.prepare("SELECT COALESCE(SUM(price_cents),0) price, COALESCE(SUM(cost_cents),0) cost FROM auto_deal_products WHERE deal_id=?").bind(id).first<{ price: number; cost: number }>();
+        const productPriceCents = Number(products?.price || 0);
+        const productCostCents = Number(products?.cost || 0);
+        const backGrossCents = Number(current.back_gross_cents || 0);
+        try {
+          await postJournalEntry(tenant.tenantId, cleanText(current.store_id as string, 80) || null, "DEAL_FUNDED", id,
+            `Deal funded — ${current.customer_id}`,
+            [
+              { code: "1100", debitCents: next.sale_price_cents + productPriceCents },
+              { code: "1300", creditCents: acquisitionCostCents },
+              { code: "4000", creditCents: frontGrossCents },
+              { code: "4100", creditCents: backGrossCents },
+              { code: "2200", creditCents: productCostCents },
+            ],
+          );
+        } catch (err) {
+          console.error("automotive.journal_post_failed", err);
+        }
+      }
       return Response.json({ updated: true, amountFinancedCents, monthlyPaymentCents });
     }
 

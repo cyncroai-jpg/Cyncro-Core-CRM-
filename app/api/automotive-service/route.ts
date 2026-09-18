@@ -21,6 +21,7 @@
  * GET  /api/automotive-service?resource=summary
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
+import { postJournalEntry } from "@/lib/core/accounting";
 
 function uid() {
   return crypto.randomUUID();
@@ -249,6 +250,23 @@ export async function PATCH(request: Request) {
       vals.push(tenant.tenantId, id);
       await db.prepare(`UPDATE service_repair_orders SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
       if (body.taxCents !== undefined) await recomputeRoTotals(db, id);
+
+      if (body.status === "INVOICED" || body.status === "CLOSED") {
+        const ro = await db.prepare("SELECT store_id, ro_number, labor_cents, parts_cents, sublet_cents, tax_cents, total_cents FROM service_repair_orders WHERE id=?").bind(id).first<{ store_id: string | null; ro_number: string; labor_cents: number; parts_cents: number; sublet_cents: number; tax_cents: number; total_cents: number }>();
+        if (ro && ro.total_cents > 0) {
+          try {
+            await postJournalEntry(tenant.tenantId, ro.store_id, "REPAIR_ORDER_INVOICED", id, `Repair order ${ro.ro_number} invoiced`, [
+              { code: "1200", debitCents: ro.total_cents },
+              { code: "4200", creditCents: ro.labor_cents },
+              { code: "4300", creditCents: ro.parts_cents },
+              { code: "4400", creditCents: ro.sublet_cents },
+              { code: "2100", creditCents: ro.tax_cents },
+            ]);
+          } catch (err) {
+            console.error("automotive_service.journal_post_failed", err);
+          }
+        }
+      }
       return Response.json({ updated: true });
     }
 
