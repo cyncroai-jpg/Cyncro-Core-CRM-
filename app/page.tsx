@@ -9267,6 +9267,11 @@ type ProspectSignal = {
   strongCta: boolean;
   facebook: boolean;
   instagram: boolean;
+  googleAds: boolean;
+  metaAds: boolean;
+  googleTagManager: boolean;
+  tiktokAds: boolean;
+  bingAds: boolean;
 };
 
 type Prospect = {
@@ -18339,7 +18344,7 @@ function SimpleEventManager({
     }
     setSaving(true);
     const method = form.id ? "PATCH" : "POST";
-    const payload = form.id ? { id: form.id, ...form } : form;
+    const payload = form;
     const response = await fetch("/api/calendar/event-types", {
       method,
       headers: { "Content-Type": "application/json" },
