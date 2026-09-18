@@ -136,11 +136,12 @@ export async function GET(request: Request) {
     }
 
     if (resource === "summary") {
-      const [units, deals, funded, grossRow] = await Promise.all([
+      const [units, deals, funded, grossRow, tenantRow] = await Promise.all([
         db.prepare("SELECT COUNT(*) c FROM auto_inventory WHERE tenant_id=? AND status='AVAILABLE'").bind(tenant.tenantId).first<{ c: number }>(),
         db.prepare("SELECT COUNT(*) c FROM auto_deals WHERE tenant_id=? AND status NOT IN ('FUNDED','UNWOUND')").bind(tenant.tenantId).first<{ c: number }>(),
         db.prepare("SELECT COUNT(*) c FROM auto_deals WHERE tenant_id=? AND status='FUNDED'").bind(tenant.tenantId).first<{ c: number }>(),
         db.prepare("SELECT COALESCE(SUM(front_gross_cents),0) f, COALESCE(SUM(back_gross_cents),0) b FROM auto_deals WHERE tenant_id=? AND status='FUNDED'").bind(tenant.tenantId).first<{ f: number; b: number }>(),
+        db.prepare("SELECT slug FROM tenants WHERE id=?").bind(tenant.tenantId).first<{ slug: string }>(),
       ]);
       return Response.json({
         availableUnits: Number(units?.c || 0),
@@ -148,6 +149,8 @@ export async function GET(request: Request) {
         fundedDeals: Number(funded?.c || 0),
         totalFrontGrossCents: Number(grossRow?.f || 0),
         totalBackGrossCents: Number(grossRow?.b || 0),
+        dealerSlug: tenantRow?.slug || null,
+        digitalLeads: (await db.prepare("SELECT COUNT(*) c FROM auto_deals WHERE tenant_id=? AND status='DIGITAL_LEAD'").bind(tenant.tenantId).first<{ c: number }>())?.c || 0,
       });
     }
 

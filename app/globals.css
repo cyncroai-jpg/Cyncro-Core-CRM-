@@ -23748,3 +23748,42 @@ button.crmUser i {
 .serviceWorkspace .financeFilters button{border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#c9babe;padding:8px 14px;font-size:11px}
 .serviceWorkspace .financeFilters button.active{background:#8b2a3d;color:#fff;border-color:#8b2a3d}
 .servicePartLow{border-left:2px solid #e0a24a}
+
+/* ===== Cyncro Automotive — public digital storefront ===== */
+.storeShell{min-height:100vh;background:#0a0909;color:#f0e9ea;font-family:inherit;padding-bottom:60px}
+.storeLoading,.storeError{display:flex;align-items:center;justify-content:center;min-height:100vh;color:#c9babe;font-size:13px}
+.storeHeader{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #2b2426}
+.storeHeader span{font-size:15px;font-weight:600}
+.storeHeader button{border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#c9babe;padding:8px 14px;font-size:11px}
+.storeHero{max-width:920px;margin:0 auto;padding:40px 24px 16px}
+.storeHero h1{font-size:28px;font-weight:500;margin:0}
+.storeHero p{color:#a99c9f;font-size:13px;margin-top:8px}
+.storeGrid{max-width:920px;margin:0 auto;padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.storeCard{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;border:1px solid #2b2426;border-radius:10px;background:#131011;padding:16px}
+.storeCard b{font-size:14px}
+.storeCard small{color:#8a7a7d;font-size:11px}
+.storeCard strong{font-size:18px;margin-top:4px;color:#e5989f}
+.storeEmpty{color:#8a7a7d;font-size:12px;grid-column:1/-1}
+.storeVehicleDetail{max-width:640px;margin:0 auto;padding:32px 24px}
+.storeVehicleHead h1{font-size:24px;font-weight:500;margin:0}
+.storeVehicleHead p{color:#a99c9f;font-size:12px;margin:6px 0}
+.storeVehicleHead b{font-size:26px;display:block;margin-top:6px}
+.storeCalculator{margin-top:24px;padding:20px;border:1px solid #2b2426;border-radius:12px;background:#131011}
+.storeCalculator h2{font-size:14px;font-weight:600;margin:0 0 16px}
+.storeCalculator label{display:block;font-size:12px;color:#c9babe;margin-bottom:14px}
+.storeCalculator label b{margin-left:6px}
+.storeCalculator input[type="range"]{display:block;width:100%;margin-top:8px}
+.storeTermOptions{display:flex;gap:8px;margin-bottom:14px}
+.storeTermOptions button{flex:1;border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#c9babe;padding:8px;font-size:11px}
+.storeTermOptions button.active{background:#8b2a3d;color:#fff;border-color:#8b2a3d}
+.storePaymentOutput{padding-top:8px;border-top:1px solid #241d20}
+.storePaymentOutput small{display:block;color:#86797c;font-size:9px;letter-spacing:.1em}
+.storePaymentOutput b{display:block;font-size:26px;font-weight:300;margin-top:6px}
+.storePaymentOutput b i{font-style:normal;font-size:12px;color:#8a7a7d;margin-left:4px}
+.storePaymentOutput span{display:block;color:#a99c9f;font-size:11px;margin-top:4px}
+.storePaymentOutput p{color:#726668;font-size:10px;margin-top:10px;line-height:1.5}
+.storeStartDealBtn{display:block;width:100%;margin-top:18px;border:0;border-radius:8px;background:#8b2a3d;color:#fff;padding:14px;font-size:13px;font-weight:600}
+.storeLeadForm{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.storeLeadForm input{border:1px solid #3a2c30;border-radius:6px;background:#171114;color:#fff;padding:11px;font-size:13px}
+.storeLeadForm button{border:0;border-radius:8px;background:#8b2a3d;color:#fff;padding:13px;font-size:13px;font-weight:600}
+.storeLeadSuccess{margin-top:18px;padding:16px;border:1px solid #2f5c3f;border-radius:8px;background:#0f1c13;color:#a9c9b3;font-size:13px}

@@ -6382,7 +6382,7 @@ function ApexAnalytics({ summary }: { summary: ApexSummary | null }) {
 
 // ─── Cyncro Automotive — dealership finance & deal management (standalone product) ──
 
-type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Analytics";
+type AutoView = "Command" | "Deal Queue" | "Inventory" | "Lenders" | "Service" | "Digital Retailing" | "Analytics";
 type AutoCustomer = { id: string; first_name: string; last_name: string; email: string | null; phone: string | null };
 type AutoVehicle = {
   id: string; stock_number: string; vin: string | null; year: number | null; make: string | null; model: string | null;
@@ -6407,7 +6407,10 @@ type AutoSubmission = {
   approved_amount_cents: number | null; decline_reason: string | null;
 };
 type AutoDocument = { id: string; doc_type: string; checked: number };
-type AutoSummary = { availableUnits: number; activeDeals: number; fundedDeals: number; totalFrontGrossCents: number; totalBackGrossCents: number };
+type AutoSummary = {
+  availableUnits: number; activeDeals: number; fundedDeals: number; totalFrontGrossCents: number; totalBackGrossCents: number;
+  dealerSlug: string | null; digitalLeads: number;
+};
 
 const AUTO_SUBMISSION_STATUSES = ["SUBMITTED", "UNDER_REVIEW", "STIPS_REQUESTED", "APPROVED", "DECLINED", "FUNDED", "WITHDRAWN"];
 function autoMoney(cents: number | null | undefined) {
@@ -6436,6 +6439,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
     { name: "Inventory", icon: "◎" },
     { name: "Lenders", icon: "▤" },
     { name: "Service", icon: "◈" },
+    { name: "Digital Retailing", icon: "▱" },
     { name: "Analytics", icon: "⌁" },
   ];
 
@@ -6475,6 +6479,7 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
           {view === "Inventory" && <AutoInventory onFlash={flash} />}
           {view === "Lenders" && <AutoLenders onFlash={flash} />}
           {view === "Service" && <AutoService onFlash={flash} />}
+          {view === "Digital Retailing" && <AutoDigitalRetailing summary={summary} onFlash={flash} />}
           {view === "Analytics" && <AutoAnalytics summary={summary} />}
         </div>
       </main>
@@ -6869,6 +6874,49 @@ function AutoLenders({ onFlash }: { onFlash: (m: string) => void }) {
           </div>
         ))}
         {!lenders.length && <p className="disputeEmpty">No lenders yet. Add your first one above.</p>}
+      </section>
+    </div>
+  );
+}
+
+function AutoDigitalRetailing({ summary, onFlash }: { summary: AutoSummary | null; onFlash: (m: string) => void }) {
+  const [leads, setLeads] = useState<AutoDealRow[]>([]);
+  useEffect(() => {
+    void fetch("/api/automotive?resource=deals").then((r) => r.json()).then((d: { deals?: AutoDealRow[] }) => setLeads((d.deals || []).filter((x) => x.status === "DIGITAL_LEAD")));
+  }, [summary]);
+  const storeUrl = summary?.dealerSlug ? `${typeof window !== "undefined" ? window.location.origin : ""}/store?dealer=${summary.dealerSlug}` : "";
+  return (
+    <div className="apexLendersWorkspace">
+      <div className="disputeHero compact">
+        <div>
+          <span>CUSTOMER-FACING DIGITAL RETAILING</span>
+          <h1>Let a customer build their own deal before they walk in.</h1>
+          <p>A public storefront showing your real available inventory. A shopper picks a vehicle, adjusts down payment and term against a
+            real amortization estimate, and submits their info — which lands here as a real lead, ready to work in Deal Queue.</p>
+        </div>
+      </div>
+      <div className="disputeMetrics">
+        <article><small>DIGITAL LEADS</small><b>{String(summary?.digitalLeads ?? 0)}</b><span>Submitted from the storefront</span></article>
+        <article><small>LISTED INVENTORY</small><b>{String(summary?.availableUnits ?? 0)}</b><span>Visible to shoppers</span></article>
+      </div>
+      <section className="disputePanel">
+        {storeUrl ? (
+          <>
+            <div className="disputeListRow"><b>Your storefront</b><span>{storeUrl}</span>
+              <button onClick={() => { void navigator.clipboard.writeText(storeUrl); onFlash("Link copied"); }}>Copy</button>
+            </div>
+            <a href={storeUrl} target="_blank" rel="noreferrer" className="disputePortalPreviewLink">Open storefront as a shopper would ↗</a>
+          </>
+        ) : <p className="disputeEmpty">Loading your storefront link…</p>}
+      </section>
+      <section className="disputePanel">
+        <header><div><small>RECENT DIGITAL LEADS</small><h2>Submitted from the storefront</h2></div></header>
+        {leads.map((l) => (
+          <div className="disputeListRow" key={l.id}>
+            <b>{l.first_name} {l.last_name}</b><span>{l.year} {l.make} {l.model} · {l.stock_number}</span><em>{l.status}</em>
+          </div>
+        ))}
+        {!leads.length && <p className="disputeEmpty">No digital leads yet — share your storefront link to start getting them.</p>}
       </section>
     </div>
   );
