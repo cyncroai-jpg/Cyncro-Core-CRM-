@@ -1585,14 +1585,14 @@ function FrontExperience({
     {
       capability: "CRM · contacts, accounts, deals",
       cyncro: "Built in · full account + contact + opportunity graph",
-      pipedrive: "Core strength",
+      pipedrive: "Built in · this is their main product",
       highlevel: "Built in",
       clickfunnels: "Built in · lighter CRM",
     },
     {
       capability: "Visual pipelines + custom stages",
       cyncro: "Built in · unlimited pipelines, win/loss stages, probability",
-      pipedrive: "Core strength",
+      pipedrive: "Built in · what they are best known for",
       highlevel: "Built in",
       clickfunnels: "Built in",
     },
@@ -1663,7 +1663,7 @@ function FrontExperience({
       capability: "Automation + workflow builder",
       cyncro: "Built in · visual builder, triggers across every module",
       pipedrive: "Built in · sales workflows",
-      highlevel: "Core strength · deep workflows",
+      highlevel: "Built in · very advanced workflows",
       clickfunnels: "Built in · funnel + email flows",
     },
     {
@@ -1678,7 +1678,7 @@ function FrontExperience({
       cyncro: "Built in · sections, forms, countdowns, A/B",
       pipedrive: "Not available",
       highlevel: "Built in",
-      clickfunnels: "Core strength",
+      clickfunnels: "Built in · this is their main product",
     },
     {
       capability: "Multi-touch attribution",
