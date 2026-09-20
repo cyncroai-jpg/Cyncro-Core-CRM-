@@ -150,9 +150,6 @@ export async function ensureCoreSchema() {
       updated_at TEXT NOT NULL
     )`),
     db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS crm_accounts_domain_unique ON crm_accounts(domain) WHERE domain IS NOT NULL",
-    ),
-    db.prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS crm_accounts_prospect_unique ON crm_accounts(source_prospect_id) WHERE source_prospect_id IS NOT NULL",
     ),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_contacts (
@@ -170,9 +167,6 @@ export async function ensureCoreSchema() {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(account_id) REFERENCES crm_accounts(id)
     )`),
-    db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS crm_contacts_email_unique ON crm_contacts(lower(email)) WHERE email IS NOT NULL",
-    ),
     db.prepare(
       "CREATE INDEX IF NOT EXISTS crm_contacts_account_idx ON crm_contacts(account_id)",
     ),
@@ -3664,6 +3658,10 @@ export async function ensureCoreSchema() {
     "CREATE INDEX IF NOT EXISTS calendar_waitlist_tenant_idx ON calendar_waitlist(tenant_id)",
     "ALTER TABLE calendar_feeds ADD COLUMN tenant_id TEXT",
     "ALTER TABLE calendar_audit_log ADD COLUMN tenant_id TEXT",
+    "DROP INDEX IF EXISTS crm_accounts_domain_unique",
+    "DROP INDEX IF EXISTS crm_contacts_email_unique",
+    "CREATE UNIQUE INDEX IF NOT EXISTS crm_accounts_tenant_domain_unique ON crm_accounts(tenant_id, domain) WHERE domain IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS crm_contacts_tenant_email_unique ON crm_contacts(tenant_id, lower(email)) WHERE email IS NOT NULL",
     "ALTER TABLE dispatch_jobs ADD COLUMN lat REAL",
     "ALTER TABLE dispatch_jobs ADD COLUMN lng REAL",
     "CREATE INDEX IF NOT EXISTS calendar_audit_log_tenant_idx ON calendar_audit_log(tenant_id)",

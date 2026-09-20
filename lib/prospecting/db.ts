@@ -107,18 +107,6 @@ export async function ensureProspectingSchema() {
       analyzed_at TEXT
     )`),
     db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS prospects_google_place_id_unique ON prospects (google_place_id)",
-    ),
-    db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS prospects_domain_unique ON prospects (domain)",
-    ),
-    db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS prospects_phone_unique ON prospects (normalized_phone)",
-    ),
-    db.prepare(
-      "CREATE UNIQUE INDEX IF NOT EXISTS prospects_name_address_unique ON prospects (name_address_key)",
-    ),
-    db.prepare(
       "CREATE INDEX IF NOT EXISTS prospects_score_idx ON prospects (opportunity_score DESC)",
     ),
     db.prepare(
