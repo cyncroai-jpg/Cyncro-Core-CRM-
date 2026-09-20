@@ -132,6 +132,21 @@ export async function ensureProspectingSchema() {
     "ALTER TABLE prospects ADD COLUMN ai_summary TEXT",
     "ALTER TABLE prospects ADD COLUMN pain_points_json TEXT",
     "ALTER TABLE prospects ADD COLUMN ai_confidence TEXT",
+    "ALTER TABLE prospects ADD COLUMN tenant_id TEXT",
+    // The original unique indexes below were GLOBAL (one business could only ever
+    // be prospected once across the entire deployment) — that's wrong for a
+    // multi-tenant product, since two different companies must each be able to
+    // independently prospect the same real-world business. Drop them and
+    // recreate as tenant-scoped composites.
+    "DROP INDEX IF EXISTS prospects_google_place_id_unique",
+    "DROP INDEX IF EXISTS prospects_domain_unique",
+    "DROP INDEX IF EXISTS prospects_phone_unique",
+    "DROP INDEX IF EXISTS prospects_name_address_unique",
+    "CREATE UNIQUE INDEX IF NOT EXISTS prospects_tenant_place_id_unique ON prospects(tenant_id, google_place_id) WHERE google_place_id IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS prospects_tenant_domain_unique ON prospects(tenant_id, domain) WHERE domain IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS prospects_tenant_phone_unique ON prospects(tenant_id, normalized_phone) WHERE normalized_phone IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS prospects_tenant_name_address_unique ON prospects(tenant_id, name_address_key)",
+    "CREATE INDEX IF NOT EXISTS prospects_tenant_idx ON prospects(tenant_id)",
   ]) try { await db.prepare(statement).run(); } catch { /* already migrated */ }
   await db.prepare(`UPDATE prospects SET
     estimated_revenue_low_cents=CASE WHEN lower(category) LIKE '%dealership%' OR lower(category) LIKE '%hotel%' OR lower(category) LIKE '%manufactur%' THEN 275000000 ELSE 27500000 END,

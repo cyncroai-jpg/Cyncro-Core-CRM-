@@ -4,14 +4,16 @@
  * (pitch angle, why-call, what-was-found), never a generic template.
  * Same Anthropic call pattern as app/api/studio/ai-rewrite/route.ts.
  */
-import { ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant } from "@/lib/core/tenantAuth";
 import { env } from "cloudflare:workers";
 type CfEnv = Record<string, string | undefined>;
 
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as {
       businessName?: string; category?: string; whyCall?: string; whatFound?: string;
       recommendedSolution?: string; pitchAngle?: string;

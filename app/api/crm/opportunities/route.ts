@@ -1,23 +1,25 @@
-import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, isWorkspaceOwner, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url); const rep = cleanText(url.searchParams.get("rep"), 160); const pipelineId = cleanText(url.searchParams.get("pipelineId"), 80); const compensation = url.searchParams.get("compensation") === "1";
     const db = coreDb();
-    const owner = await isWorkspaceOwner(request);
-    const member = owner ? null : await db.prepare("SELECT display_name FROM workspace_members WHERE email=? AND active=1").bind(requestUser(request)).first<{display_name:string}>();
-    const visibleRep = owner ? rep : compensation ? cleanText(member?.display_name, 160) : rep;
+    const owner = tenant.role === "OWNER";
+    const visibleRep = owner ? rep : compensation ? tenant.email : rep;
     const statement = visibleRep
       ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
-          WHERE lower(o.assigned_rep) = lower(?) ORDER BY o.updated_at DESC`).bind(visibleRep)
+          WHERE o.tenant_id = ? AND lower(o.assigned_rep) = lower(?) ORDER BY o.updated_at DESC`).bind(tenant.tenantId, visibleRep)
       : pipelineId ? db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
           JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id
-          WHERE o.pipeline_id = ? ORDER BY o.updated_at DESC`).bind(pipelineId)
+          WHERE o.tenant_id = ? AND o.pipeline_id = ? ORDER BY o.updated_at DESC`).bind(tenant.tenantId, pipelineId)
       : db.prepare(`SELECT o.*, a.name AS account_name, c.full_name AS contact_name, c.email AS contact_email, c.phone AS contact_phone FROM crm_opportunities o
-          JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id ORDER BY o.updated_at DESC`);
+          JOIN crm_accounts a ON a.id = o.account_id LEFT JOIN crm_contacts c ON c.id = o.primary_contact_id WHERE o.tenant_id = ? ORDER BY o.updated_at DESC`).bind(tenant.tenantId);
     const results = (await statement.all()).results as Record<string, unknown>[];
     if (!owner && !compensation) for (const row of results) {
       delete row.commission_rate_bps; delete row.commission_status; delete row.residual_rate_bps; delete row.residual_months; delete row.residual_flat_cents; delete row.paid_at;
@@ -32,11 +34,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const accountId = cleanText(body.accountId, 80); const name = cleanText(body.name, 180);
     const stage = cleanText(body.stage, 80).toUpperCase() || "NEW LEAD";
     const pipelineId = cleanText(body.pipelineId, 80) || null;
     if (!accountId || !name || !stage) return Response.json({ error: "Account, name, and valid stage are required." }, { status: 400 });
+    const account = await coreDb().prepare("SELECT id FROM crm_accounts WHERE id=? AND tenant_id=?").bind(accountId, tenant.tenantId).first();
+    if (!account) return Response.json({ error: "Account not found." }, { status: 404 });
     const valueCents = Math.max(0, Math.round(Number(body.value || 0) * 100));
     const commissionRateBps = Math.min(10000, Math.max(0, Math.round(Number(body.commissionRate || 20) * 100)));
     const residualFlatCents = Math.max(0, Math.round(Number(body.residualFlat || 0) * 100));
@@ -44,13 +50,13 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO crm_opportunities
       (id, account_id, primary_contact_id, pipeline_id, name, stage, value_cents, cost_cents, probability, assigned_rep, commission_rate_bps,
-       commission_status, payment_status, collected_cents, residual_rate_bps, residual_months, residual_flat_cents, expected_close_date, source, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       commission_status, payment_status, collected_cents, residual_rate_bps, residual_months, residual_flat_cents, expected_close_date, source, notes, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(id, accountId, cleanText(body.primaryContactId, 80) || null, pipelineId, name, stage, valueCents, Math.max(0, Math.round(Number(body.cost || 0) * 100)), probability,
-        cleanText(body.assignedRep, 160) || requestUser(request), commissionRateBps, cleanText(body.paymentStatus, 30).toUpperCase() || "UNPAID",
+        cleanText(body.assignedRep, 160) || tenant.email, commissionRateBps, cleanText(body.paymentStatus, 30).toUpperCase() || "UNPAID",
         Math.max(0, Math.round(Number(body.collected || 0) * 100)), 0, 0, residualFlatCents, cleanText(body.expectedCloseDate, 20) || null,
-        cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, now, now).run();
-    return Response.json({ opportunity: await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ?").bind(id).first() }, { status: 201 });
+        cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, tenant.tenantId, now, now).run();
+    return Response.json({ opportunity: await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first() }, { status: 201 });
   } catch (error) {
     console.error("crm.opportunities.create_failed", error);
     return Response.json({ error: "Unable to create opportunity." }, { status: 500 });
@@ -60,14 +66,16 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>; const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Opportunity id is required." }, { status: 400 });
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
     const compensationKeys = ["commissionRate","commissionStatus","residualRate","residualMonths","residualFlat","collected","paymentStatus","commissionNotes"];
-    const isOwner = await isWorkspaceOwner(request);
-    const userEmail = requestUser(request);
-    const deal = await coreDb().prepare("SELECT assigned_rep, stage, account_id, primary_contact_id FROM crm_opportunities WHERE id=?").bind(id).first<{assigned_rep:string; stage:string; account_id:string; primary_contact_id:string|null}>();
-    const isAssignedRep = deal?.assigned_rep && deal.assigned_rep.toLowerCase() === userEmail.toLowerCase();
+    const isOwner = tenant.role === "OWNER";
+    const deal = await coreDb().prepare("SELECT assigned_rep, stage, account_id, primary_contact_id FROM crm_opportunities WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<{assigned_rep:string; stage:string; account_id:string; primary_contact_id:string|null}>();
+    if (!deal) return Response.json({ error: "Opportunity not found." }, { status: 404 });
+    const isAssignedRep = deal.assigned_rep && deal.assigned_rep.toLowerCase() === tenant.email.toLowerCase();
     if (compensationKeys.some((key) => updates[key] !== undefined) && !isOwner && !isAssignedRep) return Response.json({ error: "Owner or assigned rep permission is required to change compensation." }, { status: 403 });
     const fields: string[] = []; const values: unknown[] = [];
     const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
@@ -89,16 +97,16 @@ export async function PATCH(request: Request) {
     if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
     if (updates.commissionNotes !== undefined) add("commission_notes", cleanText(updates.commissionNotes, 2000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
-    add("updated_at", new Date().toISOString()); values.push(id);
-    await coreDb().prepare(`UPDATE crm_opportunities SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
-    const updatedOpportunity = await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ?").bind(id).first<Record<string, unknown>>();
+    add("updated_at", new Date().toISOString()); values.push(id, tenant.tenantId);
+    await coreDb().prepare(`UPDATE crm_opportunities SET ${fields.join(", ")} WHERE id = ? AND tenant_id = ?`).bind(...values).run();
+    const updatedOpportunity = await coreDb().prepare("SELECT * FROM crm_opportunities WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first<Record<string, unknown>>();
     if (updates.stage !== undefined) {
       const newStage = cleanText(updates.stage, 80).toUpperCase();
-      const previousStage = deal?.stage || "";
+      const previousStage = deal.stage || "";
       if (newStage !== previousStage) {
         const automationContext = {
-          opportunityId: id, accountId: deal?.account_id || "", contactId: deal?.primary_contact_id || "",
-          assignedRep: deal?.assigned_rep || "", stage: newStage, previousStage,
+          opportunityId: id, accountId: deal.account_id || "", contactId: deal.primary_contact_id || "",
+          assignedRep: deal.assigned_rep || "", stage: newStage, previousStage,
         };
         await runAutomations(request, "OPPORTUNITY_STAGE_CHANGED", automationContext);
         if (newStage === "CLOSED WON") await runAutomations(request, "OPPORTUNITY_WON", automationContext);
@@ -115,11 +123,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasCrmAction(request,"delete"))) return Response.json({error:"Delete permission is required."},{status:403});
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Opportunity id is required." }, { status: 400 });
     const db = coreDb();
-    const existing = await db.prepare("SELECT id FROM crm_opportunities WHERE id=?").bind(id).first();
+    const existing = await db.prepare("SELECT id FROM crm_opportunities WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
     if (!existing) return Response.json({ error: "Opportunity not found." }, { status: 404 });
     await db.prepare("DELETE FROM crm_opportunities WHERE id=?").bind(id).run();
     return Response.json({ deleted: true });

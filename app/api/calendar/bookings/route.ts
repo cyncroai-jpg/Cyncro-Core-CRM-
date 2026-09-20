@@ -1,4 +1,5 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
 import { dispatchWebhookEvent } from "@/lib/core/webhooks";
@@ -78,14 +79,15 @@ async function resolveAssignedTo(
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const from = cleanText(url.searchParams.get("from"), 40) || new Date(0).toISOString();
     const to = cleanText(url.searchParams.get("to"), 40) || new Date("2100-01-01").toISOString();
     const { results } = await coreDb().prepare(`SELECT b.*, e.name AS event_name, e.duration_minutes, c.full_name AS contact_name,
       c.email AS contact_email, c.phone AS contact_phone FROM calendar_bookings b
       JOIN calendar_event_types e ON e.id = b.event_type_id LEFT JOIN crm_contacts c ON c.id = b.contact_id
-      WHERE b.starts_at >= ? AND b.starts_at < ? ORDER BY b.starts_at`).bind(from, to).all();
+      WHERE b.tenant_id = ? AND b.starts_at >= ? AND b.starts_at < ? ORDER BY b.starts_at`).bind(tenant.tenantId, from, to).all();
     return Response.json({ bookings: results });
   } catch (error) {
     console.error("calendar.bookings.list_failed", error);
@@ -96,6 +98,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const eventTypeId = cleanText(body.eventTypeId, 80);
     const customerName = cleanText(body.customerName, 160);
@@ -114,46 +118,46 @@ export async function POST(request: Request) {
     if (locationMode === "VIDEO" && !new Set(["GOOGLE_MEET", "ZOOM", "FACETIME"]).has(videoPlatform || ""))
       return Response.json({ error: "Choose Google Meet, Zoom, or FaceTime." }, { status: 400 });
     const db = coreDb();
-    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
+    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1 AND tenant_id = ?").bind(eventTypeId, tenant.tenantId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
     // Appointment length is owned by the event type. Public bookers cannot override it.
     const duration = Number(eventType.duration_minutes);
     const ends = new Date(starts.getTime() + duration * 60_000);
     const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
-      WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
-      .bind(eventTypeId, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
+      WHERE event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
+      .bind(eventTypeId, tenant.tenantId, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
     if (Number(conflict?.total || 0) >= Number(eventType.capacity || 1))
       return Response.json({ error: "That time is no longer available." }, { status: 409 });
     const now = new Date().toISOString();
     const bookingId = crypto.randomUUID();
     let contactId = cleanText(body.contactId, 80) || null;
     if (!contactId) {
-      const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email)=lower(?)").bind(customerEmail).first<{id:string}>();
+      const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email)=lower(?) AND tenant_id=?").bind(customerEmail, tenant.tenantId).first<{id:string}>();
       contactId = existing?.id || crypto.randomUUID();
       if (existing) {
         await db.prepare("UPDATE crm_contacts SET full_name=?,phone=COALESCE(?,phone),lifecycle='CUSTOMER',updated_at=? WHERE id=?")
           .bind(customerName, cleanText(body.customerPhone,40)||null, now, contactId).run();
       } else {
-        await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,assigned_rep,source,created_at,updated_at)
-          VALUES (?,?,?,?, 'CUSTOMER', ?, 'CALENDAR', ?, ?)`).bind(contactId,customerName,customerEmail,cleanText(body.customerPhone,40)||null,String(eventType.host_name||requestUser(request)),now,now).run();
+        await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,assigned_rep,source,tenant_id,created_at,updated_at)
+          VALUES (?,?,?,?, 'CUSTOMER', ?, 'CALENDAR', ?, ?, ?)`).bind(contactId,customerName,customerEmail,cleanText(body.customerPhone,40)||null,String(eventType.host_name||tenant.email),tenant.tenantId,now,now).run();
       }
     }
     const leadScore = Math.min(100, Math.max(0, Number(body.leadScore || 0)));
     // Outcome Routing™: resolve assignedTo via routing rule if set; explicit body value overrides
     const assignedTo = cleanText(body.assignedTo, 160)
-      || await resolveAssignedTo(db, eventType, String(eventType.host_name || requestUser(request)), leadScore);
+      || await resolveAssignedTo(db, eventType, String(eventType.host_name || tenant.email), leadScore);
     const opportunityId = cleanText(body.opportunityId, 80) || null;
     const customAnswers = body.customAnswers && typeof body.customAnswers === "object" ? JSON.stringify(body.customAnswers) : "{}";
     const holdToken = cleanText(body.holdToken, 80) || null;
     await db.prepare(`INSERT INTO calendar_bookings
       (id, event_type_id, account_id, contact_id, customer_name, customer_email, customer_phone, starts_at, ends_at, timezone,
        location_mode, meeting_address, video_platform, video_url, status, notes, created_by, assigned_to,
-       opportunity_id, lead_score, custom_answers, hold_token, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       opportunity_id, lead_score, custom_answers, hold_token, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(bookingId, eventTypeId, cleanText(body.accountId, 80) || null, contactId,
         customerName, customerEmail, cleanText(body.customerPhone, 40) || null, starts.toISOString(), ends.toISOString(), timezone,
         locationMode, meetingAddress, videoPlatform, cleanText(body.videoUrl, 500) || null, cleanText(body.notes, 5000) || null,
-        requestUser(request), assignedTo, opportunityId, leadScore, customAnswers, holdToken, now, now).run();
+        tenant.email, assignedTo, opportunityId, leadScore, customAnswers, holdToken, tenant.tenantId, now, now).run();
     // Resource bookings — check conflicts then reserve
     const resourceIds: string[] = Array.isArray(body.resourceIds) ? (body.resourceIds as unknown[]).map(String).filter(Boolean) : [];
     if (resourceIds.length > 0) {
@@ -170,12 +174,12 @@ export async function POST(request: Request) {
         }
       }
     }
-    await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,created_at,updated_at)
-      VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),requestUser(request),now,now).run();
+    await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,tenant_id,created_at,updated_at)
+      VALUES (?,?, 'CALENDAR', ?, ?, ?, 'COMPLETED', ?, ?, ?, ?)`).bind(crypto.randomUUID(),contactId,`Booked ${String(eventType.name||"appointment")}`,`${locationMode}${videoPlatform?` · ${videoPlatform}`:""}${meetingAddress?` · ${meetingAddress}`:""}`,starts.toISOString(),tenant.email,tenant.tenantId,now,now).run();
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), assignedTo, "New appointment assigned", `${customerName} · ${starts.toLocaleString()}`, "BOOKING", bookingId, now).run();
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
-    if (createdBooking) await syncGoogleBooking(requestUser(request), createdBooking);
+    if (createdBooking) await syncGoogleBooking(tenant.email, createdBooking);
     // Automation webhooks — fire-and-forget
     void dispatchWebhookEvent("appointment.created", {
       bookingId, eventTypeId, customerName, customerEmail,
@@ -186,7 +190,7 @@ export async function POST(request: Request) {
     try {
       await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, after_state, created_at)
         VALUES (?, ?, 'BOOKING', ?, 'CREATED', ?, ?, ?)`).bind(
-        crypto.randomUUID(), bookingId, bookingId, requestUser(request),
+        crypto.randomUUID(), bookingId, bookingId, tenant.email,
         JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), now
       ).run();
       // Release slot hold if token was provided
@@ -217,14 +221,15 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     const action = cleanText(body.action, 30).toUpperCase();
     if (!id) return Response.json({ error: "Booking id is required." }, { status: 400 });
     const db = coreDb();
     const booking = await db.prepare(`SELECT b.*, e.duration_minutes, e.capacity FROM calendar_bookings b
-      JOIN calendar_event_types e ON e.id = b.event_type_id WHERE b.id = ?`).bind(id).first<Record<string, unknown>>();
+      JOIN calendar_event_types e ON e.id = b.event_type_id WHERE b.id = ? AND b.tenant_id = ?`).bind(id, tenant.tenantId).first<Record<string, unknown>>();
     if (!booking) return Response.json({ error: "Booking not found." }, { status: 404 });
     const now = new Date().toISOString();
     if (action === "CANCEL") {
@@ -236,8 +241,8 @@ export async function PATCH(request: Request) {
       const originalDuration = Math.max(5, Math.round((new Date(String(booking.ends_at)).getTime() - new Date(String(booking.starts_at)).getTime()) / 60_000));
       const ends = new Date(starts.getTime() + originalDuration * 60_000);
       const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings
-        WHERE id <> ? AND event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
-        .bind(id, booking.event_type_id, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
+        WHERE id <> ? AND event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
+        .bind(id, booking.event_type_id, tenant.tenantId, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
       if (Number(conflict?.total || 0) >= Number(booking.capacity || 1))
         return Response.json({ error: "That time is no longer available." }, { status: 409 });
       await db.prepare("UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, status = 'RESCHEDULED', updated_at = ? WHERE id = ?")
@@ -249,11 +254,11 @@ export async function PATCH(request: Request) {
       await db.prepare("UPDATE calendar_bookings SET status = ?, notes = COALESCE(?, notes), assigned_to = COALESCE(?, assigned_to), updated_at = ? WHERE id = ?")
         .bind(status, cleanText(body.notes, 5000) || null, cleanText(body.assignedTo, 160) || null, now, id).run();
     }
-    const recipient = cleanText(body.assignedTo,160) || String(booking.assigned_to || booking.created_by || requestUser(request));
+    const recipient = cleanText(body.assignedTo,160) || String(booking.assigned_to || booking.created_by || tenant.email);
     await db.prepare(`INSERT INTO workspace_notifications (id,recipient,title,body,entity_type,entity_id,created_at) VALUES (?,?,?,?,?,?,?)`)
       .bind(crypto.randomUUID(), recipient, action === "RESCHEDULE" ? "Appointment rescheduled" : action === "CANCEL" ? "Appointment cancelled" : "Appointment updated", String(booking.customer_name || "Booking"), "BOOKING", id, now).run();
-    const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ?").bind(id).first<Record<string,unknown>>();
-    if (updated) await syncGoogleBooking(requestUser(request), { ...updated, event_name: booking.event_name || "Cyncro appointment" });
+    const updated = await db.prepare("SELECT * FROM calendar_bookings WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first<Record<string,unknown>>();
+    if (updated) await syncGoogleBooking(tenant.email, { ...updated, event_name: booking.event_name || "Cyncro appointment" });
     // Automation webhooks — fire-and-forget
     {
       const webhookData = { bookingId: id, customerName: booking.customer_name, customerEmail: booking.customer_email, startsAt: updated?.starts_at, endsAt: updated?.ends_at, status: updated?.status };
@@ -269,7 +274,7 @@ export async function PATCH(request: Request) {
     try {
       await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, before_state, after_state, created_at)
         VALUES (?, ?, 'BOOKING', ?, ?, ?, ?, ?, ?)`).bind(
-        crypto.randomUUID(), id, id, action, requestUser(request),
+        crypto.randomUUID(), id, id, action, tenant.email,
         JSON.stringify({ status: booking.status, starts_at: booking.starts_at }),
         JSON.stringify({ status: updated?.status, starts_at: updated?.starts_at }),
         new Date().toISOString()

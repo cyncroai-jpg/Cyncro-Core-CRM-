@@ -1,21 +1,24 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const eventTypeId = cleanText(url.searchParams.get("eventTypeId"), 80);
     const from = new Date(url.searchParams.get("from") || "");
     const days = Math.min(Math.max(Number(url.searchParams.get("days") || 14), 1), 45);
     if (!eventTypeId || Number.isNaN(from.valueOf())) return Response.json({ error: "Event type and start date are required." }, { status: 400 });
     const db = coreDb();
-    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
+    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1 AND tenant_id = ?").bind(eventTypeId, tenant.tenantId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
-    const { results: rules } = await db.prepare("SELECT * FROM calendar_availability WHERE active = 1 AND (event_type_id = ? OR event_type_id IS NULL)").bind(eventTypeId).all<Record<string, unknown>>();
+    const { results: rules } = await db.prepare("SELECT * FROM calendar_availability WHERE active = 1 AND tenant_id = ? AND (event_type_id = ? OR event_type_id IS NULL)").bind(tenant.tenantId, eventTypeId).all<Record<string, unknown>>();
     const endRange = new Date(from.getTime() + days * 86_400_000);
     const { results: bookings } = await db.prepare(`SELECT starts_at, ends_at FROM calendar_bookings
-      WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
-      .bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
+      WHERE event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
+      .bind(eventTypeId, tenant.tenantId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
     // Blocked times that affect all event types or this specific event type
     const { results: blocked } = await db.prepare(`SELECT starts_at, ends_at FROM calendar_blocked_times
       WHERE (event_type_id = ? OR event_type_id IS NULL) AND starts_at < ? AND ends_at > ?`)
@@ -60,20 +63,25 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const eventTypeId = cleanText(body.eventTypeId, 80) || null;
     const timezone = cleanText(body.timezone, 80);
     const rules = Array.isArray(body.rules) ? body.rules as Record<string, unknown>[] : [];
     if (!timezone || !rules.length) return Response.json({ error: "Timezone and weekly rules are required." }, { status: 400 });
     const db = coreDb();
-    const statements = [db.prepare(eventTypeId ? "DELETE FROM calendar_availability WHERE event_type_id = ?" : "DELETE FROM calendar_availability WHERE event_type_id IS NULL").bind(...(eventTypeId ? [eventTypeId] : []))];
+    if (eventTypeId) {
+      const owned = await db.prepare("SELECT id FROM calendar_event_types WHERE id=? AND tenant_id=?").bind(eventTypeId, tenant.tenantId).first();
+      if (!owned) return Response.json({ error: "Event type not found." }, { status: 404 });
+    }
+    const statements = [db.prepare(eventTypeId ? "DELETE FROM calendar_availability WHERE event_type_id = ? AND tenant_id = ?" : "DELETE FROM calendar_availability WHERE event_type_id IS NULL AND tenant_id = ?").bind(...(eventTypeId ? [eventTypeId, tenant.tenantId] : [tenant.tenantId]))];
     for (const rule of rules) {
       const weekday = Number(rule.weekday); const start = cleanText(rule.startTime, 5); const end = cleanText(rule.endTime, 5);
       if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6 || !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || start >= end)
         return Response.json({ error: "Each availability rule needs a valid weekday and time range." }, { status: 400 });
-      statements.push(db.prepare(`INSERT INTO calendar_availability (id, event_type_id, weekday, start_time, end_time, timezone, active)
-        VALUES (?, ?, ?, ?, ?, ?, 1)`).bind(crypto.randomUUID(), eventTypeId, weekday, start, end, timezone));
+      statements.push(db.prepare(`INSERT INTO calendar_availability (id, event_type_id, weekday, start_time, end_time, timezone, active, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?)`).bind(crypto.randomUUID(), eventTypeId, weekday, start, end, timezone, tenant.tenantId));
     }
     await db.batch(statements);
     return Response.json({ saved: rules.length });

@@ -1,19 +1,16 @@
 /**
- * Tenant Signup (Multi-Tenant Onboarding)
+ * Tenant Signup (Multi-Tenant Onboarding) — creates a brand-new, fully
+ * isolated company workspace.
  *
  * POST /api/tenants/signup
- * {
- *   "tenantName": "Acme Sales",
- *   "tenantSlug": "acme-sales",
- *   "email": "founder@acme.com",
- *   "displayName": "Alice Chen",
- *   "password": "..."
- * }
+ * { "tenantName": "Acme Sales", "email": "founder@acme.com", "displayName": "Alice Chen", "password": "..." }
  *
- * Returns { tenantId, userId, email, sessionToken }
+ * Sets the real cyncro_session cookie (same mechanism as /api/auth/login)
+ * so the new owner is immediately signed in — the caller doesn't need to
+ * separately log in with the sessionToken this also returns.
  */
-
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
+import { hashPassword, createSession, sessionCookie } from "@/lib/core/auth";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
@@ -22,93 +19,50 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
 
     const tenantName = cleanText(body.tenantName, 160);
-    const tenantSlug = cleanText(body.tenantSlug, 80).toLowerCase().replace(/[^a-z0-9-]/g, "-");
     const email = normalizeEmail(body.email);
     const displayName = cleanText(body.displayName, 160);
     const password = cleanText(body.password, 256);
 
-    if (!tenantName || !tenantSlug || !email || !displayName || !password) {
-      return Response.json({
-        error: "tenantName, tenantSlug, email, displayName, and password are required.",
-      }, { status: 400 });
+    if (!tenantName || !email || !displayName || !password) {
+      return Response.json({ error: "Company name, email, name, and password are required." }, { status: 400 });
+    }
+    if (password.length < 8) {
+      return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     }
 
-    // Validate slug is unique
     const db = coreDb();
-    const existingTenant = await db
-      .prepare("SELECT id FROM tenants WHERE slug = ?")
-      .bind(tenantSlug)
-      .first();
-    if (existingTenant) {
-      return Response.json({ error: "Tenant slug already exists." }, { status: 409 });
-    }
+    const existingUser = await db.prepare("SELECT id FROM auth_users WHERE lower(email) = ?").bind(email).first();
+    if (existingUser) return Response.json({ error: "Email already registered." }, { status: 409 });
 
-    // Validate email is not already registered
-    const existingUser = await db
-      .prepare("SELECT id FROM auth_users WHERE lower(email) = ?")
-      .bind(email)
-      .first();
-    if (existingUser) {
-      return Response.json({ error: "Email already registered." }, { status: 409 });
-    }
+    let tenantSlug = cleanText(body.tenantSlug, 80).toLowerCase().replace(/[^a-z0-9-]/g, "-")
+      || tenantName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)
+      || "workspace";
+    const existingTenant = await db.prepare("SELECT id FROM tenants WHERE slug = ?").bind(tenantSlug).first();
+    if (existingTenant) tenantSlug = `${tenantSlug}-${crypto.randomUUID().slice(0, 6)}`;
 
-    // Hash password (for production: use bcrypt, not simple SHA256)
-    const passwordHash = crypto
-      .createHash("sha256")
-      .update(password)
-      .digest("hex");
-
+    const passwordHash = await hashPassword(password);
     const tenantId = crypto.randomUUID();
     const userId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    // Transaction-like: create tenant, user, member, session
     await db.batch([
-      // 1. Create tenant
-      db.prepare(`INSERT INTO tenants (id, name, slug, plan, seats, active, created_at, updated_at)
-        VALUES (?, ?, ?, 'starter', 3, 1, ?, ?)`)
+      db.prepare(`INSERT INTO tenants (id, name, slug, plan, seats, active, created_at, updated_at) VALUES (?, ?, ?, 'starter', 3, 1, ?, ?)`)
         .bind(tenantId, tenantName, tenantSlug, now, now),
-
-      // 2. Create user
-      db.prepare(`INSERT INTO auth_users
-        (id, email, password_hash, display_name, role, active, default_tenant_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'MEMBER', 1, ?, ?, ?)`)
+      db.prepare(`INSERT INTO auth_users (id, email, password_hash, display_name, role, active, default_tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'MEMBER', 1, ?, ?, ?)`)
         .bind(userId, email, passwordHash, displayName, tenantId, now, now),
-
-      // 3. Create tenant member (OWNER of new tenant)
-      db.prepare(`INSERT INTO tenant_members
-        (id, tenant_id, user_id, email, display_name, role, active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'OWNER', 1, ?, ?)`)
+      db.prepare(`INSERT INTO tenant_members (id, tenant_id, user_id, email, display_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'OWNER', 1, ?, ?)`)
         .bind(crypto.randomUUID(), tenantId, userId, email, displayName, now, now),
-
-      // 4. Create session token
-      db.prepare(`INSERT INTO auth_sessions
-        (token, user_id, email, expires_at, created_at)
-        VALUES (?, ?, ?, ?, ?)`)
-        .bind(
-          crypto.randomUUID(),
-          userId,
-          email,
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          now,
-        ),
     ]);
 
-    // Return session token (would be set in httpOnly cookie in production)
-    const session = await db
-      .prepare("SELECT token FROM auth_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
-      .bind(userId)
-      .first<{ token: string }>();
+    const token = await createSession(userId, email);
+    const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
 
     return Response.json({
-      tenantId,
-      userId,
-      email,
-      sessionToken: session?.token,
+      tenantId, userId, email, sessionToken: token,
       tenant: { id: tenantId, name: tenantName, slug: tenantSlug, plan: "starter" },
-    }, { status: 201 });
+    }, { status: 201, headers: { "Set-Cookie": sessionCookie(token, SESSION_MAX_AGE) } });
   } catch (error) {
     console.error("tenant.signup.failed", error);
-    return Response.json({ error: "Unable to create tenant." }, { status: 500 });
+    return Response.json({ error: "Unable to create your workspace." }, { status: 500 });
   }
 }

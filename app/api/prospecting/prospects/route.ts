@@ -7,7 +7,8 @@ import {
   normalizePhone,
   type ProspectRecord,
 } from "@/lib/prospecting/db";
-import { ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 const statuses = new Set([
   "NEW",
@@ -65,12 +66,15 @@ function clean(value: unknown, max = 5000) {
 
 export async function GET(request: Request) {
   try {
-    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
+    await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     await ensureProspectingSchema();
     const { results } = await getProspectingDb()
       .prepare(
-        "SELECT * FROM prospects ORDER BY COALESCE(opportunity_score, -1) DESC, created_at DESC LIMIT 500",
+        "SELECT * FROM prospects WHERE tenant_id = ? ORDER BY COALESCE(opportunity_score, -1) DESC, created_at DESC LIMIT 500",
       )
+      .bind(tenant.tenantId)
       .all<ProspectRecord>();
     return Response.json({ prospects: results.map(hydrateProspect) });
   } catch (error) {
@@ -84,7 +88,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
+    await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     await ensureProspectingSchema();
     const body = (await request.json()) as Record<string, unknown>;
     const businessName = clean(body.businessName, 160);
@@ -115,9 +121,9 @@ export async function POST(request: Request) {
     }
     const existing = await getProspectingDb()
       .prepare(
-        `SELECT * FROM prospects WHERE ${duplicateChecks.join(" OR ")} LIMIT 1`,
+        `SELECT * FROM prospects WHERE tenant_id = ? AND (${duplicateChecks.join(" OR ")}) LIMIT 1`,
       )
-      .bind(...duplicateValues)
+      .bind(tenant.tenantId, ...duplicateValues)
       .first<ProspectRecord>();
     if (existing)
       return Response.json({
@@ -133,8 +139,8 @@ export async function POST(request: Request) {
         `INSERT INTO prospects (
       id, google_place_id, business_name, category, address, phone, normalized_phone,
       website, domain, rating_x10, review_count, name_address_key, estimated_revenue_low_cents,
-      estimated_revenue_high_cents, revenue_confidence, revenue_methodology, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?)`,
+      estimated_revenue_high_cents, revenue_confidence, revenue_methodology, status, tenant_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?)`,
       )
       .bind(
         id,
@@ -153,13 +159,14 @@ export async function POST(request: Request) {
         estimate.high * 100,
         estimate.confidence,
         estimate.methodology,
+        tenant.tenantId,
         now,
         now,
       )
       .run();
     const prospect = await getProspectingDb()
-      .prepare("SELECT * FROM prospects WHERE id = ?")
-      .bind(id)
+      .prepare("SELECT * FROM prospects WHERE id = ? AND tenant_id = ?")
+      .bind(id, tenant.tenantId)
       .first<ProspectRecord>();
     return Response.json(
       { prospect: prospect && hydrateProspect(prospect), duplicate: false },
@@ -176,7 +183,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 });
+    await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     await ensureProspectingSchema();
     const body = (await request.json()) as Record<string, unknown>;
     const id = clean(body.id, 80);
@@ -185,6 +194,12 @@ export async function PATCH(request: Request) {
         { error: "Prospect id is required." },
         { status: 400 },
       );
+    const owned = await getProspectingDb()
+      .prepare("SELECT id FROM prospects WHERE id = ? AND tenant_id = ?")
+      .bind(id, tenant.tenantId)
+      .first();
+    if (!owned)
+      return Response.json({ error: "Prospect not found." }, { status: 404 });
     const updates =
       body.updates && typeof body.updates === "object"
         ? (body.updates as Record<string, unknown>)
@@ -234,14 +249,14 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     sets.push("updated_at = ?");
-    values.push(new Date().toISOString(), id);
+    values.push(new Date().toISOString(), id, tenant.tenantId);
     await getProspectingDb()
-      .prepare(`UPDATE prospects SET ${sets.join(", ")} WHERE id = ?`)
+      .prepare(`UPDATE prospects SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`)
       .bind(...values)
       .run();
     const row = await getProspectingDb()
-      .prepare("SELECT * FROM prospects WHERE id = ?")
-      .bind(id)
+      .prepare("SELECT * FROM prospects WHERE id = ? AND tenant_id = ?")
+      .bind(id, tenant.tenantId)
       .first<ProspectRecord>();
     if (!row)
       return Response.json({ error: "Prospect not found." }, { status: 404 });
@@ -256,6 +271,15 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  try { await ensureCoreSchema(); if (!(await hasModuleAccess(request, "prospecting"))) return Response.json({ error: "Prospecting access is required." }, { status: 403 }); await ensureProspectingSchema(); const id = clean(new URL(request.url).searchParams.get("id"), 80); if (!id) return Response.json({ error: "Prospect id is required." }, { status: 400 }); await getProspectingDb().prepare("DELETE FROM prospects WHERE id=?").bind(id).run(); return Response.json({ deleted: true }); }
+  try {
+    await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
+    await ensureProspectingSchema();
+    const id = clean(new URL(request.url).searchParams.get("id"), 80);
+    if (!id) return Response.json({ error: "Prospect id is required." }, { status: 400 });
+    await getProspectingDb().prepare("DELETE FROM prospects WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).run();
+    return Response.json({ deleted: true });
+  }
   catch (error) { console.error("prospect.delete.failed", error); return Response.json({ error: "Unable to delete prospect." }, { status: 500 }); }
 }

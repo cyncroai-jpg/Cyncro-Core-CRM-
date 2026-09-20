@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 
-type Mode = "login" | "setup" | "invite";
+type Mode = "login" | "setup" | "invite" | "signup";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
 
   // Invite-specific
   const [inviteToken, setInviteToken] = useState("");
@@ -47,6 +48,12 @@ export default function LoginPage() {
       return;
     }
 
+    if (params.get("signup") !== null) {
+      setMode("signup");
+      setLoading(false);
+      return;
+    }
+
     // Check if first-run setup is needed
     void fetch("/api/auth/setup")
       .then((r) => r.json())
@@ -71,6 +78,42 @@ export default function LoginPage() {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setError(data.error ?? "Login failed.");
+      } else {
+        window.location.href = "/#crm";
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleSignup(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/tenants/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantName: companyName.trim(),
+          email: email.trim(),
+          displayName: displayName.trim(),
+          password,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Could not create your workspace.");
       } else {
         window.location.href = "/#crm";
       }
@@ -170,7 +213,95 @@ export default function LoginPage() {
           <span className="loginLogoSub">Core</span>
         </div>
 
-        {mode === "invite" ? (
+        {mode === "signup" ? (
+          <>
+            <div className="loginHeading">
+              <p className="loginEyebrow">START YOUR WORKSPACE</p>
+              <h1>Create your company's workspace</h1>
+              <p className="loginSubtext">
+                Your own isolated Cyncro account — contacts, pipeline, prospecting, and calendar, private to your team.
+              </p>
+            </div>
+
+            <form className="loginForm" onSubmit={(e) => void handleSignup(e)} noValidate>
+              <div className="loginField">
+                <label htmlFor="companyName">Company name</label>
+                <input
+                  id="companyName"
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="Acme Roofing Co."
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="signupDisplayName">Your name</label>
+                <input
+                  id="signupDisplayName"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Full name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="signupEmail">Work email</label>
+                <input
+                  id="signupEmail"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="signupPassword">Password</label>
+                <input
+                  id="signupPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+              <div className="loginField">
+                <label htmlFor="signupConfirmPassword">Confirm password</label>
+                <input
+                  id="signupConfirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              {error && <p className="loginError" role="alert">{error}</p>}
+
+              <button type="submit" className="loginSubmit" disabled={submitting}>
+                {submitting ? <span className="loginBtnSpinner" /> : "Create workspace"}
+              </button>
+            </form>
+            <p className="loginToggle">
+              Already have a workspace?{" "}
+              <button type="button" className="loginToggleLink" onClick={() => { setError(""); setMode("login"); }}>Sign in</button>
+            </p>
+          </>
+        ) : mode === "invite" ? (
           <>
             <div className="loginHeading">
               <p className="loginEyebrow">YOU&apos;VE BEEN INVITED</p>
@@ -353,6 +484,10 @@ export default function LoginPage() {
                 {submitting ? <span className="loginBtnSpinner" /> : "Sign in"}
               </button>
             </form>
+            <p className="loginToggle">
+              New company?{" "}
+              <button type="button" className="loginToggleLink" onClick={() => { setError(""); setMode("signup"); }}>Create a workspace</button>
+            </p>
           </>
         )}
 
@@ -530,6 +665,23 @@ export default function LoginPage() {
           border-top-color: #fff;
           border-radius: 50%;
           animation: loginSpin 0.7s linear infinite;
+        }
+        .loginToggle {
+          margin: 20px 0 0;
+          font-size: 12.5px;
+          color: #B8ABAD;
+          text-align: center;
+        }
+        .loginToggleLink {
+          background: transparent;
+          border: 0;
+          color: #E35B72;
+          font-family: inherit;
+          font-size: inherit;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: underline;
         }
         .loginFooter {
           margin: 28px 0 0;

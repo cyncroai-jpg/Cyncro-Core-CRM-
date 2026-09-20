@@ -1,10 +1,12 @@
-import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, hasModuleAccess, normalizeEmail, normalizePhone, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, normalizePhone } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const query = cleanText(url.searchParams.get("q"), 100);
     const db = coreDb();
@@ -13,13 +15,13 @@ export async function GET(request: Request) {
           COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
           COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
           FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
-          WHERE c.full_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR a.name LIKE ? ORDER BY c.updated_at DESC LIMIT 250`)
-          .bind(...Array(4).fill(`%${query}%`))
+          WHERE c.tenant_id = ? AND (c.full_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR a.name LIKE ?) ORDER BY c.updated_at DESC LIMIT 250`)
+          .bind(tenant.tenantId, ...Array(4).fill(`%${query}%`))
       : db.prepare(`SELECT c.*, a.name AS company_name, a.address AS company_address, a.domain AS company_domain,
           COALESCE((SELECT SUM(o.value_cents) FROM crm_opportunities o WHERE o.primary_contact_id=c.id),0) AS opportunity_value_cents,
           COALESCE((SELECT o.stage FROM crm_opportunities o WHERE o.primary_contact_id=c.id ORDER BY o.updated_at DESC LIMIT 1),c.lifecycle) AS opportunity_stage
           FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id
-          ORDER BY c.updated_at DESC LIMIT 250`);
+          WHERE c.tenant_id = ? ORDER BY c.updated_at DESC LIMIT 250`).bind(tenant.tenantId);
     const { results } = await statement.all();
     return Response.json({ contacts: results });
   } catch (error) {
@@ -31,7 +33,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasCrmAction(request, "create"))) return Response.json({ error: "Create permission is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const fullName = cleanText(body.fullName, 160);
     const email = normalizeEmail(body.email);
@@ -40,37 +43,37 @@ export async function POST(request: Request) {
     if (body.email && !email) return Response.json({ error: "Enter a valid email." }, { status: 400 });
     const db = coreDb();
     if (email) {
-      const duplicate = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = ? LIMIT 1").bind(email).first();
+      const duplicate = await db.prepare("SELECT id FROM crm_contacts WHERE tenant_id=? AND lower(email) = ? LIMIT 1").bind(tenant.tenantId, email).first();
       if (duplicate) return Response.json({ error: "A CRM contact already uses this email.", duplicateId: duplicate.id }, { status: 409 });
     }
     const phoneDigits = normalizePhone(phone);
     if (phoneDigits) {
-      const phoneDupe = await db.prepare("SELECT id, full_name FROM crm_contacts WHERE replace(replace(replace(replace(replace(phone,'+',''),'-',''),' ',''),'(',''),')','') = ? LIMIT 1").bind(phoneDigits).first<{ id: string; full_name: string }>();
+      const phoneDupe = await db.prepare("SELECT id, full_name FROM crm_contacts WHERE tenant_id=? AND replace(replace(replace(replace(replace(phone,'+',''),'-',''),' ',''),'(',''),')','') = ? LIMIT 1").bind(tenant.tenantId, phoneDigits).first<{ id: string; full_name: string }>();
       if (phoneDupe) return Response.json({ error: `Phone number already belongs to ${phoneDupe.full_name}.`, duplicateId: phoneDupe.id }, { status: 409 });
     }
     const now = new Date().toISOString();
     let accountId = cleanText(body.accountId, 80) || null;
     const company = cleanText(body.company, 160) || `${fullName} Account`;
     if (!accountId && company) {
-      const existingAccount = await db.prepare("SELECT id FROM crm_accounts WHERE lower(name) = lower(?) LIMIT 1").bind(company).first<{ id: string }>();
+      const existingAccount = await db.prepare("SELECT id FROM crm_accounts WHERE tenant_id=? AND lower(name) = lower(?) LIMIT 1").bind(tenant.tenantId, company).first<{ id: string }>();
       accountId = existingAccount?.id || crypto.randomUUID();
       if (!existingAccount) await db.prepare(`INSERT INTO crm_accounts
-        (id, name, owner_email, source, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?)`)
-        .bind(accountId, company, requestUser(request), cleanText(body.source, 80) || "MANUAL", now, now).run();
+        (id, name, owner_email, source, status, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?)`)
+        .bind(accountId, company, tenant.email, cleanText(body.source, 80) || "MANUAL", tenant.tenantId, now, now).run();
     }
     const id = crypto.randomUUID();
     await db.prepare(`INSERT INTO crm_contacts
-      (id, account_id, full_name, email, phone, title, lifecycle, assigned_rep, source, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      (id, account_id, full_name, email, phone, title, lifecycle, assigned_rep, source, notes, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(id, accountId, fullName, email, phone, cleanText(body.title, 120) || null,
-        cleanText(body.lifecycle, 40) || "LEAD", cleanText(body.assignedRep, 160) || requestUser(request),
-        cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, now, now).run();
-    let defaultPipeline = await db.prepare("SELECT id FROM crm_pipelines WHERE active=1 ORDER BY is_default DESC, created_at LIMIT 1").first<{ id: string }>();
+        cleanText(body.lifecycle, 40) || "LEAD", cleanText(body.assignedRep, 160) || tenant.email,
+        cleanText(body.source, 80) || "MANUAL", cleanText(body.notes, 5000) || null, tenant.tenantId, now, now).run();
+    let defaultPipeline = await db.prepare("SELECT id FROM crm_pipelines WHERE tenant_id=? AND active=1 ORDER BY is_default DESC, created_at LIMIT 1").bind(tenant.tenantId).first<{ id: string }>();
     if (!defaultPipeline) {
       const pipelineId = crypto.randomUUID();
-      await db.prepare("INSERT INTO crm_pipelines (id,name,description,is_default,active,created_at,updated_at) VALUES (?,'Sales Pipeline','Primary revenue pipeline',1,1,?,?)").bind(pipelineId,now,now).run();
+      await db.prepare("INSERT INTO crm_pipelines (id,name,description,is_default,active,tenant_id,created_at,updated_at) VALUES (?,'Sales Pipeline','Primary revenue pipeline',1,1,?,?,?)").bind(pipelineId,tenant.tenantId,now,now).run();
       const defaults = [["NEW LEAD","#6B7280",10],["QUALIFIED","#8B5CF6",25],["DISCOVERY","#3B82F6",40],["PROPOSAL","#F59E0B",65],["CLOSED WON","#10B981",100],["CLOSED LOST","#374151",0]] as const;
-      await db.batch(defaults.map((stage,position)=>db.prepare(`INSERT INTO crm_pipeline_stages (id,pipeline_id,name,color,position,probability,is_won,is_lost,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),pipelineId,stage[0],stage[1],position,stage[2],stage[0]==="CLOSED WON"?1:0,stage[0]==="CLOSED LOST"?1:0,now,now)));
+      await db.batch(defaults.map((stage,position)=>db.prepare(`INSERT INTO crm_pipeline_stages (id,pipeline_id,name,color,position,probability,is_won,is_lost,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),pipelineId,stage[0],stage[1],position,stage[2],stage[0]==="CLOSED WON"?1:0,stage[0]==="CLOSED LOST"?1:0,tenant.tenantId,now,now)));
       defaultPipeline = { id: pipelineId };
     }
     const firstStage = defaultPipeline ? await db.prepare("SELECT name FROM crm_pipeline_stages WHERE pipeline_id=? ORDER BY position LIMIT 1").bind(defaultPipeline.id).first<{ name: string }>() : null;
@@ -78,11 +81,11 @@ export async function POST(request: Request) {
     if (accountId && defaultPipeline && firstStage) {
       opportunityId = crypto.randomUUID();
       await db.prepare(`INSERT INTO crm_opportunities
-        (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,0,10,?,2000,'PENDING','UNPAID',0,0,0,?,?,?)`)
-        .bind(opportunityId, accountId, id, defaultPipeline.id, `${fullName} opportunity`, firstStage.name, cleanText(body.assignedRep,160) || requestUser(request), cleanText(body.source,80) || "MANUAL", now, now).run();
+        (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,tenant_id,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,0,10,?,2000,'PENDING','UNPAID',0,0,0,?,?,?,?)`)
+        .bind(opportunityId, accountId, id, defaultPipeline.id, `${fullName} opportunity`, firstStage.name, cleanText(body.assignedRep,160) || tenant.email, cleanText(body.source,80) || "MANUAL", tenant.tenantId, now, now).run();
     }
-    const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ?").bind(id).first();
+    const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first();
     await runAutomations(request, "CONTACT_CREATED", { contactId: id, accountId, opportunityId, source: cleanText(body.source, 80) || "MANUAL" });
     return Response.json({ contact, accountId, opportunityId }, { status: 201 });
   } catch (error) {
@@ -94,10 +97,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasCrmAction(request, "edit"))) return Response.json({ error: "Edit permission is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM crm_contacts WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Contact not found." }, { status: 404 });
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
     const fields: string[] = []; const values: unknown[] = [];
     const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
@@ -111,21 +117,21 @@ export async function PATCH(request: Request) {
     const hasAccountChanges = updates.company !== undefined || updates.address !== undefined || updates.website !== undefined;
     if (!fields.length && !hasAccountChanges) return Response.json({ error: "No valid contact changes supplied." }, { status: 400 });
     if (fields.length) {
-      add("updated_at", new Date().toISOString()); values.push(id);
-      await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+      add("updated_at", new Date().toISOString()); values.push(id, tenant.tenantId);
+      await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ? AND tenant_id = ?`).bind(...values).run();
     }
     if (updates.company !== undefined || updates.address !== undefined || updates.website !== undefined) {
-      const row = await coreDb().prepare("SELECT account_id FROM crm_contacts WHERE id=?").bind(id).first<{account_id?:string}>();
+      const row = await coreDb().prepare("SELECT account_id FROM crm_contacts WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<{account_id?:string}>();
       if (row?.account_id) {
         const accountFields: string[] = [], accountValues: unknown[] = [];
         if (updates.company !== undefined) { accountFields.push("name=?"); accountValues.push(cleanText(updates.company,160)); }
         if (updates.address !== undefined) { accountFields.push("address=?"); accountValues.push(cleanText(updates.address,300)||null); }
         if (updates.website !== undefined) { accountFields.push("domain=?"); accountValues.push(cleanText(updates.website,240)||null); }
-        accountFields.push("updated_at=?"); accountValues.push(new Date().toISOString(), row.account_id);
-        await coreDb().prepare(`UPDATE crm_accounts SET ${accountFields.join(",")} WHERE id=?`).bind(...accountValues).run();
+        accountFields.push("updated_at=?"); accountValues.push(new Date().toISOString(), row.account_id, tenant.tenantId);
+        await coreDb().prepare(`UPDATE crm_accounts SET ${accountFields.join(",")} WHERE id=? AND tenant_id=?`).bind(...accountValues).run();
       }
     }
-    const contact = await coreDb().prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id WHERE c.id = ?`).bind(id).first();
+    const contact = await coreDb().prepare(`SELECT c.*, a.name AS company_name FROM crm_contacts c LEFT JOIN crm_accounts a ON a.id = c.account_id WHERE c.id = ? AND c.tenant_id = ?`).bind(id, tenant.tenantId).first();
     return contact ? Response.json({ contact }) : Response.json({ error: "Contact not found." }, { status: 404 });
   } catch (error) {
     console.error("crm.contacts.update_failed", error);
@@ -135,9 +141,13 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureCoreSchema(); if (!(await hasCrmAction(request, "delete"))) return Response.json({ error: "Delete permission is required." }, { status: 403 }); const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
+    await ensureCoreSchema();
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
+    const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Contact id is required." }, { status: 400 });
-    const db = coreDb(); const contact = await db.prepare("SELECT id FROM crm_contacts WHERE id=?").bind(id).first();
+    const db = coreDb();
+    const contact = await db.prepare("SELECT id FROM crm_contacts WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
     if (!contact) return Response.json({ error: "Contact not found." }, { status: 404 });
     await db.batch([db.prepare("DELETE FROM crm_activities WHERE contact_id=?").bind(id), db.prepare("UPDATE calendar_bookings SET contact_id=NULL WHERE contact_id=?").bind(id), db.prepare("UPDATE crm_opportunities SET primary_contact_id=NULL WHERE primary_contact_id=?").bind(id), db.prepare("DELETE FROM crm_contacts WHERE id=?").bind(id)]);
     return Response.json({ deleted: true });

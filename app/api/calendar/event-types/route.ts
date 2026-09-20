@@ -1,9 +1,12 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    const { results } = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE active = 1 ORDER BY name").all();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
+    const { results } = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE active = 1 AND tenant_id = ? ORDER BY name").bind(tenant.tenantId).all();
     return Response.json({ eventTypes: results });
   } catch (error) {
     console.error("calendar.event_types.list_failed", error);
@@ -14,7 +17,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     const slug = cleanText(body.slug, 120).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -27,13 +31,13 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO calendar_event_types
-      (id, name, slug, description, duration_minutes, duration_options, buffer_before_minutes, buffer_after_minutes, capacity, location_modes, video_platforms, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      (id, name, slug, description, duration_minutes, duration_options, buffer_before_minutes, buffer_after_minutes, capacity, location_modes, video_platforms, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(id, name, slug, cleanText(body.description, 1000) || null, duration, JSON.stringify([duration]),
         Math.max(0, Number(body.bufferBeforeMinutes || 0)), Math.max(0, Number(body.bufferAfterMinutes || 0)), capacity,
         JSON.stringify(Array.isArray(body.locationModes) ? body.locationModes : ["VIDEO"]),
-        JSON.stringify(Array.isArray(body.videoPlatforms) ? body.videoPlatforms : ["GOOGLE_MEET", "ZOOM", "FACETIME"]), now, now).run();
-    if (cleanText(body.hostName, 160)) await coreDb().prepare("UPDATE calendar_event_types SET host_name=? WHERE id=?").bind(cleanText(body.hostName,160),id).run();
+        JSON.stringify(Array.isArray(body.videoPlatforms) ? body.videoPlatforms : ["GOOGLE_MEET", "ZOOM", "FACETIME"]), tenant.tenantId, now, now).run();
+    if (cleanText(body.hostName, 160)) await coreDb().prepare("UPDATE calendar_event_types SET host_name=? WHERE id=? AND tenant_id=?").bind(cleanText(body.hostName,160),id,tenant.tenantId).run();
     return Response.json({ id, slug }, { status: 201 });
   } catch (error) {
     console.error("calendar.event_types.create_failed", error);
@@ -44,10 +48,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Event type id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_event_types WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Event type not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     const add = (column: string, value: unknown) => { fields.push(`${column} = ?`); values.push(value); };
@@ -81,9 +88,9 @@ export async function PATCH(request: Request) {
     if (body.bookingPageDescription !== undefined) add("booking_page_description", cleanText(body.bookingPageDescription, 1000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString());
-    values.push(id);
-    await coreDb().prepare(`UPDATE calendar_event_types SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
-    const eventType = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE id = ?").bind(id).first();
+    values.push(id, tenant.tenantId);
+    await coreDb().prepare(`UPDATE calendar_event_types SET ${fields.join(", ")} WHERE id = ? AND tenant_id = ?`).bind(...values).run();
+    const eventType = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first();
     return eventType ? Response.json({ eventType }) : Response.json({ error: "Event type not found." }, { status: 404 });
   } catch (error) {
     console.error("calendar.event_types.update_failed", error);

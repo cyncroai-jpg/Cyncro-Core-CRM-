@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant } from "@/lib/core/tenantAuth";
 
 /**
  * SmartSlot™ Engine — ranked slot recommendations with explainable scoring.
@@ -12,6 +13,8 @@ import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const eventTypeId = cleanText(url.searchParams.get("eventTypeId"), 80);
     const from = new Date(url.searchParams.get("from") || "");
@@ -21,16 +24,16 @@ export async function GET(request: Request) {
     if (!eventTypeId || Number.isNaN(from.valueOf()))
       return Response.json({ error: "Event type and start date are required." }, { status: 400 });
     const db = coreDb();
-    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
+    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1 AND tenant_id = ?").bind(eventTypeId, tenant.tenantId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
     // Get raw availability slots from the existing availability engine
     const endRange = new Date(from.getTime() + days * 86_400_000);
     const { results: rules } = await db.prepare(
-      "SELECT * FROM calendar_availability WHERE active = 1 AND (event_type_id = ? OR event_type_id IS NULL)"
-    ).bind(eventTypeId).all<Record<string, unknown>>();
+      "SELECT * FROM calendar_availability WHERE active = 1 AND tenant_id = ? AND (event_type_id = ? OR event_type_id IS NULL)"
+    ).bind(tenant.tenantId, eventTypeId).all<Record<string, unknown>>();
     const { results: bookings } = await db.prepare(
-      `SELECT starts_at, ends_at, assigned_to FROM calendar_bookings WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`
-    ).bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string; assigned_to: string }>();
+      `SELECT starts_at, ends_at, assigned_to FROM calendar_bookings WHERE event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`
+    ).bind(eventTypeId, tenant.tenantId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string; assigned_to: string }>();
     const { results: blocked } = await db.prepare(
       `SELECT starts_at, ends_at FROM calendar_blocked_times WHERE (event_type_id = ? OR event_type_id IS NULL) AND starts_at < ? AND ends_at > ?`
     ).bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
