@@ -4474,9 +4474,11 @@ function DisputeCommand({
 }) {
   const [priorityItems, setPriorityItems] = useState<(DisputeItemRow & { first_name: string; last_name: string })[]>([]);
   const [tasks, setTasks] = useState<DisputeTaskRow[]>([]);
+  const [mail, setMail] = useState<DisputeMailRow[]>([]);
   const loadPriorityPanels = () => {
-    void fetch("/api/dispute?resource=items").then((r) => r.json()).then((d: { items?: typeof priorityItems }) => setPriorityItems((d.items || []).slice(0, 6)));
-    void fetch("/api/dispute?resource=tasks&status=OPEN").then((r) => r.json()).then((d: { tasks?: DisputeTaskRow[] }) => setTasks((d.tasks || []).slice(0, 5)));
+    void fetch("/api/dispute?resource=items").then((r) => r.json()).then((d: { items?: typeof priorityItems }) => setPriorityItems((d.items || []).slice(0, 10)));
+    void fetch("/api/dispute?resource=tasks&status=OPEN").then((r) => r.json()).then((d: { tasks?: DisputeTaskRow[] }) => setTasks((d.tasks || []).slice(0, 8)));
+    void fetch("/api/dispute?resource=mail").then((r) => r.json()).then((d: { mail?: DisputeMailRow[] }) => setMail((d.mail || []).filter((m) => m.status === "MAILED").slice(0, 6)));
   };
   useEffect(loadPriorityPanels, []);
   const isEmpty = clients.length === 0;
@@ -4487,113 +4489,121 @@ function DisputeCommand({
         else onFlash(d.reason || "Could not load demo data");
       });
   };
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const stageOf = (status: string) => /RESOLVED|DELETED|CORRECTED|VERIFIED|CLOSED/.test(status) ? 5 : /RESPOND|INVESTIG|REVIEW/.test(status) ? 4 : /MAILED|SENT|DELIVERED/.test(status) ? 3 : /READY|APPROVED|ATTEST/.test(status) ? 2 : 1;
+  const daysLeft = (date: string | null) => date ? Math.ceil((new Date(date).getTime() - Date.now()) / 86_400_000) : null;
+  const roster = ["TRIAL", "ACTIVE", "PAST_DUE", "CANCELLED"].map((status) => ({ status, count: clients.filter((c) => c.subscription_status === status).length }));
   return (
-    <>
-      <div className="disputeHero">
+    <div className="ccShell">
+      <div className="ccTop">
         <div>
-          <span>CONSUMER REPORT ACCURACY OPERATIONS</span>
-          <h1>
-            Every fact tracked.
-            <br />
-            <i>Every deadline protected.</i>
-          </h1>
-          <p>
-            Evidence-led dispute management with bureau rounds, furnisher
-            investigations, certified mail, response analysis, and compliance
-            controls.
-          </p>
+          <label>CONSUMER REPORT ACCURACY OPERATIONS</label>
+          <h1>Every fact tracked. Every deadline protected.</h1>
+          <p>Evidence-led dispute management with bureau rounds, furnisher investigations, certified mail, response analysis, and compliance controls.</p>
         </div>
-        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Clients")}>✦ Build compliant dispute</button>}
+        <div className="ccTopActions">
+          {isEmpty ? <button className="primary" onClick={loadDemoData}>◈ LOAD DEMO DATA</button> : <button className="primary" onClick={() => onView("Clients")}>✦ BUILD COMPLIANT DISPUTE</button>}
+          <button onClick={() => onView("Compliance")}>COMPLIANCE CENTER</button>
+        </div>
       </div>
-      {isEmpty && <p className="disputeEmpty">This account is empty. "Load demo data" seeds real sample clients, dispute rounds, tradelines, a mailed letter with certified-mail tracking, and a follow-up task — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
-      <div className="disputeMetrics">
-        {[
-          ["ACTIVE CLIENTS", String(summary?.activeClients ?? clients.length), ""],
-          ["OPEN ITEMS", String(summary?.openItems ?? "—"), "Across all rounds"],
-          ["ITEMS CORRECTED", String(summary?.itemsCorrected ?? "—"), "Verified deletions"],
-          ["MAIL IN TRANSIT", String(summary?.mailInTransit ?? "—"), "Certified tracking"],
-        ].map((m) => (
-          <article key={m[0]}>
-            <small>{m[0]}</small>
-            <b>{m[1]}</b>
-            <span>{m[2]}</span>
-          </article>
-        ))}
+      {isEmpty && <p className="ccAlert">This account is empty. &quot;Load demo data&quot; seeds real sample clients, dispute rounds, tradelines, a mailed letter with certified-mail tracking, and a follow-up task — genuine rows that flow through the same logic as anything you&apos;d enter by hand.</p>}
+      <div className="ccKpis">
+        <article><small>ACTIVE CLIENTS</small><b>{summary?.activeClients ?? clients.length}</b><span>in program</span></article>
+        <article><small>OPEN ITEMS</small><b>{summary?.openItems ?? "—"}</b><span>across all rounds</span></article>
+        <article><small>ITEMS CORRECTED</small><b>{summary?.itemsCorrected ?? "—"}</b><span>verified deletions</span></article>
+        <article><small>MAIL IN TRANSIT</small><b>{summary?.mailInTransit ?? "—"}</b><span>certified tracking</span></article>
+        <article><small>TASKS DUE SOON</small><b>{summary?.tasksDueSoon ?? tasks.length}</b><span>statutory clocks</span></article>
       </div>
-      <div className="disputeCommandGrid">
-        <section className="disputePanel casePulse">
-          <header>
-            <div>
-              <small>PRIORITY ITEMS</small>
-              <h2>What needs action now</h2>
+      <div className="ccGrid3">
+        <section className="ccPanel">
+          <header><div><small>PRIORITY ITEMS</small><b>What needs action now</b></div><button onClick={() => onView("Cases")}>CASES →</button></header>
+          <div className="ccScroll">
+            <div className="ccPipe">
+              {priorityItems.map((c) => {
+                const stage = stageOf(String(c.status || ""));
+                return (
+                  <article key={c.id} onClick={() => onView("Cases")}>
+                    <div>
+                      <div><b>{c.first_name} {c.last_name}</b><small>{c.creditor_name} · {DISPUTE_REASON_LABELS[c.dispute_reason] || c.dispute_reason}</small></div>
+                      <i className={`ccTag ${stage === 5 ? "green" : stage >= 3 ? "amber" : "muted"}`}>{String(c.status).replace(/_/g, " ")}</i>
+                    </div>
+                    <div className="ccSteps">{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= stage ? "on" : ""} />)}</div>
+                    <div className="ccStepLabels"><span>AUDIT</span><span>ATTEST</span><span>MAILED</span><span>RESPONSE</span><span>RESOLVED</span></div>
+                  </article>
+                );
+              })}
+              {!priorityItems.length && <div className="ccEmpty">No open items yet — start from a client&apos;s Report Audit.</div>}
             </div>
-            <button onClick={() => onView("Cases")}>All cases →</button>
-          </header>
-          {priorityItems.map((c) => (
-            <button onClick={() => onView("Cases")} key={c.id}>
-              <span>
-                <i>{`${c.first_name[0] || ""}${c.last_name[0] || ""}`}</i>
-                <div>
-                  <b>{c.first_name} {c.last_name}</b>
-                  <small>{c.creditor_name}</small>
-                </div>
-              </span>
-              <em>{DISPUTE_REASON_LABELS[c.dispute_reason] || c.dispute_reason}</em>
-              <strong>{c.status}</strong>
-            </button>
-          ))}
-          {!priorityItems.length && <p className="disputeEmpty">No open items yet — start from a client's Report Audit.</p>}
-        </section>
-        <section className="disputePanel deadlineRadar">
-          <small>FOLLOW-UPS + DEADLINES</small>
-          <h2>Next up</h2>
-          {tasks.map((t) => (
-            <article key={t.id}>
-              <i className={t.due_date && t.due_date < new Date().toISOString().slice(0, 10) ? "urgent" : "watch"} />
-              <span>{t.title}</span>
-              <b>{t.due_date ? new Date(t.due_date).toLocaleDateString() : "—"}</b>
-            </article>
-          ))}
-          {!tasks.length && <p className="disputeEmpty">No open tasks.</p>}
-          <button onClick={() => onView("Tasks")}>
-            Open task command →
-          </button>
-        </section>
-        <section className="disputePanel evidenceHealth">
-          <header>
-            <div>
-              <small>ROSTER</small>
-              <h2>Clients by program status</h2>
-            </div>
-          </header>
-          {["TRIAL", "ACTIVE", "PAST_DUE", "CANCELLED"].map((status) => {
-            const count = clients.filter((c) => c.subscription_status === status).length;
-            const pct = clients.length ? Math.round((count / clients.length) * 100) : 0;
-            return (
-              <article key={status}>
-                <span>{status}</span>
-                <em><i style={{ width: `${pct}%` }} /></em>
-                <b>{count}</b>
-              </article>
-            );
-          })}
-        </section>
-        <section className="disputePanel compliancePulse">
-          <small>COMPLIANCE PULSE</small>
-          <h2>Built to protect the consumer and the company.</h2>
-          <div>
-            <span>✓ No advance-fee workflow</span>
-            <span>✓ Truth attestation required before mailing</span>
-            <span>✓ No blanket disputes</span>
-            <span>✓ No false identity-theft claims</span>
-            <span>✓ Immutable activity record</span>
           </div>
-          <button onClick={() => onView("Compliance")}>
-            Open compliance center →
-          </button>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>DEADLINE RADAR</small><b>Nothing slips a statutory clock</b></div><button onClick={() => onView("Tasks")}>TASKS →</button></header>
+          <div className="ccScroll">
+            <div className="ccSection">
+              <small>FOLLOW-UPS</small>
+              <div className="ccFeed">
+                {[...tasks].sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999")).map((t) => {
+                  const left = daysLeft(t.due_date);
+                  return (
+                    <div key={t.id} onClick={() => onView("Tasks")} style={{ cursor: "pointer" }}>
+                      <i className={left != null && left < 0 ? "" : left != null && left <= 3 ? "amber" : "green"} />
+                      <span><b>{t.title}</b><small style={{ display: "block" }}>{t.assigned_to || "Unassigned"}</small></span>
+                      <small>{left == null ? "no date" : left < 0 ? `${Math.abs(left)}d overdue` : left === 0 ? "today" : `${left}d left`}</small>
+                    </div>
+                  );
+                })}
+                {!tasks.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>No open tasks.</p>}
+              </div>
+            </div>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>CERTIFIED MAIL IN TRANSIT</small>
+              <div className="ccFeed">
+                {mail.map((m) => {
+                  const left = daysLeft(m.response_due_date);
+                  return (
+                    <div key={m.id} onClick={() => onView("Mail")} style={{ cursor: "pointer" }}>
+                      <i className="amber" />
+                      <span><b>{m.credit_bureau} · {m.letter_type.replace(/_/g, " ")}</b><small style={{ display: "block" }}>{m.account_name} · {m.carrier}{m.tracking_number ? ` · ${m.tracking_number}` : ""}</small></span>
+                      <small>{left == null ? "in transit" : left < 0 ? "response overdue" : `${left}d to respond`}</small>
+                    </div>
+                  );
+                })}
+                {!mail.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>Nothing in transit.</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>ROSTER</small><b>Clients by program status</b></div><button onClick={() => onView("Clients")}>CLIENTS →</button></header>
+          <div className="ccScroll">
+            <div className="ccSection">
+              <small>PROGRAM STATUS</small>
+              <div className="ccRank">
+                {roster.map((r) => (
+                  <button key={r.status} style={{ gridTemplateColumns: "1fr auto", cursor: "default" }}>
+                    <span><b>{r.status.replace(/_/g, " ")}</b><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i className={r.count ? "" : "dim"} style={{ width: `${clients.length ? Math.round((r.count / clients.length) * 100) : 0}%`, flex: "none", height: 4, minWidth: r.count ? 4 : 0 }} /></div></span>
+                    <span style={{ color: "#fff", fontWeight: 600 }}>{r.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>COMPLIANCE PULSE</small>
+              <div className="ccChecks">
+                <span><i>✓</i>No advance-fee workflow</span>
+                <span><i>✓</i>Truth attestation required before mailing</span>
+                <span><i>✓</i>No blanket disputes</span>
+                <span><i>✓</i>No false identity-theft claims</span>
+                <span><i>✓</i>Immutable activity record</span>
+              </div>
+              <button className="ccGhost" style={{ marginTop: 10 }} onClick={() => onView("Compliance")}>OPEN COMPLIANCE CENTER →</button>
+            </div>
+          </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -6379,45 +6389,138 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
 function AutoCommand({
   summary, deals, onView, onReload, onFlash,
 }: { summary: AutoSummary | null; deals: AutoDealRow[]; onView: (v: AutoView) => void; onReload: () => void; onFlash: (m: string) => void }) {
+  const [inventory, setInventory] = useState<AutoVehicle[]>([]);
+  const [lenders, setLenders] = useState<AutoLenderRow[]>([]);
+  const [selectedDealId, setSelectedDealId] = useState("");
+  const loadPanels = () => {
+    void fetch("/api/automotive?resource=inventory").then((r) => r.json()).then((d: { inventory?: AutoVehicle[] }) => setInventory(d.inventory || []));
+    void fetch("/api/automotive?resource=lenders").then((r) => r.json()).then((d: { lenders?: AutoLenderRow[] }) => setLenders(d.lenders || []));
+  };
+  useEffect(loadPanels, [deals.length]);
   const isEmpty = (summary?.availableUnits ?? 0) === 0 && deals.length === 0;
   const loadDemoData = () => {
     void fetch("/api/automotive?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
-        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); }
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); loadPanels(); }
         else onFlash(d.reason || "Could not load demo data");
       });
   };
+  const available = inventory.filter((v) => v.status === "AVAILABLE");
+  const byMake = [...available.reduce((acc, v) => acc.set(v.make || "Other", (acc.get(v.make || "Other") || 0) + 1), new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const maxMake = Math.max(1, ...byMake.map(([, n]) => n));
+  const stageOf = (status: string) => status === "FUNDED" ? 5 : status === "UNWOUND" ? -1 : status === "DIGITAL_LEAD" ? 1 : status === "APPROVED" || status === "CONTRACTED" ? 4 : status === "SUBMITTED" ? 3 : 2;
+  const selected = deals.find((d) => d.id === selectedDealId) || deals[0] || null;
+  const topDeals = [...deals].sort((a, b) => b.sale_price_cents - a.sale_price_cents).slice(0, 8);
+  const maxPrice = Math.max(1, ...topDeals.map((d) => d.sale_price_cents));
+  const totalGross = (summary?.totalFrontGrossCents ?? 0) + (summary?.totalBackGrossCents ?? 0);
+  const pvr = summary?.fundedDeals ? Math.round(totalGross / summary.fundedDeals) : 0;
   return (
-    <>
-      <div className="disputeHero">
+    <div className="ccShell">
+      <div className="ccTop">
         <div>
-          <span>DEALERSHIP FINANCE OPERATIONS</span>
-          <h1>Every deal.<br /><i>One real number at a time.</i></h1>
+          <label>DEALERSHIP FINANCE OPERATIONS</label>
+          <h1>Every deal. One real number at a time.</h1>
           <p>Structure, lender matching, F&amp;I menu, and gross — computed from the actual deal, not a demo script.</p>
         </div>
-        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Deal Queue")}>✦ New deal</button>}
+        <div className="ccTopActions">
+          {isEmpty ? <button className="primary" onClick={loadDemoData}>◈ LOAD DEMO DATA</button> : <button className="primary" onClick={() => onView("Deal Queue")}>✦ NEW DEAL</button>}
+          <button onClick={() => onView("Inventory")}>INVENTORY</button>
+          <button onClick={() => onView("Lenders")}>LENDERS</button>
+        </div>
       </div>
-      {isEmpty && <p className="disputeEmpty">This dealership is empty. "Load demo data" seeds real sample customers, inventory, deals (including a funded one with a posted journal entry), lenders, and service records — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
-      <div className="disputeMetrics">
-        {[
-          ["AVAILABLE UNITS", String(summary?.availableUnits ?? "—"), ""],
-          ["ACTIVE DEALS", String(summary?.activeDeals ?? deals.length), ""],
-          ["FUNDED DEALS", String(summary?.fundedDeals ?? "—"), ""],
-          ["TOTAL GROSS (FUNDED)", autoMoney((summary?.totalFrontGrossCents ?? 0) + (summary?.totalBackGrossCents ?? 0)), "Front + back"],
-        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      {isEmpty && <p className="ccAlert">This dealership is empty. &quot;Load demo data&quot; seeds real sample customers, inventory, deals (including a funded one with a posted journal entry), lenders, and service records — genuine rows that flow through the same logic as anything you&apos;d enter by hand.</p>}
+      <div className="ccKpis">
+        <article><small>AVAILABLE UNITS</small><b>{summary?.availableUnits ?? "—"}</b><span>on the lot</span></article>
+        <article><small>ACTIVE DEALS</small><b>{summary?.activeDeals ?? deals.length}</b><span>{summary?.digitalLeads ? `${summary.digitalLeads} digital leads` : "in the desk"}</span></article>
+        <article><small>FUNDED DEALS</small><b>{summary?.fundedDeals ?? "—"}</b><span>all time</span></article>
+        <article><small>TOTAL GROSS (FUNDED)</small><b>{autoMoney(totalGross)}</b><span>{autoMoney(summary?.totalFrontGrossCents)} front · {autoMoney(summary?.totalBackGrossCents)} back</span></article>
+        <article><small>PVR</small><b>{pvr ? autoMoney(pvr) : "—"}</b><span>gross per funded deal</span></article>
       </div>
-      <section className="disputePanel casePulse">
-        <header><div><small>DEAL QUEUE</small><h2>Working deals</h2></div><button onClick={() => onView("Deal Queue")}>All deals →</button></header>
-        {deals.slice(0, 8).map((d) => (
-          <button onClick={() => onView("Deal Queue")} key={d.id}>
-            <span><i>{d.first_name[0]}{d.last_name[0]}</i><div><b>{d.first_name} {d.last_name}</b><small>{d.year} {d.make} {d.model} · {d.stock_number}</small></div></span>
-            <em>{autoMoney(d.monthly_payment_cents)}/mo</em>
-            <strong>{d.status}</strong>
-          </button>
-        ))}
-        {!deals.length && <p className="disputeEmpty">No deals yet.</p>}
-      </section>
-    </>
+      <div className="ccGrid3">
+        <section className="ccPanel">
+          <header><div><small>DEAL QUEUE</small><b>{deals.length} working deals</b></div><button onClick={() => onView("Deal Queue")}>ALL →</button></header>
+          <div className="ccScroll">
+            <div className="ccPipe">
+              {deals.slice(0, 12).map((d) => {
+                const stage = stageOf(d.status);
+                return (
+                  <article key={d.id} className={selected?.id === d.id ? "active" : ""} onClick={() => setSelectedDealId(d.id)}>
+                    <div>
+                      <div><b>{d.first_name} {d.last_name}</b><small>{d.year} {d.make} {d.model} · {d.stock_number} · {autoMoney(d.monthly_payment_cents)}/mo</small></div>
+                      <i className={`ccTag ${d.status === "FUNDED" ? "green" : stage === -1 ? "" : d.status === "DIGITAL_LEAD" ? "muted" : "amber"}`}>{d.status.replace(/_/g, " ")}</i>
+                    </div>
+                    <div className="ccSteps">{[1, 2, 3, 4, 5].map((n) => <i key={n} className={stage === -1 ? (n <= 2 ? "bad" : "") : n <= stage ? "on" : ""} />)}</div>
+                    <div className="ccStepLabels"><span>LEAD</span><span>STRUCTURED</span><span>SUBMITTED</span><span>APPROVED</span><span>FUNDED</span></div>
+                  </article>
+                );
+              })}
+              {!deals.length && <div className="ccEmpty">No deals yet.</div>}
+            </div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>INVENTORY SNAPSHOT</small><b>{available.length} available · {inventory.length} total</b></div><button onClick={() => onView("Inventory")}>LOT →</button></header>
+          <div className="ccScroll">
+            <div className="ccSection">
+              <small>UNITS BY MAKE</small>
+              <div className="ccRank">
+                {byMake.map(([make, n]) => (
+                  <button key={make} style={{ gridTemplateColumns: "1fr auto", cursor: "default" }}>
+                    <span><b>{make}</b><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((n / maxMake) * 100)}%`, flex: "none", height: 4 }} /></div></span>
+                    <span style={{ color: "#fff", fontWeight: 600 }}>{n}</span>
+                  </button>
+                ))}
+                {!byMake.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>No available units.</p>}
+              </div>
+            </div>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>FRESH ON THE LOT</small>
+              <div className="ccFeed">
+                {available.slice(0, 8).map((v) => (
+                  <div key={v.id} onClick={() => onView("Inventory")} style={{ cursor: "pointer" }}>
+                    <i className="green" />
+                    <span><b>{v.year} {v.make} {v.model}{v.trim ? ` ${v.trim}` : ""}</b><small style={{ display: "block" }}>{v.stock_number}{v.mileage ? ` · ${v.mileage.toLocaleString()} mi` : ""}</small></span>
+                    <small>{autoMoney(v.asking_price_cents)}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>DEAL ECONOMICS</small><b>Sale price · top deals</b></div>{lenders.length > 0 && <em>{lenders.filter((l) => l.active).length} LENDERS</em>}</header>
+          <div className="ccScroll">
+            <div className="ccSection">
+              <small>SALE PRICE BY DEAL</small>
+              <div className="ccBars" style={{ height: 110 }}>
+                {topDeals.map((d) => <i key={d.id} className={d.id === selected?.id ? "" : "dim"} style={{ height: `${Math.max(6, Math.round((d.sale_price_cents / maxPrice) * 100))}%` }} title={`${d.first_name} ${d.last_name} · ${autoMoney(d.sale_price_cents)}`} />)}
+                {!topDeals.length && <i className="dim" style={{ height: "6%" }} />}
+              </div>
+              <div className="ccBarsFoot"><span>{selected ? `${selected.first_name} ${selected.last_name}` : "—"}</span><span>{selected ? autoMoney(selected.sale_price_cents) : ""}</span></div>
+            </div>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>LENDER PANEL</small>
+              <table className="ccTable">
+                <thead><tr><th>LENDER</th><th>MIN FICO</th><th>BUY RATE</th><th>RESERVE</th></tr></thead>
+                <tbody>
+                  {lenders.slice(0, 8).map((l) => (
+                    <tr key={l.id} className={l.active ? "" : ""}>
+                      <td>{l.name}{!l.active && <> <span className="ccTag muted">OFF</span></>}</td>
+                      <td>{l.min_credit_score ?? "—"}</td>
+                      <td>{l.buy_rate != null ? `${l.buy_rate}%` : "—"}</td>
+                      <td>{l.reserve_pct != null ? `${l.reserve_pct}%` : "—"}</td>
+                    </tr>
+                  ))}
+                  {!lenders.length && <tr><td colSpan={4} className="ccEmpty">No lenders in the registry yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -10822,6 +10925,180 @@ function QuickNoteForm({ onFlash, contacts, onDone, onCancel }: { onFlash:(m:str
   return (<><div className="crmForm"><label>Note<textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Write anything about a contact, deal, or call…" autoFocus rows={4}/></label><label>Link to contact (optional)<select value={contactId} onChange={e=>setContactId(e.target.value)}><option value="">No contact</option>{contacts.map(c=><option key={c.id} value={c.id||""}>{c.name} · {c.company}</option>)}</select></label></div><div className="crmModalActions"><button onClick={onCancel}>Cancel</button><button onClick={()=>void submit()} disabled={saving}>{saving?"Saving…":"Save note"}</button></div></>);
 }
 
+type CRMOpportunityRow = { id: string; name: string; stage: string; value_cents: number; probability: number; assigned_rep: string | null; account_name: string | null; updated_at: string; expected_close_date: string | null };
+type CRMRepRow = { rep: string; accounts: number; won: number; revenue_cents: number; commission_cents: number };
+
+function CRMOverviewCommand({
+  crmSummary, recentActivity, onView, onOpenCalendar, onAskAi, onCompleteTask,
+}: {
+  crmSummary: Record<string, number>;
+  recentActivity: Record<string, unknown>[];
+  onView: (view: CRMView) => void;
+  onOpenCalendar: () => void;
+  onAskAi: () => void;
+  onCompleteTask: (id: string) => void;
+}) {
+  const [opportunities, setOpportunities] = useState<CRMOpportunityRow[]>([]);
+  const [reps, setReps] = useState<CRMRepRow[]>([]);
+  useEffect(() => {
+    void fetch("/api/crm/opportunities").then((r) => (r.ok ? r.json() : null)).then((d: { opportunities?: CRMOpportunityRow[] } | null) => setOpportunities(d?.opportunities || []));
+    void fetch("/api/crm/stats").then((r) => (r.ok ? r.json() : null)).then((d: { reps?: CRMRepRow[] } | null) => setReps(d?.reps || []));
+  }, [crmSummary.opportunities, crmSummary.accounts]);
+  const usd = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+  const open = opportunities.filter((o) => o.stage !== "CLOSED WON" && o.stage !== "CLOSED LOST");
+  const won = opportunities.filter((o) => o.stage === "CLOSED WON");
+  const lost = opportunities.filter((o) => o.stage === "CLOSED LOST");
+  const winRate = won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : null;
+  const weighted = open.reduce((sum, o) => sum + (o.value_cents * (o.probability || 0)) / 100, 0);
+  const stageMap = new Map<string, { count: number; cents: number }>();
+  for (const o of open) { const cur = stageMap.get(o.stage) || { count: 0, cents: 0 }; cur.count += 1; cur.cents += o.value_cents; stageMap.set(o.stage, cur); }
+  const stages = [...stageMap.entries()].sort((a, b) => b[1].cents - a[1].cents);
+  const maxStage = Math.max(1, ...stages.map(([, v]) => v.cents));
+  const nowMs = Date.now();
+  const tasks = recentActivity.filter((a) => a.activity_type === "TASK" && a.status !== "COMPLETED");
+  const overdue = tasks.filter((t) => t.due_at && new Date(String(t.due_at)).getTime() < nowMs);
+  const stale = open.filter((o) => nowMs - new Date(o.updated_at).getTime() > 14 * 86_400_000).sort((a, b) => b.value_cents - a.value_cents).slice(0, 3);
+  const biggest = [...open].sort((a, b) => b.value_cents - a.value_cents)[0];
+  const closingSoon = open.filter((o) => o.expected_close_date && new Date(o.expected_close_date).getTime() - nowMs < 7 * 86_400_000).slice(0, 3);
+  const signals = recentActivity.filter((a) => a.activity_type !== "TASK").slice(0, 6);
+  const topReps = reps.slice(0, 4);
+  const maxRep = Math.max(1, ...topReps.map((r) => r.revenue_cents));
+  return (
+    <div className="ccShell">
+      <div className="ccTop" style={{ justifyContent: "flex-end" }}>
+        <div className="ccTopActions">
+          <button className="primary" onClick={() => onView("Pipeline")}>OPEN PIPELINE →</button>
+          <button onClick={onOpenCalendar}>CALENDAR</button>
+          <button onClick={onAskAi}>✦ ASK CYNCRO</button>
+        </div>
+      </div>
+      <div className="ccKpis">
+        <article><small>OPEN PIPELINE</small><b>{usd(Number(crmSummary.pipeline_cents || 0))}</b><span>{open.length} open deals</span></article>
+        <article><small>WEIGHTED FORECAST</small><b>{usd(weighted)}</b><span>value × probability</span></article>
+        <article><small>CLOSED WON</small><b>{usd(Number(crmSummary.won_cents || 0))}</b><span>{won.length} deals won</span></article>
+        <article><small>WIN RATE</small><b>{winRate == null ? "—" : `${winRate}%`}</b><span>{won.length + lost.length ? `of ${won.length + lost.length} closed` : "no closed deals yet"}</span></article>
+        <article><small>CONTACTS · ACCOUNTS</small><b>{crmSummary.contacts || 0} · {crmSummary.accounts || 0}</b><span>in your workspace</span></article>
+      </div>
+      <div className="ccGrid3">
+        <section className="ccPanel">
+          <header><div><small>PIPELINE MOMENTUM</small><b>Open value by stage</b></div><button onClick={() => onView("Pipeline")}>BOARD →</button></header>
+          <div className="ccScroll">
+            <div className="ccRank">
+              {stages.map(([stage, v]) => (
+                <button key={stage} onClick={() => onView("Pipeline")} style={{ gridTemplateColumns: "1fr auto" }}>
+                  <span>
+                    <b>{stage}</b>
+                    <small>{v.count} deal{v.count === 1 ? "" : "s"}</small>
+                    <div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((v.cents / maxStage) * 100)}%`, flex: "none", height: 4 }} /></div>
+                  </span>
+                  <span style={{ color: "#fff", fontWeight: 600, fontSize: 12 }}>{usd(v.cents)}</span>
+                </button>
+              ))}
+              {!stages.length && <div className="ccEmpty">No open deals yet — add an opportunity from Pipeline.</div>}
+            </div>
+            {topReps.length > 0 && (
+              <div className="ccSection" style={{ marginTop: 10 }}>
+                <small>REP LEADERBOARD · WON REVENUE</small>
+                <div className="ccRank">
+                  {topReps.map((r, i) => (
+                    <button key={r.rep} style={{ gridTemplateColumns: "22px 1fr auto", cursor: "default" }}>
+                      <span>{i + 1}</span>
+                      <span><b>{r.rep}</b><small>{r.won} won · {r.accounts} deals</small><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((r.revenue_cents / maxRep) * 100)}%`, flex: "none", height: 4 }} /></div></span>
+                      <span style={{ color: "#fff", fontWeight: 600, fontSize: 12 }}>{usd(r.revenue_cents)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>PRIORITY ACTIONS</small><b>What deserves attention now</b></div><em>LIVE</em></header>
+          <div className="ccScroll">
+            <div className="ccDetail" style={{ padding: 0 }}>
+              <div className="ccSection">
+                <small>OVERDUE TASKS · {overdue.length}</small>
+                <div className="ccFeed">
+                  {overdue.slice(0, 4).map((t) => (
+                    <div key={String(t.id)}>
+                      <i />
+                      <span><b>{String(t.title)}</b><small style={{ display: "block" }}>{String(t.contact_name || "Contact")} · due {new Date(String(t.due_at)).toLocaleDateString()}</small></span>
+                      <button className="ccGhost" style={{ width: "auto", padding: "5px 9px" }} onClick={() => onCompleteTask(String(t.id))}>DONE</button>
+                    </div>
+                  ))}
+                  {!overdue.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>Nothing overdue.</p>}
+                </div>
+              </div>
+              <div className="ccSection">
+                <small>STALE DEALS · NO TOUCH IN 14+ DAYS</small>
+                <div className="ccFeed">
+                  {stale.map((o) => (
+                    <div key={o.id} onClick={() => onView("Pipeline")} style={{ cursor: "pointer" }}>
+                      <i className="amber" />
+                      <span><b>{o.name}</b><small style={{ display: "block" }}>{o.account_name || "—"} · {o.stage} · {o.assigned_rep || "unassigned"}</small></span>
+                      <small>{usd(o.value_cents)}</small>
+                    </div>
+                  ))}
+                  {!stale.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>Every open deal has been touched recently.</p>}
+                </div>
+              </div>
+              <div className="ccSection">
+                <small>CLOSING THIS WEEK</small>
+                <div className="ccFeed">
+                  {closingSoon.map((o) => (
+                    <div key={o.id} onClick={() => onView("Pipeline")} style={{ cursor: "pointer" }}>
+                      <i className="green" />
+                      <span><b>{o.name}</b><small style={{ display: "block" }}>{o.stage} · {o.probability}% · {o.expected_close_date}</small></span>
+                      <small>{usd(o.value_cents)}</small>
+                    </div>
+                  ))}
+                  {!closingSoon.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>{biggest ? `Largest open deal: ${biggest.name} · ${usd(biggest.value_cents)}` : "No close dates set on open deals."}</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header><div><small>LIVE CUSTOMER SIGNALS</small><b>What just happened</b></div><button onClick={() => onView("Conversations")}>ALL →</button></header>
+          <div className="ccScroll">
+            <div className="ccFeed">
+              {signals.map((item) => (
+                <div key={String(item.id)}>
+                  <i className={String(item.status) === "COMPLETED" ? "green" : "amber"} />
+                  <span><b>{String(item.title || "Customer activity")}</b><small style={{ display: "block" }}>{String(item.contact_name || "Contact")} · {String(item.activity_type || "")}</small></span>
+                  <small>{new Date(String(item.created_at)).toLocaleDateString()}</small>
+                </div>
+              ))}
+              {!signals.length && <div className="ccEmpty">No customer activity yet.</div>}
+            </div>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>NEXT ON YOUR DESK · {tasks.length} OPEN</small>
+              <div className="ccFeed">
+                {tasks.slice(0, 4).map((t) => (
+                  <div key={String(t.id)}>
+                    <i className="grey" />
+                    <span><b>{String(t.title)}</b><small style={{ display: "block" }}>{String(t.contact_name || "Contact")}{t.due_at ? ` · ${new Date(String(t.due_at)).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</small></span>
+                    <button className="ccGhost" style={{ width: "auto", padding: "5px 9px" }} onClick={() => onCompleteTask(String(t.id))}>DONE</button>
+                  </div>
+                ))}
+                {!tasks.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>No open tasks.</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div className="ccKpis">
+        <article onClick={() => onView("Attribution")} style={{ cursor: "pointer" }}><small>REVENUE TRUTH</small><b>Attribution</b><span>every click, call, form, booking → revenue</span></article>
+        <article onClick={() => onView("Cyncro Work")} style={{ cursor: "pointer" }}><small>TEAM EXECUTION</small><b>Cyncro Work</b><span>rep queues, boards, capacity</span></article>
+        <article onClick={onOpenCalendar} style={{ cursor: "pointer" }}><small>SCHEDULING</small><b>Universal Calendar</b><span>bookings, routing, availability</span></article>
+        <article onClick={() => onView("Agent Team")} style={{ cursor: "pointer" }}><small>AI WORKFORCE</small><b>Agent Team</b><span>summarize · score · draft</span></article>
+      </div>
+    </div>
+  );
+}
+
 function UniversalCRM({
   onOpenCalendar,
   onOpenProspecting,
@@ -11331,224 +11608,14 @@ function UniversalCRM({
           </div>
 
           {view === "Overview" && (
-            <>
-              <div className="crmMetrics">
-                {[
-                  [
-                    "OPEN PIPELINE",
-                    new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                      maximumFractionDigits: 0,
-                    }).format(Number(crmSummary.pipeline_cents || 0) / 100),
-                    "LIVE",
-                    `Across ${crmSummary.opportunities || 0} opportunities`,
-                  ],
-                  [
-                    "CLOSED WON",
-                    new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                      maximumFractionDigits: 0,
-                    }).format(Number(crmSummary.won_cents || 0) / 100),
-                    "LIVE",
-                    "Recorded revenue",
-                  ],
-                  [
-                    "ACTIVE CONTACTS",
-                    String(crmSummary.contacts || 0),
-                    "LIVE",
-                    "Database contacts",
-                  ],
-                  [
-                    "ACCOUNTS",
-                    String(crmSummary.accounts || 0),
-                    "LIVE",
-                    "Active CRM records",
-                  ],
-                ].map((metric) => (
-                  <article key={metric[0]}>
-                    <small>{metric[0]}</small>
-                    <div>
-                      <b>{metric[1]}</b>
-                      <span>{metric[2]}</span>
-                    </div>
-                    <p>{metric[3]}</p>
-                  </article>
-                ))}
-              </div>
-              <div className="crmOverviewGrid">
-                <article className="crmPanel crmForecast">
-                  <div className="crmPanelHead">
-                    <div>
-                      <small>REVENUE INTELLIGENCE</small>
-                      <h2>Pipeline momentum</h2>
-                    </div>
-                    <button onClick={() => setView("Pipeline")}>
-                      View pipeline →
-                    </button>
-                  </div>
-                  <div className="forecastHero">
-                    <div>
-                      <small>FORECASTED TO CLOSE</small>
-                      <b>$48,250</b>
-                      <span>64.3% of open pipeline</span>
-                    </div>
-                    <div className="forecastRing">
-                      <b>78</b>
-                      <small>HEALTH</small>
-                    </div>
-                  </div>
-                  <div className="forecastBars">
-                    {[
-                      ["New", 28, "$8K"],
-                      ["Qualified", 47, "$15K"],
-                      ["Proposal", 72, "$20K"],
-                      ["Negotiation", 90, "$32K"],
-                    ].map((item) => (
-                      <div key={item[0]}>
-                        <span>{item[0]}</span>
-                        <i>
-                          <b style={{ width: `${item[1]}%` }} />
-                        </i>
-                        <em>{item[2]}</em>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-                <article className="crmPanel aiBrief">
-                  <div className="aiBriefHead">
-                    <span>✦</span>
-                    <div>
-                      <small>CYNCRO INTELLIGENCE</small>
-                      <h2>Your daily brief</h2>
-                    </div>
-                    <i>LIVE</i>
-                  </div>
-                  <p>Three actions are most likely to create revenue today.</p>
-                  {[
-                    [
-                      "01",
-                      "Follow up with Daniel Kim",
-                      "Payment intent increased after opening the proposal twice.",
-                      "$32K",
-                    ],
-                    [
-                      "02",
-                      "Protect Alexandra’s momentum",
-                      "Her strategy session is tomorrow; send the executive brief.",
-                      "$18.5K",
-                    ],
-                    [
-                      "03",
-                      "Move Marcus to proposal",
-                      "All qualification criteria are complete.",
-                      "$12K",
-                    ],
-                  ].map((item) => (
-                    <button
-                      onClick={() => flash(`${item[1]} queued`)}
-                      key={item[0]}
-                    >
-                      <span>{item[0]}</span>
-                      <div>
-                        <b>{item[1]}</b>
-                        <small>{item[2]}</small>
-                      </div>
-                      <em>{item[3]}</em>
-                    </button>
-                  ))}
-                  <button className="askAi" onClick={() => setAiOpen(true)}>
-                    Ask Cyncro anything <span>↗</span>
-                  </button>
-                </article>
-                <article className="crmPanel crmActivity">
-                  <div className="crmPanelHead">
-                    <div>
-                      <small>LIVE CUSTOMER SIGNALS</small>
-                      <h2>What just happened</h2>
-                    </div>
-                    <button onClick={() => setView("Conversations")}>
-                      All activity →
-                    </button>
-                  </div>
-                  {!recentActivity.length && (
-                    <div className="noProspects">No customer activity yet.</div>
-                  )}
-                  {recentActivity
-                    .filter((item) => item.activity_type !== "TASK")
-                    .slice(0, 4)
-                    .map((item) => (
-                      <div className="activityRow" key={String(item.id)}>
-                        <i>{String(item.activity_type || "•").slice(0, 2)}</i>
-                        <div>
-                          <b>{String(item.title || "Customer activity")}</b>
-                          <small>
-                            {String(item.contact_name || "Contact")} ·{" "}
-                            {new Date(String(item.created_at)).toLocaleString()}
-                          </small>
-                        </div>
-                        <span>{String(item.status || "COMPLETED")}</span>
-                      </div>
-                    ))}
-                </article>
-                <article className="crmPanel crmAgenda">
-                  <div className="crmPanelHead">
-                    <div>
-                      <small>CALENDAR + TASKS</small>
-                      <h2>Next on your desk</h2>
-                    </div>
-                  <button onClick={openCRMCalendar}>Open calendar →</button>
-                  </div>
-                  {!recentActivity.some(
-                    (item) =>
-                      item.activity_type === "TASK" &&
-                      item.status !== "COMPLETED",
-                  ) && <div className="noProspects">No open tasks.</div>}
-                  {recentActivity
-                    .filter(
-                      (item) =>
-                        item.activity_type === "TASK" &&
-                        item.status !== "COMPLETED",
-                    )
-                    .slice(0, 4)
-                    .map((item) => (
-                      <div className="agendaRow" key={String(item.id)}>
-                        <time>
-                          {item.due_at
-                            ? new Date(String(item.due_at)).toLocaleTimeString(
-                                [],
-                                { hour: "numeric", minute: "2-digit" },
-                              )
-                            : "OPEN"}
-                        </time>
-                        <i />
-                        <div>
-                          <b>{String(item.title)}</b>
-                          <small>
-                            {String(item.contact_name || "Contact")} · Task
-                          </small>
-                        </div>
-                        <button
-                          onClick={() => void completeActivity(String(item.id))}
-                        >
-                          Complete
-                        </button>
-                      </div>
-                    ))}
-                </article>
-                <article className="crmPanel crmLaunchpad launchDeferred">
-                  <div className="crmPanelHead"><div><small>REVENUE TRUTH</small><h2>Cyncro Attribution</h2></div><button onClick={() => setView("Attribution")}>Open attribution →</button></div>
-                  <p>Connect every click, call, form, booking, invoice, and payment to the revenue it created.</p>
-                  <div><span>FIRST-PARTY TRACKING</span><span>MULTI-TOUCH ROAS</span><span>OFFLINE CONVERSIONS</span></div>
-                </article>
-                <article className="crmPanel crmLaunchpad launchDeferred">
-                  <div className="crmPanelHead"><div><small>TEAM EXECUTION</small><h2>Cyncro Work</h2></div><button onClick={() => setView("Cyncro Work")}>Open workboard →</button></div>
-                  <p>Individual rep queues, shared boards, ownership, deadlines, dependencies, and manager workload in one place.</p>
-                  <div><span>CLAIMABLE WORK</span><span>REP QUEUES</span><span>TEAM CAPACITY</span></div>
-                </article>
-              </div>
-            </>
+            <CRMOverviewCommand
+              crmSummary={crmSummary}
+              recentActivity={recentActivity}
+              onView={setView}
+              onOpenCalendar={openCRMCalendar}
+              onAskAi={() => setAiOpen(true)}
+              onCompleteTask={(id) => void completeActivity(id)}
+            />
           )}
 
           {view === "Pipeline" && (
@@ -18459,6 +18526,79 @@ function CyncroPrime() {
   );
 }
 
+type CalendarAnalytics = {
+  thisMonth: { total: number; completed: number; noShows: number; cancelled: number; showRate: number; revenueCents: number };
+  thisWeek: number;
+  next7Days: number;
+  allTime: { total: number; noShows: number; cancelled: number };
+  byEventType: { event_name: string; color: string; count: number }[];
+  upcomingList: { customer_name: string; starts_at: string; status: string; event_name: string; color: string; assigned_to: string | null }[];
+};
+
+function CalendarCommandStrip({ onCreate }: { onCreate?: () => void }) {
+  const [analytics, setAnalytics] = useState<CalendarAnalytics | null>(null);
+  useEffect(() => {
+    const load = () => void fetch("/api/calendar/analytics").then((r) => (r.ok ? r.json() : null)).then((d: CalendarAnalytics | null) => setAnalytics(d));
+    load();
+    window.addEventListener("cyncro:data-changed", load);
+    return () => window.removeEventListener("cyncro:data-changed", load);
+  }, []);
+  const usd = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+  const maxType = Math.max(1, ...(analytics?.byEventType || []).map((t) => Number(t.count)));
+  return (
+    <div className="ccShell" style={{ marginBottom: 16 }}>
+      <div className="ccTop">
+        <div>
+          <label>CYNCRO UNIVERSAL CALENDAR</label>
+          <h1>Turn open availability into booked, paid revenue.</h1>
+          <p>SmartSlot™ ranking, Outcome Routing™, capacity, deposits, waitlists — every appointment on one connected calendar.</p>
+        </div>
+        <div className="ccTopActions">
+          <button className="primary" onClick={() => (onCreate ? onCreate() : document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" }))}>✦ NEW EVENT TYPE</button>
+        </div>
+      </div>
+      <div className="ccKpis">
+        <article><small>BOOKED THIS MONTH</small><b>{analytics ? analytics.thisMonth.total : "—"}</b><span>{analytics ? `${analytics.thisMonth.completed} completed` : ""}</span></article>
+        <article><small>SHOW RATE</small><b>{analytics ? `${analytics.thisMonth.showRate}%` : "—"}</b><span>{analytics ? `${analytics.thisMonth.noShows} no-shows` : ""}</span></article>
+        <article><small>NEXT 7 DAYS</small><b>{analytics ? analytics.next7Days : "—"}</b><span>{analytics ? `${analytics.thisWeek} this week` : ""}</span></article>
+        <article><small>REVENUE THIS MONTH</small><b>{analytics ? usd(analytics.thisMonth.revenueCents) : "—"}</b><span>priced event types</span></article>
+        <article><small>ALL-TIME BOOKINGS</small><b>{analytics ? analytics.allTime.total : "—"}</b><span>{analytics ? `${analytics.allTime.cancelled} cancelled` : ""}</span></article>
+      </div>
+      <div className="ccGrid2">
+        <section className="ccPanel">
+          <header><div><small>UP NEXT</small><b>Next 7 days</b></div><em>LIVE</em></header>
+          <div className="ccScroll">
+            <div className="ccFeed">
+              {(analytics?.upcomingList || []).map((b, i) => (
+                <div key={`${b.starts_at}-${i}`}>
+                  <i style={{ background: b.color || undefined, boxShadow: b.color ? `0 0 8px ${b.color}` : undefined }} />
+                  <span><b>{b.customer_name}</b><small style={{ display: "block" }}>{b.event_name}{b.assigned_to ? ` · ${b.assigned_to}` : ""} · {b.status}</small></span>
+                  <small>{new Date(b.starts_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</small>
+                </div>
+              ))}
+              {analytics && !analytics.upcomingList.length && <div className="ccEmpty">Nothing booked in the next 7 days.</div>}
+            </div>
+          </div>
+        </section>
+        <section className="ccPanel">
+          <header><div><small>BY EVENT TYPE</small><b>This month</b></div></header>
+          <div className="ccScroll">
+            <div className="ccRank">
+              {(analytics?.byEventType || []).map((t) => (
+                <button key={t.event_name} style={{ gridTemplateColumns: "1fr auto", cursor: "default" }}>
+                  <span><b>{t.event_name}</b><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((Number(t.count) / maxType) * 100)}%`, flex: "none", height: 4, background: t.color || undefined }} /></div></span>
+                  <span style={{ color: "#fff", fontWeight: 600 }}>{t.count}</span>
+                </button>
+              ))}
+              {analytics && !analytics.byEventType.length && <div className="ccEmpty">No bookings this month yet.</div>}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function CRMCalendarWorkspace({
   onFlash,
   currentUserName,
@@ -18468,16 +18608,6 @@ function CRMCalendarWorkspace({
 }) {
   return (
     <div className="crmEmbeddedCalendar">
-      <div className="calendarAccessBar">
-        <div>
-          <small>CYNCRO UNIVERSAL CALENDAR</small>
-          <h2>Schedule, configure, publish.</h2>
-          <p>
-            Three simple steps. Advanced controls only appear when you need
-            them.
-          </p>
-        </div>
-      </div>
       <div className="calendarSimpleSteps">
         <button
           onClick={() =>
@@ -19392,77 +19522,7 @@ function Admin({
   };
   return (
     <section className="admin">
-      <div className="adminhead">
-        <div>
-          <label>UNIVERSAL CALENDAR</label>
-          <h1>Booking management</h1>
-          <p>
-            Availability, resources, contacts, and scheduling controls in one
-            place.
-          </p>
-        </div>
-        <button onClick={onCreate}>+ Create event</button>
-      </div>
-      <div className="stats">
-        {[
-          ["UPCOMING", String(upcoming.length)],
-          ["CONFIRMED", String(confirmed)],
-          ["COMPLETED", String(rows.filter((booking) => booking.status === "COMPLETED").length)],
-          ["CANCELLED", String(rows.filter((booking) => booking.status === "CANCELLED").length)],
-          ["NO-SHOWS", String(rows.filter((booking) => booking.status === "NO_SHOW").length)],
-        ].map((x) => (
-          <div key={x[0]}>
-            <small>{x[0]}</small>
-            <b>{x[1]}</b>
-            <p>Live backend</p>
-          </div>
-        ))}
-      </div>
-      {analytics && (
-        <div className="calendarAnalyticsBar">
-          <div className="calAnalyticsStat">
-            <small>SHOW RATE</small>
-            <b style={{color: analytics.thisMonth.showRate >= 80 ? "#3dcc7a" : analytics.thisMonth.showRate >= 60 ? "#d4c040" : "#e05060"}}>
-              {analytics.thisMonth.showRate}%
-            </b>
-            <span>this month</span>
-          </div>
-          <div className="calAnalyticsStat">
-            <small>NEXT 7 DAYS</small>
-            <b>{analytics.next7Days}</b>
-            <span>scheduled</span>
-          </div>
-          <div className="calAnalyticsStat">
-            <small>THIS WEEK</small>
-            <b>{analytics.thisWeek}</b>
-            <span>confirmed</span>
-          </div>
-          <div className="calAnalyticsStat">
-            <small>THIS MONTH</small>
-            <b>{analytics.thisMonth.total}</b>
-            <span>{analytics.thisMonth.completed} completed · {analytics.thisMonth.noShows} no-show</span>
-          </div>
-          {analytics.thisMonth.revenueCents > 0 && (
-            <div className="calAnalyticsStat">
-              <small>REVENUE MTD</small>
-              <b>{new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:0}).format(analytics.thisMonth.revenueCents/100)}</b>
-              <span>from paid bookings</span>
-            </div>
-          )}
-          {analytics.byEventType.length > 0 && (
-            <div className="calAnalyticsBreakdown">
-              <small>BY EVENT TYPE</small>
-              <div>
-                {analytics.byEventType.map(et => (
-                  <span key={et.event_name} style={{borderColor: et.color||"#C1283E", color: et.color||"#C1283E"}}>
-                    {et.event_name} <b>{et.count}</b>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <CalendarCommandStrip onCreate={onCreate} />
       <div className="calendarCommandBar">
         <div>
           {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES", "WEBHOOKS", "EXPERIMENTS"] as const).map((item) => (
