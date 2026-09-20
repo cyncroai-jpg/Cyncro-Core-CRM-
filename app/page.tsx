@@ -1,5 +1,6 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { CyncroMap, type MapPin } from "@/app/components/CyncroMap";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -5586,7 +5587,7 @@ type ApexApplicant = {
   industry: string | null; time_in_business_months: number | null; monthly_revenue_cents: number | null;
   credit_score_self_reported: number | null; funding_amount_requested_cents: number; funding_purpose: string | null;
   status: string; broker_email: string | null; manager_email: string | null;
-  ofac_checked: number; ofac_clear: number | null; funded_amount_cents: number | null;
+  ofac_checked: number; ofac_clear: number | null; funded_amount_cents: number | null; funded_at?: string | null; created_at?: string;
 };
 type ApexOwner = { id: string; full_name: string; ownership_pct: number | null; ssn_last4: string | null };
 type ApexDocument = { id: string; doc_type: string; file_name: string; created_at: string };
@@ -5684,48 +5685,240 @@ function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   );
 }
 
+function apexAgo(iso: string | null | undefined) {
+  if (!iso) return "";
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h ago`;
+  return `${Math.round(minutes / 1440)}d ago`;
+}
+
+type ApexSubmissionRow = ApexSubmission & { applicant_name?: string; business_name?: string | null };
+
 function ApexCommand({
   summary, applicants, onView, onReload, onFlash,
 }: { summary: ApexSummary | null; applicants: ApexApplicant[]; onView: (v: ApexView) => void; onReload: () => void; onFlash: (m: string) => void }) {
+  const [lenders, setLenders] = useState<ApexLender[]>([]);
+  const [submissions, setSubmissions] = useState<ApexSubmissionRow[]>([]);
+  const [activeId, setActiveId] = useState("");
+  const [resubmitting, setResubmitting] = useState("");
+  const loadNetwork = () => {
+    void fetch("/api/apex?resource=lenders").then((r) => r.json()).then((d: { lenders?: ApexLender[] }) => setLenders(d.lenders || []));
+    void fetch("/api/apex?resource=submissions").then((r) => r.json()).then((d: { submissions?: ApexSubmissionRow[] }) => setSubmissions(d.submissions || []));
+  };
+  useEffect(loadNetwork, [applicants.length]);
   const isEmpty = applicants.length === 0;
   const loadDemoData = () => {
     void fetch("/api/apex?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then((r) => r.json()).then((d: { seeded?: boolean; reason?: string }) => {
-        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); }
+        if (d.seeded) { onFlash("Demo data loaded — every view now has real sample records"); onReload(); loadNetwork(); }
         else onFlash(d.reason || "Could not load demo data");
       });
   };
+
+  const active = applicants.find((a) => a.id === activeId) || applicants[0] || null;
+  const activeSubs = active ? submissions.filter((s) => s.applicant_id === active.id) : [];
+  const offers = activeSubs.filter((s) => s.rate != null && ["APPROVED", "OFFER_ACCEPTED", "FUNDED"].includes(s.status)).sort((a, b) => (a.rate || 0) - (b.rate || 0));
+  const bestId = offers[0]?.id;
+  const declined = submissions.filter((s) => s.status === "DECLINED");
+  const responded = submissions.filter((s) => ["APPROVED", "DECLINED", "FUNDED", "OFFER_ACCEPTED"].includes(s.status));
+  const approvalRate = responded.length ? Math.round((responded.filter((s) => s.status !== "DECLINED").length / responded.length) * 100) : null;
+  const today = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - 5 + i, 1);
+    return { key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleString([], { month: "short" }).toUpperCase(), cents: 0 };
+  });
+  let fundedMtd = 0;
+  for (const a of applicants) {
+    if (a.status !== "FUNDED" || !a.funded_at) continue;
+    const d = new Date(a.funded_at);
+    const bucket = months.find((m) => m.key === `${d.getFullYear()}-${d.getMonth()}`);
+    if (bucket) bucket.cents += a.funded_amount_cents || 0;
+    if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()) fundedMtd += a.funded_amount_cents || 0;
+  }
+  const maxCents = Math.max(1, ...months.map((m) => m.cents));
+  const linePoints = months.map((m, i) => `${(i / (months.length - 1)) * 100},${100 - (m.cents / maxCents) * 88}`).join(" ");
+  const stageOf = (status: string) => status === "FUNDED" ? 5 : ["APPROVED", "OFFER_ACCEPTED"].includes(status) ? 4 : ["UNDER_REVIEW", "STIPS_REQUESTED"].includes(status) ? 3 : status === "SUBMITTED" ? 2 : status === "DECLINED" ? -1 : 1;
+  const applicantStage = (a: ApexApplicant) => {
+    if (a.status === "FUNDED") return 5;
+    const subs = submissions.filter((s) => s.applicant_id === a.id);
+    if (!subs.length) return 1;
+    return Math.max(...subs.map((s) => stageOf(s.status)));
+  };
+  const resubmit = async (sub: ApexSubmissionRow) => {
+    const eligible = lenders.filter((l) => l.active && !submissions.some((s) => s.applicant_id === sub.applicant_id && s.lender_id === l.id));
+    if (!eligible.length) { onFlash("No other active lenders in the registry to reshop this deal to"); return; }
+    setResubmitting(sub.id);
+    const response = await fetch("/api/apex?resource=submissions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicantId: sub.applicant_id, lenderIds: eligible.map((l) => l.id) }) });
+    setResubmitting("");
+    if (!response.ok) { onFlash("Could not resubmit this applicant"); return; }
+    onFlash(`Reshopped to ${eligible.length} additional lender(s)`);
+    loadNetwork(); onReload();
+  };
+  const feed = [...submissions].sort((a, b) => (b.responded_at || b.submitted_at).localeCompare(a.responded_at || a.submitted_at)).slice(0, 8);
+  const nodes = lenders.map((l, i) => {
+    const angle = (i / Math.max(1, lenders.length)) * Math.PI * 2 - Math.PI / 2;
+    return { ...l, x: 250 + 150 * Math.cos(angle), y: 200 + 150 * Math.sin(angle), count: submissions.filter((s) => s.lender_id === l.id).length };
+  });
+  const toneFor = (status: string) => status === "FUNDED" || status === "APPROVED" || status === "OFFER_ACCEPTED" ? "green" : status === "DECLINED" ? "" : status === "WITHDRAWN" ? "grey" : "amber";
+
   return (
-    <>
-      <div className="disputeHero">
+    <div className="ccShell">
+      <div className="ccTop">
         <div>
-          <span>MULTI-LENDER FUNDING OPERATIONS</span>
-          <h1>One applicant.<br /><i>Every lender's own answer.</i></h1>
-          <p>Submit once, track every lender's status, rate, and stipulations independently — then compare real offers side by side.</p>
+          <label>MULTI-LENDER FUNDING OPERATIONS</label>
+          <h1>One applicant. Every lender&apos;s own answer.</h1>
+          <p>Submit once, track every lender independently, compare real offers side by side, and recover declined deals instead of losing them.</p>
         </div>
-        {isEmpty ? <button onClick={loadDemoData}>◈ Load demo data</button> : <button onClick={() => onView("Applicants")}>✦ New applicant</button>}
+        <div className="ccTopActions">
+          {isEmpty ? <button className="primary" onClick={loadDemoData}>◈ LOAD DEMO DATA</button> : <button className="primary" onClick={() => onView("Applicants")}>✦ NEW APPLICANT</button>}
+          <button onClick={() => onView("Lenders")}>LENDER REGISTRY</button>
+        </div>
       </div>
-      {isEmpty && <p className="disputeEmpty">This account is empty. "Load demo data" seeds real sample applicants, lenders, and multi-lender submissions (including a funded deal with a pending commission) — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
-      <div className="disputeMetrics">
-        {[
-          ["TOTAL APPLICANTS", String(summary?.totalApplicants ?? applicants.length), ""],
-          ["ACTIVE SUBMISSIONS", String(summary?.activeSubmissions ?? "—"), "Across all lenders"],
-          ["FUNDED DEALS", String(summary?.fundedDeals ?? "—"), ""],
-          ["PENDING COMMISSION", apexMoney(summary?.pendingCommissionCents), ""],
-        ].map((m) => (<article key={m[0]}><small>{m[0]}</small><b>{m[1]}</b><span>{m[2]}</span></article>))}
+      {isEmpty && <p className="ccAlert">This account is empty. &quot;Load demo data&quot; seeds real sample applicants, lenders, and multi-lender submissions (including a funded deal with a pending commission) — genuine rows that flow through the same logic as anything you&apos;d enter by hand.</p>}
+      <div className="ccKpis">
+        <article><small>APPLICATIONS</small><b>{summary?.totalApplicants ?? applicants.length}</b><span>all time</span></article>
+        <article><small>FUNDED (MTD)</small><b>{apexMoney(fundedMtd)}</b><span>{summary?.fundedDeals ?? 0} funded deals total</span></article>
+        <article><small>APPROVAL RATE</small><b>{approvalRate == null ? "—" : `${approvalRate}%`}</b><span>of lender responses</span></article>
+        <article><small>ACTIVE SUBMISSIONS</small><b>{summary?.activeSubmissions ?? "—"}</b><span>awaiting lender decision</span></article>
+        <article><small>PENDING COMMISSION</small><b>{apexMoney(summary?.pendingCommissionCents)}</b><span>ready to pay out</span></article>
       </div>
-      <section className="disputePanel casePulse">
-        <header><div><small>RECENT APPLICANTS</small><h2>Pipeline</h2></div><button onClick={() => onView("Applicants")}>All applicants →</button></header>
-        {applicants.slice(0, 8).map((a) => (
-          <button onClick={() => onView("Applicants")} key={a.id}>
-            <span><i>{a.applicant_name.slice(0, 2).toUpperCase()}</i><div><b>{a.applicant_name}</b><small>{a.business_name || "—"}</small></div></span>
-            <em>{apexMoney(a.funding_amount_requested_cents)}</em>
-            <strong>{a.status}</strong>
-          </button>
-        ))}
-        {!applicants.length && <p className="disputeEmpty">No applicants yet.</p>}
-      </section>
-    </>
+
+      <div className="ccGrid3">
+        <section className="ccPanel">
+          <header>
+            <div><small>APPLICATION PIPELINE</small><b>{applicants.length} applicants</b></div>
+            <button onClick={() => onView("Applicants")}>ALL →</button>
+          </header>
+          <div className="ccScroll">
+            <div className="ccPipe">
+              {applicants.slice(0, 12).map((a) => {
+                const stage = applicantStage(a);
+                const declinedAll = stage === -1;
+                return (
+                  <article key={a.id} className={active?.id === a.id ? "active" : ""} onClick={() => setActiveId(a.id)}>
+                    <div>
+                      <div>
+                        <b>{a.business_name || a.applicant_name}</b>
+                        <small>{apexMoney(a.funding_amount_requested_cents)} · {a.industry || "—"}{a.credit_score_self_reported ? ` · ${a.credit_score_self_reported} FICO` : ""}</small>
+                      </div>
+                      <i className={`ccTag ${a.status === "FUNDED" ? "green" : declinedAll ? "" : a.status === "NEW" ? "muted" : "amber"}`}>{declinedAll ? "DECLINED" : a.status.replace(/_/g, " ")}</i>
+                    </div>
+                    <div className="ccSteps">{[1, 2, 3, 4, 5].map((n) => <i key={n} className={declinedAll ? (n <= 2 ? "bad" : "") : n <= stage ? "on" : ""} />)}</div>
+                    <div className="ccStepLabels"><span>NEW</span><span>SUBMITTED</span><span>REVIEW</span><span>APPROVED</span><span>FUNDED</span></div>
+                  </article>
+                );
+              })}
+              {!applicants.length && <div className="ccEmpty">No applicants yet.</div>}
+            </div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header>
+            <div><small>LENDER NETWORK</small><b>{lenders.filter((l) => l.active).length} active lenders · manual registry</b></div>
+            <em>LIVE</em>
+          </header>
+          <div className="ccHub">
+            {lenders.length ? (
+              <svg viewBox="0 0 500 400" role="img" aria-label="Lender network">
+                <defs>
+                  <radialGradient id="apexCore"><stop offset="0" stopColor="#ff4d6d" /><stop offset="1" stopColor="#7c1427" /></radialGradient>
+                </defs>
+                <circle cx="250" cy="200" r="150" fill="none" stroke="#e02e4c22" />
+                <circle cx="250" cy="200" r="95" fill="none" stroke="#e02e4c18" strokeDasharray="3 5" />
+                {nodes.map((n) => <line key={`l-${n.id}`} x1="250" y1="200" x2={n.x} y2={n.y} stroke={n.active ? "#e02e4c" : "#3a2a2e"} strokeWidth={n.count ? 2 : 1} opacity=".85" />)}
+                {nodes.map((n) => (
+                  <g key={n.id}>
+                    <circle cx={n.x} cy={n.y} r="22" fill="#100d0e" stroke={n.active ? "#e02e4c" : "#3a2a2e"} strokeWidth="1.5" />
+                    <text x={n.x} y={n.y + 4} textAnchor="middle" fill={n.active ? "#fff" : "#6e6266"} fontSize="11" fontWeight="700">{n.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</text>
+                    {n.count > 0 && (<><circle cx={n.x + 16} cy={n.y - 16} r="9" fill="#e02e4c" /><text x={n.x + 16} y={n.y - 12.5} textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800">{n.count}</text></>)}
+                    <text x={n.x} y={n.y + 36} textAnchor="middle" fill="#a0898e" fontSize="8.5">{n.name.length > 18 ? `${n.name.slice(0, 17)}…` : n.name}</text>
+                  </g>
+                ))}
+                <circle cx="250" cy="200" r="34" fill="url(#apexCore)" stroke="#ff4d6d" strokeWidth="2" />
+                <text x="250" y="204" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">CYNCRO</text>
+              </svg>
+            ) : (
+              <div className="ccEmpty">No lenders in the registry yet — add them under Lenders to light up the network.</div>
+            )}
+            <div className="ccHubLabel">LENDER NETWORK<small>{submissions.length} SUBMISSIONS TRACKED · NO LIVE LENDER API</small></div>
+          </div>
+        </section>
+
+        <section className="ccPanel">
+          <header>
+            <div><small>RATE &amp; TERM COMPARISON</small><b>{active ? active.business_name || active.applicant_name : "Select an applicant"}</b></div>
+            {offers.length > 0 && <span className="ccBest">BEST OFFER MARKED</span>}
+          </header>
+          <div className="ccScroll">
+            <table className="ccTable">
+              <thead><tr><th>LENDER</th><th>RATE</th><th>TERM</th><th>PAYMENT</th><th>APPROVAL</th></tr></thead>
+              <tbody>
+                {offers.map((o) => (
+                  <tr key={o.id} className={o.id === bestId ? "best" : ""}>
+                    <td>{o.lender_name}{o.id === bestId && <> <span className="ccBest">BEST</span></>}</td>
+                    <td>{o.rate}%</td>
+                    <td>{o.term_months ? `${o.term_months} mo` : "—"}</td>
+                    <td>{o.payment_cents ? apexMoney(o.payment_cents) : "—"}</td>
+                    <td>{o.approval_amount_cents ? apexMoney(o.approval_amount_cents) : "—"}</td>
+                  </tr>
+                ))}
+                {!offers.length && (
+                  <tr><td colSpan={5} className="ccEmpty">{active ? (activeSubs.length ? `${activeSubs.length} submission(s) pending — offers appear once a lender responds with terms.` : "Not submitted to any lender yet.") : "Pick an applicant from the pipeline."}</td></tr>
+                )}
+              </tbody>
+            </table>
+            <div className="ccSection" style={{ marginTop: 10 }}>
+              <small>RECOVERY WORKFLOW</small>
+              <div className="ccFlow"><span><i>1</i>IDENTIFY</span><span><i>2</i>ANALYZE</span><span><i>3</i>OPTIMIZE</span><span><i>4</i>RESHOP</span><span><i>5</i>RESUBMIT</span></div>
+              <div className="ccPipe" style={{ marginTop: 10 }}>
+                {declined.slice(0, 3).map((d) => (
+                  <article key={d.id}>
+                    <div>
+                      <div><b>{d.business_name || d.applicant_name} · {d.lender_name}</b><small>{d.decline_reason || "No decline reason recorded"}</small></div>
+                      <button className="ccGhost" style={{ width: "auto" }} disabled={resubmitting === d.id} onClick={() => void resubmit(d)}>{resubmitting === d.id ? "RESHOPPING…" : "RESHOP ↗"}</button>
+                    </div>
+                  </article>
+                ))}
+                {!declined.length && <p className="ccEmpty" style={{ padding: "8px 0" }}>No declined submissions — nothing to recover right now.</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="ccGrid2">
+        <section className="ccPanel">
+          <header><div><small>FUNDING VOLUME</small><b>Last 6 months · {apexMoney(months.reduce((sum, m) => sum + m.cents, 0))}</b></div></header>
+          <div style={{ padding: "6px 16px 14px" }}>
+            <div className="ccLine">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs><linearGradient id="apexFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e02e4c" stopOpacity=".45" /><stop offset="1" stopColor="#e02e4c" stopOpacity="0" /></linearGradient></defs>
+                <polygon points={`0,100 ${linePoints} 100,100`} fill="url(#apexFill)" />
+                <polyline points={linePoints} fill="none" stroke="#ff4d6d" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+              </svg>
+            </div>
+            <div className="ccBarsFoot">{months.map((m) => <span key={m.key}>{m.label}</span>)}</div>
+          </div>
+        </section>
+        <section className="ccPanel">
+          <header><div><small>ACTIVITY FEED</small><b>Latest lender responses</b></div></header>
+          <div className="ccScroll">
+            <div className="ccFeed">
+              {feed.map((s) => (
+                <div key={s.id}>
+                  <i className={toneFor(s.status)} />
+                  <span><b>{s.status.replace(/_/g, " ")}{s.approval_amount_cents ? ` · ${apexMoney(s.approval_amount_cents)}` : ""}</b><small style={{ display: "block" }}>{s.business_name || s.applicant_name} · {s.lender_name}</small></span>
+                  <small>{apexAgo(s.responded_at || s.submitted_at)}</small>
+                </div>
+              ))}
+              {!feed.length && <div className="ccEmpty">No submissions yet.</div>}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -7222,6 +7415,8 @@ type DispatchJob = {
   revenue: string;
   eta: string;
   color: string;
+  lat: number | null;
+  lng: number | null;
 };
 type DispatchCustomer = { id: string; name: string; phone: string | null; email: string | null };
 type DispatchTechnician = { id: string; name: string; role: string; active_jobs: number };
@@ -7248,7 +7443,22 @@ function mapDispatchJob(row: Record<string, unknown>): DispatchJob {
     revenue: `$${(Number(row.revenue_cents || 0) / 100).toLocaleString()}`,
     eta: String(row.status) === "COMPLETE" || String(row.status) === "INVOICED" ? "Done" : "Not routed",
     color: jobColor(String(row.status || "BOOKED")),
+    lat: typeof row.lat === "number" ? row.lat : null,
+    lng: typeof row.lng === "number" ? row.lng : null,
   };
+}
+function dispatchPins(jobs: DispatchJob[]): MapPin[] {
+  return jobs
+    .filter((job) => job.lat != null && job.lng != null)
+    .map((job, index) => ({
+      id: job.id,
+      lat: job.lat as number,
+      lng: job.lng as number,
+      label: `${job.time} · ${job.customer}`,
+      sublabel: `${job.service} · ${job.status}${job.tech !== "Unassigned" ? ` · ${job.tech}` : ""}`,
+      badge: index + 1,
+      tone: job.status === "IN PROGRESS" ? "red" : job.status === "ASSIGNED" ? "amber" : job.status === "BOOKED" ? "green" : "blue",
+    }));
 }
 
 function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
@@ -7268,9 +7478,18 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
     setNotice(message);
     window.setTimeout(() => setNotice(""), 1800);
   };
+  const geocodeAttempts = useRef(0);
   const loadJobs = () => {
     void fetch("/api/dispatch/jobs").then((r) => (r.ok ? r.json() : null)).then((data: { jobs?: Record<string, unknown>[] } | null) => {
-      if (data?.jobs) setJobs(data.jobs.map(mapDispatchJob));
+      if (!data?.jobs) return;
+      const mapped = data.jobs.map(mapDispatchJob);
+      setJobs(mapped);
+      if (mapped.some((job) => job.lat == null && job.address) && geocodeAttempts.current < 4) {
+        geocodeAttempts.current += 1;
+        void fetch("/api/dispatch/geocode", { method: "POST" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((result: { geocoded?: number } | null) => { if (result?.geocoded) loadJobs(); });
+      }
     });
   };
   const loadCustomers = () => {
@@ -8009,46 +8228,17 @@ function DispatchDashboard({
         <section className="liveOpsMap dispatchPanel">
           <header>
             <div>
-              <small>LIVE GPS COMMAND · PREVIEW</small>
+              <small>LIVE JOB MAP</small>
               <h2>{jobs.filter((j) => j.techId).length} assigned · {jobs.length} jobs</h2>
             </div>
             <button onClick={() => onView("GPS Map")}>Full map →</button>
           </header>
-          <div className="mapSurface">
-            <i className="mapRoad r1" />
-            <i className="mapRoad r2" />
-            <i className="mapRoad r3" />
-            {[
-              ["AC", "24%", "56%", "On site"],
-              ["MT", "61%", "28%", "Moving"],
-              ["DS", "77%", "68%", "18 min away"],
-            ].map((tech) => (
-              <button
-                style={{ left: tech[1], top: tech[2] }}
-                onClick={() => onFlash(`${tech[0]} location opened`)}
-                key={tech[0]}
-              >
-                <span>{tech[0]}</span>
-                <b>{tech[3]}</b>
-              </button>
-            ))}
-            {jobs.map((job, index) => (
-              <i className={`jobPin pin${index + 1}`} key={job.id}>
-                {index + 1}
-              </i>
-            ))}
-          </div>
+          <CyncroMap pins={dispatchPins(jobs)} radar emptyText="Jobs appear here once they have an address we can place on the map." />
           <footer>
-            <span>
-              <i className="moving" /> Moving
-            </span>
-            <span>
-              <i className="onsite" /> On site
-            </span>
-            <span>
-              <i className="available" /> Available
-            </span>
-            <b>Updated 8 sec ago</b>
+            <span><i className="moving" /> In progress</span>
+            <span><i className="onsite" /> Assigned</span>
+            <span><i className="available" /> Booked</span>
+            <b>{jobs.filter((j) => j.lat != null).length} of {jobs.length} placed · tech GPS not connected</b>
           </footer>
         </section>
         <section className="routeCommand dispatchPanel">
@@ -8848,32 +9038,14 @@ function DispatchMap({
             <h1>Field visibility</h1>
           </div>
         </header>
-        <p className="disputeEmpty">Live GPS tracking isn't connected yet — this is a preview of the crew map. Wire up a location-sharing feed to make these positions real.</p>
-        <div className="bigMap">
-          <i className="mapRoad r1" />
-          <i className="mapRoad r2" />
-          <i className="mapRoad r3" />
-          <i className="mapRoad r4" />
-          {[
-            ["AC", "21%", "58%", "On site · 42 min"],
-            ["MT", "62%", "30%", "Moving · 34 mph"],
-            ["DS", "79%", "70%", "En route · 18 min"],
-          ].map((t) => (
-            <button
-              style={{ left: t[1], top: t[2] }}
-              disabled
-              key={t[0]}
-            >
-              <span>{t[0]}</span>
-              <b>{t[3]}</b>
-            </button>
-          ))}
-          {jobs.map((job, index) => (
-            <i className={`jobPin pin${index + 1}`} key={job.id}>
-              {index + 1}
-            </i>
-          ))}
-        </div>
+        <CyncroMap pins={dispatchPins(jobs)} radar className="fullDispatchLeaflet" emptyText="No jobs with map coordinates yet — new jobs are placed automatically from their address." />
+        <footer className="ccMapFoot">
+          <span><i /> In progress</span>
+          <span><i className="amber" /> Assigned</span>
+          <span><i className="green" /> Booked</span>
+          <span><i className="blue" /> Complete / invoiced</span>
+          <b>Technician live GPS is not connected — pins are job locations.</b>
+        </footer>
       </section>
       <aside className="routeDrawer dispatchPanel">
         <small>ROUTE ORDER · MANUAL</small>
@@ -9480,6 +9652,8 @@ type Prospect = {
   aiSummary?: string | null;
   painPoints?: string[] | null;
   aiConfidence?: "high" | "medium" | "low" | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 const prospectStatuses = [
@@ -9514,6 +9688,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
   const [results, setResults] = useState<Prospect[]>([]);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [selected, setSelected] = useState<Prospect | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [outreachEmail, setOutreachEmail] = useState("");
   const [draftingOutreach, setDraftingOutreach] = useState(false);
   useEffect(() => { setOutreachEmail(""); }, [selected?.id, selected?.businessName]);
@@ -9969,6 +10144,28 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
     setMessage(`${records.length} prospects exported for Excel.`);
   };
 
+  const scoredProspects = ranked.filter((item) => item.opportunityScore != null);
+  const hotCount = scoredProspects.filter((item) => (item.opportunityScore || 0) >= 80).length;
+  const avgScore = scoredProspects.length ? Math.round(scoredProspects.reduce((sum, item) => sum + (item.opportunityScore || 0), 0) / scoredProspects.length) : 0;
+  const estRevenueLow = prospects.reduce((sum, item) => sum + (item.estimatedRevenueLow || 0), 0);
+  const estRevenue = estRevenueLow >= 1_000_000 ? `$${(estRevenueLow / 1_000_000).toFixed(1)}M` : `$${Math.round(estRevenueLow / 1000)}K`;
+  const mapPins: MapPin[] = prospects
+    .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
+    .map((item) => ({
+      id: item.id as string,
+      lat: item.lat as number,
+      lng: item.lng as number,
+      label: item.businessName,
+      sublabel: `${item.category} · ${item.opportunityScore != null ? `score ${item.opportunityScore}` : "not analyzed"}`,
+      badge: item.opportunityScore ?? null,
+      tone: item.opportunityScore == null ? "blue" : (item.opportunityScore || 0) >= 80 ? "red" : "amber",
+    }));
+  const priorityBars = [...scoredProspects].sort((a, b) => (a.opportunityScore || 0) - (b.opportunityScore || 0)).slice(-9).map((item) => ({ id: item.id, name: item.businessName, score: item.opportunityScore || 0 }));
+  const runAnalysis = (prospect: Prospect) =>
+    void analyzeProspect(prospect)
+      .then((item) => { setSelected(item); void loadProspects(); })
+      .catch((analysisError) => setError(analysisError instanceof Error ? analysisError.message : "Analysis failed."));
+
   return (
     <section className="prospectingShell">
       <aside className="prospectingSidebar">
@@ -10041,365 +10238,205 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
           </div>
           <button onClick={onOpenCRM}>Open CRM →</button>
         </header>
-        <div className="prospectingContent">
-          <div className="prospectingHead">
+        <div className="prospectingContent ccShell">
+          <div className="ccTop">
             <div>
-              <label>CYNCRO PROSPECTING</label>
+              <label>CYNCRO PROSPECTING AI</label>
               <h1>Find the businesses worth calling first.</h1>
-              <p>
-                Real business data. Observable website signals. One ranked sales
-                queue.
-              </p>
+              <p>Real business data. Observable website signals. One ranked call list, plotted on the map.</p>
             </div>
-            <div className="prospectingStats">
-              <span>
-                <b>{prospects.length}</b>
-                <small>SAVED</small>
-              </span>
-              <span>
-                <b>{ranked.filter((x) => x.opportunityScore != null).length}</b>
-                <small>SCORED</small>
-              </span>
-              <span>
-                <b>{callFirst.length}</b>
-                <small>HOT NOW</small>
-              </span>
+            <div className="ccTopActions">
+              <button onClick={analyzeAll} disabled={analyzing || (!results.length && !prospects.length)}>
+                {analyzing ? `ANALYZING ${analysisProgress}/${Math.max(results.length, prospects.length)}…` : "✦ SCRAPE + ANALYZE ALL"}
+              </button>
+              {results.length > 0 && (
+                <button onClick={saveAllToCRM} disabled={importing || analyzing}>
+                  {importing ? "SAVING + IMPORTING…" : "SAVE ALL + IMPORT TO CRM"}
+                </button>
+              )}
+              <button onClick={() => exportProspects(results.length ? results : ranked)} disabled={!results.length && !ranked.length}>EXPORT CSV</button>
             </div>
           </div>
 
-          <section className="prospectingSearchPanel">
-            <div className="prospectingSectionHead">
-              <div>
-                <small>REAL BUSINESS SEARCH</small>
-                <h2>Build today&apos;s call list</h2>
-              </div>
-              <span>LIVE BUSINESS SEARCH</span>
-            </div>
-            <div className="prospectingSearchGrid">
-              <label>
-                Business type / keyword
-                <input
-                  value={form.keyword}
-                  onChange={(event) => setField("keyword", event.target.value)}
-                  placeholder="Med spas"
-                />
-              </label>
-              <label>
-                City
-                <input
-                  value={form.city}
-                  onChange={(event) => setField("city", event.target.value)}
-                  placeholder="Miami"
-                />
-              </label>
-              <label>
-                State
-                <input
-                  value={form.state}
-                  onChange={(event) => setField("state", event.target.value)}
-                  placeholder="FL"
-                />
-              </label>
-              <label>
-                ZIP <em>OPTIONAL</em>
-                <input
-                  value={form.zip}
-                  onChange={(event) => setField("zip", event.target.value)}
-                  placeholder="33101"
-                />
-              </label>
-              <label>
-                Radius <em>OPTIONAL</em>
-                <select
-                  value={form.radius}
-                  onChange={(event) => setField("radius", event.target.value)}
-                >
-                  <option value="">Any</option>
-                  <option value="5">5 miles</option>
-                  <option value="10">10 miles</option>
-                  <option value="25">25 miles</option>
-                  <option value="50">50 miles</option>
-                </select>
-              </label>
-              <label>
-                Maximum results
-                <select
-                  value={form.maximum}
-                  onChange={(event) => setField("maximum", event.target.value)}
-                >
-                  <option>10</option>
-                  <option>20</option>
-                  <option>40</option>
-                  <option>60</option>
-                </select>
-              </label>
-            </div>
-            <div className="prospectingSearchActions">
-              <button
-                className="findBusinesses"
-                onClick={search}
-                disabled={searching}
-              >
-                {searching ? "SEARCHING LIVE SOURCES…" : "FIND BUSINESSES"}{" "}
-                <span>↗</span>
-              </button>
-              {results.length > 0 && (
-                <button
-                  className="analyzeAll"
-                  onClick={analyzeAll}
-                  disabled={analyzing}
-                >
-                  {analyzing
-                    ? `ANALYZING ${analysisProgress}/${Math.max(results.length, prospects.length)}…`
-                    : "✦ SCRAPE + ANALYZE ALL"}
-                </button>
-              )}
-              {results.length > 0 && (
-                <button
-                  className="analyzeAll"
-                  onClick={saveAllToCRM}
-                  disabled={importing || analyzing}
-                >
-                  {importing
-                    ? "SAVING + IMPORTING…"
-                    : "SAVE ALL + IMPORT TO CRM"}
-                </button>
-              )}
-              {(results.length > 0 || prospects.length > 0) && (
-                <button
-                  className="analyzeAll"
-                  onClick={() =>
-                    exportProspects(results.length ? results : prospects)
-                  }
-                >
-                  EXPORT CSV
-                </button>
-              )}
-              <p>
-                Public business websites only · Contacts, decision-makers,
-                conversion signals, scoring, and CRM sync
-              </p>
-            </div>
-            {error && <div className="prospectingAlert error">! {error}</div>}
-            {message && (
-              <div className="prospectingAlert success">✓ {message}</div>
-            )}
-            {freeMode && providerNotice && (
-              <div className="prospectingAlert" style={{background:"#0d0a00",border:"1px solid #5a4400",color:"#e8c44a"}}>
-                ⚠ {providerNotice}
-              </div>
-            )}
-          </section>
-
-          <section className="callFirstSection" id="call-first">
-            <div className="prospectingSectionHead">
-              <div>
-                <small>PRIORITY QUEUE</small>
-                <h2>Call First</h2>
-              </div>
-              <span>AUTO-RANKED BY OPPORTUNITY</span>
-            </div>
-            {callFirst.length ? (
-              <div className="callFirstGrid">
-                {callFirst.map((prospect, index) => (
-                  <article
-                    key={prospect.id}
-                    className={index === 0 ? "lead" : ""}
-                  >
-                    <div className="priorityScore">
-                      <b>{prospect.opportunityScore}</b>
-                      <span>{prospect.rankLabel}</span>
-                    </div>
-                    <small>{prospect.category}</small>
-                    <h3>{prospect.businessName}</h3>
-                    <p>
-                      {prospect.reviewCount.toLocaleString()} public reviews ·{" "}
-                      {prospect.rating
-                        ? `${prospect.rating.toFixed(1)}★`
-                        : "No rating"}
-                    </p>
-                    <strong>
-                      {prospect.whatFound || prospect.reasons?.[0]}
-                    </strong>
-                    <em>RECOMMENDED</em>
-                    <b className="recommended">
-                      {prospect.recommendedSolution}
-                    </b>
-                    <div>
-                      <button onClick={() => setSelected(prospect)}>
-                        Open brief
-                      </button>
-                      {prospect.phone ? (
-                        <a href={`tel:${prospect.phone}`}>CALL NOW ↗</a>
-                      ) : (
-                        <button disabled>No phone</button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="emptyQueue">
-                <span>⚡</span>
-                <div>
-                  <b>Your highest-scoring prospects will appear here.</b>
-                  <p>Search businesses, then run Scrape + Analyze All.</p>
-                </div>
-              </div>
-            )}
-          </section>
+          <div className="ccSearchBar">
+            <label>BUSINESS TYPE<input value={form.keyword} onChange={(event) => setField("keyword", event.target.value)} placeholder="Med spas" /></label>
+            <label>CITY<input value={form.city} onChange={(event) => setField("city", event.target.value)} placeholder="Miami" /></label>
+            <label>STATE<input value={form.state} onChange={(event) => setField("state", event.target.value)} placeholder="FL" /></label>
+            <label>ZIP<input value={form.zip} onChange={(event) => setField("zip", event.target.value)} placeholder="Optional" /></label>
+            <label>MAX
+              <select value={form.maximum} onChange={(event) => setField("maximum", event.target.value)}>
+                <option>10</option><option>20</option><option>40</option><option>60</option>
+              </select>
+            </label>
+            <button className="primary" onClick={search} disabled={searching}>{searching ? "SEARCHING…" : "FIND BUSINESSES ↗"}</button>
+          </div>
+          {error && <div className="ccAlert error">! {error}</div>}
+          {message && <div className="ccAlert success">✓ {message}</div>}
+          {freeMode && providerNotice && <div className="ccAlert warn">⚠ {providerNotice}</div>}
 
           {results.length > 0 && (
-            <section className="searchResultsSection">
-              <div className="prospectingSectionHead">
-                <div>
-                  <small>SEARCH RESULTS</small>
-                  <h2>{results.length} real businesses</h2>
-                </div>
-                <span>LIVE RESULTS</span>
-              </div>
-              <div className="prospectTable">
-                <div className="prospectTableHead">
-                  <span>BUSINESS</span>
-                  <span>CONTACT</span>
-                  <span>REPUTATION</span>
-                  <span>ACTION</span>
-                </div>
-                {results.map((result) => {
-                  const saved = savedByIdentity.get(prospectIdentity(result));
-                  return (
-                    <div
-                      className="prospectResultRow"
-                      key={prospectIdentity(result)}
-                    >
-                      <div>
-                        <div>
-                          <b>{result.businessName}</b>
-                          <small>
-                            {result.category} · {result.address}
-                          </small>
-                        </div>
-                      </div>
-                      <div>
-                        <b>{result.phone || "Phone unavailable"}</b>
-                        {result.website ? (
-                          <a
-                            href={result.website}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Website ↗
-                          </a>
-                        ) : (
-                          <small>No website</small>
-                        )}
-                      </div>
-                      <div>
-                        <b>
-                          {result.rating
-                            ? `${result.rating.toFixed(1)} ★`
-                            : "—"}
-                        </b>
-                        <small>
-                          {result.reviewCount.toLocaleString()} reviews
-                        </small>
-                      </div>
-                      <div>
+            <section className="ccPanel">
+              <header>
+                <div><small>SEARCH RESULTS</small><b>{results.length} real businesses</b></div>
+                <em>LIVE</em>
+              </header>
+              <div className="ccScroll" style={{ maxHeight: 250 }}>
+                <div className="ccResults">
+                  {results.map((result) => {
+                    const saved = savedByIdentity.get(prospectIdentity(result));
+                    return (
+                      <div key={prospectIdentity(result)}>
+                        <div><b>{result.businessName}</b><small>{result.category} · {result.address}</small></div>
+                        <span>{result.rating ? `${result.rating.toFixed(1)} ★ · ${result.reviewCount.toLocaleString()} reviews` : `${result.reviewCount.toLocaleString()} reviews`}</span>
+                        {result.website ? <a href={result.website} target="_blank" rel="noreferrer">SITE ↗</a> : <span />}
                         {saved ? (
-                          <button
-                            className="saved"
-                            onClick={() => setSelected(saved)}
-                          >
-                            ✓ SAVED · OPEN
-                          </button>
+                          <button className="saved" onClick={() => setSelected(saved)}>✓ SAVED</button>
                         ) : (
-                          <button
-                            onClick={() =>
-                              void saveProspect(result).catch((saveError) =>
-                                setError(saveError.message),
-                              )
-                            }
-                          >
-                            SAVE PROSPECT
-                          </button>
+                          <button onClick={() => void saveProspect(result).catch((saveError) => setError(saveError.message))}>SAVE</button>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </section>
           )}
 
-          <section className="prospectDatabase" id="prospect-database">
-            <div className="prospectingSectionHead">
-              <div>
-                <small>SALES DATABASE</small>
-                <h2>Ranked prospects</h2>
+          <div className="ccGrid3">
+            <section className="ccPanel" id="prospect-database">
+              <header>
+                <div><small>TOP PROSPECTS</small><b>Ranked by opportunity score</b></div>
+                <em>LIVE</em>
+              </header>
+              <div className="ccScroll">
+                <div className="ccRank">
+                  {ranked.map((prospect, index) => {
+                    const score = prospect.opportunityScore;
+                    const hot = (score || 0) >= 80;
+                    return (
+                      <button key={prospect.id} className={selected?.id === prospect.id ? "active" : ""} onClick={() => setSelected(prospect)}>
+                        <span>{index + 1}</span>
+                        <span>
+                          <b>{prospect.businessName}</b>
+                          <small>{prospect.category} · {prospect.address}</small>
+                          {score != null && <i className={`ccTag ${hot ? "" : "muted"}`}>{hot ? "CALL FIRST" : prospect.rankLabel || "SCORED"}</i>}
+                        </span>
+                        <span className={`ccScoreRing ${score == null ? "unscored" : ""}`} style={{ "--pct": score ?? 0 } as CSSProperties}>
+                          <b>{score ?? "—"}</b>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {!ranked.length && <div className="ccEmpty">No prospects saved yet.<br />Search a market above, then save or analyze the results.</div>}
+                </div>
               </div>
-              <button
-                onClick={analyzeAll}
-                disabled={analyzing || (!results.length && !prospects.length)}
-              >
-                ✦ SCRAPE + ANALYZE ALL
-              </button>
-              <button
-                onClick={() => exportProspects(ranked)}
-                disabled={!ranked.length}
-              >
-                EXPORT SAVED CSV
-              </button>
-            </div>
-            <div className="rankedProspectList">
-              <div className="rankedProspectHead">
-                <span>SCORE</span>
-                <span>BUSINESS</span>
-                <span>REP</span>
-                <span>STATUS</span>
-                <span>NEXT MOVE</span>
+            </section>
+
+            <section className="ccPanel" id="call-first">
+              <header>
+                <div><small>MARKET OVERVIEW</small><b>{form.city ? `${form.city}, ${form.state}` : "All saved markets"}</b></div>
+                <div className="ccMapStats">
+                  <span><b>{prospects.length}</b><small>SAVED</small></span>
+                  <span><b>{hotCount}</b><small>HIGH OPP.</small></span>
+                  <span><b>{avgScore}</b><small>AVG SCORE</small></span>
+                </div>
+              </header>
+              <CyncroMap
+                pins={mapPins}
+                selectedId={selected?.id || null}
+                onSelect={(id) => { const match = prospects.find((item) => item.id === id); if (match) setSelected(match); }}
+                radar
+                emptyText="Saved prospects with map coordinates appear here — new searches capture location automatically."
+              />
+              <div className="ccMapFoot">
+                <span><i /> Call first (80+)</span>
+                <span><i className="amber" /> Scored</span>
+                <span><i className="blue" /> Not analyzed</span>
+                <b>{mapPins.length} of {prospects.length} plotted</b>
               </div>
-              {ranked.map((prospect) => (
-                <button
-                  key={prospect.id}
-                  onClick={() => setSelected(prospect)}
-                  className={selected?.id === prospect.id ? "active" : ""}
-                >
-                  <span
-                    className={`rankScore ${prospect.opportunityScore && prospect.opportunityScore >= 90 ? "first" : ""}`}
-                  >
-                    {prospect.opportunityScore ?? "—"}
-                    <small>{prospect.rankLabel || "NOT ANALYZED"}</small>
-                  </span>
-                  <span>
-                    <b>{prospect.businessName}</b>
-                    <small>
-                      {prospect.category} ·{" "}
-                      {prospect.reviewCount.toLocaleString()} reviews
-                    </small>
-                  </span>
-                  <span>{prospect.assignedRep || "Unassigned"}</span>
-                  <span>
-                    <i>{prospect.status || "NEW"}</i>
-                  </span>
-                  <span>
-                    {prospect.nextAction || "Analyze to generate next action"}
-                    <em>→</em>
-                  </span>
-                </button>
-              ))}
-              {!ranked.length && (
-                <div className="noProspects">No prospects saved yet.</div>
-              )}
-            </div>
-          </section>
-          <p className="prospectingAttribution">
-            Data attribution: © OpenStreetMap contributors
-          </p>
+            </section>
+
+            <section className="ccPanel">
+              <header>
+                <div><small>WEBSITE SIGNAL ANALYSIS</small><b>{selected ? selected.businessName : "Select a prospect"}</b></div>
+                {selected && <button onClick={() => setDrawerOpen(true)}>FULL BRIEF →</button>}
+              </header>
+              <div className="ccScroll">
+                {!selected ? (
+                  <div className="ccEmpty">Pick a business from the ranked list or the map to see its signals, contacts, and the reason to call.</div>
+                ) : (
+                  <div className="ccDetail" style={{ padding: 0 }}>
+                    {selected.signals ? (
+                      <div className="ccSection">
+                        <small>SIGNALS DETECTED</small>
+                        <div className="ccChecks">
+                          {([
+                            ["Website live", selected.signals.websiteExists],
+                            ["Online booking", selected.signals.booking],
+                            ["Contact form", selected.signals.contactForm],
+                            ["Live chat", selected.signals.chat],
+                            ["SMS path", selected.signals.sms],
+                            ["Strong CTA", selected.signals.strongCta],
+                            ["Running paid ads", selected.signals.googleAds || selected.signals.metaAds || selected.signals.tiktokAds || selected.signals.bingAds],
+                          ] as [string, boolean][]).map(([label, on]) => (
+                            <span key={label} className={on ? "" : "missing"}><i>{on ? "✓" : "×"}</i>{label}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ccSection">
+                        <small>SIGNALS</small>
+                        <p className="ccEmpty" style={{ padding: "4px 0 10px" }}>Not analyzed yet.</p>
+                        <button className="ccGhost" onClick={() => runAnalysis(selected)}>✦ SCRAPE WEBSITE + ANALYZE</button>
+                      </div>
+                    )}
+                    <div className="ccSection">
+                      <small>EXTRACTED CONTACTS</small>
+                      <div className="ccChips">
+                        {(selected.emails || []).slice(0, 3).map((email) => <a key={email} href={`mailto:${email}`}><i>✉</i>{email}</a>)}
+                        {[...(selected.phone ? [selected.phone] : []), ...(selected.extractedPhones || [])].filter((value, index, list) => list.indexOf(value) === index).slice(0, 2).map((phone) => <a key={phone} href={`tel:${phone}`}><i>☎</i>{phone}</a>)}
+                        {selected.website && <a href={selected.website} target="_blank" rel="noreferrer"><i>⌂</i>{selected.domain || selected.website}</a>}
+                        {!selected.emails?.length && !selected.phone && !selected.extractedPhones?.length && !selected.website && <span className="ccEmpty" style={{ padding: "4px 0" }}>No public contacts captured yet.</span>}
+                      </div>
+                    </div>
+                    <div className="ccSection">
+                      <small>SALES PRIORITY</small>
+                      <div className="ccBars">
+                        {priorityBars.length ? priorityBars.map((bar) => (
+                          <i key={bar.id} className={bar.id === selected.id ? "" : "dim"} style={{ height: `${Math.max(6, bar.score)}%` }} title={`${bar.name} · ${bar.score}`} />
+                        )) : <i className="dim" style={{ height: "6%" }} />}
+                      </div>
+                      <div className="ccBarsFoot"><span>LOW PRIORITY</span><span>{selected.rankLabel || "UNRANKED"}</span><span>HIGH PRIORITY</span></div>
+                    </div>
+                    <div className="ccSection ccBrief">
+                      <small>WHY CALL</small>
+                      <p>{selected.whyCall || selected.reasons?.[0] || "Run analysis to generate the reason to call."}</p>
+                    </div>
+                    {selected.phone ? (
+                      <a className="ccCallFirst" href={`tel:${selected.phone}`}>☎ CALL FIRST · {selected.phone}</a>
+                    ) : (
+                      <span className="ccCallFirst disabled">NO PHONE ON FILE</span>
+                    )}
+                    <button className="ccGhost" onClick={() => void convertToCRM(selected)}>CONVERT TO CRM ACCOUNT →</button>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="ccKpis">
+            <article><small>TOTAL OPPORTUNITIES</small><b>{prospects.length}</b><span>{results.length ? `${results.length} unsaved from last search` : "saved prospects"}</span></article>
+            <article><small>HIGH OPPORTUNITY</small><b>{hotCount}</b><span>score 80 or above</span></article>
+            <article><small>AVG OPPORTUNITY SCORE</small><b>{avgScore}</b><span>{scoredProspects.length} analyzed</span></article>
+            <article><small>CALL FIRST QUEUE</small><b>{callFirst.length}</b><span>ready to dial</span></article>
+            <article><small>EST. MARKET REVENUE</small><b>{estRevenue}</b><span>low-end estimate · not verified</span></article>
+          </div>
+          <p className="prospectingAttribution">Data attribution: © OpenStreetMap contributors · © CARTO</p>
         </div>
       </main>
 
-      {selected && (
-        <div className="prospectDrawerBack" onClick={() => setSelected(null)}>
+      {selected && drawerOpen && (
+        <div className="prospectDrawerBack" onClick={() => setDrawerOpen(false)}>
           <aside
             className="prospectDrawer"
             onClick={(event) => event.stopPropagation()}
@@ -10412,7 +10449,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
                   {selected.category} · {selected.address}
                 </p>
               </div>
-              <button onClick={() => setSelected(null)}>×</button>
+              <button onClick={() => setDrawerOpen(false)}>×</button>
             </header>
             <div className="drawerScore">
               <div>

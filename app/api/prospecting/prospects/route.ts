@@ -139,8 +139,8 @@ export async function POST(request: Request) {
         `INSERT INTO prospects (
       id, google_place_id, business_name, category, address, phone, normalized_phone,
       website, domain, rating_x10, review_count, name_address_key, estimated_revenue_low_cents,
-      estimated_revenue_high_cents, revenue_confidence, revenue_methodology, status, tenant_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?)`,
+      estimated_revenue_high_cents, revenue_confidence, revenue_methodology, status, tenant_id, lat, lng, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -160,6 +160,8 @@ export async function POST(request: Request) {
         estimate.confidence,
         estimate.methodology,
         tenant.tenantId,
+        typeof body.lat === "number" ? body.lat : null,
+        typeof body.lng === "number" ? body.lng : null,
         now,
         now,
       )

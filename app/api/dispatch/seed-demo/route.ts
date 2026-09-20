@@ -5,6 +5,7 @@
  * the shared Dispatch workspace already has customers.
  */
 import { coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { geocodeAddress } from "@/lib/core/geocode";
 
 async function requireDispatchAccess(request: Request) {
   const email = requestUser(request);
@@ -99,6 +100,11 @@ export async function POST(request: Request) {
       VALUES (?,?,?,?,?,?,?,?,?)`)
       .bind(uid(), job3, cust3, 24500, "PAID", new Date(Date.now() - 3 * 86400000).toISOString(), now, now, now).run();
 
+    for (const [jobId, address] of [[job1, "218 Larkspur Ave, Denver, CO 80209"], [job2, "77 Foxglove Ct, Denver, CO 80211"], [job3, "4400 Redwood Blvd, Denver, CO 80207"]] as const) {
+      const point = await geocodeAddress(address);
+      if (point) await db.prepare("UPDATE dispatch_jobs SET lat=?, lng=? WHERE id=?").bind(point.lat, point.lng, jobId).run();
+      await new Promise((resolve) => setTimeout(resolve, 1_100));
+    }
     return Response.json({ seeded: true }, { status: 201 });
   } catch (error) {
     console.error("dispatch.seed_demo.failed", error);

@@ -3664,6 +3664,8 @@ export async function ensureCoreSchema() {
     "CREATE INDEX IF NOT EXISTS calendar_waitlist_tenant_idx ON calendar_waitlist(tenant_id)",
     "ALTER TABLE calendar_feeds ADD COLUMN tenant_id TEXT",
     "ALTER TABLE calendar_audit_log ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE dispatch_jobs ADD COLUMN lat REAL",
+    "ALTER TABLE dispatch_jobs ADD COLUMN lng REAL",
     "CREATE INDEX IF NOT EXISTS calendar_audit_log_tenant_idx ON calendar_audit_log(tenant_id)",
     "ALTER TABLE loan_applications ADD COLUMN annual_income_cents INTEGER",
     "ALTER TABLE loan_applications ADD COLUMN monthly_debt_payments_cents INTEGER",

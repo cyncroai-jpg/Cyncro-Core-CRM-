@@ -2,11 +2,11 @@ import { enforceRateLimit, RateLimitError } from "@/lib/prospecting/rate-limit";
 import { env } from "cloudflare:workers";
 type CfEnv = Record<string, string | undefined>;
 
-type ProspectResult = { googlePlaceId: string | null; businessName: string; category: string; address: string; phone: string | null; website: string | null; rating: number | null; reviewCount: number; source: string };
-type PlacesResult = { id?: string; displayName?: { text?: string }; primaryTypeDisplayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string };
-type SerperPlace = { placeId?: string; cid?: string; title?: string; category?: string; address?: string; phoneNumber?: string; website?: string; rating?: number; ratingCount?: number };
+type ProspectResult = { googlePlaceId: string | null; businessName: string; category: string; address: string; phone: string | null; website: string | null; rating: number | null; reviewCount: number; source: string; lat: number | null; lng: number | null };
+type PlacesResult = { id?: string; displayName?: { text?: string }; primaryTypeDisplayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string; location?: { latitude?: number; longitude?: number } };
+type SerperPlace = { placeId?: string; cid?: string; title?: string; category?: string; address?: string; phoneNumber?: string; website?: string; rating?: number; ratingCount?: number; latitude?: number; longitude?: number };
 type NominatimResult = { boundingbox?: string[] };
-type OverpassElement = { id: number; type: string; tags?: Record<string, string> };
+type OverpassElement = { id: number; type: string; lat?: number; lon?: number; center?: { lat?: number; lon?: number }; tags?: Record<string, string> };
 
 function text(value: unknown, max = 120) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function cleanUrl(value?: string) {
@@ -27,7 +27,7 @@ async function searchGoogle(apiKey: string, query: string, maximum: number): Pro
   while (places.length < maximum) {
     const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": "places.id,places.displayName,places.primaryTypeDisplayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,nextPageToken" },
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": "places.id,places.displayName,places.primaryTypeDisplayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.location,nextPageToken" },
       body: JSON.stringify({ textQuery: query, pageSize: Math.min(20, maximum - places.length), pageToken, languageCode: "en", regionCode: "US", includePureServiceAreaBusinesses: true }),
     });
     const data = (await response.json()) as { places?: PlacesResult[]; nextPageToken?: string; error?: { message?: string } };
@@ -46,6 +46,8 @@ async function searchGoogle(apiKey: string, query: string, maximum: number): Pro
     rating: typeof place.rating === "number" ? place.rating : null,
     reviewCount: place.userRatingCount || 0,
     source: "Google Places",
+    lat: typeof place.location?.latitude === "number" ? place.location.latitude : null,
+    lng: typeof place.location?.longitude === "number" ? place.location.longitude : null,
   }));
 }
 
@@ -73,6 +75,8 @@ async function searchSerper(apiKey: string, query: string, maximum: number): Pro
     rating: typeof place.rating === "number" ? place.rating : null,
     reviewCount: Math.max(0, Number(place.ratingCount || 0)),
     source: "Live business index",
+    lat: typeof place.latitude === "number" ? place.latitude : null,
+    lng: typeof place.longitude === "number" ? place.longitude : null,
   }));
 }
 
@@ -155,6 +159,8 @@ async function searchOpenData(keyword: string, area: string, maximum: number): P
       rating: null,
       reviewCount: 0,
       source: "OpenStreetMap",
+      lat: typeof item.lat === "number" ? item.lat : typeof item.center?.lat === "number" ? item.center.lat : null,
+      lng: typeof item.lon === "number" ? item.lon : typeof item.center?.lon === "number" ? item.center.lon : null,
     };
   }).slice(0, maximum);
 }

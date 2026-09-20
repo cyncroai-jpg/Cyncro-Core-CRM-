@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { geocodeAddress } from "@/lib/core/geocode";
 
 async function requireDispatchAccess(request: Request) {
   const email = requestUser(request);
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
         address, scheduledAt, assignedTechId ? "ASSIGNED" : "BOOKED", assignedTechId,
         Math.round(Number(body.revenue || 0) * 100), Number(body.estimatedMinutes) || null, now, now,
       ).run();
+    const point = await geocodeAddress(address);
+    if (point) await coreDb().prepare("UPDATE dispatch_jobs SET lat=?, lng=? WHERE id=?").bind(point.lat, point.lng, id).run();
     return Response.json({ id }, { status: 201 });
   } catch (error) {
     console.error("dispatch.jobs.create_failed", error);

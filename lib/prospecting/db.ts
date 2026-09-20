@@ -52,6 +52,8 @@ export type ProspectRecord = {
   ai_summary: string | null;
   pain_points_json: string | null;
   ai_confidence: string | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 function database() {
@@ -133,6 +135,8 @@ export async function ensureProspectingSchema() {
     "ALTER TABLE prospects ADD COLUMN pain_points_json TEXT",
     "ALTER TABLE prospects ADD COLUMN ai_confidence TEXT",
     "ALTER TABLE prospects ADD COLUMN tenant_id TEXT",
+    "ALTER TABLE prospects ADD COLUMN lat REAL",
+    "ALTER TABLE prospects ADD COLUMN lng REAL",
     // The original unique indexes below were GLOBAL (one business could only ever
     // be prospected once across the entire deployment) — that's wrong for a
     // multi-tenant product, since two different companies must each be able to
@@ -221,5 +225,7 @@ export function hydrateProspect(row: ProspectRecord) {
     aiSummary: row.ai_summary,
     painPoints: row.pain_points_json ? JSON.parse(row.pain_points_json) as string[] : null,
     aiConfidence: row.ai_confidence as "high" | "medium" | "low" | null,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
   };
 }
