@@ -1431,7 +1431,7 @@ function FrontExperience({
       ],
       proof: "0–100",
       proofLabel: "opportunity score",
-      image: "/module-images/cyncro-crm.webp",
+      image: "/module-images/cyncro-prospecting.webp",
       imageAlt:
         "Cyncro Prospecting AI showing ranked businesses, website signals, and call priorities",
       route: "prospecting" as Tab,
@@ -1450,7 +1450,7 @@ function FrontExperience({
       ],
       proof: "SOON",
       proofLabel: "private preview",
-      image: "/module-images/cyncro-crm.webp",
+      image: "/module-images/cyncro-messages.webp",
       imageAlt: "Cyncro Messages unified team inbox and agent routing preview",
       route: "messages" as Tab,
       action: "Preview Cyncro Messages",
@@ -1521,7 +1521,7 @@ function FrontExperience({
       ],
       proof: "100+",
       proofLabel: "lenders connected",
-      image: "/module-images/cyncro-finance.webp",
+      image: "/module-images/cyncro-funds.webp",
       imageAlt:
         "Cyncro Funds lender network dashboard with applications, offers, and recovery workflows",
       route: "apex" as Tab,
