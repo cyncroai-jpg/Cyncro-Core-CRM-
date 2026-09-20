@@ -1385,8 +1385,8 @@ function FrontExperience({
     {
       name: "Universal Calendar",
       label: "SELL + SCHEDULE",
-      headline: "Turn availability into revenue—not administrative work.",
-      copy: "Create branded booking links, control capacity, collect payments, route hosts and resources, manage waitlists, and protect every calendar from conflicts.",
+      headline: "Turn open availability into booked, paid revenue.",
+      copy: "Branded booking links, SmartSlot™ AI-ranked time slots, deposits, capacity limits, host and resource routing, waitlists, and conflict protection—every appointment, one connected calendar.",
       capabilities: [
         "Month + week command views",
         "Capacity, deposits + waitlists",
@@ -1405,7 +1405,7 @@ function FrontExperience({
       label: "KNOW + CONVERT",
       headline:
         "One living customer record from first signal to lifetime value.",
-      copy: "Unify contacts, pipelines, conversations, lead scoring, attribution, journeys, tasks, and revenue intelligence without stitching together five disconnected tools.",
+      copy: "Contacts, deal pipelines, conversations, lead scoring, multi-touch attribution, commission tracking, contracts, and revenue intelligence—private to your company, on true multi-tenant infrastructure.",
       capabilities: [
         "Contact + opportunity graph",
         "Pipeline and lifecycle automation",
@@ -1423,7 +1423,7 @@ function FrontExperience({
       name: "Cyncro Prospecting AI",
       label: "FIND + PRIORITIZE",
       headline: "Turn an entire market into a ranked call list.",
-      copy: "Search real businesses in any legitimate industry, capture public business data, analyze each website, identify conversion gaps, score the opportunity, assign ownership, and give every salesperson a concise reason to call.",
+      copy: "Search real businesses in any legitimate industry, capture public business data, analyze each website, identify conversion gaps, score the opportunity 0–100, assign ownership, and hand every rep a specific, AI-written reason to call first.",
       capabilities: [
         "Real-business search across any category",
         "Public website, email + phone intelligence",
@@ -1459,7 +1459,7 @@ function FrontExperience({
       name: "Cyncro Prime AI",
       label: "COMMAND + ORCHESTRATE",
       headline: "Give one instruction. Move the entire company.",
-      copy: "A coordinated operating layer of 12 specialist agents for sales, marketing, analytics, scheduling, operations, customer success, revenue, and brand execution.",
+      copy: "A coordinated workforce of 12 governed specialist agents for sales, marketing, analytics, scheduling, operations, customer success, revenue, and brand execution—each with defined permissions and a human approval path.",
       capabilities: [
         "12 governed specialist agents",
         "Cross-module decision briefs",
@@ -1571,60 +1571,105 @@ function FrontExperience({
     {
       capability: "Primary strength",
       cyncro: "Business operations + intelligence",
+      pipedrive: "Visual sales pipelines",
       highlevel: "Agency sales + marketing",
       clickfunnels: "Funnels + online selling",
     },
     {
       capability: "CRM + visual pipelines",
       cyncro: "Included",
+      pipedrive: "Core strength",
       highlevel: "Included",
       clickfunnels: "Included",
     },
     {
+      capability: "True multi-tenant workspaces",
+      cyncro: "Native · isolated per company",
+      pipedrive: "Single-org accounts",
+      highlevel: "Sub-account model",
+      clickfunnels: "Single-org accounts",
+    },
+    {
       capability: "Funnels + landing pages",
-      cyncro: "Framer-ready connection",
+      cyncro: "Drag-and-drop builder, built in",
+      pipedrive: "Not a core workflow",
       highlevel: "Built in",
       clickfunnels: "Core strength",
     },
     {
       capability: "Calendars + booking links",
-      cyncro: "Included · multi-host",
+      cyncro: "Included · multi-host + SmartSlot™",
+      pipedrive: "Basic scheduling add-on",
       highlevel: "Included",
       clickfunnels: "Included",
     },
     {
+      capability: "AI opportunity scoring + routing",
+      cyncro: "Built in · SmartSlot™ + Outcome Routing™",
+      pipedrive: "Basic lead scoring add-on",
+      highlevel: "Limited AI features",
+      clickfunnels: "Not a core workflow",
+    },
+    {
       capability: "Public-business prospecting",
       cyncro: "Built in · score + scrape",
+      pipedrive: "Not a core workflow",
       highlevel: "Not a core workflow",
       clickfunnels: "Not a core workflow",
     },
     {
+      capability: "Autonomous AI agent workforce",
+      cyncro: "12 governed specialist agents",
+      pipedrive: "Not available",
+      highlevel: "Single AI assistant",
+      clickfunnels: "Not available",
+    },
+    {
+      capability: "Multi-touch attribution",
+      cyncro: "Built in · every channel + campaign",
+      pipedrive: "Not a core workflow",
+      highlevel: "Basic source tracking",
+      clickfunnels: "Basic source tracking",
+    },
+    {
+      capability: "Automation + workflow builder",
+      cyncro: "Visual builder · cross-module triggers",
+      pipedrive: "Included · pipeline-only",
+      highlevel: "Included",
+      clickfunnels: "Funnel-only automations",
+    },
+    {
       capability: "Team commissions + payout export",
       cyncro: "Built in · custom rules",
+      pipedrive: "Not a core workflow",
       highlevel: "Requires configuration",
       clickfunnels: "Not a core workflow",
     },
     {
-      capability: "Invoices + editable contracts",
+      capability: "Invoices + editable contracts + e-sign",
       cyncro: "Built in · connection-ready",
+      pipedrive: "Requires third-party add-on",
       highlevel: "Included",
       clickfunnels: "Sales-focused tools",
     },
     {
       capability: "Industry operating systems",
       cyncro: "Dispatch · Finance · Dispute",
+      pipedrive: "Not purpose-built",
       highlevel: "General-purpose",
       clickfunnels: "General-purpose",
     },
     {
       capability: "Lending-broker infrastructure",
       cyncro: "Cyncro Funds",
+      pipedrive: "Not purpose-built",
       highlevel: "Not purpose-built",
       clickfunnels: "Not purpose-built",
     },
     {
       capability: "Unified agent messaging",
       cyncro: "Cyncro Messages · coming soon",
+      pipedrive: "Email + basic chat only",
       highlevel: "Included",
       clickfunnels: "Marketing messaging",
     },
@@ -1742,8 +1787,8 @@ function FrontExperience({
         <div className="frontGlow" />
         <div className="heroCopy">
           <div className="heroKicker">
-            <span>●</span> ONE INTELLIGENT CORE FOR THE ENTIRE CUSTOMER
-            LIFECYCLE
+            <span>●</span> THE OPERATING SYSTEM BEHIND EVERY CUSTOMER
+            RELATIONSHIP
           </div>
           <h1>
             Every customer.
@@ -1753,9 +1798,12 @@ function FrontExperience({
             One intelligent core.
           </h1>
           <p className="heroSalesCopy">
-            Cyncro unifies scheduling, CRM, AI agents, field service, automotive
-            finance, dispute operations, social conversations, and business
-            intelligence—so nothing gets lost between the lead and the outcome.
+            Cyncro Core unifies scheduling, CRM, prospecting, AI agents, field
+            service, automotive finance, dispute operations, social
+            conversations, and business intelligence into one governed system
+            of record—built multi-tenant from day one, so every team runs on
+            its own private, isolated workspace with nothing lost between the
+            lead and the outcome.
           </p>
           <div className="heroActions">
             <button className="frontPrimary" onClick={onExperience}>
@@ -1767,8 +1815,8 @@ function FrontExperience({
           </div>
           <div className="heroAssurance">
             <span>Built for complex operations</span>
-            <span>Engineered around your business</span>
-            <span>One unified system</span>
+            <span>Multi-tenant · isolated by company</span>
+            <span>One unified system of record</span>
           </div>
           <div
             className="heroImpactRail"
@@ -1924,13 +1972,14 @@ function FrontExperience({
         <div className="sectionLead platformLead">
           <label>THE FULL CYNCRO PLATFORM</label>
           <h2>
-            Stop buying disconnected software.
+            Stop stitching together five subscriptions.
             <br />
             <span>Run the operation as one.</span>
           </h2>
           <p>
             Every module is powerful alone. Together, they share the same
-            customer, the same history, and the same intelligence.
+            customer, the same history, and the same intelligence—on
+            infrastructure built to run one company or a hundred.
           </p>
         </div>
         <div className="platformModuleGrid">
@@ -2099,16 +2148,17 @@ function FrontExperience({
           <div>
             <label>NOW COMPARE THE FULL SYSTEM</label>
             <h2 id="comparison-title">
-              Others optimize the funnel.
+              Others optimize a piece of the funnel.
               <br />
-              <span>Cyncro operates the company.</span>
+              <span>Cyncro operates the entire company.</span>
             </h2>
           </div>
           <p>
-            ClickFunnels is strongest around conversion funnels. HighLevel
-            centers agency sales and marketing. Cyncro reaches across the full
-            lifecycle—from finding the opportunity through delivering the work,
-            managing the money, and improving the next decision.
+            Pipedrive is strongest at visual deal pipelines. ClickFunnels is
+            strongest around conversion funnels. HighLevel centers agency sales
+            and marketing. Cyncro reaches across the full lifecycle—finding the
+            opportunity, booking it, closing it, delivering the work, moving
+            the money, and getting smarter with every deal.
           </p>
         </div>
 
@@ -2118,6 +2168,7 @@ function FrontExperience({
             <strong>
               <i>◆</i> CYNCRO
             </strong>
+            <b>Pipedrive</b>
             <b>HighLevel</b>
             <b>ClickFunnels</b>
           </div>
@@ -2128,6 +2179,10 @@ function FrontExperience({
                 <div className="cyncroComparisonCell">
                   <small>CYNCRO</small>
                   <span>{row.cyncro}</span>
+                </div>
+                <div>
+                  <small>PIPEDRIVE</small>
+                  <span>{row.pipedrive}</span>
                 </div>
                 <div>
                   <small>HIGHLEVEL</small>
@@ -2148,7 +2203,8 @@ function FrontExperience({
             <p>
               One customer record connecting acquisition, appointments,
               operations, payouts, documents, specialized workflows, and revenue
-              intelligence.
+              intelligence—running on true multi-tenant infrastructure built
+              for agencies and portfolio operators, not just a single team.
             </p>
             <button onClick={onPlatform}>
               Explore the platform <span>↗</span>
