@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     const db = coreDb();
     const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
+    const tenantId = String(eventType.tenant_id || "");
     const duration = Number(eventType.duration_minutes);
     const endsAt = new Date(startsAt.getTime() + duration * 60_000);
     // Check for real bookings conflict
@@ -32,9 +33,9 @@ export async function POST(request: Request) {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString(); // 5 minutes
     await db.prepare(
-      `INSERT INTO calendar_slot_holds (token, event_type_id, starts_at, ends_at, customer_email, expires_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(token, eventTypeId, startsAt.toISOString(), endsAt.toISOString(), customerEmail, expiresAt, new Date().toISOString()).run();
+      `INSERT INTO calendar_slot_holds (token, event_type_id, starts_at, ends_at, customer_email, tenant_id, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(token, eventTypeId, startsAt.toISOString(), endsAt.toISOString(), customerEmail, tenantId, expiresAt, new Date().toISOString()).run();
     return Response.json({ token, expiresAt, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() }, { status: 201 });
   } catch (error) {
     console.error("calendar.holds.create_failed", error);

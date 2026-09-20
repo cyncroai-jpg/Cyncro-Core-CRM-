@@ -1,4 +1,5 @@
-import { cleanText, coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenantAction } from "@/lib/core/tenantAuth";
 import { ensureProspectingSchema } from "@/lib/prospecting/db";
 
 type ProspectRow = Record<string, unknown> & { id: string; business_name: string };
@@ -8,33 +9,33 @@ function jsonList(value: unknown) {
   catch { return []; }
 }
 
-async function defaultPipeline(now: string) {
+async function defaultPipeline(tenantId: string, now: string) {
   const db = coreDb();
-  let pipeline = await db.prepare("SELECT id FROM crm_pipelines WHERE active=1 ORDER BY is_default DESC, created_at LIMIT 1").first<{ id: string }>();
+  let pipeline = await db.prepare("SELECT id FROM crm_pipelines WHERE tenant_id=? AND active=1 ORDER BY is_default DESC, created_at LIMIT 1").bind(tenantId).first<{ id: string }>();
   if (pipeline) return pipeline.id;
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO crm_pipelines (id,name,description,is_default,active,created_at,updated_at) VALUES (?,'Sales Pipeline','Primary revenue pipeline',1,1,?,?)").bind(id, now, now).run();
+  await db.prepare("INSERT INTO crm_pipelines (id,name,description,is_default,active,tenant_id,created_at,updated_at) VALUES (?,'Sales Pipeline','Primary revenue pipeline',1,1,?,?,?)").bind(id, tenantId, now, now).run();
   const stages = [["NEW LEAD", "#6B7280", 10], ["QUALIFIED", "#8B5CF6", 25], ["DISCOVERY", "#3B82F6", 40], ["PROPOSAL", "#F59E0B", 65], ["CLOSED WON", "#10B981", 100], ["CLOSED LOST", "#374151", 0]] as const;
   await db.batch(stages.map((stage, position) => db.prepare(`INSERT INTO crm_pipeline_stages
-    (id,pipeline_id,name,color,position,probability,is_won,is_lost,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-    .bind(crypto.randomUUID(), id, stage[0], stage[1], position, stage[2], stage[0] === "CLOSED WON" ? 1 : 0, stage[0] === "CLOSED LOST" ? 1 : 0, now, now)));
+    (id,pipeline_id,name,color,position,probability,is_won,is_lost,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(crypto.randomUUID(), id, stage[0], stage[1], position, stage[2], stage[0] === "CLOSED WON" ? 1 : 0, stage[0] === "CLOSED LOST" ? 1 : 0, tenantId, now, now)));
   return id;
 }
 
-async function convertOne(prospectId: string, request: Request, pipelineId: string) {
+async function convertOne(prospectId: string, tenantId: string, assigneeFallback: string, pipelineId: string) {
   const db = coreDb();
-  const prospect = await db.prepare("SELECT * FROM prospects WHERE id = ?").bind(prospectId).first<ProspectRow>();
+  const prospect = await db.prepare("SELECT * FROM prospects WHERE id = ? AND tenant_id = ?").bind(prospectId, tenantId).first<ProspectRow>();
   if (!prospect) return { prospectId, error: "Prospect not found." };
   const now = new Date().toISOString();
-  const assignedRep = String(prospect.assigned_rep || requestUser(request));
-  let account = await db.prepare("SELECT id FROM crm_accounts WHERE source_prospect_id = ? LIMIT 1").bind(prospectId).first<{ id: string }>();
+  const assignedRep = String(prospect.assigned_rep || assigneeFallback);
+  let account = await db.prepare("SELECT id FROM crm_accounts WHERE source_prospect_id = ? AND tenant_id = ? LIMIT 1").bind(prospectId, tenantId).first<{ id: string }>();
   const duplicate = Boolean(account);
   const accountId = account?.id || crypto.randomUUID();
   if (!account) {
     await db.prepare(`INSERT INTO crm_accounts
-      (id,name,domain,phone,address,category,owner_email,account_manager,source,source_prospect_id,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?, 'PROSPECTING',?,?,?)`)
-      .bind(accountId, prospect.business_name, prospect.domain, prospect.phone, prospect.address, prospect.category, assignedRep, assignedRep, prospectId, now, now).run();
+      (id,name,domain,phone,address,category,owner_email,account_manager,source,source_prospect_id,tenant_id,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?, 'PROSPECTING',?,?,?,?)`)
+      .bind(accountId, prospect.business_name, prospect.domain, prospect.phone, prospect.address, prospect.category, assignedRep, assignedRep, prospectId, tenantId, now, now).run();
     account = { id: accountId };
   } else {
     await db.prepare(`UPDATE crm_accounts SET name=?,domain=COALESCE(?,domain),phone=COALESCE(?,phone),address=?,category=?,account_manager=COALESCE(account_manager,?),updated_at=? WHERE id=?`)
@@ -49,9 +50,9 @@ async function convertOne(prospectId: string, request: Request, pipelineId: stri
   const contactId = contact?.id || crypto.randomUUID();
   if (!contact) {
     await db.prepare(`INSERT INTO crm_contacts
-      (id,account_id,full_name,email,phone,title,lifecycle,assigned_rep,source,notes,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,'LEAD',?,'PROSPECTING',?,?,?)`)
-      .bind(contactId, accountId, primaryName, emails[0] || null, prospect.phone || null, primaryTitle, assignedRep, prospect.why_call || prospect.next_action || null, now, now).run();
+      (id,account_id,full_name,email,phone,title,lifecycle,assigned_rep,source,notes,tenant_id,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,'LEAD',?,'PROSPECTING',?,?,?,?)`)
+      .bind(contactId, accountId, primaryName, emails[0] || null, prospect.phone || null, primaryTitle, assignedRep, prospect.why_call || prospect.next_action || null, tenantId, now, now).run();
     contact = { id: contactId };
   } else {
     await db.prepare(`UPDATE crm_contacts SET email=COALESCE(?,email),phone=COALESCE(?,phone),assigned_rep=COALESCE(assigned_rep,?),notes=COALESCE(?,notes),updated_at=? WHERE id=?`)
@@ -62,9 +63,9 @@ async function convertOne(prospectId: string, request: Request, pipelineId: stri
   const opportunityId = opportunity?.id || crypto.randomUUID();
   if (!opportunity) {
     await db.prepare(`INSERT INTO crm_opportunities
-      (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,notes,created_at,updated_at)
-      VALUES (?,?,?,?,?,'NEW LEAD',0,?,?,2000,'PENDING','UNPAID',0,0,0,'PROSPECTING',?,?,?)`)
-      .bind(opportunityId, accountId, contactId, pipelineId, `${prospect.business_name} · Cyncro opportunity`, Math.max(10, Math.min(100, Number(prospect.opportunity_score || 10))), assignedRep, prospect.next_action || null, now, now).run();
+      (id,account_id,primary_contact_id,pipeline_id,name,stage,value_cents,probability,assigned_rep,commission_rate_bps,commission_status,payment_status,collected_cents,residual_rate_bps,residual_months,source,notes,tenant_id,created_at,updated_at)
+      VALUES (?,?,?,?,?,'NEW LEAD',0,?,?,2000,'PENDING','UNPAID',0,0,0,'PROSPECTING',?,?,?,?)`)
+      .bind(opportunityId, accountId, contactId, pipelineId, `${prospect.business_name} · Cyncro opportunity`, Math.max(10, Math.min(100, Number(prospect.opportunity_score || 10))), assignedRep, prospect.next_action || null, tenantId, now, now).run();
     opportunity = { id: opportunityId };
   } else {
     await db.prepare(`UPDATE crm_opportunities SET probability=?,assigned_rep=COALESCE(assigned_rep,?),notes=COALESCE(?,notes),updated_at=? WHERE id=?`)
@@ -77,14 +78,16 @@ async function convertOne(prospectId: string, request: Request, pipelineId: stri
 export async function POST(request: Request) {
   try {
     await Promise.all([ensureCoreSchema(), ensureProspectingSchema()]);
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const single = cleanText(body.prospectId, 80);
     const requested = Array.isArray(body.prospectIds) ? body.prospectIds.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 250) : [];
     const prospectIds = [...new Set(single ? [single] : requested)];
     if (!prospectIds.length) return Response.json({ error: "At least one prospect is required." }, { status: 400 });
-    const pipelineId = await defaultPipeline(new Date().toISOString());
+    const pipelineId = await defaultPipeline(tenant.tenantId, new Date().toISOString());
     const results = [];
-    for (const prospectId of prospectIds) results.push(await convertOne(prospectId, request, pipelineId));
+    for (const prospectId of prospectIds) results.push(await convertOne(prospectId, tenant.tenantId, tenant.email, pipelineId));
     const successful = results.filter((item) => !item.error);
     if (single) {
       const item = successful[0];

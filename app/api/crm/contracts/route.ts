@@ -2,10 +2,9 @@ import {
   cleanText,
   coreDb,
   ensureCoreSchema,
-  hasModuleAccess,
   normalizeEmail,
-  requestUser,
 } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 const requestIp = (request: Request) =>
   request.headers.get("cf-connecting-ip") || "recorded";
@@ -81,13 +80,13 @@ export async function GET(request: Request) {
         ? Response.json({ contract: legacy, legacy: true })
         : Response.json({ error: "Contract not found." }, { status: 404 });
     }
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const id = cleanText(url.searchParams.get("id"), 80);
     if (id) {
       const contract = await coreDb()
-        .prepare("SELECT * FROM crm_contracts WHERE id=?")
-        .bind(id)
+        .prepare("SELECT * FROM crm_contracts WHERE id=? AND tenant_id=?")
+        .bind(id, tenant.tenantId)
         .first();
       if (!contract)
         return Response.json({ error: "Contract not found." }, { status: 404 });
@@ -129,8 +128,9 @@ export async function GET(request: Request) {
       contracts: (
         await coreDb()
           .prepare(
-            `SELECT c.*,o.name AS opportunity_name,i.invoice_number FROM crm_contracts c LEFT JOIN crm_opportunities o ON o.id=c.opportunity_id LEFT JOIN crm_invoices i ON i.id=c.invoice_id ORDER BY c.created_at DESC`,
+            `SELECT c.*,o.name AS opportunity_name,i.invoice_number FROM crm_contracts c LEFT JOIN crm_opportunities o ON o.id=c.opportunity_id LEFT JOIN crm_invoices i ON i.id=c.invoice_id WHERE c.tenant_id=? ORDER BY c.created_at DESC`,
           )
+          .bind(tenant.tenantId)
           .all()
       ).results,
     });
@@ -146,8 +146,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>,
       email = normalizeEmail(body.clientEmail),
       name = cleanText(body.clientName, 160),
@@ -164,8 +164,8 @@ export async function POST(request: Request) {
       documentHash = await digest(`${title}\n${text}`);
     await coreDb()
       .prepare(
-        `INSERT INTO crm_contracts (id,title,client_name,client_email,body,status,signing_token,created_by,created_at,updated_at,opportunity_id,invoice_id,template_key,expires_at,document_hash)
-      VALUES (?,?,?,?,?,'DRAFT',?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO crm_contracts (id,title,client_name,client_email,body,status,signing_token,created_by,tenant_id,created_at,updated_at,opportunity_id,invoice_id,template_key,expires_at,document_hash)
+      VALUES (?,?,?,?,?,'DRAFT',?,?,?,?,?,?,?,?,?,?)`,
       )
       .bind(
         id,
@@ -174,7 +174,8 @@ export async function POST(request: Request) {
         email,
         text,
         legacyToken,
-        requestUser(request),
+        tenant.email,
+        tenant.tenantId,
         now,
         now,
         cleanText(body.opportunityId, 80) || null,
@@ -224,14 +225,14 @@ export async function POST(request: Request) {
         title,
         text,
         documentHash,
-        requestUser(request),
+        tenant.email,
         now,
       )
       .run();
     await logEvent(
       id,
       "CREATED",
-      requestUser(request),
+      tenant.email,
       "Contract draft and version 1 created",
       request,
     );
@@ -344,14 +345,14 @@ export async function PATCH(request: Request) {
       );
       return Response.json({ signed: true, signedAt: now });
     }
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const id = cleanText(body.id, 80),
       action = cleanText(body.action, 40).toUpperCase(),
       now = new Date().toISOString(),
       contract = await coreDb()
-        .prepare("SELECT * FROM crm_contracts WHERE id=?")
-        .bind(id)
+        .prepare("SELECT * FROM crm_contracts WHERE id=? AND tenant_id=?")
+        .bind(id, tenant.tenantId)
         .first<Record<string, unknown>>();
     if (!contract)
       return Response.json({ error: "Contract not found." }, { status: 404 });
@@ -365,7 +366,7 @@ export async function PATCH(request: Request) {
       await logEvent(
         id,
         "REVOKED",
-        requestUser(request),
+        tenant.email,
         "Signing access revoked",
         request,
       );
@@ -381,7 +382,7 @@ export async function PATCH(request: Request) {
       await logEvent(
         id,
         "REMINDER_QUEUED",
-        requestUser(request),
+        tenant.email,
         "Signature reminder queued",
         request,
       );
@@ -430,7 +431,7 @@ export async function PATCH(request: Request) {
       await logEvent(
         id,
         "SENT",
-        requestUser(request),
+        tenant.email,
         "Secure signing links prepared",
         request,
       );
@@ -499,14 +500,14 @@ export async function PATCH(request: Request) {
         title,
         text,
         documentHash,
-        requestUser(request),
+        tenant.email,
         now,
       )
       .run();
     await logEvent(
       id,
       "VERSION_CREATED",
-      requestUser(request),
+      tenant.email,
       `Version ${version} saved`,
       request,
     );

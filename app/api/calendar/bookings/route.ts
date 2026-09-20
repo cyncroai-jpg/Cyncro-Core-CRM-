@@ -188,10 +188,10 @@ export async function POST(request: Request) {
     });
     // Audit log — fire-and-forget
     try {
-      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, after_state, created_at)
-        VALUES (?, ?, 'BOOKING', ?, 'CREATED', ?, ?, ?)`).bind(
+      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, after_state, tenant_id, created_at)
+        VALUES (?, ?, 'BOOKING', ?, 'CREATED', ?, ?, ?, ?)`).bind(
         crypto.randomUUID(), bookingId, bookingId, tenant.email,
-        JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), now
+        JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), tenant.tenantId, now
       ).run();
       // Release slot hold if token was provided
       if (cleanText(body.holdToken, 80)) await db.prepare("DELETE FROM calendar_slot_holds WHERE token = ?").bind(cleanText(body.holdToken, 80)).run();
@@ -272,11 +272,12 @@ export async function PATCH(request: Request) {
     }
     // Audit log — fire-and-forget
     try {
-      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, before_state, after_state, created_at)
-        VALUES (?, ?, 'BOOKING', ?, ?, ?, ?, ?, ?)`).bind(
+      await db.prepare(`INSERT INTO calendar_audit_log (id, booking_id, entity_type, entity_id, action, actor, before_state, after_state, tenant_id, created_at)
+        VALUES (?, ?, 'BOOKING', ?, ?, ?, ?, ?, ?, ?)`).bind(
         crypto.randomUUID(), id, id, action, tenant.email,
         JSON.stringify({ status: booking.status, starts_at: booking.starts_at }),
         JSON.stringify({ status: updated?.status, starts_at: updated?.starts_at }),
+        tenant.tenantId,
         new Date().toISOString()
       ).run();
     } catch { /* non-fatal */ }

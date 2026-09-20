@@ -2,20 +2,19 @@ import {
   cleanText,
   coreDb,
   ensureCoreSchema,
-  hasModuleAccess,
-  requestUser,
 } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 const allowed = new Set(["CALL", "SMS", "EMAIL"]);
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url),
       channel = cleanText(url.searchParams.get("channel"), 20).toUpperCase(),
       query = cleanText(url.searchParams.get("q"), 120);
-    let sql = "SELECT * FROM crm_sales_playbooks WHERE active=1",
-      values: unknown[] = [];
+    let sql = "SELECT * FROM crm_sales_playbooks WHERE active=1 AND tenant_id=?",
+      values: unknown[] = [tenant.tenantId];
     if (channel && allowed.has(channel)) {
       sql += " AND channel=?";
       values.push(channel);
@@ -43,8 +42,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>,
       name = cleanText(body.name, 160),
       channel = cleanText(body.channel, 20).toUpperCase(),
@@ -59,7 +58,7 @@ export async function POST(request: Request) {
       now = new Date().toISOString();
     await coreDb()
       .prepare(
-        "INSERT INTO crm_sales_playbooks (id,name,channel,category,stage,subject,content,objection,tags,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO crm_sales_playbooks (id,name,channel,category,stage,subject,content,objection,tags,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
       )
       .bind(
         id,
@@ -71,7 +70,8 @@ export async function POST(request: Request) {
         content,
         cleanText(body.objection, 500) || null,
         JSON.stringify(Array.isArray(body.tags) ? body.tags : []),
-        requestUser(request),
+        tenant.email,
+        tenant.tenantId,
         now,
         now,
       )
@@ -88,8 +88,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>,
       id = cleanText(body.id, 80),
       action = cleanText(body.action, 30).toUpperCase();
@@ -98,13 +98,15 @@ export async function PATCH(request: Request) {
         { error: "Playbook id is required." },
         { status: 400 },
       );
+    const owned = await coreDb().prepare("SELECT id FROM crm_sales_playbooks WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Playbook not found." }, { status: 404 });
     if (action === "DUPLICATE") {
       const original = await coreDb().prepare("SELECT * FROM crm_sales_playbooks WHERE id=?").bind(id).first<Record<string,unknown>>();
       if (!original) return Response.json({ error: "Playbook not found." }, { status: 404 });
       const newId = crypto.randomUUID(); const now = new Date().toISOString();
-      await coreDb().prepare(`INSERT INTO crm_sales_playbooks (id,name,channel,category,stage,subject,content,objection,tags,active,usage_count,success_count,created_by,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,1,0,0,?,?,?)`)
-        .bind(newId, `${String(original.name||"Playbook")} (copy)`, original.channel, original.category, original.stage, original.subject, original.content, original.objection, original.tags||"[]", requestUser(request), now, now).run();
+      await coreDb().prepare(`INSERT INTO crm_sales_playbooks (id,name,channel,category,stage,subject,content,objection,tags,active,usage_count,success_count,created_by,tenant_id,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,1,0,0,?,?,?,?)`)
+        .bind(newId, `${String(original.name||"Playbook")} (copy)`, original.channel, original.category, original.stage, original.subject, original.content, original.objection, original.tags||"[]", tenant.email, tenant.tenantId, now, now).run();
       const copy = await coreDb().prepare("SELECT * FROM crm_sales_playbooks WHERE id=?").bind(newId).first();
       return Response.json({ playbook: copy }, { status: 201 });
     }
@@ -126,7 +128,7 @@ export async function PATCH(request: Request) {
             cleanText(body.contactId, 80) || null,
             cleanText(body.opportunityId, 80) || null,
             outcome,
-            requestUser(request),
+            tenant.email,
             now,
             id,
           ),
@@ -175,11 +177,11 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm")))
-      return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Playbook id is required." }, { status: 400 });
-    await coreDb().prepare("UPDATE crm_sales_playbooks SET active=0,updated_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
+    await coreDb().prepare("UPDATE crm_sales_playbooks SET active=0,updated_at=? WHERE id=? AND tenant_id=?").bind(new Date().toISOString(), id, tenant.tenantId).run();
     return Response.json({ deleted: true });
   } catch (error) {
     console.error("playbooks.delete_failed", error);

@@ -1,4 +1,5 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 const VALID_EVENTS = new Set([
   "appointment.created",
@@ -11,10 +12,13 @@ const VALID_EVENTS = new Set([
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const endpointId = cleanText(url.searchParams.get("endpointId"), 80);
     if (endpointId) {
+      const owned = await coreDb().prepare("SELECT id FROM calendar_webhook_endpoints WHERE id = ? AND tenant_id = ?").bind(endpointId, tenant.tenantId).first();
+      if (!owned) return Response.json({ error: "Endpoint not found." }, { status: 404 });
       // Fetch recent deliveries for this endpoint
       const { results } = await coreDb().prepare(
         "SELECT id, event, status, response_code, attempt_count, delivered_at, next_retry_at, created_at FROM calendar_webhook_deliveries WHERE endpoint_id = ? ORDER BY created_at DESC LIMIT 50"
@@ -22,8 +26,8 @@ export async function GET(request: Request) {
       return Response.json({ deliveries: results });
     }
     const { results } = await coreDb().prepare(
-      "SELECT id, name, url, events, active, created_by, created_at FROM calendar_webhook_endpoints ORDER BY created_at DESC"
-    ).all();
+      "SELECT id, name, url, events, active, created_by, created_at FROM calendar_webhook_endpoints WHERE tenant_id = ? ORDER BY created_at DESC"
+    ).bind(tenant.tenantId).all();
     return Response.json({ endpoints: results });
   } catch (error) {
     console.error("calendar.webhooks.list_failed", error);
@@ -34,7 +38,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     const url = cleanText(body.url, 500);
@@ -50,9 +55,9 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO calendar_webhook_endpoints
-      (id, name, url, secret, events, active, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`)
-      .bind(id, name, url, secret, JSON.stringify(events), requestUser(request), now, now).run();
+      (id, name, url, secret, events, active, created_by, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`)
+      .bind(id, name, url, secret, JSON.stringify(events), tenant.email, tenant.tenantId, now, now).run();
     // Return the secret once — it won't be shown again
     return Response.json({ id, secret, signingKey: `sha256=${secret}` }, { status: 201 });
   } catch (error) {
@@ -64,10 +69,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Endpoint id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_webhook_endpoints WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Endpoint not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     const add = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };
@@ -96,11 +104,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const id = cleanText(url.searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Endpoint id is required." }, { status: 400 });
-    await coreDb().prepare("DELETE FROM calendar_webhook_endpoints WHERE id = ?").bind(id).run();
+    await coreDb().prepare("DELETE FROM calendar_webhook_endpoints WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).run();
     return Response.json({ deleted: true });
   } catch (error) {
     console.error("calendar.webhooks.delete_failed", error);

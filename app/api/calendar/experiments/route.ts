@@ -14,7 +14,8 @@
  * POST /api/calendar/experiments?track=1  — record impression or conversion (public)
  * PATCH /api/calendar/experiments         — update experiment (admin)
  */
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 /** Stable deterministic bucket 0–99 from any string */
 async function emailBucket(email: string): Promise<number> {
@@ -65,10 +66,13 @@ export async function GET(request: Request) {
 
     // Admin: results with conversion rates
     if (url.searchParams.get("results") === "1") {
-      if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+      const tenant = await requireTenant(request);
+      if (tenant instanceof Response) return tenant;
       const experimentId = cleanText(url.searchParams.get("experimentId"), 80);
       if (!experimentId) return Response.json({ error: "experimentId is required." }, { status: 400 });
       const db = coreDb();
+      const owned = await db.prepare("SELECT id FROM calendar_ab_experiments WHERE id=? AND tenant_id=?").bind(experimentId, tenant.tenantId).first();
+      if (!owned) return Response.json({ error: "Experiment not found." }, { status: 404 });
       const { results: impressions } = await db.prepare(
         `SELECT variant, COUNT(*) AS total FROM calendar_ab_events WHERE experiment_id = ? AND event_type = 'IMPRESSION' GROUP BY variant`
       ).bind(experimentId).all<{ variant: string; total: number }>();
@@ -101,10 +105,11 @@ export async function GET(request: Request) {
     }
 
     // Admin: list experiments
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const { results } = await coreDb().prepare(
-      "SELECT e.*, t.name AS event_type_name FROM calendar_ab_experiments e LEFT JOIN calendar_event_types t ON t.id = e.event_type_id ORDER BY e.created_at DESC LIMIT 50"
-    ).all();
+      "SELECT e.*, t.name AS event_type_name FROM calendar_ab_experiments e LEFT JOIN calendar_event_types t ON t.id = e.event_type_id WHERE e.tenant_id = ? ORDER BY e.created_at DESC LIMIT 50"
+    ).bind(tenant.tenantId).all();
     return Response.json({ experiments: results });
   } catch (error) {
     console.error("calendar.experiments.list_failed", error);
@@ -127,13 +132,16 @@ export async function POST(request: Request) {
       const eventType = cleanText(body.eventType, 30).toUpperCase() || "IMPRESSION";
       if (!experimentId || !variant || !customerEmail) return Response.json({ error: "experimentId, variant, and customerEmail are required." }, { status: 400 });
       if (!new Set(["IMPRESSION", "CONVERSION"]).has(eventType)) return Response.json({ error: "eventType must be IMPRESSION or CONVERSION." }, { status: 400 });
-      await db.prepare(`INSERT INTO calendar_ab_events (id, experiment_id, variant, customer_email, event_type, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .bind(crypto.randomUUID(), experimentId, variant, customerEmail, eventType, new Date().toISOString()).run();
+      const experiment = await db.prepare("SELECT tenant_id FROM calendar_ab_experiments WHERE id = ?").bind(experimentId).first<{tenant_id:string}>();
+      if (!experiment) return Response.json({ error: "Experiment not found." }, { status: 404 });
+      await db.prepare(`INSERT INTO calendar_ab_events (id, experiment_id, variant, customer_email, event_type, tenant_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .bind(crypto.randomUUID(), experimentId, variant, customerEmail, eventType, experiment.tenant_id, new Date().toISOString()).run();
       return Response.json({ tracked: true });
     }
 
     // Admin: create experiment
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     if (!name) return Response.json({ error: "Experiment name is required." }, { status: 400 });
@@ -150,9 +158,9 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await db.prepare(`INSERT INTO calendar_ab_experiments
-      (id, name, event_type_id, variants, traffic_split, active, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`)
-      .bind(id, name, cleanText(body.eventTypeId, 80) || null, JSON.stringify(variants), JSON.stringify(trafficSplit), requestUser(request), now, now).run();
+      (id, name, event_type_id, variants, traffic_split, active, created_by, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`)
+      .bind(id, name, cleanText(body.eventTypeId, 80) || null, JSON.stringify(variants), JSON.stringify(trafficSplit), tenant.email, tenant.tenantId, now, now).run();
     return Response.json({ id, variants, trafficSplit }, { status: 201 });
   } catch (error) {
     console.error("calendar.experiments.create_failed", error);
@@ -163,10 +171,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Experiment id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_ab_experiments WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Experiment not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     const add = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };

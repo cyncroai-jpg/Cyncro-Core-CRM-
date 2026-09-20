@@ -36,6 +36,7 @@ type Intent = "BOOK" | "RESCHEDULE" | "CANCEL" | "CHECK_AVAILABILITY";
 
 // Minimal SmartSlot™ scorer (mirrors /api/calendar/slots logic without availability rules)
 async function findBestSlot(db: ReturnType<typeof coreDb>, eventTypeId: string, eventType: Record<string, unknown>, preferredDate?: string, preferredTime?: string, leadScore = 50) {
+  const tenantId = String(eventType.tenant_id || "");
   const duration = Number(eventType.duration_minutes);
   const capacity = Number(eventType.capacity || 1);
   const minNoticeMs = Number(eventType.min_notice_hours || 1) * 3_600_000;
@@ -51,14 +52,14 @@ async function findBestSlot(db: ReturnType<typeof coreDb>, eventTypeId: string, 
   const endRange = new Date(from.getTime() + days * 86_400_000);
 
   const { results: rules } = await db.prepare(
-    "SELECT * FROM calendar_availability WHERE active = 1 AND (event_type_id = ? OR event_type_id IS NULL)"
-  ).bind(eventTypeId).all<Record<string, unknown>>();
+    "SELECT * FROM calendar_availability WHERE active = 1 AND tenant_id = ? AND (event_type_id = ? OR event_type_id IS NULL)"
+  ).bind(tenantId, eventTypeId).all<Record<string, unknown>>();
   const { results: bookings } = await db.prepare(
-    `SELECT starts_at, ends_at FROM calendar_bookings WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`
-  ).bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
+    `SELECT starts_at, ends_at FROM calendar_bookings WHERE event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`
+  ).bind(eventTypeId, tenantId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
   const { results: blocked } = await db.prepare(
-    `SELECT starts_at, ends_at FROM calendar_blocked_times WHERE (event_type_id = ? OR event_type_id IS NULL) AND starts_at < ? AND ends_at > ?`
-  ).bind(eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
+    `SELECT starts_at, ends_at FROM calendar_blocked_times WHERE tenant_id = ? AND (event_type_id = ? OR event_type_id IS NULL) AND starts_at < ? AND ends_at > ?`
+  ).bind(tenantId, eventTypeId, endRange.toISOString(), from.toISOString()).all<{ starts_at: string; ends_at: string }>();
 
   // Day demand map
   const dayDemand: Record<string, number> = {};
@@ -269,6 +270,7 @@ export async function POST(request: Request) {
 
     const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE slug = ? AND active = 1").bind(slug).first<Record<string, unknown>>();
     if (!eventType) return Response.json({ success: false, error: "Event type not found." }, { status: 404 });
+    const tenantId = String(eventType.tenant_id || "");
 
     const preferredDate = cleanText(body.preferredDate, 40) || undefined;
     const preferredTime = cleanText(body.preferredTime, 10) || undefined;
@@ -284,8 +286,8 @@ export async function POST(request: Request) {
         return Response.json({ success: false, error: "startsAt is not a valid ISO datetime." }, { status: 400 });
       ends = new Date(starts.getTime() + duration * 60_000);
       // Conflict check for explicit slot
-      const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings WHERE event_type_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
-        .bind(String(eventType.id), ends.toISOString(), starts.toISOString()).first<{ total: number }>();
+      const conflict = await db.prepare(`SELECT COUNT(*) AS total FROM calendar_bookings WHERE event_type_id = ? AND tenant_id = ? AND status IN ('CONFIRMED','RESCHEDULED') AND starts_at < ? AND ends_at > ?`)
+        .bind(String(eventType.id), tenantId, ends.toISOString(), starts.toISOString()).first<{ total: number }>();
       if (Number(conflict?.total || 0) >= Number(eventType.capacity || 1))
         return Response.json({ success: false, error: "That time slot is no longer available." }, { status: 409 });
     } else {
@@ -297,15 +299,15 @@ export async function POST(request: Request) {
 
     // Upsert contact
     const now = new Date().toISOString();
-    const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = lower(?)").bind(customerEmail).first<{ id: string }>();
+    const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = lower(?) AND tenant_id = ?").bind(customerEmail, tenantId).first<{ id: string }>();
     let contactId: string;
     if (existing) {
       contactId = existing.id;
       await db.prepare("UPDATE crm_contacts SET full_name=?, lifecycle='CUSTOMER', updated_at=? WHERE id=?").bind(customerName, now, contactId).run();
     } else {
       contactId = crypto.randomUUID();
-      await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,lifecycle,source,created_at,updated_at) VALUES (?,?,?,'CUSTOMER','CALENDAR',?,?)`)
-        .bind(contactId, customerName, customerEmail, now, now).run();
+      await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,lifecycle,source,tenant_id,created_at,updated_at) VALUES (?,?,?,'CUSTOMER','CALENDAR',?,?,?)`)
+        .bind(contactId, customerName, customerEmail, tenantId, now, now).run();
     }
 
     const bookingId = crypto.randomUUID();
@@ -313,22 +315,22 @@ export async function POST(request: Request) {
 
     await db.prepare(`INSERT INTO calendar_bookings
       (id,event_type_id,contact_id,customer_name,customer_email,starts_at,ends_at,timezone,
-       location_mode,meeting_address,video_platform,status,notes,created_by,assigned_to,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,'CONFIRMED',?,?,?,?,?)`)
+       location_mode,meeting_address,video_platform,status,notes,created_by,assigned_to,tenant_id,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,'CONFIRMED',?,?,?,?,?,?)`)
       .bind(bookingId, String(eventType.id), contactId, customerName, customerEmail,
         starts.toISOString(), ends.toISOString(), timezone,
-        locationMode, meetingAddress, videoPlatform, notes, agentId, assignedTo, now, now).run();
+        locationMode, meetingAddress, videoPlatform, notes, agentId, assignedTo, tenantId, now, now).run();
 
     // Audit log + activity
     try {
-      await db.prepare(`INSERT INTO calendar_audit_log (id,booking_id,entity_type,entity_id,action,actor,after_state,created_at) VALUES (?,?,'BOOKING',?,'CREATED',?,?,?)`)
+      await db.prepare(`INSERT INTO calendar_audit_log (id,booking_id,entity_type,entity_id,action,actor,after_state,tenant_id,created_at) VALUES (?,?,'BOOKING',?,'CREATED',?,?,?,?)`)
         .bind(crypto.randomUUID(), bookingId, bookingId, agentId,
-          JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), now).run();
-      await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,created_at,updated_at) VALUES (?,?,'CALENDAR',?,?,?,'COMPLETED',?,?,?)`)
+          JSON.stringify({ startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED", assignedTo }), tenantId, now).run();
+      await db.prepare(`INSERT INTO crm_activities (id,contact_id,activity_type,title,details,due_at,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,'CALENDAR',?,?,?,'COMPLETED',?,?,?,?)`)
         .bind(crypto.randomUUID(), contactId,
           `Booked ${String(eventType.name || "appointment")} (via AI agent)`,
           `${locationMode}${videoPlatform ? ` · ${videoPlatform}` : ""}${meetingAddress ? ` · ${meetingAddress}` : ""}`,
-          starts.toISOString(), agentId, now, now).run();
+          starts.toISOString(), agentId, tenantId, now, now).run();
     } catch { /* non-fatal */ }
 
     // Confirmation email — fire-and-forget

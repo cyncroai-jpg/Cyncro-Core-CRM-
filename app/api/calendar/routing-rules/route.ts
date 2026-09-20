@@ -1,12 +1,14 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const { results } = await coreDb().prepare(
-      "SELECT * FROM calendar_routing_rules WHERE active = 1 ORDER BY name"
-    ).all();
+      "SELECT * FROM calendar_routing_rules WHERE active = 1 AND tenant_id = ? ORDER BY name"
+    ).bind(tenant.tenantId).all();
     return Response.json({ routingRules: results });
   } catch (error) {
     console.error("calendar.routing_rules.list_failed", error);
@@ -17,7 +19,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     if (!name) return Response.json({ error: "Routing rule name is required." }, { status: 400 });
@@ -29,15 +32,15 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(
-      `INSERT INTO calendar_routing_rules (id, name, event_type_id, strategy, members, weights, skills_required, territory_rules, active, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+      `INSERT INTO calendar_routing_rules (id, name, event_type_id, strategy, members, weights, skills_required, territory_rules, active, created_by, tenant_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
     ).bind(
       id, name, cleanText(body.eventTypeId, 80) || null, strategy,
       JSON.stringify(members),
       JSON.stringify(typeof body.weights === "object" && body.weights ? body.weights : {}),
       JSON.stringify(Array.isArray(body.skillsRequired) ? body.skillsRequired : []),
       JSON.stringify(Array.isArray(body.territoryRules) ? body.territoryRules : []),
-      "system", now, now
+      tenant.email, tenant.tenantId, now, now
     ).run();
     return Response.json({ id }, { status: 201 });
   } catch (error) {
@@ -49,10 +52,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Rule id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_routing_rules WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Rule not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     const add = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };
@@ -79,11 +85,13 @@ export async function PATCH(request: Request) {
 export async function PUT(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const ruleId = cleanText(body.ruleId, 80);
     if (!ruleId) return Response.json({ error: "Rule id is required." }, { status: 400 });
     const db = coreDb();
-    const rule = await db.prepare("SELECT * FROM calendar_routing_rules WHERE id = ? AND active = 1").bind(ruleId).first<Record<string, unknown>>();
+    const rule = await db.prepare("SELECT * FROM calendar_routing_rules WHERE id = ? AND active = 1 AND tenant_id = ?").bind(ruleId, tenant.tenantId).first<Record<string, unknown>>();
     if (!rule) return Response.json({ error: "Routing rule not found." }, { status: 404 });
     const members = JSON.parse(String(rule.members || "[]")) as string[];
     if (!members.length) return Response.json({ error: "No team members configured." }, { status: 400 });

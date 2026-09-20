@@ -6,7 +6,8 @@
  * PATCH /api/crm/automations — { id, active? } toggle, or { id, updates: {...} } edit
  * DELETE /api/crm/automations?id=X — delete a rule (keeps its run history)
  */
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import type { AutomationActionType, AutomationTriggerEvent } from "@/lib/core/automations";
 
 const TRIGGER_EVENTS = new Set<AutomationTriggerEvent>(["CONTACT_CREATED", "OPPORTUNITY_STAGE_CHANGED", "OPPORTUNITY_WON", "OPPORTUNITY_LOST"]);
@@ -15,10 +16,11 @@ const ACTION_TYPES = new Set<AutomationActionType>(["CREATE_TASK", "ADD_ACTIVITY
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const db = coreDb();
-    const { results: rules } = await db.prepare("SELECT * FROM crm_automation_rules ORDER BY created_at DESC").all();
-    const { results: runs } = await db.prepare("SELECT * FROM crm_automation_runs ORDER BY created_at DESC LIMIT 100").all();
+    const { results: rules } = await db.prepare("SELECT * FROM crm_automation_rules WHERE tenant_id=? ORDER BY created_at DESC").bind(tenant.tenantId).all();
+    const { results: runs } = await db.prepare("SELECT r.* FROM crm_automation_runs r JOIN crm_automation_rules a ON a.id=r.rule_id WHERE a.tenant_id=? ORDER BY r.created_at DESC LIMIT 100").bind(tenant.tenantId).all();
     return Response.json({ rules, runs });
   } catch (error) {
     console.error("crm.automations.list_failed", error);
@@ -29,7 +31,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     const triggerEvent = cleanText(body.triggerEvent, 40).toUpperCase() as AutomationTriggerEvent;
@@ -41,9 +44,9 @@ export async function POST(request: Request) {
     const actionConfig = body.actionConfig && typeof body.actionConfig === "object" ? body.actionConfig : {};
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    await coreDb().prepare(`INSERT INTO crm_automation_rules (id,name,trigger_event,trigger_filter,action_type,action_config,active,created_by,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,1,?,?,?)`)
-      .bind(id, name, triggerEvent, JSON.stringify(triggerFilter), actionType, JSON.stringify(actionConfig), requestUser(request), now, now).run();
+    await coreDb().prepare(`INSERT INTO crm_automation_rules (id,name,trigger_event,trigger_filter,action_type,action_config,active,created_by,tenant_id,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,1,?,?,?,?)`)
+      .bind(id, name, triggerEvent, JSON.stringify(triggerFilter), actionType, JSON.stringify(actionConfig), tenant.email, tenant.tenantId, now, now).run();
     return Response.json({ id }, { status: 201 });
   } catch (error) {
     console.error("crm.automations.create_failed", error);
@@ -54,11 +57,14 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Rule id is required." }, { status: 400 });
     const db = coreDb();
+    const owned = await db.prepare("SELECT id FROM crm_automation_rules WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Rule not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     if (body.active !== undefined) { fields.push("active=?"); values.push(body.active ? 1 : 0); }
@@ -79,10 +85,11 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "crm"))) return Response.json({ error: "CRM access required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "delete");
+    if (tenant instanceof Response) return tenant;
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Rule id is required." }, { status: 400 });
-    await coreDb().prepare("DELETE FROM crm_automation_rules WHERE id=?").bind(id).run();
+    await coreDb().prepare("DELETE FROM crm_automation_rules WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).run();
     return Response.json({ deleted: true });
   } catch (error) {
     console.error("crm.automations.delete_failed", error);

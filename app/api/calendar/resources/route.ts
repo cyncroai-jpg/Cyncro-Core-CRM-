@@ -1,11 +1,14 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const { results } = await coreDb().prepare(
-      "SELECT * FROM calendar_resources WHERE active = 1 ORDER BY resource_type, name"
-    ).all();
+      "SELECT * FROM calendar_resources WHERE active = 1 AND tenant_id = ? ORDER BY resource_type, name"
+    ).bind(tenant.tenantId).all();
     return Response.json({ resources: results });
   } catch (error) {
     console.error("calendar.resources.list_failed", error);
@@ -16,7 +19,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const name = cleanText(body.name, 160);
     const resourceType = cleanText(body.resourceType, 40).toUpperCase() || "ROOM";
@@ -27,11 +31,11 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(
-      `INSERT INTO calendar_resources (id, name, resource_type, description, location, capacity, color, active, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+      `INSERT INTO calendar_resources (id, name, resource_type, description, location, capacity, color, active, created_by, tenant_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
     ).bind(id, name, resourceType, cleanText(body.description, 500) || null,
       cleanText(body.location, 300) || null, capacity,
-      cleanText(body.color, 20) || "#C1283E", "system", now, now).run();
+      cleanText(body.color, 20) || "#C1283E", tenant.email, tenant.tenantId, now, now).run();
     return Response.json({ id }, { status: 201 });
   } catch (error) {
     console.error("calendar.resources.create_failed", error);
@@ -42,10 +46,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Resource id is required." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_resources WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Resource not found." }, { status: 404 });
     const fields: string[] = [];
     const values: unknown[] = [];
     const add = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };

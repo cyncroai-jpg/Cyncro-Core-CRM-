@@ -1,9 +1,11 @@
-import { coreDb, ensureCoreSchema, hasModuleAccess } from "@/lib/core/db";
+import { coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
 
     const db = coreDb();
     const now = new Date();
@@ -21,15 +23,15 @@ export async function GET(request: Request) {
           SUM(CASE WHEN status='NO_SHOW' THEN 1 ELSE 0 END) AS no_shows,
           SUM(CASE WHEN status='CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count,
           SUM(COALESCE(price_cents,0)) AS revenue_cents
-        FROM calendar_bookings WHERE starts_at >= ? AND starts_at <= ?`)
-        .bind(monthStart, monthEnd).first<Record<string, number>>(),
-      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE starts_at >= ? AND starts_at < ? AND status IN ('CONFIRMED','RESCHEDULED')")
-        .bind(weekStart.toISOString(), weekEnd.toISOString()).first<{ total: number }>(),
-      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE starts_at >= ? AND starts_at < ? AND status IN ('CONFIRMED','RESCHEDULED')")
-        .bind(next7Start, next7End).first<{ total: number }>(),
-      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE status = 'NO_SHOW'").first<{ total: number }>(),
-      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE status = 'CANCELLED'").first<{ total: number }>(),
-      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE status NOT IN ('CANCELLED')").first<{ total: number }>(),
+        FROM calendar_bookings WHERE tenant_id = ? AND starts_at >= ? AND starts_at <= ?`)
+        .bind(tenant.tenantId, monthStart, monthEnd).first<Record<string, number>>(),
+      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE tenant_id = ? AND starts_at >= ? AND starts_at < ? AND status IN ('CONFIRMED','RESCHEDULED')")
+        .bind(tenant.tenantId, weekStart.toISOString(), weekEnd.toISOString()).first<{ total: number }>(),
+      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE tenant_id = ? AND starts_at >= ? AND starts_at < ? AND status IN ('CONFIRMED','RESCHEDULED')")
+        .bind(tenant.tenantId, next7Start, next7End).first<{ total: number }>(),
+      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE tenant_id = ? AND status = 'NO_SHOW'").bind(tenant.tenantId).first<{ total: number }>(),
+      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE tenant_id = ? AND status = 'CANCELLED'").bind(tenant.tenantId).first<{ total: number }>(),
+      db.prepare("SELECT COUNT(*) AS total FROM calendar_bookings WHERE tenant_id = ? AND status NOT IN ('CANCELLED')").bind(tenant.tenantId).first<{ total: number }>(),
     ]);
 
     const total = Number(monthly?.total || 0);
@@ -42,18 +44,18 @@ export async function GET(request: Request) {
       SELECT e.name AS event_name, e.color, COUNT(*) AS count
       FROM calendar_bookings b
       JOIN calendar_event_types e ON e.id = b.event_type_id
-      WHERE b.starts_at >= ? AND b.starts_at <= ? AND b.status NOT IN ('CANCELLED')
+      WHERE b.tenant_id = ? AND b.starts_at >= ? AND b.starts_at <= ? AND b.status NOT IN ('CANCELLED')
       GROUP BY b.event_type_id ORDER BY count DESC LIMIT 5`)
-      .bind(monthStart, monthEnd).all<Record<string, unknown>>();
+      .bind(tenant.tenantId, monthStart, monthEnd).all<Record<string, unknown>>();
 
     // Upcoming bookings next 7 days with details
     const { results: upcomingList } = await db.prepare(`
       SELECT b.customer_name, b.starts_at, b.status, e.name AS event_name, e.color, b.assigned_to
       FROM calendar_bookings b
       JOIN calendar_event_types e ON e.id = b.event_type_id
-      WHERE b.starts_at >= ? AND b.starts_at < ? AND b.status IN ('CONFIRMED','RESCHEDULED')
+      WHERE b.tenant_id = ? AND b.starts_at >= ? AND b.starts_at < ? AND b.status IN ('CONFIRMED','RESCHEDULED')
       ORDER BY b.starts_at LIMIT 10`)
-      .bind(next7Start, next7End).all<Record<string, unknown>>();
+      .bind(tenant.tenantId, next7Start, next7End).all<Record<string, unknown>>();
 
     return Response.json({
       thisMonth: {

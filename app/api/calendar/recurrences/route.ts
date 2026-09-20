@@ -1,4 +1,5 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
 // Advance a date by one recurrence interval
 function advanceDate(d: Date, frequency: string, interval: number): Date {
@@ -44,14 +45,15 @@ function generateOccurrences(rule: {
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const contactId = cleanText(url.searchParams.get("contactId"), 80);
     const eventTypeId = cleanText(url.searchParams.get("eventTypeId"), 80);
     let query = `SELECT r.*, e.name AS event_name, e.color AS event_color
       FROM calendar_recurrence_rules r
-      LEFT JOIN calendar_event_types e ON e.id = r.event_type_id WHERE 1=1`;
-    const params: unknown[] = [];
+      LEFT JOIN calendar_event_types e ON e.id = r.event_type_id WHERE r.tenant_id = ?`;
+    const params: unknown[] = [tenant.tenantId];
     if (contactId) { query += " AND r.contact_id = ?"; params.push(contactId); }
     if (eventTypeId) { query += " AND r.event_type_id = ?"; params.push(eventTypeId); }
     query += " ORDER BY r.created_at DESC LIMIT 100";
@@ -66,7 +68,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const eventTypeId = cleanText(body.eventTypeId, 80);
     const customerName = cleanText(body.customerName, 160);
@@ -78,7 +81,7 @@ export async function POST(request: Request) {
     if (!new Set(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).has(frequency))
       return Response.json({ error: "Frequency must be DAILY, WEEKLY, MONTHLY, or YEARLY." }, { status: 400 });
     const db = coreDb();
-    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<Record<string,unknown>>();
+    const eventType = await db.prepare("SELECT * FROM calendar_event_types WHERE id = ? AND active = 1 AND tenant_id = ?").bind(eventTypeId, tenant.tenantId).first<Record<string,unknown>>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
     const intervalCount = Math.max(1, Math.min(52, Number(body.intervalCount || 1)));
     const maxOccurrences = Math.max(1, Math.min(200, Number(body.maxOccurrences || 10)));
@@ -93,10 +96,10 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     await db.prepare(`INSERT INTO calendar_recurrence_rules
       (id, event_type_id, contact_id, customer_name, customer_email, frequency, interval_count, weekdays,
-       day_of_month, starts_on, ends_on, max_occurrences, occurrence_count, timezone, location_mode, notes, status, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'ACTIVE', ?, ?, ?)`)
+       day_of_month, starts_on, ends_on, max_occurrences, occurrence_count, timezone, location_mode, notes, status, created_by, tenant_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`)
       .bind(id, eventTypeId, contactId, customerName, customerEmail, frequency, intervalCount, weekdays,
-        dayOfMonth, startsOn, endsOn, maxOccurrences, timezone, locationMode, notes, requestUser(request), now, now).run();
+        dayOfMonth, startsOn, endsOn, maxOccurrences, timezone, locationMode, notes, tenant.email, tenant.tenantId, now, now).run();
     // Generate and create the first N bookings
     const duration = Number(eventType.duration_minutes || 30);
     const ruleForGen = { starts_on: startsOn, ends_on: endsOn, frequency, interval_count: intervalCount, max_occurrences: maxOccurrences, weekdays };
@@ -113,11 +116,11 @@ export async function POST(request: Request) {
       try {
         await db.prepare(`INSERT INTO calendar_bookings
           (id, event_type_id, contact_id, customer_name, customer_email, starts_at, ends_at, timezone,
-           location_mode, status, recurrence_rule_id, created_by, assigned_to, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)`)
+           location_mode, status, recurrence_rule_id, created_by, assigned_to, tenant_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?, ?)`)
           .bind(bid, eventTypeId, contactId, customerName, customerEmail,
             slotStart.toISOString(), slotEnd.toISOString(), timezone, locationMode,
-            id, requestUser(request), requestUser(request), now, now).run();
+            id, tenant.email, tenant.email, tenant.tenantId, now, now).run();
         created.push(bid);
       } catch { /* skip conflicts */ }
     }
@@ -132,13 +135,16 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Recurrence id is required." }, { status: 400 });
     const status = cleanText(body.status, 20).toUpperCase();
     const allowed = new Set(["ACTIVE", "PAUSED", "CANCELLED"]);
     if (!allowed.has(status)) return Response.json({ error: "Status must be ACTIVE, PAUSED, or CANCELLED." }, { status: 400 });
+    const owned = await coreDb().prepare("SELECT id FROM calendar_recurrence_rules WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
+    if (!owned) return Response.json({ error: "Recurrence not found." }, { status: 404 });
     const now = new Date().toISOString();
     await coreDb().prepare("UPDATE calendar_recurrence_rules SET status = ?, updated_at = ? WHERE id = ?").bind(status, now, id).run();
     if (status === "CANCELLED") {

@@ -1,14 +1,17 @@
-import { cleanText, coreDb, ensureCoreSchema, hasModuleAccess, normalizeEmail, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
+import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { sendEmail, waitlistSlotAvailableEmail, bookingConfirmationEmail } from "@/lib/core/email";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const eventTypeId = cleanText(url.searchParams.get("eventTypeId"), 80);
     const status = cleanText(url.searchParams.get("status"), 30).toUpperCase() || "WAITING";
-    let query = "SELECT w.*, e.name AS event_name FROM calendar_waitlist w JOIN calendar_event_types e ON e.id = w.event_type_id WHERE 1=1";
-    const params: unknown[] = [];
+    let query = "SELECT w.*, e.name AS event_name FROM calendar_waitlist w JOIN calendar_event_types e ON e.id = w.event_type_id WHERE w.tenant_id = ?";
+    const params: unknown[] = [tenant.tenantId];
     if (eventTypeId) { query += " AND w.event_type_id = ?"; params.push(eventTypeId); }
     if (status) { query += " AND w.status = ?"; params.push(status); }
     query += " ORDER BY w.created_at ASC LIMIT 100";
@@ -30,13 +33,13 @@ export async function POST(request: Request) {
     if (!eventTypeId || !customerName || !customerEmail)
       return Response.json({ error: "Event type, name, and email are required." }, { status: 400 });
     const db = coreDb();
-    const eventType = await db.prepare("SELECT id FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first();
+    const eventType = await db.prepare("SELECT id, tenant_id FROM calendar_event_types WHERE id = ? AND active = 1").bind(eventTypeId).first<{id:string; tenant_id:string}>();
     if (!eventType) return Response.json({ error: "Event type not found." }, { status: 404 });
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await db.prepare(
-      `INSERT INTO calendar_waitlist (id, event_type_id, preferred_date, preferred_time_start, preferred_time_end, customer_name, customer_email, customer_phone, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'WAITING', ?, ?)`
+      `INSERT INTO calendar_waitlist (id, event_type_id, preferred_date, preferred_time_start, preferred_time_end, customer_name, customer_email, customer_phone, notes, status, tenant_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'WAITING', ?, ?, ?)`
     ).bind(id, eventTypeId,
       cleanText(body.preferredDate, 20) || null,
       cleanText(body.preferredTimeStart, 10) || null,
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
       customerName, customerEmail,
       cleanText(body.customerPhone, 40) || null,
       cleanText(body.notes, 500) || null,
-      now, now
+      eventType.tenant_id, now, now
     ).run();
     return Response.json({ id, status: "WAITING" }, { status: 201 });
   } catch (error) {
@@ -56,7 +59,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasModuleAccess(request, "calendar"))) return Response.json({ error: "Calendar access is required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "edit");
+    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Waitlist entry id is required." }, { status: 400 });
@@ -66,8 +70,8 @@ export async function PATCH(request: Request) {
     const db = coreDb();
     const entry = await db.prepare(
       `SELECT w.*, e.name AS event_name, e.duration_minutes, e.capacity, e.host_name, e.location_modes
-       FROM calendar_waitlist w JOIN calendar_event_types e ON e.id = w.event_type_id WHERE w.id = ?`
-    ).bind(id).first<Record<string, unknown>>();
+       FROM calendar_waitlist w JOIN calendar_event_types e ON e.id = w.event_type_id WHERE w.id = ? AND w.tenant_id = ?`
+    ).bind(id, tenant.tenantId).first<Record<string, unknown>>();
     if (!entry) return Response.json({ error: "Entry not found." }, { status: 404 });
     const now = new Date().toISOString();
     let newBookingId: string | null = null;
@@ -106,26 +110,26 @@ export async function PATCH(request: Request) {
       const locationModes: string[] = (() => { try { return JSON.parse(String(entry.location_modes || '["VIDEO"]')); } catch { return ["VIDEO"]; } })();
       const locationMode = locationModes[0] || "VIDEO";
       newBookingId = crypto.randomUUID();
-      const assignedTo = String(entry.host_name || requestUser(request));
+      const assignedTo = String(entry.host_name || tenant.email);
       // Upsert contact
-      const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = lower(?)").bind(String(entry.customer_email)).first<{ id: string }>();
+      const existing = await db.prepare("SELECT id FROM crm_contacts WHERE lower(email) = lower(?) AND tenant_id = ?").bind(String(entry.customer_email), tenant.tenantId).first<{ id: string }>();
       let contactId: string;
       if (existing) {
         contactId = existing.id;
       } else {
         contactId = crypto.randomUUID();
-        await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,source,created_at,updated_at) VALUES (?,?,?,?,'CUSTOMER','CALENDAR',?,?)`)
-          .bind(contactId, String(entry.customer_name), String(entry.customer_email), String(entry.customer_phone || "") || null, now, now).run();
+        await db.prepare(`INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,source,tenant_id,created_at,updated_at) VALUES (?,?,?,?,'CUSTOMER','CALENDAR',?,?,?)`)
+          .bind(contactId, String(entry.customer_name), String(entry.customer_email), String(entry.customer_phone || "") || null, tenant.tenantId, now, now).run();
       }
       await db.prepare(`INSERT INTO calendar_bookings
         (id,event_type_id,contact_id,customer_name,customer_email,customer_phone,starts_at,ends_at,timezone,
-         location_mode,status,notes,created_by,assigned_to,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,'CONFIRMED',?,?,?,?,?)`)
+         location_mode,status,notes,created_by,assigned_to,tenant_id,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,'CONFIRMED',?,?,?,?,?,?)`)
         .bind(newBookingId, String(entry.event_type_id), contactId,
           String(entry.customer_name), String(entry.customer_email), String(entry.customer_phone || "") || null,
           starts.toISOString(), ends.toISOString(), "UTC",
           locationMode, String(entry.notes || "") || null,
-          requestUser(request), assignedTo, now, now).run();
+          tenant.email, assignedTo, tenant.tenantId, now, now).run();
       await db.prepare(`UPDATE calendar_waitlist SET status = 'BOOKED', booking_id = ?, updated_at = ? WHERE id = ?`)
         .bind(newBookingId, now, id).run();
       // Confirmation email
