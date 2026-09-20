@@ -209,8 +209,7 @@ export default function LoginPage() {
       <div className="loginCard">
         {/* Logo */}
         <div className="loginLogo">
-          <span className="loginLogoMark">Cyncro</span>
-          <span className="loginLogoSub">Core</span>
+          <img src="/brand/cyncro-core-logo.png" alt="Cyncro Core" className="loginLogoImg" />
         </div>
 
         {mode === "signup" ? (
@@ -541,21 +540,13 @@ export default function LoginPage() {
         }
         .loginLogo {
           display: flex;
-          align-items: baseline;
-          gap: 7px;
+          align-items: center;
           margin-bottom: 36px;
         }
-        .loginLogoMark {
-          font-size: 22px;
-          font-weight: 600;
-          letter-spacing: -0.02em;
-          color: #F5F0EB;
-        }
-        .loginLogoSub {
-          font-size: 13px;
-          font-weight: 500;
-          color: #C1283E;
-          letter-spacing: 0.04em;
+        .loginLogoImg {
+          height: 40px;
+          width: auto;
+          display: block;
         }
         .loginHeading {
           margin-bottom: 28px;

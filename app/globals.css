@@ -5634,6 +5634,11 @@ header {
   color: #c42d45;
   font-size: 28px;
 }
+.logoImg {
+  height: 34px;
+  width: auto;
+  display: block;
+}
 nav {
   display: flex;
   gap: 7px;

@@ -186,7 +186,7 @@ export default function Home() {
     >
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => navigate("home")}>
-          <i>Cyncro</i> Core
+          <img src="/brand/cyncro-core-logo.png" alt="Cyncro Core" className="logoImg" />
         </button>
         <nav>
           {[
