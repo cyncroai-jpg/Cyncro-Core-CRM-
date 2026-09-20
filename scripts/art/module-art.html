@@ -1,0 +1,407 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Cyncro module art</title>
+<style>
+@font-face{font-family:Montserrat;font-weight:400;src:url("../../node_modules/@fontsource/montserrat/files/montserrat-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:Montserrat;font-weight:500;src:url("../../node_modules/@fontsource/montserrat/files/montserrat-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:Montserrat;font-weight:600;src:url("../../node_modules/@fontsource/montserrat/files/montserrat-latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:Montserrat;font-weight:700;src:url("../../node_modules/@fontsource/montserrat/files/montserrat-latin-700-normal.woff2") format("woff2")}
+
+:root{--bg:#080808;--panel:#111012;--panel2:#161517;--line:#2a262a;--line2:#3a3438;--txt:#e9e4e6;--mut:#8b8288;--dim:#5a5358;--red:#a71f35;--neon:#ff2d4d;--glow:0 0 18px rgba(255,45,77,.55),0 0 42px rgba(167,31,53,.35);--green:#39d17a;--amber:#f2b134}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;font-family:Montserrat,system-ui,sans-serif;color:var(--txt);font-variant-numeric:tabular-nums}
+.art{position:relative;width:1400px;height:933px;background:var(--bg);overflow:hidden;padding:60px 40px}
+.art::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 30% 60% at 0% 50%,rgba(167,31,53,.35),transparent 60%),radial-gradient(ellipse 30% 60% at 100% 50%,rgba(167,31,53,.35),transparent 60%),radial-gradient(ellipse 80% 40% at 50% 100%,rgba(167,31,53,.18),transparent 70%);pointer-events:none}
+.art::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 70% 70% at 50% 50%,#000 30%,transparent 100%);pointer-events:none}
+.frame{position:relative;z-index:1;width:100%;height:100%;display:grid;gap:14px}
+.p{background:linear-gradient(180deg,#141315,#0e0d0f);border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative;box-shadow:0 20px 40px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04);display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
+.p.hot{border-color:rgba(255,45,77,.45);box-shadow:0 0 0 1px rgba(255,45,77,.15),0 0 30px rgba(167,31,53,.25),0 20px 40px rgba(0,0,0,.6)}
+.h{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--txt)}
+.h small{font-size:10px;color:var(--mut);text-transform:none;letter-spacing:0;font-weight:500;display:block;margin-top:2px}
+.live{font-size:9px;color:var(--mut);border:1px solid var(--line2);border-radius:6px;padding:3px 7px;display:flex;gap:5px;align-items:center;text-transform:none}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon)}
+.row{display:flex;align-items:center;gap:10px;background:#0b0a0c;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:11px}
+.row.sel{border-color:rgba(255,45,77,.6);background:linear-gradient(90deg,rgba(167,31,53,.28),rgba(167,31,53,.06));box-shadow:0 0 22px rgba(167,31,53,.35)}
+.row .n{font-weight:600;font-size:11.5px}.row .s{font-size:9.5px;color:var(--mut);margin-top:2px}
+.row .grow{flex:1;min-width:0}
+.av{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a3339,#1a181b);border:1px solid var(--line2);flex:none;display:grid;place-items:center;color:var(--mut);font-size:10px;font-weight:700}
+.av.r{border-color:rgba(255,45,77,.6);color:var(--neon)}
+.pill{font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--mut);white-space:nowrap}
+.pill.red{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 12px rgba(255,45,77,.5)}
+.pill.green{color:var(--green);border-color:rgba(57,209,122,.45)}
+.pill.amber{color:var(--amber);border-color:rgba(242,177,52,.45)}
+.ring{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--neon);background:conic-gradient(var(--neon) var(--v),#2a262a 0);position:relative;flex:none}
+.ring::before{content:"";position:absolute;inset:3px;border-radius:50%;background:#0b0a0c}
+.ring b{position:relative}
+.kpis{display:grid;grid-template-columns:repeat(var(--c,5),1fr);gap:0}
+.kpi{padding:6px 16px;border-left:1px solid var(--line)}.kpi:first-child{border-left:0}
+.kpi .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);display:flex;gap:6px;align-items:center}
+.kpi .l i{width:16px;height:16px;border-radius:5px;border:1px solid rgba(255,45,77,.5);display:inline-block;background:radial-gradient(circle,rgba(255,45,77,.35),transparent 70%)}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px;color:#fff}
+.kpi .v span{font-size:10px;color:var(--neon);margin-left:8px;font-weight:600}
+.kpi .v span.g{color:var(--green)}
+.bar{height:7px;border-radius:4px;background:#1c1a1d;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--neon));box-shadow:0 0 10px rgba(255,45,77,.6)}
+.chk{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--txt)}
+.chk i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,45,77,.7);color:var(--neon);font-size:9px;display:grid;place-items:center;font-style:normal;flex:none}
+.chk i.g{border-color:rgba(57,209,122,.7);color:var(--green)}
+.btn{background:linear-gradient(180deg,#c22841,var(--red));color:#fff;border-radius:9px;padding:11px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.04em;box-shadow:var(--glow);border:1px solid rgba(255,120,140,.35)}
+.gauge{width:110px;height:55px;border-radius:110px 110px 0 0;background:conic-gradient(from 270deg,var(--neon) 0 var(--v),#231f23 var(--v) 180deg,transparent 180deg);position:relative;overflow:hidden;filter:drop-shadow(0 0 10px rgba(255,45,77,.5))}
+.gauge::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:41px;border-radius:82px 82px 0 0;background:#0e0d0f}
+.gauge b{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:15px;font-weight:700;color:#fff;z-index:1}
+.donut{width:96px;height:96px;border-radius:50%;background:conic-gradient(var(--neon) 0 62%,#6b1626 62% 80%,#2a262a 80% 100%);position:relative;display:grid;place-items:center;flex:none;box-shadow:0 0 18px rgba(255,45,77,.35)}
+.donut::before{content:"";position:absolute;inset:14px;border-radius:50%;background:#0e0d0f}
+.donut b{position:relative;font-size:16px;font-weight:700}
+.legend{font-size:10px;color:var(--mut);display:flex;flex-direction:column;gap:6px}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+svg text{font-family:Montserrat,sans-serif}
+.foot{position:absolute;left:0;right:0;bottom:0;height:6px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:.7;filter:blur(2px)}
+.side{width:52px;display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:6px}
+.side i{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#0b0a0c;display:block}
+.side i.on{border-color:rgba(255,45,77,.7);background:rgba(167,31,53,.25);box-shadow:0 0 14px rgba(255,45,77,.45)}
+.side .logo{width:34px;height:34px;border-radius:10px;background:var(--red);box-shadow:var(--glow);margin-bottom:8px;transform:rotate(45deg) scale(.8)}
+.tbl{display:grid;font-size:10px;gap:0}
+.tbl>div{display:grid;grid-template-columns:var(--cols);padding:7px 8px;border-bottom:1px solid var(--line);align-items:center;color:var(--txt)}
+.tbl>div.hd{color:var(--mut);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase}
+.tbl>div.hot{background:linear-gradient(90deg,rgba(167,31,53,.35),rgba(167,31,53,.05));border-radius:6px;border-color:transparent}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--dim)}.dot.r{background:var(--neon);box-shadow:0 0 8px var(--neon)}.dot.g{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.a{background:var(--amber)}
+.feed{display:flex;flex-direction:column;gap:8px;font-size:10.5px}.feed>div{display:flex;gap:10px;align-items:flex-start}.feed i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line2);flex:none;background:#0b0a0c}.feed small{display:block;color:var(--mut);font-size:9px;margin-top:2px}.feed em{margin-left:auto;font-style:normal;color:var(--dim);font-size:9px;white-space:nowrap}
+.tag{position:absolute;bottom:14px;right:18px;font-size:9px;letter-spacing:.14em;color:var(--neon);text-transform:uppercase;font-weight:700;z-index:2}
+</style></head><body>
+
+<!-- ================= CALENDAR ================= -->
+<section class="art" id="calendar">
+<div class="frame" style="grid-template-columns:330px 1fr 330px;grid-template-rows:1fr 96px">
+  <div class="p" style="gap:12px">
+    <div class="h"><span>September 2026<small>Universal calendar</small></span><span class="live"><i></i>Live</span></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;text-align:center;color:var(--mut)">
+      <b>S</b><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b>S</b>
+      <script>for(let i=0;i<35;i++){const d=i-1;const on=d>=1&&d<=30;const hot=d===16||d===21;const dotd=[3,8,11,14,18,24,28].includes(d);document.write(`<span style="height:30px;display:grid;place-items:center;border-radius:7px;${on?'color:#e9e4e6;':'color:#3b363a;'}${hot?'background:#a71f35;color:#fff;box-shadow:0 0 14px rgba(255,45,77,.6);font-weight:700;':dotd?'border:1px solid rgba(255,45,77,.45);':'border:1px solid #1c1a1d;'}">${on?d:''}</span>`)}</script>
+    </div>
+    <div class="h" style="margin-top:4px">Today · 8 bookings</div>
+    <div class="row sel"><div class="av r">SR</div><div class="grow"><div class="n">Consultation · Sarah R.</div><div class="s">9:00 – 9:45 · Room 2 · Deposit paid</div></div><span class="pill red">Confirmed</span></div>
+    <div class="row"><div class="av">MJ</div><div class="grow"><div class="n">Follow-up · Marcus J.</div><div class="s">10:00 – 10:30 · Video</div></div><span class="pill green">Paid</span></div>
+    <div class="row"><div class="av">LK</div><div class="grow"><div class="n">Assessment · Lena K.</div><div class="s">11:15 – 12:00 · Host: Dana</div></div><span class="pill amber">Hold</span></div>
+    <div class="row"><div class="av">TP</div><div class="grow"><div class="n">Onboarding · Tom P.</div><div class="s">1:00 – 2:00 · Room 1</div></div><span class="pill">Waitlist</span></div>
+    <div class="row"><div class="av">AV</div><div class="grow"><div class="n">Demo · Ava V.</div><div class="s">3:30 – 4:00 · Video</div></div><span class="pill green">Paid</span></div>
+  </div>
+  <div class="p" style="padding:0;gap:0">
+    <div class="h" style="padding:14px 16px 8px"><span>Week view<small>SmartSlot™ ranked availability</small></span><span style="display:flex;gap:6px"><span class="pill red">Week</span><span class="pill">Month</span><span class="pill">Agenda</span></span></div>
+    <svg viewBox="0 0 700 560" width="100%" height="100%" style="flex:1">
+      <defs><filter id="g"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <g font-size="10" fill="#8b8288" font-weight="600">
+        <text x="70" y="18">MON 14</text><text x="180" y="18">TUE 15</text><text x="290" y="18" fill="#ff2d4d">WED 16</text><text x="400" y="18">THU 17</text><text x="510" y="18">FRI 18</text><text x="620" y="18">SAT 19</text>
+      </g>
+      <g stroke="#1f1c20" stroke-width="1">
+        <g data-gen="1"></g>
+      </g>
+      <g font-size="9" fill="#5a5358"><text x="8" y="44">8am</text><text x="8" y="104">9am</text><text x="8" y="164">10</text><text x="8" y="224">11</text><text x="8" y="284">12</text><text x="8" y="344">1pm</text><text x="8" y="404">2pm</text><text x="8" y="464">3pm</text><text x="8" y="524">4pm</text></g>
+      <g>
+        <rect x="46" y="70" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/><rect x="46" y="70" width="3" height="52" fill="#5a5358"/>
+        <rect x="46" y="250" width="98" height="80" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="156" y="130" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="156" y="370" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="266" y="100" width="98" height="46" rx="6" fill="#a71f35" filter="url(#g)"/><rect x="266" y="100" width="3" height="46" fill="#ff5c78"/>
+        <rect x="266" y="160" width="98" height="30" rx="6" fill="#1f1a1c" stroke="#7b1a2b"/>
+        <rect x="266" y="230" width="98" height="46" rx="6" fill="#1f1a1c" stroke="#7b1a2b"/>
+        <rect x="266" y="340" width="98" height="60" rx="6" fill="#a71f35" filter="url(#g)"/>
+        <rect x="266" y="490" width="98" height="30" rx="6" fill="#1f1a1c" stroke="#7b1a2b"/>
+        <rect x="376" y="70" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="376" y="310" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="486" y="190" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+        <rect x="486" y="430" width="98" height="52" rx="6" fill="#a71f35" filter="url(#g)"/>
+        <rect x="596" y="130" width="98" height="52" rx="6" fill="#1a181b" stroke="#2f2b30"/>
+      </g>
+      <g stroke="#8b8288" stroke-width="3" stroke-linecap="round" opacity=".7">
+        <line x1="60" y1="84" x2="120" y2="84"/><line x1="60" y1="96" x2="100" y2="96" stroke-width="2"/>
+        <line x1="60" y1="264" x2="120" y2="264"/><line x1="170" y1="144" x2="230" y2="144"/><line x1="170" y1="384" x2="230" y2="384"/>
+        <line x1="390" y1="84" x2="450" y2="84"/><line x1="390" y1="324" x2="450" y2="324"/><line x1="500" y1="204" x2="560" y2="204"/><line x1="610" y1="144" x2="670" y2="144"/>
+        <line x1="280" y1="174" x2="340" y2="174" stroke="#c9414f"/><line x1="280" y1="244" x2="340" y2="244" stroke="#c9414f"/><line x1="280" y1="504" x2="340" y2="504" stroke="#c9414f"/>
+      </g>
+      <g stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="280" y1="114" x2="340" y2="114"/><line x1="280" y1="128" x2="320" y2="128" stroke-width="2" opacity=".7"/><line x1="280" y1="354" x2="340" y2="354"/><line x1="280" y1="368" x2="320" y2="368" stroke-width="2" opacity=".7"/><line x1="500" y1="444" x2="560" y2="444"/></g>
+      <line x1="40" y1="296" x2="700" y2="296" stroke="#ff2d4d" stroke-width="2" filter="url(#g)"/><circle cx="40" cy="296" r="5" fill="#ff2d4d" filter="url(#g)"/>
+      <g><rect x="580" y="282" width="70" height="26" rx="6" fill="#0b0a0c" stroke="#ff2d4d"/><text x="615" y="299" font-size="10" fill="#ff2d4d" text-anchor="middle" font-weight="700">NOW 12:14</text></g>
+    </svg>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)">
+      <div style="padding:12px 16px;border-right:1px solid var(--line)">
+        <div class="h" style="font-size:10px">Routing · hosts &amp; rooms</div>
+        <svg viewBox="0 0 320 96" width="100%" height="96">
+          <g stroke="#7b1a2b" stroke-width="1.2" fill="none"><path d="M30 18 C120 18 120 48 160 48"/><path d="M30 48 C120 48 120 48 160 48"/><path d="M30 78 C120 78 120 48 160 48"/><path d="M160 48 C200 48 200 18 290 18"/><path d="M160 48 C200 48 200 48 290 48"/><path d="M160 48 C200 48 200 78 290 78"/></g>
+          <g fill="#0b0a0c" stroke="#3a3438"><circle cx="30" cy="18" r="9"/><circle cx="30" cy="48" r="9"/><circle cx="30" cy="78" r="9"/><circle cx="290" cy="18" r="9"/><circle cx="290" cy="48" r="9"/><circle cx="290" cy="78" r="9"/></g>
+          <circle cx="160" cy="48" r="13" fill="#a71f35" filter="url(#g)"/>
+          <g font-size="8" fill="#8b8288"><text x="45" y="21">Booking</text><text x="45" y="51">Waitlist</text><text x="45" y="81">Reschedule</text><text x="222" y="21">Host Dana</text><text x="222" y="51">Room 2</text><text x="222" y="81">Video link</text></g>
+        </svg>
+      </div>
+      <div style="padding:12px 16px;display:flex;gap:16px;align-items:center">
+        <div><div class="h" style="font-size:10px">Capacity</div><div class="gauge" style="--v:126deg"><b>70%</b></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+          <div class="chk"><i class="g">✓</i>Conflict protection on</div><div class="chk"><i class="g">✓</i>Deposit required · $50</div><div class="chk"><i>•</i>Buffer 15 min between hosts</div><div class="chk"><i>•</i>Waitlist auto-fill</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="p" style="gap:12px">
+    <div class="h"><span>Booking page<small>Branded link · smartslot ranked</small></span></div>
+    <div style="background:#0b0a0c;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut)"><span>Wed, Sep 16</span><span style="color:var(--neon)">3 best slots</span></div>
+      <div class="row sel" style="padding:7px 10px"><div class="grow"><div class="n">9:00 AM</div></div><span class="pill red">Best fit</span></div>
+      <div class="row" style="padding:7px 10px"><div class="grow"><div class="n">11:15 AM</div></div><span class="pill">Rank 2</span></div>
+      <div class="row" style="padding:7px 10px"><div class="grow"><div class="n">3:30 PM</div></div><span class="pill">Rank 3</span></div>
+      <div class="btn">Reserve with deposit</div>
+    </div>
+    <div class="h" style="margin-top:2px"><span>Show rate</span><span style="color:var(--green);font-size:10px;text-transform:none">+6.4% ↗</span></div>
+    <svg viewBox="0 0 300 80" width="100%" height="80"><defs><linearGradient id="fa" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2d4d" stop-opacity=".5"/><stop offset="1" stop-color="#ff2d4d" stop-opacity="0"/></linearGradient></defs>
+      <path d="M0 60 L40 52 L80 56 L120 40 L160 44 L200 26 L240 30 L280 12 L300 16 L300 80 L0 80Z" fill="url(#fa)"/><path d="M0 60 L40 52 L80 56 L120 40 L160 44 L200 26 L240 30 L280 12 L300 16" fill="none" stroke="#ff2d4d" stroke-width="2.5" filter="url(#g)"/><circle cx="280" cy="12" r="4" fill="#fff"/></svg>
+    <div class="h" style="margin-top:2px">Waitlist · auto-fill</div>
+    <div class="row" style="padding:7px 10px"><div class="av">RN</div><div class="grow"><div class="n">Rae N.</div><div class="s">Wants: Wed AM</div></div><span class="pill amber">Offered</span></div>
+    <div class="row" style="padding:7px 10px"><div class="av">JD</div><div class="grow"><div class="n">Jon D.</div><div class="s">Wants: Any Fri</div></div><span class="pill">Queued</span></div>
+    <div class="h" style="margin-top:2px">Resources · today</div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+      <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Room 1</span><span style="color:var(--neon);font-weight:600">6 / 8</span></div><div class="bar"><i style="width:75%"></i></div></div>
+      <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Room 2</span><span style="color:var(--neon);font-weight:600">8 / 8</span></div><div class="bar"><i style="width:100%"></i></div></div>
+      <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Host · Dana</span><span style="color:var(--neon);font-weight:600">5 / 9</span></div><div class="bar"><i style="width:55%"></i></div></div>
+    </div>
+    <div style="margin-top:auto;background:rgba(57,209,122,.06);border:1px solid rgba(57,209,122,.35);border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="width:44px;height:44px;border-radius:50%;border:2px solid var(--green);display:grid;place-items:center;color:var(--green);font-size:20px;box-shadow:0 0 18px rgba(57,209,122,.5)">✓</div>
+      <div><div style="font-weight:700;font-size:12px">Booked &amp; paid</div><div style="font-size:10px;color:var(--mut)">Reminder sent · Calendar synced</div></div>
+    </div>
+  </div>
+  <div class="p kpis" style="grid-column:1/-1;flex-direction:row;padding:10px 6px;--c:5">
+    <div class="kpi"><div class="l"><i></i>Booked this week</div><div class="v">148<span>+18.2% ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Show rate</div><div class="v">91.4%<span class="g">+6.4 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Deposits collected</div><div class="v">$7,400<span>+22% ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Waitlist filled</div><div class="v">23<span>+9 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Conflicts blocked</div><div class="v">12<span class="g">0 double-books</span></div></div>
+  </div>
+</div>
+<div class="tag">◆ Cyncro Core</div><div class="foot"></div>
+</section>
+
+<!-- ================= CRM ================= -->
+<section class="art" id="crm">
+<div class="frame" style="grid-template-columns:52px 300px 1fr 320px;grid-template-rows:1fr 96px">
+  <div class="side" style="grid-row:1/-1"><div class="logo"></div><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="p" style="gap:9px">
+    <div class="h"><span>Contacts<small>Ranked by lead score</small></span><span class="live"><i></i>Live</span></div>
+    <div class="row sel"><div class="av r">EM</div><div class="grow"><div class="n">Elena Marsh</div><div class="s">Marsh Dental · Austin, TX</div></div><div class="ring" style="--v:92%"><b>92</b></div></div>
+    <div class="row"><div class="av">DK</div><div class="grow"><div class="n">Devon Kim</div><div class="s">Kim Roofing Co.</div></div><div class="ring" style="--v:86%"><b>86</b></div></div>
+    <div class="row"><div class="av">PR</div><div class="grow"><div class="n">Priya Rao</div><div class="s">Rao Wellness</div></div><div class="ring" style="--v:79%"><b>79</b></div></div>
+    <div class="row"><div class="av">CB</div><div class="grow"><div class="n">Caleb Brooks</div><div class="s">Brooks HVAC</div></div><div class="ring" style="--v:71%"><b>71</b></div></div>
+    <div class="row"><div class="av">NS</div><div class="grow"><div class="n">Nia Santos</div><div class="s">Santos Auto Group</div></div><div class="ring" style="--v:64%"><b>64</b></div></div>
+    <div class="row"><div class="av">OW</div><div class="grow"><div class="n">Owen Wu</div><div class="s">Wu Fitness</div></div><div class="ring" style="--v:58%"><b>58</b></div></div>
+    <div class="row"><div class="av">HL</div><div class="grow"><div class="n">Hana Lee</div><div class="s">Lee Legal</div></div><div class="ring" style="--v:47%"><b>47</b></div></div>
+    <div style="margin-top:auto"><div class="h" style="font-size:10px;margin-bottom:8px">Conversations</div>
+      <div class="feed"><div><i></i><div>Instagram DM · Elena<small>"Can we do Thursday?"</small></div><em>2m</em></div><div><i></i><div>SMS · Devon<small>Quote approved ✓</small></div><em>9m</em></div><div><i></i><div>Email · Priya<small>Contract viewed</small></div><em>24m</em></div></div>
+    </div>
+  </div>
+  <div class="p" style="padding:0;gap:0">
+    <div style="display:grid;grid-template-columns:1fr 1fr;height:56%">
+      <div style="padding:14px 16px;border-right:1px solid var(--line);display:flex;flex-direction:column">
+        <div class="h"><span>360° record<small>Every channel, one contact</small></span></div>
+        <svg viewBox="0 0 330 250" width="100%" style="flex:1">
+          <g stroke="#7b1a2b" stroke-width="1.2" fill="none" opacity=".9">
+            <line x1="165" y1="125" x2="165" y2="30"/><line x1="165" y1="125" x2="255" y2="60"/><line x1="165" y1="125" x2="270" y2="150"/><line x1="165" y1="125" x2="230" y2="215"/><line x1="165" y1="125" x2="100" y2="215"/><line x1="165" y1="125" x2="60" y2="150"/><line x1="165" y1="125" x2="75" y2="60"/>
+          </g>
+          <circle cx="165" cy="125" r="70" fill="none" stroke="#3a3438" stroke-dasharray="3 5"/>
+          <circle cx="165" cy="125" r="44" fill="#141315" stroke="#ff2d4d" stroke-width="2" filter="url(#g)"/>
+          <circle cx="165" cy="112" r="14" fill="#3a3339"/><path d="M135 160 c8 -24 52 -24 60 0" fill="#3a3339"/>
+          <g fill="#0b0a0c" stroke="#ff2d4d" stroke-width="1.2"><circle cx="165" cy="30" r="16"/><circle cx="255" cy="60" r="16"/><circle cx="270" cy="150" r="16"/><circle cx="230" cy="215" r="16"/><circle cx="100" cy="215" r="16"/><circle cx="60" cy="150" r="16"/><circle cx="75" cy="60" r="16"/></g>
+          <g fill="#ff2d4d" font-size="8" text-anchor="middle" font-weight="700"><text x="165" y="33">✉</text><text x="255" y="63">SMS</text><text x="270" y="153">IG</text><text x="230" y="218">FB</text><text x="100" y="218">☎</text><text x="60" y="153">WEB</text><text x="75" y="63">AI</text></g>
+          <g font-size="8.5" fill="#8b8288" text-anchor="middle"><text x="165" y="245">Elena Marsh · 92 · $18.4k lifetime value</text></g>
+        </svg>
+      </div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+        <div class="h"><span>Revenue<small>Closed-won, trailing 12 months</small></span><span class="pill red">$412K</span></div>
+        <svg viewBox="0 0 300 150" width="100%" style="flex:1" preserveAspectRatio="xMidYMax meet"><defs><linearGradient id="fb" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2d4d" stop-opacity=".45"/><stop offset="1" stop-color="#ff2d4d" stop-opacity="0"/></linearGradient></defs>
+          <g stroke="#1f1c20"><line x1="0" x2="300" y1="30" y2="30"/><line x1="0" x2="300" y1="70" y2="70"/><line x1="0" x2="300" y1="110" y2="110"/></g>
+          <g fill="#2a1a1e"><rect x="8" y="100" width="16" height="40" rx="3"/><rect x="32" y="92" width="16" height="48" rx="3"/><rect x="56" y="104" width="16" height="36" rx="3"/><rect x="80" y="82" width="16" height="58" rx="3"/><rect x="104" y="76" width="16" height="64" rx="3"/><rect x="128" y="88" width="16" height="52" rx="3"/><rect x="152" y="64" width="16" height="76" rx="3"/><rect x="176" y="58" width="16" height="82" rx="3"/><rect x="200" y="70" width="16" height="70" rx="3"/><rect x="224" y="46" width="16" height="94" rx="3"/><rect x="248" y="38" width="16" height="102" rx="3"/><rect x="272" y="22" width="16" height="118" rx="3" fill="#a71f35"/></g>
+          <path d="M16 96 L40 88 L64 100 L88 78 L112 72 L136 84 L160 60 L184 54 L208 66 L232 42 L256 34 L280 18" fill="none" stroke="#ff2d4d" stroke-width="2.5" filter="url(#g)"/><circle cx="280" cy="18" r="4" fill="#fff"/>
+          <g font-size="8" fill="#5a5358"><text x="8" y="149">OCT</text><text x="80" y="149">JAN</text><text x="152" y="149">APR</text><text x="224" y="149">JUL</text><text x="272" y="149">SEP</text></g>
+        </svg>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:10px">
+      <div class="h"><span>Deal pipeline<small>Drag between stages · automations fire on move</small></span><span style="display:flex;gap:6px"><span class="pill">Kanban</span><span class="pill red">$1.2M open</span></span></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;flex:1">
+        <script>const st=[["New",4,["Lee Legal","Wu Fitness","Ortiz Salon","Nava Tax"]],["Qualified",3,["Santos Auto","Brooks HVAC","Bell Physio"]],["Proposal",2,["Rao Wellness","Kim Roofing"]],["Negotiation",2,["Marsh Dental","Grant Realty"]],["Won",1,["Harper Med Spa"]]];st.forEach((s,i)=>{const hot=i===3;document.write(`<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div style="display:flex;justify-content:space-between;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:${hot?'#ff2d4d':'#8b8288'};padding-bottom:6px;border-bottom:2px solid ${hot?'#a71f35':(i===4?'#39d17a':'#2a262a')}"><b>${s[0]}</b><span>${s[1]}</span></div>${s[2].map((c,j)=>`<div class="row${hot&&j===0?' sel':''}" style="padding:7px 9px;flex-direction:column;align-items:flex-start;gap:3px"><div class="n" style="font-size:10.5px">${c}</div><div class="bar" style="width:100%"><i style="width:${(i+1)*18+j*5}%"></i></div></div>`).join('')}</div>`)})</script>
+      </div>
+    </div>
+  </div>
+  <div class="p" style="gap:10px">
+    <div class="h"><span>Attribution<small>Multi-touch · first, last, linear</small></span></div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:10px">
+      <script>[["Instagram",78],["Google Ads",64],["Referral",52],["Booking page",41],["Cold outreach",29]].forEach(([k,v])=>document.write(`<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${k}</span><span style="color:#ff2d4d;font-weight:600">${v}%</span></div><div class="bar"><i style="width:${v}%"></i></div></div>`))</script>
+    </div>
+    <div class="h" style="margin-top:4px"><span>Commissions<small>Rule-based · auto-calculated</small></span></div>
+    <div class="row" style="padding:8px 10px"><div class="av">DA</div><div class="grow"><div class="n">Dana · 12%</div><div class="s">3 closed · $4,860</div></div><span class="pill green">Paid</span></div>
+    <div class="row" style="padding:8px 10px"><div class="av">RY</div><div class="grow"><div class="n">Ryan · 10%</div><div class="s">2 closed · $2,100</div></div><span class="pill amber">Pending</span></div>
+    <div class="h" style="margin-top:4px"><span>Contracts &amp; invoices</span></div>
+    <div class="chk"><i class="g">✓</i>Service agreement · signed</div><div class="chk"><i class="g">✓</i>Invoice #1042 · paid $2,400</div><div class="chk"><i>•</i>Renewal proposal · viewed 2×</div>
+    <div class="h" style="margin-top:4px"><span>Automations</span><span class="pill red">14 active</span></div>
+    <div class="feed"><div><i></i><div>Stage → Proposal<small>Send quote + book follow-up</small></div><em>on</em></div><div><i></i><div>No reply 48h<small>SMS nudge → assign owner</small></div><em>on</em></div></div>
+    <div class="btn" style="margin-top:auto">Ask Cyncro AI</div>
+  </div>
+  <div class="p kpis" style="grid-column:2/-1;flex-direction:row;padding:10px 6px;--c:5">
+    <div class="kpi"><div class="l"><i></i>Contacts</div><div class="v">3,812<span>+214 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Open pipeline</div><div class="v">$1.2M<span>+18% ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Win rate</div><div class="v">34.6%<span class="g">+3.1 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Avg lead score</div><div class="v">71<span>+4 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Lifetime value</div><div class="v">$8.9K<span>+12% ↗</span></div></div>
+  </div>
+</div>
+<div class="tag">◆ Cyncro Core</div><div class="foot"></div>
+</section>
+
+<!-- ================= FINANCE ================= -->
+<section class="art" id="finance">
+<div class="frame" style="grid-template-columns:52px 290px 1fr 330px;grid-template-rows:1fr 96px">
+  <div class="side" style="grid-row:1/-1"><div class="logo"></div><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="p" style="gap:9px">
+    <div class="h"><span>Deal jackets<small>Today · 9 in desk</small></span><span class="live"><i></i>Live</span></div>
+    <script>const cars=[["2024 GT Coupe","Stock #A4471 · $68,900","Funded","green",1],["2023 Sport Sedan","Stock #B2210 · $41,250","Approved","red",0],["2025 Luxury SUV","Stock #C9083 · $74,100","Stips","amber",0],["2022 Crossover","Stock #D1187 · $29,800","Submitted","",0],["2024 Roadster","Stock #E5502 · $58,300","Desking","",0],["2023 Pickup 4x4","Stock #F3391 · $52,600","Contracts","",0]];cars.forEach(c=>document.write(`<div class="row${c[4]?' sel':''}" style="padding:8px 10px"><svg width="46" height="22" viewBox="0 0 46 22"><path d="M3 16 L8 8 Q14 3 24 3 L31 3 Q37 4 41 9 L44 14 L44 17 L3 17Z" fill="#26232a" stroke="#4a434a"/><circle cx="12" cy="17" r="4" fill="#0b0a0c" stroke="#7a7078"/><circle cx="35" cy="17" r="4" fill="#0b0a0c" stroke="#7a7078"/><path d="M12 9 Q17 5 24 5 L30 5 Q34 6 37 9Z" fill="#3b3541"/></svg><div class="grow"><div class="n">${c[0]}</div><div class="s">${c[1]}</div></div><span class="pill ${c[3]}">${c[2]}</span></div>`))</script>
+    <div style="margin-top:auto"><div class="h" style="font-size:10px;margin-bottom:8px">Manager leaderboard · back gross</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+        <script>[["Alexis",88,"$2,410"],["Jordan",71,"$1,960"],["Sam",57,"$1,540"],["Casey",42,"$1,120"]].forEach(([n,v,d])=>document.write(`<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n}</span><span style="color:#ff2d4d;font-weight:600">${d} PVR</span></div><div class="bar"><i style="width:${v}%"></i></div></div>`))</script>
+      </div>
+    </div>
+  </div>
+  <div class="p" style="padding:0;gap:0">
+    <div class="h" style="padding:14px 16px 6px"><span>Deal desk · 2023 Sport Sedan<small>Structure, tax, lender, e-contract</small></span><span style="display:flex;gap:6px"><span class="pill red">Retail</span><span class="pill">Lease</span><span class="pill">Cash</span></span></div>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;flex:1">
+      <div style="padding:8px 16px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px">
+          <script>[["Sale price","$41,250"],["Trade allowance","$9,500"],["Cash down","$3,000"],["Tax · TX 6.25%","$1,796"],["Term","72 mo"],["APR","6.49%"]].forEach(([k,v],i)=>document.write(`<div style="background:#0b0a0c;border:1px solid ${i===3?'rgba(255,45,77,.5)':'#2a262a'};border-radius:8px;padding:8px 10px"><div style="color:#8b8288;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700;font-size:13px;margin-top:2px">${v}</div></div>`))</script>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:9.5px;color:var(--mut)">
+          <div><div style="display:flex;justify-content:space-between"><span>Amount financed</span><b style="color:#e9e4e6">$31,046</b></div><div class="bar" style="margin-top:4px;height:5px"><i style="width:75%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>LTV</span><b style="color:#e9e4e6">108%</b></div><div class="bar" style="margin-top:4px;height:5px"><i style="width:82%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>Payment / month</span><b style="color:#ff2d4d">$521.40</b></div><div class="bar" style="margin-top:4px;height:5px"><i style="width:56%"></i></div></div>
+        </div>
+        <div class="h" style="font-size:10px">50-state tax &amp; lease lab</div>
+        <svg viewBox="0 0 300 150" width="100%" style="flex:1" preserveAspectRatio="xMidYMax meet">
+          <g data-gen="2"></g>
+          <rect x="182" y="8" width="112" height="46" rx="8" fill="#0b0a0c" stroke="#ff2d4d"/><text x="238" y="24" font-size="8" fill="#8b8288" text-anchor="middle">TEXAS · 6.25% · Trade credit</text><text x="238" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">$1,796.63 tax</text>
+        </svg>
+      </div>
+      <div style="padding:8px 16px 14px;display:flex;flex-direction:column;gap:10px">
+        <div class="h" style="font-size:10px">Lender submissions</div>
+        <div class="tbl" style="--cols:1.4fr .8fr .8fr .7fr 1fr">
+          <div class="hd"><span>Lender</span><span>Rate</span><span>Term</span><span>LTV</span><span>Status</span></div>
+          <div><span>Capital One</span><span>6.89%</span><span>72</span><span>110</span><span><i class="dot g"></i> Approved</span></div>
+          <div class="hot"><span style="color:#fff;font-weight:700">Ally Financial</span><span style="color:#ff2d4d;font-weight:700">6.49%</span><span>72</span><span>108</span><span><i class="dot r"></i> Best</span></div>
+          <div><span>Chase Auto</span><span>7.14%</span><span>66</span><span>105</span><span><i class="dot g"></i> Approved</span></div>
+          <div><span>Westlake</span><span>9.90%</span><span>60</span><span>115</span><span><i class="dot a"></i> Counter</span></div>
+          <div><span>Credit union</span><span>—</span><span>—</span><span>—</span><span><i class="dot"></i> Pending</span></div>
+        </div>
+        <div class="h" style="font-size:10px;margin-top:4px">Stipulations</div>
+        <div class="chk"><i class="g">✓</i>Proof of income · uploaded</div><div class="chk"><i class="g">✓</i>Driver's license · scanned</div><div class="chk"><i>•</i>Proof of residence · requested</div>
+        <div style="margin-top:auto;display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1;position:relative;height:84px"><div style="position:absolute;inset:8px 0 0 12px;background:#141315;border:1px solid #2a262a;border-radius:6px"></div><div style="position:absolute;inset:4px 6px 4px 6px;background:#161517;border:1px solid #3a3438;border-radius:6px"></div><div style="position:absolute;inset:0 12px 8px 0;background:#1b191d;border:1px solid rgba(255,45,77,.5);border-radius:6px;padding:8px 10px;font-size:8.5px;color:var(--mut);display:flex;flex-direction:column"><b style="color:#fff;display:block;font-size:10px;white-space:nowrap">Retail contract · e-sign</b><span style="white-space:nowrap">Buyer's order · Odometer · GAP</span><div style="margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #ff2d4d;padding-bottom:2px"><span style="font-family:'DejaVu Serif',serif;font-style:italic;color:#ff2d4d;font-size:12px">Elena M.</span><span class="pill green" style="font-size:7.5px">Signed</span></div></div></div>
+          <div class="btn" style="flex:0 0 96px;padding:10px 6px;font-size:11px">Send to lender</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="p" style="gap:10px">
+    <div class="h"><span>Gross profit<small>This deal</small></span></div>
+    <div style="display:flex;gap:14px;align-items:center"><div class="gauge" style="--v:140deg"><b>$3,640</b></div><div class="legend"><span><i style="background:#ff2d4d"></i>Back gross $2,410</span><span><i style="background:#6b1626"></i>Front gross $1,230</span><span><i style="background:#2a262a"></i>Reserve $480</span></div></div>
+    <div class="h" style="margin-top:2px"><span>Inventory aging</span><span class="pill">142 units</span></div>
+    <svg viewBox="0 0 300 70" width="100%" height="70"><g fill="#2a1a1e"><rect x="6" y="20" width="34" height="46" rx="3" fill="#a71f35"/><rect x="48" y="30" width="34" height="36" rx="3" fill="#a71f35"/><rect x="90" y="38" width="34" height="28" rx="3"/><rect x="132" y="44" width="34" height="22" rx="3"/><rect x="174" y="50" width="34" height="16" rx="3"/><rect x="216" y="56" width="34" height="10" rx="3"/><rect x="258" y="60" width="34" height="6" rx="3"/></g><g font-size="7.5" fill="#5a5358"><text x="10" y="10">0–15d</text><text x="94" y="10">31–45</text><text x="178" y="10">61–75</text><text x="262" y="10">90+</text></g></svg>
+    <div class="h" style="margin-top:2px"><span>F&amp;I products</span></div>
+    <div class="chk"><i class="g">✓</i>GAP · $795</div><div class="chk"><i class="g">✓</i>Service contract · $2,150</div><div class="chk"><i>•</i>Tire &amp; wheel · offered</div>
+    <div class="h" style="margin-top:2px"><span>Scanned documents</span><span class="pill red">OCR</span></div>
+    <div class="feed"><div><i></i><div>Driver's license<small>Front + back · verified</small></div><em>1m</em></div><div><i></i><div>Pay stub · Sept<small>$5,900 / mo detected</small></div><em>4m</em></div><div><i></i><div>Insurance card<small>Policy active</small></div><em>6m</em></div></div>
+    <div class="h" style="margin-top:2px"><span>Funded volume</span><span style="color:var(--neon);font-size:10px;text-transform:none">$4.2M MTD</span></div>
+    <svg viewBox="0 0 300 70" width="100%" height="70"><defs><linearGradient id="ff" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2d4d" stop-opacity=".5"/><stop offset="1" stop-color="#ff2d4d" stop-opacity="0"/></linearGradient></defs><path d="M0 56 L40 50 L80 54 L120 36 L160 40 L200 24 L240 28 L280 10 L300 14 L300 70 L0 70Z" fill="url(#ff)"/><path d="M0 56 L40 50 L80 54 L120 36 L160 40 L200 24 L240 28 L280 10 L300 14" fill="none" stroke="#ff2d4d" stroke-width="2.5" filter="url(#g)"/><circle cx="280" cy="10" r="4" fill="#fff"/></svg>
+    <div style="margin-top:auto;background:rgba(57,209,122,.06);border:1px solid rgba(57,209,122,.35);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;border-radius:50%;border:2px solid var(--green);display:grid;place-items:center;color:var(--green);font-size:16px;box-shadow:0 0 16px rgba(57,209,122,.5)">✓</div><div><div style="font-weight:700;font-size:11px">2024 GT Coupe funded</div><div style="font-size:9.5px;color:var(--mut)">$68,900 · 1.8 days to fund</div></div></div>
+  </div>
+  <div class="p kpis" style="grid-column:2/-1;flex-direction:row;padding:10px 6px;--c:5">
+    <div class="kpi"><div class="l"><i></i>Units MTD</div><div class="v">86<span>+11 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Front gross</div><div class="v">$118K<span>+9.2% ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Back gross</div><div class="v">$164K<span>+14.6% ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>PVR</div><div class="v">$1,906<span class="g">+$142 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Avg days to fund</div><div class="v">2.1<span class="g">−0.6 ↘</span></div></div>
+  </div>
+</div>
+<div class="tag">◆ Cyncro Core</div><div class="foot"></div>
+</section>
+
+<!-- ================= DISPUTE ================= -->
+<section class="art" id="dispute">
+<div class="frame" style="grid-template-columns:52px 300px 1fr 320px;grid-template-rows:1fr 96px">
+  <div class="side" style="grid-row:1/-1"><div class="logo"></div><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="p" style="gap:9px">
+    <div class="h"><span>Clients<small>Active cases · 128</small></span><span class="live"><i></i>Live</span></div>
+    <script>[["Maria Ortiz","Round 3 · 14 items","In dispute","red",1],["James Bell","Round 2 · 9 items","Mailed","",0],["Aisha Grant","Round 1 · 21 items","Drafting","amber",0],["Luis Nava","Round 4 · 3 items","Resolved","green",0],["Kira Holt","Round 2 · 11 items","Awaiting bureau","",0],["Ben Ortega","Onboarding","Audit","",0],["Dee Frost","Round 1 · 17 items","Mailed","",0]].forEach(c=>document.write(`<div class="row${c[4]?' sel':''}"><div class="av${c[4]?' r':''}">${c[0].split(' ').map(w=>w[0]).join('')}</div><div class="grow"><div class="n">${c[0]}</div><div class="s">${c[1]}</div></div><span class="pill ${c[3]}">${c[2]}</span></div>`))</script>
+    <div style="margin-top:auto"><div class="h" style="font-size:10px;margin-bottom:8px"><span>Results</span><span style="text-transform:none;color:var(--mut);font-weight:500">Last 90 days</span></div>
+      <div style="display:flex;gap:14px;align-items:center"><div class="donut"><b>62%</b></div><div class="legend"><span><i style="background:#ff2d4d"></i>Deleted · 412</span><span><i style="background:#6b1626"></i>Updated · 118</span><span><i style="background:#2a262a"></i>Pending · 134</span></div></div>
+    </div>
+  </div>
+  <div class="p" style="padding:0;gap:0">
+    <div class="h" style="padding:14px 16px 6px"><span>Maria Ortiz · Round 3<small>Dispute workflow · 14 items across 3 bureaus</small></span><span class="pill red">Due in 9 days</span></div>
+    <svg viewBox="0 0 700 110" width="100%" height="110" style="flex:none">
+      <line x1="60" y1="40" x2="640" y2="40" stroke="#2a262a" stroke-width="2"/><line x1="60" y1="40" x2="350" y2="40" stroke="#ff2d4d" stroke-width="2" filter="url(#g)"/>
+      <g data-gen="3"></g>
+    </svg>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;flex:1;border-top:1px solid var(--line)">
+      <div style="padding:12px 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px">
+        <div class="h" style="font-size:10px">Items by bureau</div>
+        <div class="tbl" style="--cols:1.6fr 1fr .7fr .7fr .7fr">
+          <div class="hd"><span>Item</span><span>Type</span><span>EQ</span><span>TU</span><span>EX</span></div>
+          <div class="hot"><span style="color:#fff;font-weight:700">Capital One · ****4471</span><span>Late payment</span><span><i class="dot r"></i></span><span><i class="dot r"></i></span><span><i class="dot g"></i></span></div>
+          <div><span>Midland Credit</span><span>Collection</span><span><i class="dot g"></i></span><span><i class="dot r"></i></span><span><i class="dot g"></i></span></div>
+          <div><span>Hard inquiry · 03/24</span><span>Inquiry</span><span><i class="dot g"></i></span><span><i class="dot g"></i></span><span><i class="dot"></i></span></div>
+          <div><span>Synchrony · ****9083</span><span>Charge-off</span><span><i class="dot r"></i></span><span><i class="dot a"></i></span><span><i class="dot r"></i></span></div>
+          <div><span>Address mismatch</span><span>Personal info</span><span><i class="dot g"></i></span><span><i class="dot g"></i></span><span><i class="dot g"></i></span></div>
+          <div><span>Portfolio Recovery</span><span>Collection</span><span><i class="dot a"></i></span><span><i class="dot r"></i></span><span><i class="dot"></i></span></div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:9px;color:var(--mut);margin-top:auto"><span><i class="dot g"></i> Deleted</span><span><i class="dot r"></i> Disputing</span><span><i class="dot a"></i> Updated</span><span><i class="dot"></i> Pending</span></div>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+        <div class="h" style="font-size:10px"><span>Letter template</span><span class="pill red">Metro 2 · FCRA §611</span></div>
+        <div style="background:#0b0a0c;border:1px solid var(--line);border-radius:8px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px">
+          <div style="height:8px;width:40%;background:#3a3438;border-radius:3px"></div>
+          <div style="height:5px;width:90%;background:#221f23;border-radius:3px"></div><div style="height:5px;width:96%;background:#221f23;border-radius:3px"></div><div style="height:5px;width:82%;background:#221f23;border-radius:3px"></div>
+          <div style="height:5px;width:60%;background:rgba(255,45,77,.55);border-radius:3px;margin-top:4px"></div>
+          <div style="height:5px;width:94%;background:#221f23;border-radius:3px"></div><div style="height:5px;width:88%;background:#221f23;border-radius:3px"></div><div style="height:5px;width:70%;background:#221f23;border-radius:3px"></div>
+          <div style="margin-top:auto;display:flex;justify-content:space-between;font-size:9px;color:var(--mut)"><span>Merged: client · item · bureau</span><span style="color:var(--green)">✓ Compliance pass</span></div>
+        </div>
+        <div class="h" style="font-size:10px"><span>Mail tracking</span></div>
+        <div class="feed"><div><i></i><div>Equifax · certified<small>Delivered · signed 9:14 AM</small></div><em style="color:var(--green)">✓</em></div><div><i></i><div>TransUnion · certified<small>In transit · Memphis, TN</small></div><em>🚚</em></div><div><i></i><div>Experian · certified<small>Label printed</small></div><em>—</em></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="p" style="gap:10px">
+    <div style="background:linear-gradient(180deg,rgba(167,31,53,.22),rgba(167,31,53,.04));border:1px solid rgba(255,45,77,.45);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 0 26px rgba(167,31,53,.3)">
+      <svg width="46" height="52" viewBox="0 0 46 52"><path d="M23 2 L42 9 V25 C42 38 33 46 23 50 C13 46 4 38 4 25 V9 Z" fill="#141315" stroke="#ff2d4d" stroke-width="2" filter="url(#g)"/><path d="M14 26 L21 33 L33 18" fill="none" stroke="#ff2d4d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><div style="font-weight:700;font-size:12px">Compliance review</div><div style="font-size:10px;color:var(--mut)">CROA disclosures · signed<br>No advance fees · verified</div></div>
+    </div>
+    <div class="h"><span>Client portal</span><span class="pill green">Synced</span></div>
+    <div class="chk"><i class="g">✓</i>Agreement &amp; ID uploaded</div><div class="chk"><i class="g">✓</i>Score tracker · 612 → 671</div><div class="chk"><i>•</i>Round 3 letters awaiting review</div>
+    <div class="h" style="margin-top:2px"><span>Score progress</span><span style="color:var(--green);font-size:10px;text-transform:none">+59 pts</span></div>
+    <svg viewBox="0 0 300 80" width="100%" height="80"><defs><linearGradient id="fc" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2d4d" stop-opacity=".5"/><stop offset="1" stop-color="#ff2d4d" stop-opacity="0"/></linearGradient></defs><path d="M0 66 L50 62 L100 58 L150 44 L200 40 L250 24 L300 14 L300 80 L0 80Z" fill="url(#fc)"/><path d="M0 66 L50 62 L100 58 L150 44 L200 40 L250 24 L300 14" fill="none" stroke="#ff2d4d" stroke-width="2.5" filter="url(#g)"/><circle cx="300" cy="14" r="4" fill="#fff"/><g font-size="8" fill="#5a5358"><text x="0" y="79">612</text><text x="280" y="10" fill="#fff" font-weight="700">671</text></g></svg>
+    <div class="h" style="margin-top:2px"><span>Billing</span></div>
+    <div class="row" style="padding:8px 10px"><div class="grow"><div class="n">Monthly plan · $129</div><div class="s">Auto-pay · next Oct 1</div></div><span class="pill green">Paid</span></div>
+    <div class="row" style="padding:8px 10px"><div class="grow"><div class="n">Pay-per-delete · 6 items</div><div class="s">$50 each · invoice ready</div></div><span class="pill amber">Due</span></div>
+    <div class="h" style="margin-top:2px"><span>Team tasks</span><span class="pill">3 open</span></div>
+    <div class="feed"><div><i></i><div>Review Round 3 letters<small>Assigned: Nadia · today</small></div><em>!</em></div><div><i></i><div>Call Aisha · onboarding<small>Assigned: Marco</small></div><em>2d</em></div></div>
+    <div class="btn" style="margin-top:auto">Send Round 3</div>
+  </div>
+  <div class="p kpis" style="grid-column:2/-1;flex-direction:row;padding:10px 6px;--c:5">
+    <div class="kpi"><div class="l"><i></i>Active clients</div><div class="v">128<span>+14 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Items in dispute</div><div class="v">1,642<span>+210 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Deletion rate</div><div class="v">62%<span class="g">+4.1 ↗</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Letters mailed</div><div class="v">384<span>this month</span></div></div>
+    <div class="kpi"><div class="l"><i></i>Monthly recurring</div><div class="v">$16.5K<span>+9% ↗</span></div></div>
+  </div>
+</div>
+<div class="tag">◆ Cyncro Core</div><div class="foot"></div>
+</section>
+
+<script>
+const GEN={
+"1":function(w){for(let i=0;i<9;i++)w(`<line x1="40" x2="700" y1="${40+i*60}" y2="${40+i*60}" stroke="#1f1c20"/>`);for(let i=0;i<7;i++)w(`<line y1="30" y2="560" x1="${40+i*110}" x2="${40+i*110}" stroke="#1f1c20"/>`)},
+"2":function(w){const rows=["  ....................  ","  ......................","........................",".......................","......................."," ....................  ","  ..........  ....... ","   ........      ..   ","    ....           .   "];rows.forEach((r,y)=>{[...r].forEach((ch,x)=>{if(ch!==".")return;const hot=(x===12&&y===6)||(x===13&&y===7)||(x===12&&y===7);w(`<circle cx="${x*12.5+10}" cy="${y*16+8}" r="3.2" fill="${hot?'#ff2d4d':'#2c282d'}" ${x===12&&y===6?'filter="url(#g)"':''}/>`)})})},
+"3":function(w){["Identify","Draft letters","Mail (certified)","Bureau response","Verify results","Resolve"].forEach((s,i)=>{const x=60+i*116;const done=i<3;const cur=i===3;w(`<circle cx="${x}" cy="40" r="${cur?15:12}" fill="${done?'#a71f35':'#0b0a0c'}" stroke="${done||cur?'#ff2d4d':'#3a3438'}" stroke-width="2" ${cur?'filter="url(#g)"':''}/>${done?`<text x="${x}" y="44" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">✓</text>`:cur?`<circle cx="${x}" cy="40" r="5" fill="#ff2d4d"/>`:''}<text x="${x}" y="72" font-size="9.5" fill="${done||cur?'#e9e4e6':'#5a5358'}" text-anchor="middle" font-weight="600">${s}</text><text x="${x}" y="86" font-size="8" fill="#8b8288" text-anchor="middle">${['Sep 2','Sep 4','Sep 6','30-day clock','—','—'][i]}</text>`)})}
+};
+for(const [k,fn] of Object.entries(GEN)){const g=document.querySelector(`g[data-gen="${k}"]`);let out='';fn(x=>out+=x);const tmp=document.createElementNS('http://www.w3.org/2000/svg','svg');tmp.innerHTML=out;while(tmp.firstChild)g.appendChild(tmp.firstChild)}
+</script>
+</body>
+</html>
