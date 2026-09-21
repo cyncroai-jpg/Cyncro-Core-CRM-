@@ -1946,7 +1946,7 @@ function FrontExperience({
           </p>
           <div className="heroActions">
             <button className="frontPrimary" onClick={onExperience}>
-              Experience Cyncro <span>↗</span>
+              Book demo <span>↗</span>
             </button>
             <button className="frontSecondary" onClick={onPlatform}>
               Enter Core Studio <span>→</span>
@@ -2157,8 +2157,8 @@ function FrontExperience({
                   <strong>{module.proof}</strong>
                   <span>{module.proofLabel}</span>
                 </div>
-                <button onClick={() => onNavigate(module.route)}>
-                  {liveLaunchModules.has(module.name) ? module.action : "View coming soon"} <span>↗</span>
+                <button onClick={() => onNavigate("book")}>
+                  Book demo <span>↗</span>
                 </button>
               </div>
             </article>
