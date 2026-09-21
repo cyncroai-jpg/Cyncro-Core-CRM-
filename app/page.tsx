@@ -92,7 +92,10 @@ export default function Home() {
       "prime",
     ];
     const syncRoute = () => {
-      const route = window.location.hash.slice(1) as Tab;
+      const first = window.location.hash.slice(1).split("/")[0];
+      if (first === "products") { setProduct("switcher"); return; }
+      setProduct((current) => (current === "switcher" ? "core" : current));
+      const route = first as Tab;
       setTab(validTabs.includes(route) ? route : "home");
     };
     syncRoute();
@@ -178,7 +181,7 @@ export default function Home() {
   }
   // Show gated screen for non-active products
   if (product !== "core") {
-    return <CyncroProductGate product={product} onBack={() => setProduct("switcher")} />;
+    return <CyncroProductGate product={product} onBack={() => { window.history.pushState(null, "", "#products"); setProduct("switcher"); }} />;
   }
 
   return (
@@ -208,7 +211,7 @@ export default function Home() {
             ))}
           <span>● CORE BETA</span>
           <a className="productSwitcherBtn" href="/growth" title="Cyncro Intelligence">◐ Intelligence</a>
-          <button className="productSwitcherBtn" onClick={() => setProduct("switcher")} title="All products">⬡ Products</button>
+          <button className="productSwitcherBtn" onClick={() => { window.history.pushState(null, "", "#products"); setProduct("switcher"); }} title="All products">⬡ Products</button>
         </nav>
       </header>
       {tab === "home" ? (
@@ -433,6 +436,43 @@ export default function Home() {
 
 type CyncroFormField={id:string;label:string;type:string;required:boolean;options:string[]};
 type CyncroFormRow={id:string;title:string;description?:string;status:string;public_token:string;fields_json:string;requires_signature:number;submission_count?:number};
+
+
+/**
+ * Keeps a product's inner view in the URL (#dispatch/jobs, #crm/contacts…)
+ * so the browser's back / forward buttons move one screen at a time instead
+ * of dumping the user out of the whole product.
+ */
+function slugifyView(v: string) { return v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function useHashView<T extends string>(section: string, initial: T, valid: readonly T[]): [T, (next: T | ((prev: T) => T)) => void] {
+  const read = (): T => {
+    if (typeof window === "undefined") return initial;
+    const parts = window.location.hash.slice(1).split("/");
+    if (parts[0] !== section) return initial;
+    const slug = (parts[1] || "").toLowerCase();
+    return (valid.find((v) => slugifyView(v) === slug) as T | undefined) || initial;
+  };
+  const [view, setViewState] = useState<T>(read);
+  useEffect(() => {
+    const sync = () => setViewState(read());
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+  const setView = (next: T | ((prev: T) => T)) => {
+    setViewState((prev) => {
+      const value = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+      if (typeof window !== "undefined") {
+        const parts = window.location.hash.slice(1).split("/");
+        const target = value === initial ? `#${section}` : `#${section}/${slugifyView(value)}`;
+        if (parts[0] === section && window.location.hash !== target) window.history.pushState(null, "", target);
+      }
+      return value;
+    });
+  };
+  return [view, setView];
+}
 
 function CRMForms({onFlash}:{onFlash:(message:string)=>void}){
   const empty={title:"New client questionnaire",description:"Complete the information below so our team can prepare your next step.",status:"DRAFT",requiresSignature:true,fields:[{id:crypto.randomUUID(),label:"What can we help you accomplish?",type:"LONG",required:true,options:[]}] as CyncroFormField[]};
@@ -4330,7 +4370,7 @@ const DISPUTE_REASON_LABELS: Record<string, string> = {
 const DISPUTE_ITEM_STATUSES = ["PREPARING", "MAILED", "AWAITING_RESPONSE", "RESOLVED_DELETED", "RESOLVED_VERIFIED_ACCURATE", "RESOLVED_UPDATED", "CLOSED"];
 
 function CyncroDispute({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const [view, setView] = useState<DisputeView>("Command");
+  const [view, setView] = useHashView<DisputeView>("dispute", "Command", ["Command", "Clients", "Report Audit", "Cases", "Templates", "Law Library", "Mail", "Tasks", "Billing", "Client Portal", "Team", "Analytics", "Compliance"]);
   const [notice, setNotice] = useState("");
   const [clients, setClients] = useState<DisputeClientRow[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -5621,7 +5661,7 @@ function apexMoney(cents: number | null | undefined) {
 }
 
 function CyncroApexFunds({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const [view, setView] = useState<ApexView>("Command");
+  const [view, setView] = useHashView<ApexView>("apex", "Command", ["Command", "Applicants", "Lenders", "Commissions", "Team", "Analytics"]);
   const [notice, setNotice] = useState("");
   const [applicants, setApplicants] = useState<ApexApplicant[]>([]);
   const [selectedApplicantId, setSelectedApplicantId] = useState("");
@@ -6313,7 +6353,7 @@ function autoMoney(cents: number | null | undefined) {
 }
 
 function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const [view, setView] = useState<AutoView>("Command");
+  const [view, setView] = useHashView<AutoView>("finance", "Command", ["Command", "Deal Queue", "Inventory", "Lenders", "Service", "Digital Retailing", "Accounting", "Compliance", "Analytics"]);
   const [notice, setNotice] = useState("");
   const [deals, setDeals] = useState<AutoDealRow[]>([]);
   const [selectedDealId, setSelectedDealId] = useState("");
@@ -7591,7 +7631,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
   const [authenticated, setAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [role, setRole] = useState<DispatchRole>("Owner");
-  const [view, setView] = useState<DispatchView>("Dashboard");
+  const [view, setView] = useHashView<DispatchView>("dispatch", "Dashboard", ["Dashboard", "Jobs", "Work Orders", "Payments", "GPS Map", "Analytics", "AI Agents", "Equipment", "Team", "Settings"]);
   const [notice, setNotice] = useState("");
   const [jobs, setJobs] = useState<DispatchJob[]>([]);
   const [customers, setCustomers] = useState<DispatchCustomer[]>([]);
@@ -11132,7 +11172,8 @@ function UniversalCRM({
   onOpenProspecting: () => void;
   isOwner: boolean;
 }) {
-  const [view, setView] = useState<CRMView>("Overview"),
+  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Compensation", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
+  const
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
     [creating, setCreating] = useState(false),
@@ -18628,7 +18669,7 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
   const topTypes = [...typeCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
   const showRate = analytics?.thisMonth.showRate ?? 0;
   const bookingUrl = (slug: string) => `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(slug)}#book`;
-  const copyLink = (e: CCEventType) => { void navigator.clipboard.writeText(bookingUrl(e.slug)); setCopied(e.id); window.setTimeout(() => setCopied(""), 1600); };
+  const copyLink = (e: CCEventType) => { try { void navigator.clipboard?.writeText(bookingUrl(e.slug)).catch(() => undefined); } catch { /* clipboard unavailable */ } setCopied(e.id); window.setTimeout(() => setCopied(""), 1600); };
 
   return (
     <div className="calCC">
@@ -19317,6 +19358,14 @@ function Admin({
   const [etSettingsOpen, setEtSettingsOpen] = useState(false);
   const [editingEt, setEditingEt] = useState<Record<string, unknown> | null>(null);
   const [availRules, setAvailRules] = useState<{ weekday: number; start_time: string; end_time: string }[]>([]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelectedBooking(null); setBlockOpen(false); setEtSettingsOpen(false); setResourcesOpen(false); setManualOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const loadAnalytics = async () => {
     try {
       const res = await fetch("/api/calendar/analytics");
