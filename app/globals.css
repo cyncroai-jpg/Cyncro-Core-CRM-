@@ -24549,3 +24549,103 @@ button.crmUser i {
 .fxHeroCar{position:relative;width:100%;max-width:340px;height:auto;filter:drop-shadow(0 18px 24px #000c)}
 .fxCar{width:56px;height:20px;flex:none;filter:drop-shadow(0 4px 8px #000c)}
 .fxCar.glow{filter:drop-shadow(0 0 6px #ff2f4f99) drop-shadow(0 4px 8px #000c)}
+
+/* ─── Finance: Inventory desk + Lender directory (fxDesk) ─── */
+.fxDesk{display:grid;grid-template-columns:minmax(0,1fr) 470px;gap:14px;align-content:start}
+.fxDesk .fxCCTop{grid-column:1/-1}
+.fxInvSearch{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-width:0}
+.fxInvSearch input,.fxInvSearch select{border:1px solid #3d353a;background:#0d0b0d;color:#efe9ec;border-radius:9px;padding:9px 12px;font-size:12px;min-width:0}
+.fxInvSearch input{width:260px;max-width:100%}
+.fxInvSearch input:focus,.fxInvSearch select:focus,.fxInvFields input:focus,.fxInvFields select:focus,.fxInvModal textarea:focus,.fxLendEdit input:focus{outline:none;border-color:#ff2f4f;box-shadow:0 0 0 2px #ff2f4f33}
+.fxInvDanger,.fxCCActions button.fxInvDanger{border-color:#ff2f4f80;color:#ff5c78;background:#1a0d10}
+.fxCCMini.danger{border-color:#ff2f4f66;color:#ff5c78}
+.fxInvTablePanel{grid-column:1;min-height:420px;align-self:start}
+.fxInvTableWrap{overflow:auto;max-height:640px;border:1px solid #ffffff0d;border-radius:12px;background:#0d0b0d}
+.fxInvTable{width:100%;border-collapse:collapse;font-size:11.5px;color:#efe9ec;font-variant-numeric:tabular-nums;min-width:700px}
+.fxInvTable th{position:sticky;top:0;z-index:1;background:#141114;color:#8f858b;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;text-align:left;padding:10px 8px;border-bottom:1px solid #ffffff12;white-space:nowrap}
+.fxInvTable td{padding:8px 8px;border-bottom:1px solid #ffffff08;vertical-align:middle;white-space:nowrap}
+.fxInvTable td b{display:block;color:#fff;font-weight:700}.fxInvTable td small{display:block;color:#8f858b;font-size:9.5px;margin-top:1px}.fxInvTable td small.dim{color:#5f565b;font-style:italic}
+.fxInvTable tbody tr{cursor:pointer;transition:background .12s}
+.fxInvTable tbody tr:hover{background:#ffffff06}
+.fxInvTable tbody tr.sel{background:linear-gradient(90deg,#a71f3566,#a71f3510);box-shadow:inset 3px 0 0 #ff2f4f}
+.fxInvTable tbody tr.hot .fxInvGross b{color:#3fd982}.fxInvTable tbody tr.neg .fxInvGross b{color:#ff5c78}
+.fxInvTable td.aged{color:#f3b23a;font-weight:700}
+.fxInvUnit{display:flex;align-items:center;gap:8px;white-space:normal;min-width:150px}.fxInvUnit .fxCar{width:48px;height:20px}
+.fxInvTable input[type=checkbox]{accent-color:#ff2f4f;width:14px;height:14px;cursor:pointer}
+.fxInvStatus{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:7px;padding:5px 7px;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.fxInvStatus.s-AVAILABLE{border-color:#3fd98280;color:#3fd982}.fxInvStatus.s-PENDING,.fxInvStatus.s-HOLD{border-color:#f3b23a80;color:#f3b23a}.fxInvStatus.s-SOLD{border-color:#ff6f86;color:#ff5c78}.fxInvStatus.s-IN_RECON{border-color:#8f858b}
+.fxInvX{border:1px solid transparent;background:transparent;color:#5f565b;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:11px}.fxInvX:hover{color:#ff5c78;border-color:#ff2f4f66;background:#1a0d10}
+.fxInvTable.mini{min-width:0;font-size:10.5px}.fxInvTable.mini th,.fxInvTable.mini td{padding:6px 8px}
+.fxInvDesk{grid-column:2;grid-row:2 / span 1;align-self:start;gap:14px}
+.fxInvDesk.empty{min-height:200px;justify-content:center}
+.fxInvGauges{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:10px 4px}
+.fxInvGauge svg{width:118px;height:66px}.fxInvGauge b{font-size:15px;margin-top:-22px}.fxInvGauge.hot b{color:#ff5c78}.fxInvGauge small{font-size:7.5px;white-space:nowrap}
+.fxInvGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fxInvFields{border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:10px 12px 12px;margin:0;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.fxInvFields legend{color:#ff5c78;font-size:8.5px;letter-spacing:.16em;font-weight:800;padding:0 6px}
+.fxInvFields label{display:grid;gap:3px;color:#8f858b;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;min-width:0}
+.fxInvFields label.wide,.fxInvFields .fxInvLinks{grid-column:1/-1}
+.fxInvFields input,.fxInvFields select{border:1px solid #3d353a;background:#141114;color:#fff;border-radius:8px;padding:8px 9px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;min-width:0;width:100%;font-variant-numeric:tabular-nums}
+.fxInvFields label.hot input{border-color:#ff2f4f;box-shadow:0 0 14px #ff2f4f40;color:#fff}
+.fxInvFields.money input{text-align:right}
+.fxInvLinks{display:grid;gap:6px;margin-top:2px}.fxInvLinks small{color:#8f858b;font-size:9.5px;line-height:1.4}
+.fxInvLinks div{display:flex;gap:6px;flex-wrap:wrap}.fxInvLinks a{border:1px solid #3d353a;border-radius:7px;padding:5px 9px;color:#efe9ec;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}.fxInvLinks a:hover{border-color:#ff2f4f;color:#ff5c78}
+.fxInvLadder{display:grid;gap:8px;border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:12px}
+.fxInvLadder>small{color:#8f858b;font-size:8.5px;letter-spacing:.14em;font-weight:700}
+.fxInvLadder .fxCCTable>div{grid-template-columns:1.5fr 1fr 1fr .8fr}.fxInvLadder .fxCCTable span.neg{color:#ff5c78}
+.fxInvBasis{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:10px;color:#8f858b;border-top:1px solid #ffffff0a;padding-top:8px}.fxInvBasis b{color:#fff;margin-left:4px}
+.fxInvSave{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.fxInvSave button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.fxInvSave button.fxCCPrimary{border-color:#ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;box-shadow:0 0 22px #ff2f4f88}
+.fxInvSave button:disabled{opacity:.5;cursor:not-allowed}
+.fxInvSave .fxInvDanger{margin-right:auto}
+.fxInvError{border:1px solid #ff2f4f80;background:#1a0d10;color:#ff8a9c;border-radius:9px;padding:9px 12px;font-size:11px}
+.fxInvKpis{grid-column:1/-1}
+.fxInvModalBack{position:fixed;inset:0;z-index:60;background:#000000b3;backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px}
+.fxInvModal{width:min(880px,100%);max-height:92vh;overflow:auto;border:1px solid #ff2f4f44;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 0 0 1px #ff2f4f1f,0 0 80px #a71f3547,0 40px 80px #000c;padding:18px;display:grid;gap:12px}
+.fxInvModal textarea{width:100%;border:1px solid #3d353a;background:#0d0b0d;color:#efe9ec;border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;min-height:120px}
+.fxInvDrop{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px dashed #ff2f4f66;border-radius:12px;padding:14px;background:#a71f350f}
+.fxInvDrop span{color:#8f858b;font-size:11px;flex:1}
+.fxInvMap{display:grid;gap:6px}.fxInvMap>small,.fxInvPreview>small{color:#8f858b;font-size:8.5px;letter-spacing:.14em;font-weight:700}
+.fxInvMap div{display:flex;flex-wrap:wrap;gap:6px}.fxInvMap span{font-size:10px;border-radius:7px;padding:4px 8px;border:1px solid #3fd98266;color:#3fd982;background:#3fd9820f}.fxInvMap span.skip{border-color:#3d353a;color:#8f858b;text-decoration:line-through;background:transparent}
+.fxInvMap em,.fxInvPreview em{color:#f3b23a;font-size:10.5px;font-style:normal}
+.fxInvPreview{display:grid;gap:6px}
+.fxInvResult{border:1px solid #3fd98273;border-radius:10px;padding:10px 12px;background:#3fd9820f;color:#efe9ec;font-size:11px}.fxInvResult ul{margin:6px 0 0;padding-left:16px;color:#f3b23a}
+/* Lender directory */
+.fxLend{grid-template-columns:1fr}
+.fxLendToggle{display:inline-flex;width:auto;margin:0;align-items:center;gap:6px;color:#8f858b;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.fxLendToggle input{accent-color:#ff2f4f}
+.fxLendChips{display:flex;flex-wrap:wrap;gap:8px}
+.fxLendChips button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:999px;padding:7px 13px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.fxLendChips button em{font-style:normal;color:#8f858b;font-size:10px}
+.fxLendChips button.on{border-color:#ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;box-shadow:0 0 18px #ff2f4f66}.fxLendChips button.on em{color:#ffd4db}
+.fxLendAdd .fxInvFields{grid-template-columns:repeat(4,1fr)}.fxLendAdd .fxInvFields label.wide{grid-column:span 2}
+.fxLendEmpty{align-items:center;text-align:center;padding:36px 20px;gap:10px}.fxLendEmpty b{color:#fff;font-size:15px}.fxLendEmpty p{color:#8f858b;font-size:12px;max-width:560px;margin:0;line-height:1.5}
+.fxLendGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.fxLendCard{display:grid;gap:9px;border:1px solid #ffffff12;border-radius:12px;background:linear-gradient(180deg,#141114,#0d0b0d);padding:12px;box-shadow:0 6px 14px #0006;min-width:0;align-content:start}
+.fxLendCard.off{opacity:.55}.fxLendCard.editing{border-color:#ff2f4fb3;box-shadow:0 0 24px #ff2f4f40}
+.fxLendHead{display:flex;align-items:flex-start;gap:8px;padding:0;margin:0}.fxLendHead>div{flex:1;min-width:0}
+.fxLendHead b{display:block;color:#fff;font-size:12.5px;font-weight:700;line-height:1.25}
+.fxLendHead small{display:flex;align-items:center;gap:6px;margin-top:5px;color:#8f858b;font-size:9.5px;flex-wrap:wrap}.fxLendHead small a{color:#8f858b;text-decoration:none}.fxLendHead small a:hover{color:#ff5c78}
+.fxLendSwitch{width:34px;height:18px;border-radius:999px;border:1px solid #3d353a;background:#0d0b0d;position:relative;cursor:pointer;flex:none;padding:0}
+.fxLendSwitch i{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#5f565b;transition:left .15s,background .15s}
+.fxLendSwitch.on{border-color:#ff2f4f;background:#a71f3540}.fxLendSwitch.on i{left:18px;background:#ff2f4f;box-shadow:0 0 8px #ff2f4f}
+.fxLendTiers{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;border:1px solid #ffffff0a;border-radius:9px;background:#0d0b0d;padding:8px 6px}
+.fxLendTiers span{display:grid;text-align:center;gap:2px}.fxLendTiers small{color:#8f858b;font-size:7.5px;letter-spacing:.1em;font-weight:700}.fxLendTiers b{color:#fff;font-size:12.5px;font-variant-numeric:tabular-nums}
+.fxLendCard p{margin:0;color:#c9c0c5;font-size:10.5px;line-height:1.4}.fxLendCard p.dim{color:#5f565b;font-style:italic}
+.fxLendFoot{display:flex;gap:6px;margin-top:auto}
+.fxLendEdit{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+.fxLendEdit label{display:grid;gap:3px;color:#8f858b;font-size:8px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;min-width:0}.fxLendEdit label.wide{grid-column:1/-1}
+.fxLendEdit input{border:1px solid #3d353a;background:#141114;color:#fff;border-radius:7px;padding:6px 8px;font-size:11.5px;width:100%;min-width:0;letter-spacing:0;text-transform:none}
+.fxLendEdit .fxInvSave{grid-column:1/-1;margin-top:4px}
+.fxLendGroup .fxCCLive{font-size:11px;color:#fff}
+@media (max-width:1100px){.fxDesk{grid-template-columns:1fr}.fxInvTablePanel,.fxInvDesk{grid-column:1;grid-row:auto}.fxInvGrid{grid-template-columns:1fr}.fxLendAdd .fxInvFields{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.fxInvSearch input{width:100%}.fxInvGauges{grid-template-columns:1fr 1fr 1fr}.fxInvFields{grid-template-columns:1fr}.fxLendAdd .fxInvFields{grid-template-columns:1fr}.fxLendAdd .fxInvFields label.wide{grid-column:1}}
+.readable .fxDesk :is(small, em, time) { font-size: 10.5px !important; font-weight: 700 !important; line-height: 1.35 !important; }
+.readable .fxDesk :is(button) { font-size: 11px !important; }
+.readable .fxDesk :is(.fxInvTable th, .fxInvFields label, .fxInvFields legend, .fxLendTiers small, .fxInvLadder>small, .fxInvMap>small, .fxInvPreview>small, .fxLendEdit label, .fxCCKpis small, .fxCCTable>div.hd, .fxInvGauge small) { font-size: 9px !important; }
+.readable .fxDesk .fxPill { font-size: 9px !important; }
+.readable .fxDesk :is(.fxInvTable td small, .fxLendHead small, .fxInvLinks small, .fxInvBasis) { font-size: 10px !important; font-weight: 600 !important; }
+.readable .fxDesk :is(.fxLendCard p, .fxLendEmpty p, .fxInvDrop span, .fxInvResult, .fxInvError) { font-size: 11px !important; line-height: 1.4 !important; }
+.readable .fxDesk .fxLendHead b { font-size: 12.5px !important; }
+.readable .fxDesk .fxLendTiers b { font-size: 12.5px !important; }
+.readable .fxDesk .fxLendToggle { font-size: 10.5px !important; }

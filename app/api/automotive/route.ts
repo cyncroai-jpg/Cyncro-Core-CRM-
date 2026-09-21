@@ -90,6 +90,148 @@ const DEAL_JACKET_CHECKLIST = [
   "Privacy notice", "OFAC / red-flag check",
 ];
 
+
+/** "$24,500.00" | "24500" | 24500 → cents, or null when blank/invalid. */
+function toCents(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}
+function toInt(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+const INVENTORY_STATUSES = new Set(["AVAILABLE", "PENDING", "SOLD", "WHOLESALE", "IN_RECON", "HOLD"]);
+/** Shared column mapping for inventory create / bulk upsert / patch. */
+function inventoryColumns(body: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  const set = (col: string, val: unknown) => { out[col] = val; };
+  if (body.vin !== undefined) set("vin", cleanText(body.vin, 20).toUpperCase() || null);
+  if (body.year !== undefined) set("year", toInt(body.year));
+  if (body.make !== undefined) set("make", cleanText(body.make, 60) || null);
+  if (body.model !== undefined) set("model", cleanText(body.model, 60) || null);
+  if (body.trim !== undefined) set("trim", cleanText(body.trim, 60) || null);
+  if (body.mileage !== undefined) set("mileage", toInt(body.mileage));
+  if (body.bookValue !== undefined) set("book_value_cents", toCents(body.bookValue));
+  if (body.askingPrice !== undefined) set("asking_price_cents", toCents(body.askingPrice) ?? 0);
+  if (body.acquisitionCost !== undefined) set("acquisition_cost_cents", toCents(body.acquisitionCost));
+  if (body.reconCost !== undefined) set("recon_cost_cents", toCents(body.reconCost));
+  if (body.kbbValue !== undefined) set("kbb_value_cents", toCents(body.kbbValue));
+  if (body.jdpowerValue !== undefined) set("jdpower_value_cents", toCents(body.jdpowerValue));
+  if (body.mmrValue !== undefined) set("mmr_value_cents", toCents(body.mmrValue));
+  if (body.color !== undefined) set("color", cleanText(body.color, 40) || null);
+  if (body.bodyStyle !== undefined) set("body_style", cleanText(body.bodyStyle, 40) || null);
+  if (body.drivetrain !== undefined) set("drivetrain", cleanText(body.drivetrain, 20) || null);
+  if (body.acquiredAt !== undefined) { const d = new Date(String(body.acquiredAt)); set("acquired_at", Number.isNaN(d.valueOf()) ? null : d.toISOString()); }
+  if (body.notes !== undefined) set("notes", cleanText(body.notes, 2000) || null);
+  if (body.status !== undefined) { const st = cleanText(body.status, 20).toUpperCase(); if (INVENTORY_STATUSES.has(st)) set("status", st); }
+  return out;
+}
+
+/** Real lender names dealers in Florida commonly work with. Rates and tiers are
+ *  left blank on purpose — every dealer's program terms differ, so the dealer
+ *  fills those in from their own agreements. */
+const LENDER_DIRECTORY: { name: string; type: string; region: string; website?: string }[] = [
+  // Captive finance arms
+  { name: "GM Financial", type: "CAPTIVE", region: "National", website: "https://www.gmfinancial.com" },
+  { name: "Ford Credit", type: "CAPTIVE", region: "National", website: "https://www.ford.com/finance/" },
+  { name: "Toyota Financial Services", type: "CAPTIVE", region: "National", website: "https://www.toyotafinancial.com" },
+  { name: "Honda Financial Services", type: "CAPTIVE", region: "National", website: "https://www.hondafinancialservices.com" },
+  { name: "Nissan Motor Acceptance (NMAC)", type: "CAPTIVE", region: "National", website: "https://www.nissanfinance.com" },
+  { name: "Hyundai Capital America", type: "CAPTIVE", region: "National", website: "https://www.hyundaimotorfinance.com" },
+  { name: "Kia Finance America", type: "CAPTIVE", region: "National", website: "https://www.kiafinance.com" },
+  { name: "Stellantis Financial Services", type: "CAPTIVE", region: "National", website: "https://www.stellantisfinancialservices.com" },
+  { name: "Volkswagen Credit", type: "CAPTIVE", region: "National", website: "https://www.vwcredit.com" },
+  { name: "BMW Financial Services", type: "CAPTIVE", region: "National", website: "https://www.bmwusa.com/financial-services.html" },
+  { name: "Mercedes-Benz Financial Services", type: "CAPTIVE", region: "National", website: "https://www.mbfs.com" },
+  { name: "Subaru Motors Finance", type: "CAPTIVE", region: "National", website: "https://www.subarumotorsfinance.com" },
+  { name: "Mazda Financial Services", type: "CAPTIVE", region: "National", website: "https://www.mazdafinancialservices.com" },
+  // National banks and prime lenders
+  { name: "Ally Financial", type: "BANK", region: "National", website: "https://www.ally.com/dealer/" },
+  { name: "Capital One Auto Finance", type: "BANK", region: "National", website: "https://www.capitalone.com/cars/dealers/" },
+  { name: "Chase Auto", type: "BANK", region: "National", website: "https://www.chase.com/personal/auto" },
+  { name: "Bank of America Dealer Financial Services", type: "BANK", region: "National", website: "https://www.bankofamerica.com/auto-loans/" },
+  { name: "Wells Fargo Auto", type: "BANK", region: "National", website: "https://www.wellsfargo.com/auto-loans/" },
+  { name: "U.S. Bank Dealer Services", type: "BANK", region: "National", website: "https://www.usbank.com/vehicle-loans.html" },
+  { name: "TD Auto Finance", type: "BANK", region: "National", website: "https://www.tdautofinance.com" },
+  { name: "Huntington Auto Finance", type: "BANK", region: "National", website: "https://www.huntington.com/Personal/auto-loans" },
+  { name: "Fifth Third Dealer Services", type: "BANK", region: "National", website: "https://www.53.com/content/fifth-third/en/personal-banking/borrowing/auto-loans.html" },
+  { name: "PNC Dealer Finance", type: "BANK", region: "National", website: "https://www.pnc.com/en/personal-banking/borrowing/auto-loans.html" },
+  { name: "Truist Dealer Retail Services", type: "BANK", region: "National", website: "https://www.truist.com" },
+  { name: "Citizens Auto Finance", type: "BANK", region: "National", website: "https://www.citizensbank.com/auto-loans/" },
+  { name: "Santander Consumer USA", type: "BANK", region: "National", website: "https://www.santanderconsumerusa.com" },
+  { name: "Mechanics Bank Auto Finance", type: "BANK", region: "National", website: "https://www.mechanicsbank.com/Auto-Finance" },
+  // Florida banks
+  { name: "Seacoast Bank", type: "BANK", region: "Florida", website: "https://www.seacoastbank.com" },
+  { name: "BankUnited", type: "BANK", region: "Florida", website: "https://www.bankunited.com" },
+  { name: "Amerant Bank", type: "BANK", region: "Florida", website: "https://www.amerantbank.com" },
+  { name: "City National Bank of Florida", type: "BANK", region: "Florida", website: "https://www.citynational.com" },
+  { name: "Capital City Bank", type: "BANK", region: "Florida", website: "https://www.ccbg.com" },
+  { name: "Southern Auto Finance Company (SAFCO)", type: "SUBPRIME", region: "Florida", website: "https://www.safco.com" },
+  // Near-prime and subprime
+  { name: "Westlake Financial Services", type: "SUBPRIME", region: "National", website: "https://www.westlakefinancial.com" },
+  { name: "Exeter Finance", type: "SUBPRIME", region: "National", website: "https://www.exeterfinance.com" },
+  { name: "Credit Acceptance", type: "SUBPRIME", region: "National", website: "https://www.creditacceptance.com" },
+  { name: "Regional Acceptance Corporation", type: "SUBPRIME", region: "National", website: "https://www.regionalacceptance.com" },
+  { name: "Global Lending Services", type: "SUBPRIME", region: "National", website: "https://www.glsllc.com" },
+  { name: "Flagship Credit Acceptance", type: "SUBPRIME", region: "National", website: "https://www.flagshipcredit.com" },
+  { name: "United Auto Credit", type: "SUBPRIME", region: "National", website: "https://www.unitedautocredit.net" },
+  { name: "Consumer Portfolio Services (CPS)", type: "SUBPRIME", region: "National", website: "https://www.consumerportfolio.com" },
+  { name: "First Investors Financial Services", type: "SUBPRIME", region: "National", website: "https://www.firstinvestorsonline.com" },
+  { name: "Prestige Financial Services", type: "SUBPRIME", region: "National", website: "https://www.gopfs.com" },
+  { name: "Security National Automotive Acceptance (SNAAC)", type: "SUBPRIME", region: "National", website: "https://www.snaac.com" },
+  { name: "Lobel Financial", type: "SUBPRIME", region: "National", website: "https://www.lobelfinancial.com" },
+  { name: "American Credit Acceptance", type: "SUBPRIME", region: "National", website: "https://www.americancreditacceptance.com" },
+  { name: "Foursight Capital", type: "SUBPRIME", region: "National", website: "https://www.foursightcapital.com" },
+  { name: "Veros Credit", type: "SUBPRIME", region: "National", website: "https://www.veroscredit.com" },
+  { name: "Carvana Finance (Bridgecrest)", type: "SUBPRIME", region: "National", website: "https://www.bridgecrest.com" },
+  // Florida credit unions
+  { name: "Suncoast Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.suncoastcreditunion.com" },
+  { name: "VyStar Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://vystarcu.org" },
+  { name: "Space Coast Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.sccu.com" },
+  { name: "GTE Financial", type: "CREDIT_UNION", region: "Florida", website: "https://www.gtefinancial.org" },
+  { name: "Fairwinds Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.fairwinds.org" },
+  { name: "Addition Financial Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.additionfi.com" },
+  { name: "MIDFLORIDA Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.midflorida.com" },
+  { name: "Grow Financial Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.growfinancial.org" },
+  { name: "Launch Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.launchcu.com" },
+  { name: "Achieva Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.achievacu.com" },
+  { name: "Tropical Financial Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.tropicalfcu.com" },
+  { name: "CAMPUS USA Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.campuscu.com" },
+  { name: "Florida Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.flcu.org" },
+  { name: "Community First Credit Union of Florida", type: "CREDIT_UNION", region: "Florida", website: "https://www.communityfirstfl.org" },
+  { name: "First Florida Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.firstflorida.org" },
+  { name: "Eglin Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.eglinfcu.org" },
+  { name: "Pen Air Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.penair.org" },
+  { name: "Tyndall Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.tyndall.org" },
+  { name: "Insight Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.insightcreditunion.com" },
+  { name: "Envision Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.envisioncu.com" },
+  { name: "First Commerce Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.firstcommercecu.org" },
+  { name: "Dade County Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.dcfcu.org" },
+  { name: "Power Financial Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.powerfi.org" },
+  { name: "We Florida Financial", type: "CREDIT_UNION", region: "Florida", website: "https://www.wefloridafinancial.com" },
+  { name: "Jax Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.jaxfcu.org" },
+  { name: "121 Financial Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.121fcu.org" },
+  { name: "USF Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.usffcu.org" },
+  { name: "IBM Southeast Employees' Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.ibmsecu.org" },
+  { name: "McCoy Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.mccoyfcu.org" },
+  { name: "Priority Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.prioritycu.org" },
+  { name: "Gulf Winds Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.gulfwindscu.org" },
+  { name: "Miami Firefighters Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.miamifirefighterscu.org" },
+  { name: "Brightstar Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.bscu.org" },
+  { name: "PBC Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.pbccu.org" },
+  { name: "Florida State University Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.fsucu.org" },
+  { name: "Harvesters Federal Credit Union", type: "CREDIT_UNION", region: "Florida", website: "https://www.harvestersfcu.org" },
+  // National credit unions
+  { name: "Navy Federal Credit Union", type: "CREDIT_UNION", region: "National", website: "https://www.navyfederal.org" },
+  { name: "PenFed Credit Union", type: "CREDIT_UNION", region: "National", website: "https://www.penfed.org" },
+  { name: "Alliant Credit Union", type: "CREDIT_UNION", region: "National", website: "https://www.alliantcreditunion.org" },
+  { name: "Digital Federal Credit Union (DCU)", type: "CREDIT_UNION", region: "National", website: "https://www.dcu.org" },
+  { name: "Security Service Federal Credit Union", type: "CREDIT_UNION", region: "National", website: "https://www.ssfcu.org" },
+  { name: "USAA (bank)", type: "BANK", region: "National", website: "https://www.usaa.com" },
+];
+
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
@@ -107,7 +249,7 @@ export async function GET(request: Request) {
     }
 
     if (resource === "inventory") {
-      const { results } = await db.prepare("SELECT * FROM auto_inventory WHERE tenant_id=? ORDER BY created_at DESC LIMIT 300").bind(tenant.tenantId).all();
+      const { results } = await db.prepare("SELECT * FROM auto_inventory WHERE tenant_id=? ORDER BY created_at DESC LIMIT 2000").bind(tenant.tenantId).all();
       return Response.json({ inventory: results });
     }
 
@@ -251,20 +393,56 @@ export async function POST(request: Request) {
     if (resource === "inventory") {
       const stockNumber = cleanText(body.stockNumber, 40);
       if (!stockNumber) return Response.json({ error: "stockNumber is required." }, { status: 400 });
+      const cols = inventoryColumns(body);
       const id = uid();
-      await db.prepare(`INSERT INTO auto_inventory
-        (id,tenant_id,stock_number,vin,year,make,model,trim,mileage,book_value_cents,asking_price_cents,acquisition_cost_cents,status,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .bind(
-          id, tenant.tenantId, stockNumber, cleanText(body.vin, 20) || null,
-          body.year !== undefined ? Number(body.year) : null, cleanText(body.make, 60) || null, cleanText(body.model, 60) || null, cleanText(body.trim, 60) || null,
-          body.mileage !== undefined ? Number(body.mileage) : null,
-          body.bookValue !== undefined ? Math.round(Number(body.bookValue) * 100) : null,
-          Math.round(Number(body.askingPrice || 0) * 100),
-          body.acquisitionCost !== undefined ? Math.round(Number(body.acquisitionCost) * 100) : null,
-          "AVAILABLE", now, now,
-        ).run();
+      const names = ["id", "tenant_id", "stock_number", ...Object.keys(cols), "created_at", "updated_at"];
+      const values = [id, tenant.tenantId, stockNumber, ...Object.values(cols), now, now];
+      if (!("status" in cols)) { names.splice(names.length - 2, 0, "status"); values.splice(values.length - 2, 0, "AVAILABLE"); }
+      if (!("asking_price_cents" in cols)) { names.splice(names.length - 2, 0, "asking_price_cents"); values.splice(values.length - 2, 0, 0); }
+      await db.prepare(`INSERT INTO auto_inventory (${names.join(",")}) VALUES (${names.map(() => "?").join(",")})`).bind(...values).run();
       return Response.json({ id }, { status: 201 });
+    }
+
+    if (resource === "inventory-bulk") {
+      // Upsert many vehicles keyed by stock number (CSV / paste import).
+      const rows = Array.isArray(body.rows) ? (body.rows as Record<string, unknown>[]) : [];
+      if (!rows.length) return Response.json({ error: "rows is required." }, { status: 400 });
+      if (rows.length > 2000) return Response.json({ error: "Import at most 2,000 vehicles at a time." }, { status: 400 });
+      let inserted = 0, updated = 0; const errors: string[] = [];
+      for (const [i, row] of rows.entries()) {
+        const stockNumber = cleanText(row.stockNumber, 40) || (cleanText(row.vin, 20) ? cleanText(row.vin, 20).toUpperCase().slice(-8) : "");
+        if (!stockNumber) { errors.push(`Row ${i + 1}: missing stock number and VIN`); continue; }
+        const cols = inventoryColumns(row);
+        const existing = await db.prepare("SELECT id FROM auto_inventory WHERE tenant_id=? AND stock_number=?").bind(tenant.tenantId, stockNumber).first<{ id: string }>();
+        if (existing) {
+          if (Object.keys(cols).length) {
+            await db.prepare(`UPDATE auto_inventory SET ${Object.keys(cols).map((c) => `${c}=?`).join(",")}, updated_at=? WHERE id=?`).bind(...Object.values(cols), now, existing.id).run();
+          }
+          updated++;
+        } else {
+          const names = ["id", "tenant_id", "stock_number", ...Object.keys(cols), "created_at", "updated_at"];
+          const values = [uid(), tenant.tenantId, stockNumber, ...Object.values(cols), now, now];
+          if (!("status" in cols)) { names.splice(names.length - 2, 0, "status"); values.splice(values.length - 2, 0, "AVAILABLE"); }
+          if (!("asking_price_cents" in cols)) { names.splice(names.length - 2, 0, "asking_price_cents"); values.splice(values.length - 2, 0, 0); }
+          await db.prepare(`INSERT INTO auto_inventory (${names.join(",")}) VALUES (${names.map(() => "?").join(",")})`).bind(...values).run();
+          inserted++;
+        }
+      }
+      return Response.json({ inserted, updated, errors }, { status: 201 });
+    }
+
+    if (resource === "lender-directory") {
+      // Seed the Florida + national lender directory, skipping names already present.
+      const { results: existing } = await db.prepare("SELECT lower(name) AS n FROM auto_lenders WHERE tenant_id=?").bind(tenant.tenantId).all<{ n: string }>();
+      const have = new Set(existing.map((r) => r.n));
+      let added = 0;
+      for (const l of LENDER_DIRECTORY) {
+        if (have.has(l.name.toLowerCase())) continue;
+        await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,active,lender_type,region,website,created_at,updated_at) VALUES (?,?,?,1,?,?,?,?,?)`)
+          .bind(uid(), tenant.tenantId, l.name, l.type, l.region, l.website || null, now, now).run();
+        added++;
+      }
+      return Response.json({ added, total: LENDER_DIRECTORY.length }, { status: 201 });
     }
 
     if (resource === "deals") {
@@ -347,14 +525,14 @@ export async function POST(request: Request) {
       const name = cleanText(body.name, 200);
       if (!name) return Response.json({ error: "name is required." }, { status: 400 });
       const id = uid();
-      await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,min_credit_score,max_advance_pct,buy_rate,reserve_pct,active,notes,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,1,?,?,?)`)
+      await db.prepare(`INSERT INTO auto_lenders (id,tenant_id,name,min_credit_score,max_advance_pct,buy_rate,reserve_pct,active,notes,lender_type,region,website,phone,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,1,?,?,?,?,?,?,?)`)
         .bind(id, tenant.tenantId, name,
-          body.minCreditScore !== undefined ? Number(body.minCreditScore) : null,
-          body.maxAdvancePct !== undefined ? Number(body.maxAdvancePct) : null,
-          body.buyRate !== undefined ? Number(body.buyRate) : null,
-          body.reservePct !== undefined ? Number(body.reservePct) : null,
-          cleanText(body.notes, 1000) || null, now, now).run();
+          body.minCreditScore !== undefined && body.minCreditScore !== "" ? Number(body.minCreditScore) : null,
+          body.maxAdvancePct !== undefined && body.maxAdvancePct !== "" ? Number(body.maxAdvancePct) : null,
+          body.buyRate !== undefined && body.buyRate !== "" ? Number(body.buyRate) : null,
+          body.reservePct !== undefined && body.reservePct !== "" ? Number(body.reservePct) : null,
+          cleanText(body.notes, 1000) || null, cleanText(body.lenderType, 30).toUpperCase() || null, cleanText(body.region, 60) || null, cleanText(body.website, 300) || null, cleanText(body.phone, 40) || null, now, now).run();
       return Response.json({ id }, { status: 201 });
     }
 
@@ -611,14 +789,27 @@ export async function PATCH(request: Request) {
     const now = new Date().toISOString();
 
     if (resource === "inventory") {
-      const updates: string[] = [];
-      const vals: unknown[] = [];
-      if (body.status !== undefined) { updates.push("status=?"); vals.push(cleanText(body.status, 20)); }
-      if (body.askingPrice !== undefined) { updates.push("asking_price_cents=?"); vals.push(Math.round(Number(body.askingPrice) * 100)); }
+      const cols = inventoryColumns(body);
+      if (body.stockNumber !== undefined) { const sn = cleanText(body.stockNumber, 40); if (sn) cols.stock_number = sn; }
+      if (!Object.keys(cols).length) return Response.json({ updated: false });
+      await db.prepare(`UPDATE auto_inventory SET ${Object.keys(cols).map((c) => `${c}=?`).join(",")}, updated_at=? WHERE tenant_id=? AND id=?`).bind(...Object.values(cols), now, tenant.tenantId, id).run();
+      return Response.json({ updated: true });
+    }
+
+    if (resource === "lenders") {
+      const updates: string[] = []; const vals: unknown[] = [];
+      const num = (k: string, col: string) => { if (body[k] !== undefined) { updates.push(`${col}=?`); vals.push(body[k] === "" || body[k] === null ? null : Number(body[k])); } };
+      if (body.name !== undefined) { const n = cleanText(body.name, 200); if (n) { updates.push("name=?"); vals.push(n); } }
+      num("minCreditScore", "min_credit_score"); num("maxAdvancePct", "max_advance_pct"); num("buyRate", "buy_rate"); num("reservePct", "reserve_pct");
+      if (body.active !== undefined) { updates.push("active=?"); vals.push(body.active ? 1 : 0); }
+      if (body.notes !== undefined) { updates.push("notes=?"); vals.push(cleanText(body.notes, 1000) || null); }
+      if (body.lenderType !== undefined) { updates.push("lender_type=?"); vals.push(cleanText(body.lenderType, 30).toUpperCase() || null); }
+      if (body.region !== undefined) { updates.push("region=?"); vals.push(cleanText(body.region, 60) || null); }
+      if (body.website !== undefined) { updates.push("website=?"); vals.push(cleanText(body.website, 300) || null); }
+      if (body.phone !== undefined) { updates.push("phone=?"); vals.push(cleanText(body.phone, 40) || null); }
       if (!updates.length) return Response.json({ updated: false });
-      updates.push("updated_at=?"); vals.push(now);
-      vals.push(tenant.tenantId, id);
-      await db.prepare(`UPDATE auto_inventory SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
+      updates.push("updated_at=?"); vals.push(now, tenant.tenantId, id);
+      await db.prepare(`UPDATE auto_lenders SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
       return Response.json({ updated: true });
     }
 
@@ -763,6 +954,31 @@ export async function DELETE(request: Request) {
     }
     if (resource === "watchlist") {
       await db.prepare("DELETE FROM auto_watchlist WHERE tenant_id=? AND id=?").bind(tenant.tenantId, id).run();
+      return Response.json({ deleted: true });
+    }
+    if (resource === "inventory") {
+      const inDeal = await db.prepare("SELECT COUNT(*) AS n FROM auto_deals WHERE tenant_id=? AND vehicle_id=?").bind(tenant.tenantId, id).first<{ n: number }>();
+      if (Number(inDeal?.n || 0) > 0) return Response.json({ error: "This vehicle is attached to a deal. Mark it Sold or Wholesale instead of deleting it." }, { status: 409 });
+      await db.prepare("DELETE FROM auto_inventory WHERE tenant_id=? AND id=?").bind(tenant.tenantId, id).run();
+      return Response.json({ deleted: true });
+    }
+    if (resource === "inventory-bulk") {
+      const ids = String(url.searchParams.get("ids") || id).split(",").map((x) => cleanText(x, 80)).filter(Boolean);
+      let deleted = 0, blocked = 0;
+      for (const vid of ids) {
+        const inDeal = await db.prepare("SELECT COUNT(*) AS n FROM auto_deals WHERE tenant_id=? AND vehicle_id=?").bind(tenant.tenantId, vid).first<{ n: number }>();
+        if (Number(inDeal?.n || 0) > 0) { blocked++; continue; }
+        await db.prepare("DELETE FROM auto_inventory WHERE tenant_id=? AND id=?").bind(tenant.tenantId, vid).run(); deleted++;
+      }
+      return Response.json({ deleted, blocked });
+    }
+    if (resource === "lenders") {
+      const used = await db.prepare("SELECT COUNT(*) AS n FROM auto_lender_submissions WHERE tenant_id=? AND lender_id=?").bind(tenant.tenantId, id).first<{ n: number }>();
+      if (Number(used?.n || 0) > 0) {
+        await db.prepare("UPDATE auto_lenders SET active=0, updated_at=? WHERE tenant_id=? AND id=?").bind(new Date().toISOString(), tenant.tenantId, id).run();
+        return Response.json({ deleted: false, deactivated: true, reason: "This lender has submissions on file, so it was deactivated instead of deleted." });
+      }
+      await db.prepare("DELETE FROM auto_lenders WHERE tenant_id=? AND id=?").bind(tenant.tenantId, id).run();
       return Response.json({ deleted: true });
     }
     return Response.json({ error: "Unknown resource." }, { status: 400 });
