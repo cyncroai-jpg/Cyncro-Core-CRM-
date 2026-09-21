@@ -7,9 +7,11 @@ const et=await api("/api/calendar/event-types",{method:"POST",body:JSON.stringif
 const day=new Date();day.setDate(day.getDate()+0);
 for(let i=0;i<5;i++){const dd=new Date(day);dd.setDate(dd.getDate()+(i%3));const st=new Date(dd);st.setHours(9+i*2,i%2?30:0,0,0);const r=await api("/api/calendar/bookings",{method:"POST",body:JSON.stringify({eventTypeId:et.b?.id,customerName:["Sarah R.","Marcus J.","Lena K.","Tom P.","Ava V."][i],customerEmail:`c${i}+${stamp}@example.com`,startsAt:st.toISOString(),timezone:"America/Chicago",locationMode:"VIDEO",videoPlatform:"GOOGLE_MEET"})},c);console.log("booking",r.r.status,JSON.stringify(r.b).slice(0,80));}
 await api("/api/dispatch/seed-demo",{method:"POST",body:"{}"},c);
+await api("/api/automotive?resource=seed-demo",{method:"POST",body:"{}"},c);
 const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:950}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage();
-for(const [h,f] of [["admin","new-calendar.png"],["dispatch","new-dispatch.png"]]){await page.goto(`${BASE}/#${h}`,{waitUntil:"networkidle",timeout:90000});await page.waitForTimeout(3000);await page.screenshot({path:`${OUT}/${f}`});console.log("shot",f)}
+const targets=(process.env.TARGETS||"admin:new-calendar.png,dispatch:new-dispatch.png").split(",").map(t=>t.split(":"));
+for(const [h,f] of targets){await page.goto(`${BASE}/#${h}`,{waitUntil:"networkidle",timeout:90000});await page.waitForTimeout(3000);await page.screenshot({path:`${OUT}/${f}`,fullPage:process.env.FULL==="1"});console.log("shot",f)}
 await browser.close();

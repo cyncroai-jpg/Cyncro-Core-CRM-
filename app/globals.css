@@ -24391,3 +24391,126 @@ button.crmUser i {
 .calCCRight .calCCHead b{overflow:hidden;text-overflow:ellipsis;font-size:12px}
 .calCCWide{width:100%;padding:11px}
 .calCCRight .calCCHead small{max-width:none}
+
+/* ───────── Finance (deal desk) command center ───────── */
+.fxCC{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.7fr) minmax(280px,.85fr);grid-template-rows:auto auto 1fr auto;gap:14px}
+.fxCCTop{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid #ffffff12;border-radius:14px;background:linear-gradient(165deg,#1d181b,#0d0b0d);padding:12px 16px;box-shadow:0 20px 40px #0008,inset 0 1px #ffffff10}
+.fxCCTitle b{display:block;color:#fff;font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+.fxCCTitle small{display:block;color:#8f858b;font-size:10.5px;margin-top:2px}
+.fxCCActions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.fxCCActions button,.fxCCMini{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.fxCCMini{padding:5px 9px;font-size:9.5px}
+.fxCCPrimary,.fxCCActions button.fxCCPrimary{border:1px solid #ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 22px #ff2f4f88}
+.fxCCWide{grid-column:1/-1;width:100%}
+.fxCCPanel{position:relative;border:1px solid #ffffff12;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 30px 60px #0009,inset 0 1px #ffffff10;display:flex;flex-direction:column;gap:12px;padding:16px;min-height:0;overflow:hidden}
+.fxCCPanel::before{content:"";position:absolute;inset:0;border-radius:16px;background:linear-gradient(180deg,#ffffff08,transparent 30%);pointer-events:none}
+.fxCCHero{border-color:#ff2f4f44;box-shadow:0 0 0 1px #ff2f4f1f,0 0 60px #a71f3547,0 30px 60px #0009,inset 0 1px #ffffff10}
+.fxCCHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fxCCHead>div{flex:1;min-width:0}
+.fxCCHead b{display:block;color:#fff;font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fxCCHead small{display:block;color:#8f858b;font-size:10.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fxCCLive{font-size:9.5px;color:#8f858b;border:1px solid #3d353a;border-radius:7px;padding:4px 9px;display:inline-flex;gap:6px;align-items:center;font-weight:700}
+.fxCCLive i{width:7px;height:7px;border-radius:50%;background:#ff2f4f;box-shadow:0 0 10px #ff2f4f}
+.fxCCList{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.fxCCList>button{display:flex;align-items:center;gap:10px;width:100%;min-width:0;overflow:hidden;text-align:left;border:1px solid #ffffff12;border-radius:11px;background:linear-gradient(180deg,#141114,#0d0b0d);padding:9px 11px;cursor:pointer;color:#efe9ec;box-shadow:0 6px 14px #0006}
+.fxCCList>button.sel{border-color:#ff2f4fb3;background:linear-gradient(90deg,#a71f3573,#a71f3514);box-shadow:0 0 28px #ff2f4f59}
+.fxCCList .grow{flex:1;min-width:0}.fxCCList .grow b{display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fxCCList .grow small{display:block;color:#8f858b;font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fxCar{width:52px;height:26px;flex:none;filter:drop-shadow(0 4px 8px #000c)}
+.fxCar path{fill:#2a252a;stroke:#6b5f66;stroke-width:1.2}.fxCar .glass{fill:#3b3541;stroke:none}.fxCar .wheel{fill:#0a090a;stroke:#8f858b;stroke-width:1.5}.fxCar .lamp{fill:#ff2f4f}
+.fxCar.glow path{stroke:#ff6f86}.fxCar.glow .lamp{filter:drop-shadow(0 0 4px #ff2f4f)}
+.fxPill{font-style:normal;font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:6px;border:1px solid #3d353a;color:#8f858b;white-space:nowrap}
+.fxPill.red{background:linear-gradient(180deg,#d1304a,#a71f35);border-color:#ff6f86;color:#fff;box-shadow:0 0 14px #ff2f4f99}.fxPill.green{color:#3fd982;border-color:#3fd98280}.fxPill.amber{color:#f3b23a;border-color:#f3b23a80}
+.fxCCEmpty{color:#8f858b;font-size:11px;padding:12px;text-align:center;border:1px dashed #ffffff14;border-radius:10px}
+.fxCCBars{display:grid;gap:8px}
+.fxCCBars>div span{display:flex;justify-content:space-between;font-size:11px;color:#efe9ec;margin-bottom:4px}.fxCCBars>div span em{font-style:normal;color:#ff5c78;font-weight:700}
+.fxCCBars i,.fxCCMeter i{display:block;height:8px;border-radius:5px;background:#1d191c;overflow:hidden;box-shadow:inset 0 1px 2px #0009}
+.fxCCBars i b,.fxCCMeter i b{display:block;height:100%;background:linear-gradient(90deg,#a71f35,#ff2f4f);box-shadow:0 0 14px #ff2f4fcc}
+.fxCCStage{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:stretch}
+.fxCCStructure{display:grid;gap:7px;align-content:start;border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:12px}
+.fxCCStructure>small,.fxCCLower small{display:block;color:#8f858b;font-size:8.5px;letter-spacing:.14em;font-weight:700}
+.fxCCStructure>div{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#efe9ec}.fxCCStructure>div b{color:#fff;font-weight:700}
+.fxCCMeter{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin-top:4px;font-size:10px!important;color:#8f858b}.fxCCMeter b{color:#fff;font-size:11px}.fxCCMeter i{grid-column:1/-1}.fxCCMeter.hot b{color:#ff5c78}
+.fxCCPlatform{position:relative;display:grid;place-items:center;border:1px solid #ffffff10;border-radius:12px;background:radial-gradient(ellipse 60% 60% at 50% 60%,#2a1a1e,#0d0b0d 70%);min-height:220px;overflow:hidden}
+.fxCCPlatform svg{width:100%;max-width:380px;height:auto}
+.fxCCPlatform .body{fill:url(#fxHalo);fill:#1f1a1d;stroke:#8f858b;stroke-width:.5}.fxCCPlatform .glass{fill:#3b3541}.fxCCPlatform .line{stroke:#ff2f4f;stroke-width:.6;filter:drop-shadow(0 0 3px #ff2f4f)}.fxCCPlatform .wheel{fill:#0a090a;stroke:#8f858b;stroke-width:.6}.fxCCPlatform .lamp{fill:#ff2f4f;filter:drop-shadow(0 0 3px #ff2f4f)}.fxCCPlatform .fxRing{filter:drop-shadow(0 0 8px #ff2f4f)}
+.fxCCBadge{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:#0d0b0de6;border:1px solid #ff2f4f66;border-radius:10px;padding:7px 14px;text-align:center;white-space:nowrap;box-shadow:0 0 22px #ff2f4f40}
+.fxCCBadge b{display:block;color:#fff;font-size:11px;letter-spacing:.1em;text-transform:uppercase}.fxCCBadge small{display:block;color:#ff5c78;font-size:8.5px;letter-spacing:.08em;margin-top:2px}
+.fxCCLower{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;border-top:1px solid #ffffff0d;padding-top:12px}
+.fxCCLower>div{display:grid;gap:8px;align-content:start}
+.fxCCTable{display:grid;font-size:11px}
+.fxCCTable>div{display:grid;grid-template-columns:1.4fr .7fr .8fr 1fr;padding:8px 8px;border-bottom:1px solid #ffffff0a;align-items:center;color:#efe9ec}
+.fxCCTable.compact>div{grid-template-columns:1.4fr .7fr .9fr}
+.fxCCTable>div.hd{color:#8f858b;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.fxCCTable>div.hot{background:linear-gradient(90deg,#a71f3580,#a71f3510);border-radius:8px;border-color:transparent;box-shadow:0 0 18px #ff2f4f40}
+.fxCCTable .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#3d353a;margin-right:6px}.fxCCTable .dot.green{background:#3fd982;box-shadow:0 0 8px #3fd982}.fxCCTable .dot.red{background:#ff2f4f;box-shadow:0 0 8px #ff2f4f}.fxCCTable .dot.amber{background:#f3b23a;box-shadow:0 0 8px #f3b23a}
+.fxCCChecks{display:grid;gap:7px}
+.fxCCChecks span{display:flex;align-items:center;gap:9px;font-size:11px;color:#efe9ec;text-transform:capitalize}
+.fxCCChecks span i{width:17px;height:17px;border-radius:50%;border:1.5px solid #ff2f4fb3;color:#ff2f4f;display:grid;place-items:center;font-style:normal;font-size:9px;flex:none;box-shadow:0 0 10px #ff2f4f40}
+.fxCCChecks span.ok i{border-color:#3fd982cc;color:#3fd982;box-shadow:0 0 10px #3fd98240}
+.fxCCChecks span em{margin-left:auto;font-style:normal;color:#ff5c78;font-weight:700;font-size:10.5px}
+.fxCCGauge{display:grid;justify-items:center;padding:4px 0}
+.fxCCGauge svg{width:150px;height:84px;overflow:visible}.fxCCGauge .track{fill:none;stroke:#231f23;stroke-width:12;stroke-linecap:round}.fxCCGauge .fill{fill:none;stroke:#ff2f4f;stroke-width:12;stroke-linecap:round;filter:drop-shadow(0 0 8px #ff2f4f)}
+.fxCCGauge b{color:#fff;font-size:22px;font-weight:700;margin-top:-28px}.fxCCGauge small{color:#8f858b;font-size:8.5px;letter-spacing:.1em;font-weight:700;margin-top:2px;text-align:center}
+.fxCCConfirm{margin-top:auto;display:flex;align-items:center;gap:12px;border:1px solid #3fd98273;border-radius:12px;padding:12px;background:linear-gradient(180deg,#3fd9821f,#3fd98208);box-shadow:0 0 24px #3fd98233}
+.fxCCConfirm i{width:36px;height:36px;border-radius:50%;border:2px solid #3fd982;display:grid;place-items:center;color:#3fd982;font-style:normal;font-size:16px;box-shadow:0 0 18px #3fd982b3;flex:none}
+.fxCCConfirm b{display:block;color:#fff;font-size:12px}.fxCCConfirm small{display:block;color:#8f858b;font-size:9.5px;margin-top:2px}
+.fxCCConfirm.dim{border-color:#ff2f4f44;background:linear-gradient(180deg,#ff2f4f14,#ff2f4f05);box-shadow:0 0 24px #ff2f4f22}.fxCCConfirm.dim i{border-color:#ff2f4f;color:#ff2f4f;box-shadow:0 0 18px #ff2f4f80}
+.fxCCKpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #ffffff12;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 30px 60px #0009,inset 0 1px #ffffff10;padding:10px 6px}
+.fxCCKpis article{display:flex;align-items:center;gap:14px;padding:8px 18px;border-left:1px solid #ffffff10;min-width:0}.fxCCKpis article:first-child{border-left:0}
+.fxCCKpis article i{width:38px;height:38px;border-radius:50%;border:1.5px solid #ff2f4fb3;display:grid;place-items:center;color:#ff2f4f;font-style:normal;font-size:16px;font-weight:700;box-shadow:0 0 18px #ff2f4f59,inset 0 0 12px #ff2f4f33;flex:none}
+.fxCCKpis article>div{min-width:0}.fxCCKpis small{display:block;color:#8f858b;font-size:9px;letter-spacing:.12em;font-weight:700}.fxCCKpis b{display:block;color:#fff;font-size:22px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}.fxCCKpis span{display:block;color:#ff5c78;font-size:10px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readable .fxCC :is(small, em, time) { font-size: 10.5px !important; font-weight: 700 !important; line-height: 1.35 !important; }
+.readable .fxCC :is(button, nav button) { font-size: 11px !important; }
+.readable .fxCC .fxCCStructure>small, .readable .fxCC .fxCCLower small, .readable .fxCC .fxCCKpis small, .readable .fxCC .fxCCGauge small, .readable .fxCC .fxCCBadge small, .readable .fxCC .fxCCTable>div.hd { font-size: 9px !important; }
+.readable .fxCC .fxPill { font-size: 9px !important; }
+.readable .fxCC p.ccAlert { font-size: 12px !important; }
+@media (max-width:1100px){.fxCC{grid-template-columns:1fr}.fxCCKpis{grid-template-columns:repeat(2,1fr)}.fxCCStage{grid-template-columns:1fr}.fxCCLower{grid-template-columns:1fr}}
+
+/* ───────── Calendar page: toolbar, integrations, week/month grid, appointments ───────── */
+.admin .calendarCommandBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid #ffffff12;border-radius:14px;background:linear-gradient(165deg,#1d181b,#0d0b0d);padding:10px 12px;box-shadow:0 20px 40px #0008,inset 0 1px #ffffff10;margin-bottom:14px}
+.admin .calendarCommandBar>div:first-child{display:flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid #ffffff10;border-radius:10px;background:#0d0b0d}
+.admin .calendarCommandBar button{border:1px solid transparent;background:transparent;color:#a0898e;border-radius:8px;padding:7px 11px;font-size:11px!important;font-weight:700;letter-spacing:.04em;cursor:pointer;height:auto;line-height:1.2}
+.admin .calendarCommandBar>div:first-child button:hover{color:#fff;background:#ffffff08}
+.admin .calendarCommandBar button.active{background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-color:#ff6f86;box-shadow:0 0 16px #ff2f4f88}
+.admin .calendarCommandBar>div:nth-child(2) button,.admin .calendarCommandBar>button,.admin .calendarCommandBar .calTool{border-color:#3d353a;background:#141114;color:#efe9ec}
+.admin .calendarCommandBar .calTool{color:#ff8fa3;border-color:#ff2f4f4d}
+.admin .calendarCommandBar button.crmCreate{margin-left:auto;background:linear-gradient(180deg,#d1304a,#8f1a2e);border-color:#ff6f86;color:#fff;box-shadow:0 0 22px #ff2f4f88;padding:9px 14px}
+.admin .calendarCommandBar label{display:inline-flex;align-items:center;gap:6px;color:#a0898e;font-size:10.5px!important;font-weight:600!important;letter-spacing:.02em;line-height:1.2!important}
+.admin .calendarCommandBar label.calendarDatePicker{gap:8px}
+.admin .calendarCommandBar input[type=date]{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:8px;padding:6px 9px;font-size:11px!important;color-scheme:dark}
+.admin .calendarCommandBar input[type=checkbox]{accent-color:#ff2f4f}
+.admin .calIntegrations{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.admin .externalCalendarBar,.admin .aiBookingBar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #ffffff12;border-radius:14px;background:linear-gradient(165deg,#1d181b,#0d0b0d);padding:14px 16px;box-shadow:0 20px 40px #0008,inset 0 1px #ffffff10;margin:0}
+.admin .externalCalendarBar>div:first-child,.admin .aiBookingBar>div:first-child{flex:1 1 220px;min-width:0}
+.admin .externalCalendarBar small,.admin .aiBookingBar small{display:block;color:#ff5c78!important;font-size:9px!important;letter-spacing:.14em;font-weight:700!important;margin:0 0 4px}
+.admin .externalCalendarBar b,.admin .aiBookingBar b{display:block;color:#fff;font-size:13px;font-weight:700;margin:0 0 3px}
+.admin .externalCalendarBar span,.admin .aiBookingBar>div>span{display:block;color:#8f858b;font-size:11px;line-height:1.5}
+.admin .aiBookingBar code{font-size:10px;background:#a71f3526;border:1px solid #ff2f4f33;color:#ff8fa3;padding:1px 5px;border-radius:4px;font-family:ui-monospace,monospace}
+.admin .aiBookingExample{margin-top:8px}.admin .aiBookingExample summary{cursor:pointer;color:#ff8fa3;font-size:10.5px;font-weight:700;letter-spacing:.04em}
+.admin .aiBookingExample pre{margin:8px 0 0;font-size:10px;color:#d7ced0;background:#0d0b0d;border:1px solid #ffffff10;border-radius:8px;padding:10px;overflow:auto;font-family:ui-monospace,monospace;line-height:1.6}
+.admin .externalCalendarBar>div:last-child,.admin .aiBookingActions{display:flex;flex-direction:column;gap:8px;flex:none}
+.admin .externalCalendarBar button,.admin .aiBookingActions button{border:1px solid #ff2f4f66;background:#141114;color:#ff8fa3;border-radius:9px;padding:8px 12px;font-size:10.5px!important;font-weight:700;letter-spacing:.06em;cursor:pointer;white-space:nowrap;box-shadow:none}
+.admin .externalCalendarBar button:first-child{background:linear-gradient(180deg,#d1304a,#8f1a2e);border-color:#ff6f86;color:#fff;box-shadow:0 0 18px #ff2f4f66}
+.admin .roleCalendar{border:1px solid #ffffff12;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 30px 60px #0009,inset 0 1px #ffffff10;padding:16px;margin-bottom:14px}
+.admin .roleCalendarHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.admin .roleCalendarHead b{color:#fff;font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+.admin .roleCalendarHead span{color:#8f858b;font-size:10.5px}
+.admin .roleCalendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.admin .roleCalendar.month .roleCalendarGrid>div{min-height:96px}
+.admin .roleCalendarGrid>div{border:1px solid #ffffff0d;border-radius:12px;background:#0d0b0d;padding:8px;min-height:150px;display:grid;align-content:start;gap:5px}
+.admin .roleCalendarGrid time{display:block;color:#8f858b;font-size:9.5px!important;letter-spacing:.08em;text-transform:uppercase;font-weight:700!important;margin-bottom:2px}
+.admin .roleCalendarGrid button{width:100%;text-align:left;border:1px solid #ff2f4f66;border-radius:8px;background:linear-gradient(180deg,#d1304a,#7a1428);color:#fff;padding:6px 8px;cursor:pointer;box-shadow:0 0 14px #ff2f4f66;display:grid;gap:1px}
+.admin .roleCalendarGrid button b{font-size:10.5px;font-weight:700}.admin .roleCalendarGrid button span{font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.admin .roleCalendarGrid button small{font-size:9px!important;font-weight:600!important;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin .table{border:1px solid #ffffff12;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 30px 60px #0009,inset 0 1px #ffffff10;padding:14px 16px;width:100%;box-sizing:border-box}
+.admin .table .crmPanelHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0;border:0}
+.admin .table .crmPanelHead small{color:#ff5c78!important;font-size:9px!important;letter-spacing:.14em;font-weight:700!important}
+.admin .table .crmPanelHead h3{color:#fff;font-size:13px;margin:2px 0 0;text-transform:uppercase;letter-spacing:.06em}
+.admin .table .crmPanelHead button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:8px;padding:7px 11px;font-size:10.5px!important;font-weight:700;cursor:pointer}
+.admin .table .tr{display:grid;grid-template-columns:1.1fr 1.6fr 1.2fr 1fr .8fr 40px;gap:10px;align-items:center;padding:10px 12px;border:1px solid #ffffff0d;border-radius:11px;background:#0d0b0d;margin-bottom:6px;font-size:11.5px}
+.admin .table .tr b{color:#fff;font-weight:700;display:block}.admin .table .tr small{color:#8f858b;font-size:10px!important;font-weight:500!important;display:block}
+.admin .table .tr button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:8px;padding:6px 0;cursor:pointer}
+.admin .bookingStatusChip{display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #3d353a;font-size:9px;letter-spacing:.08em;font-weight:800;color:#8f858b}
+.admin .bookingStatusChip.status-confirmed,.admin .bookingStatusChip.status-rescheduled{background:linear-gradient(180deg,#d1304a,#a71f35);border-color:#ff6f86;color:#fff;box-shadow:0 0 12px #ff2f4f80}
+.admin .bookingStatusChip.status-completed{color:#3fd982;border-color:#3fd98280}
+.admin .noProspects{color:#8f858b;font-size:11.5px;padding:18px;text-align:center;border:1px dashed #ffffff14;border-radius:12px}
+@media (max-width:1100px){.admin .calIntegrations{grid-template-columns:1fr}.admin .roleCalendarGrid{grid-template-columns:repeat(2,1fr)}.admin .table .tr{grid-template-columns:1fr 1fr}}

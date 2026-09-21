@@ -6392,11 +6392,21 @@ function AutoCommand({
   const [inventory, setInventory] = useState<AutoVehicle[]>([]);
   const [lenders, setLenders] = useState<AutoLenderRow[]>([]);
   const [selectedDealId, setSelectedDealId] = useState("");
+  const [detail, setDetail] = useState<{ deal: AutoDealDetail; submissions: AutoSubmission[]; documents: AutoDocument[]; products: AutoProduct[] } | null>(null);
   const loadPanels = () => {
     void fetch("/api/automotive?resource=inventory").then((r) => r.json()).then((d: { inventory?: AutoVehicle[] }) => setInventory(d.inventory || []));
     void fetch("/api/automotive?resource=lenders").then((r) => r.json()).then((d: { lenders?: AutoLenderRow[] }) => setLenders(d.lenders || []));
   };
   useEffect(loadPanels, [deals.length]);
+  const selectedRow = deals.find((d) => d.id === selectedDealId) || deals[0] || null;
+  useEffect(() => {
+    if (!selectedRow) { setDetail(null); return; }
+    let cancelled = false;
+    void fetch(`/api/automotive?resource=deals&id=${encodeURIComponent(selectedRow.id)}`).then((r) => (r.ok ? r.json() : null)).then((d: { deal?: AutoDealDetail; submissions?: AutoSubmission[]; documents?: AutoDocument[]; products?: AutoProduct[] } | null) => {
+      if (!cancelled && d?.deal) setDetail({ deal: d.deal, submissions: d.submissions || [], documents: d.documents || [], products: d.products || [] });
+    });
+    return () => { cancelled = true; };
+  }, [selectedRow?.id]);
   const isEmpty = (summary?.availableUnits ?? 0) === 0 && deals.length === 0;
   const loadDemoData = () => {
     void fetch("/api/automotive?resource=seed-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
@@ -6406,119 +6416,132 @@ function AutoCommand({
       });
   };
   const available = inventory.filter((v) => v.status === "AVAILABLE");
-  const byMake = [...available.reduce((acc, v) => acc.set(v.make || "Other", (acc.get(v.make || "Other") || 0) + 1), new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const byMake = [...available.reduce((acc, v) => acc.set(v.make || "Other", (acc.get(v.make || "Other") || 0) + 1), new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxMake = Math.max(1, ...byMake.map(([, n]) => n));
-  const stageOf = (status: string) => status === "FUNDED" ? 5 : status === "UNWOUND" ? -1 : status === "DIGITAL_LEAD" ? 1 : status === "APPROVED" || status === "CONTRACTED" ? 4 : status === "SUBMITTED" ? 3 : 2;
-  const selected = deals.find((d) => d.id === selectedDealId) || deals[0] || null;
-  const topDeals = [...deals].sort((a, b) => b.sale_price_cents - a.sale_price_cents).slice(0, 8);
-  const maxPrice = Math.max(1, ...topDeals.map((d) => d.sale_price_cents));
   const totalGross = (summary?.totalFrontGrossCents ?? 0) + (summary?.totalBackGrossCents ?? 0);
   const pvr = summary?.fundedDeals ? Math.round(totalGross / summary.fundedDeals) : 0;
+  const statusTone = (s: string) => s === "FUNDED" ? "green" : s === "APPROVED" || s === "CONTRACTED" ? "red" : s === "SUBMITTED" || s === "STIPS_REQUESTED" ? "amber" : "";
+  const deal = detail?.deal || null;
+  const dealGross = deal ? deal.front_gross_cents + deal.back_gross_cents : 0;
+  const ltv = deal && deal.book_value_cents ? Math.round((deal.amount_financed_cents / deal.book_value_cents) * 100) : null;
+  const financedPct = deal && deal.sale_price_cents ? Math.min(100, Math.round((deal.amount_financed_cents / deal.sale_price_cents) * 100)) : 0;
+  const bestSub = (detail?.submissions || []).filter((s) => s.status === "APPROVED" || s.status === "FUNDED").sort((a, b) => (a.approved_rate ?? 99) - (b.approved_rate ?? 99))[0] || null;
+  const CarIcon = ({ glow }: { glow?: boolean }) => (
+    <svg viewBox="0 0 64 30" className={`fxCar ${glow ? "glow" : ""}`} aria-hidden="true">
+      <path d="M4 22 L9 12 Q12 6 20 6 L40 6 Q48 6 53 12 L60 18 L60 24 L4 24 Z" /><path d="M14 12 Q18 8 24 8 L38 8 Q44 9 48 13 Z" className="glass" />
+      <circle cx="16" cy="24" r="5" className="wheel" /><circle cx="48" cy="24" r="5" className="wheel" /><rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
+    </svg>
+  );
   return (
-    <div className="ccShell">
-      <div className="ccTop">
-        <div>
-          <label>DEALERSHIP FINANCE OPERATIONS</label>
-          <h1>Every deal. One real number at a time.</h1>
-          <p>Structure, lender matching, F&amp;I menu, and gross — computed from the actual deal, not a demo script.</p>
-        </div>
-        <div className="ccTopActions">
-          {isEmpty ? <button className="primary" onClick={loadDemoData}>◈ LOAD DEMO DATA</button> : <button className="primary" onClick={() => onView("Deal Queue")}>✦ NEW DEAL</button>}
-          <button onClick={() => onView("Inventory")}>INVENTORY</button>
-          <button onClick={() => onView("Lenders")}>LENDERS</button>
+    <div className="fxCC">
+      <div className="fxCCTop">
+        <div className="fxCCTitle"><b>Deal desk</b><small>Structure · lender routing · F&amp;I · gross — computed from real deals</small></div>
+        <div className="fxCCActions">
+          {isEmpty ? <button className="fxCCPrimary" onClick={loadDemoData}>◈ Load demo data</button> : <button className="fxCCPrimary" onClick={() => onView("Deal Queue")}>✦ New deal</button>}
+          <button onClick={() => onView("Inventory")}>Inventory</button><button onClick={() => onView("Lenders")}>Lenders</button><button onClick={() => onView("Analytics")}>Analytics</button>
         </div>
       </div>
-      {isEmpty && <p className="ccAlert">This dealership is empty. &quot;Load demo data&quot; seeds real sample customers, inventory, deals (including a funded one with a posted journal entry), lenders, and service records — genuine rows that flow through the same logic as anything you&apos;d enter by hand.</p>}
-      <div className="ccKpis">
-        <article><small>AVAILABLE UNITS</small><b>{summary?.availableUnits ?? "—"}</b><span>on the lot</span></article>
-        <article><small>ACTIVE DEALS</small><b>{summary?.activeDeals ?? deals.length}</b><span>{summary?.digitalLeads ? `${summary.digitalLeads} digital leads` : "in the desk"}</span></article>
-        <article><small>FUNDED DEALS</small><b>{summary?.fundedDeals ?? "—"}</b><span>all time</span></article>
-        <article><small>TOTAL GROSS (FUNDED)</small><b>{autoMoney(totalGross)}</b><span>{autoMoney(summary?.totalFrontGrossCents)} front · {autoMoney(summary?.totalBackGrossCents)} back</span></article>
-        <article><small>PVR</small><b>{pvr ? autoMoney(pvr) : "—"}</b><span>gross per funded deal</span></article>
-      </div>
-      <div className="ccGrid3">
-        <section className="ccPanel">
-          <header><div><small>DEAL QUEUE</small><b>{deals.length} working deals</b></div><button onClick={() => onView("Deal Queue")}>ALL →</button></header>
-          <div className="ccScroll">
-            <div className="ccPipe">
-              {deals.slice(0, 12).map((d) => {
-                const stage = stageOf(d.status);
-                return (
-                  <article key={d.id} className={selected?.id === d.id ? "active" : ""} onClick={() => setSelectedDealId(d.id)}>
-                    <div>
-                      <div><b>{d.first_name} {d.last_name}</b><small>{d.year} {d.make} {d.model} · {d.stock_number} · {autoMoney(d.monthly_payment_cents)}/mo</small></div>
-                      <i className={`ccTag ${d.status === "FUNDED" ? "green" : stage === -1 ? "" : d.status === "DIGITAL_LEAD" ? "muted" : "amber"}`}>{d.status.replace(/_/g, " ")}</i>
-                    </div>
-                    <div className="ccSteps">{[1, 2, 3, 4, 5].map((n) => <i key={n} className={stage === -1 ? (n <= 2 ? "bad" : "") : n <= stage ? "on" : ""} />)}</div>
-                    <div className="ccStepLabels"><span>LEAD</span><span>STRUCTURED</span><span>SUBMITTED</span><span>APPROVED</span><span>FUNDED</span></div>
-                  </article>
-                );
-              })}
-              {!deals.length && <div className="ccEmpty">No deals yet.</div>}
-            </div>
-          </div>
-        </section>
+      {isEmpty && <p className="ccAlert fxCCWide">This dealership is empty. &quot;Load demo data&quot; seeds real sample customers, inventory, deals (including a funded one with a posted journal entry), lenders, and service records — genuine rows that flow through the same logic as anything you&apos;d enter by hand.</p>}
 
-        <section className="ccPanel">
-          <header><div><small>INVENTORY SNAPSHOT</small><b>{available.length} available · {inventory.length} total</b></div><button onClick={() => onView("Inventory")}>LOT →</button></header>
-          <div className="ccScroll">
-            <div className="ccSection">
-              <small>UNITS BY MAKE</small>
-              <div className="ccRank">
-                {byMake.map(([make, n]) => (
-                  <button key={make} style={{ gridTemplateColumns: "1fr auto", cursor: "default" }}>
-                    <span><b>{make}</b><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((n / maxMake) * 100)}%`, flex: "none", height: 4 }} /></div></span>
-                    <span style={{ color: "#fff", fontWeight: 600 }}>{n}</span>
-                  </button>
-                ))}
-                {!byMake.length && <p className="ccEmpty" style={{ padding: "4px 0" }}>No available units.</p>}
-              </div>
-            </div>
-            <div className="ccSection" style={{ marginTop: 10 }}>
-              <small>FRESH ON THE LOT</small>
-              <div className="ccFeed">
-                {available.slice(0, 8).map((v) => (
-                  <div key={v.id} onClick={() => onView("Inventory")} style={{ cursor: "pointer" }}>
-                    <i className="green" />
-                    <span><b>{v.year} {v.make} {v.model}{v.trim ? ` ${v.trim}` : ""}</b><small style={{ display: "block" }}>{v.stock_number}{v.mileage ? ` · ${v.mileage.toLocaleString()} mi` : ""}</small></span>
-                    <small>{autoMoney(v.asking_price_cents)}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+      <aside className="fxCCPanel fxCCLeft">
+        <div className="fxCCHead"><div><b>Deal jackets</b><small>{deals.length} in the desk</small></div><span className="fxCCLive"><i />Live</span></div>
+        <div className="fxCCList">
+          {deals.slice(0, 8).map((d) => (
+            <button key={d.id} className={selectedRow?.id === d.id ? "sel" : ""} onClick={() => setSelectedDealId(d.id)}>
+              <CarIcon glow={selectedRow?.id === d.id} />
+              <span className="grow"><b>{d.year} {d.make} {d.model}</b><small>{d.first_name} {d.last_name} · #{d.stock_number} · {autoMoney(d.sale_price_cents)}</small></span>
+              <em className={`fxPill ${statusTone(d.status)}`}>{d.status.replace(/_/g, " ").toLowerCase()}</em>
+            </button>
+          ))}
+          {!deals.length && <div className="fxCCEmpty">No deals yet. Start one from the Deal Queue.</div>}
+        </div>
+        <div className="fxCCHead" style={{ marginTop: "auto" }}><div><b>Units by make</b><small>{available.length} available on the lot</small></div><button className="fxCCMini" onClick={() => onView("Inventory")}>Lot →</button></div>
+        <div className="fxCCBars">
+          {byMake.map(([make, n]) => <div key={make}><span><b>{make}</b><em>{n}</em></span><i><b style={{ width: `${Math.round((n / maxMake) * 100)}%` }} /></i></div>)}
+          {!byMake.length && <div className="fxCCEmpty">No available units.</div>}
+        </div>
+      </aside>
 
-        <section className="ccPanel">
-          <header><div><small>DEAL ECONOMICS</small><b>Sale price · top deals</b></div>{lenders.length > 0 && <em>{lenders.filter((l) => l.active).length} LENDERS</em>}</header>
-          <div className="ccScroll">
-            <div className="ccSection">
-              <small>SALE PRICE BY DEAL</small>
-              <div className="ccBars" style={{ height: 110 }}>
-                {topDeals.map((d) => <i key={d.id} className={d.id === selected?.id ? "" : "dim"} style={{ height: `${Math.max(6, Math.round((d.sale_price_cents / maxPrice) * 100))}%` }} title={`${d.first_name} ${d.last_name} · ${autoMoney(d.sale_price_cents)}`} />)}
-                {!topDeals.length && <i className="dim" style={{ height: "6%" }} />}
-              </div>
-              <div className="ccBarsFoot"><span>{selected ? `${selected.first_name} ${selected.last_name}` : "—"}</span><span>{selected ? autoMoney(selected.sale_price_cents) : ""}</span></div>
-            </div>
-            <div className="ccSection" style={{ marginTop: 10 }}>
-              <small>LENDER PANEL</small>
-              <table className="ccTable">
-                <thead><tr><th>LENDER</th><th>MIN FICO</th><th>BUY RATE</th><th>RESERVE</th></tr></thead>
-                <tbody>
-                  {lenders.slice(0, 8).map((l) => (
-                    <tr key={l.id} className={l.active ? "" : ""}>
-                      <td>{l.name}{!l.active && <> <span className="ccTag muted">OFF</span></>}</td>
-                      <td>{l.min_credit_score ?? "—"}</td>
-                      <td>{l.buy_rate != null ? `${l.buy_rate}%` : "—"}</td>
-                      <td>{l.reserve_pct != null ? `${l.reserve_pct}%` : "—"}</td>
-                    </tr>
-                  ))}
-                  {!lenders.length && <tr><td colSpan={4} className="ccEmpty">No lenders in the registry yet.</td></tr>}
-                </tbody>
-              </table>
+      <section className="fxCCPanel fxCCHero">
+        <div className="fxCCHead">
+          <div><b>{deal ? `${deal.year} ${deal.make} ${deal.model}${deal.trim ? ` ${deal.trim}` : ""}` : "Select a deal"}</b><small>{deal ? `${deal.first_name} ${deal.last_name} · #${deal.stock_number}${deal.credit_score_pulled ? ` · FICO ${deal.credit_score_pulled}` : ""}` : "Structure, lender submissions and stipulations appear here"}</small></div>
+          {deal && <em className={`fxPill ${statusTone(deal.status)}`}>{deal.status.replace(/_/g, " ").toLowerCase()}</em>}
+        </div>
+        <div className="fxCCStage">
+          <div className="fxCCStructure">
+            <small>STRUCTURE</small>
+            {[["Sale price", deal ? autoMoney(deal.sale_price_cents) : "—"], ["Trade allowance", deal ? autoMoney(deal.trade_allowance_cents) : "—"], ["Cash down", deal ? autoMoney(deal.down_payment_cents) : "—"], ["Tax + fees", deal ? autoMoney(deal.tax_cents + deal.fees_cents) : "—"], ["Term · APR", deal ? `${deal.term_months} mo · ${deal.interest_rate}%` : "—"]].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}
+            <div className="fxCCMeter"><span>Amount financed</span><b>{deal ? autoMoney(deal.amount_financed_cents) : "—"}</b><i><b style={{ width: `${financedPct}%` }} /></i></div>
+            <div className="fxCCMeter"><span>LTV</span><b>{ltv != null ? `${ltv}%` : "—"}</b><i><b style={{ width: `${Math.min(100, ltv || 0)}%` }} /></i></div>
+            <div className="fxCCMeter hot"><span>Payment / month</span><b>{deal ? autoMoney(deal.monthly_payment_cents) : "—"}</b><i><b style={{ width: deal && deal.sale_price_cents ? `${Math.min(100, Math.round((deal.monthly_payment_cents * 100) / deal.sale_price_cents * 10))}%` : "0%" }} /></i></div>
+          </div>
+          <div className="fxCCPlatform">
+            <svg viewBox="0 0 320 170" aria-hidden="true">
+              <defs><radialGradient id="fxHalo"><stop offset="0" stopColor="#ff2f4f" stopOpacity=".5" /><stop offset=".6" stopColor="#ff2f4f" stopOpacity=".1" /><stop offset="1" stopColor="#ff2f4f" stopOpacity="0" /></radialGradient></defs>
+              <ellipse cx="160" cy="140" rx="150" ry="22" fill="url(#fxHalo)" />
+              <ellipse cx="160" cy="140" rx="150" ry="22" fill="none" stroke="#ff2f4f" strokeWidth="2" className="fxRing" />
+              <g transform="translate(40,40) scale(3.7)">
+                <path d="M4 22 L9 12 Q12 6 20 6 L40 6 Q48 6 53 12 L60 18 L60 24 L4 24 Z" className="body" /><path d="M14 12 Q18 8 24 8 L38 8 Q44 9 48 13 Z" className="glass" />
+                <path d="M5 21 L59 21" className="line" /><circle cx="16" cy="24" r="5" className="wheel" /><circle cx="48" cy="24" r="5" className="wheel" /><rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
+              </g>
+            </svg>
+            <div className="fxCCBadge">{bestSub ? <><b>{bestSub.lender_name} · {bestSub.approved_rate ?? "—"}%{bestSub.approved_term ? ` · ${bestSub.approved_term} mo` : ""}</b><small>best approval</small></> : deal ? <><b>{deal.funding_status?.replace(/_/g, " ") || "not funded"} · {deal.contract_status?.replace(/_/g, " ") || "no contract"}</b><small>funding · contract</small></> : <><b>No deal selected</b><small>pick one from the jackets</small></>}</div>
+          </div>
+        </div>
+        <div className="fxCCLower">
+          <div>
+            <small>LENDER SUBMISSIONS</small>
+            <div className="fxCCTable">
+              <div className="hd"><span>Lender</span><span>Rate</span><span>Term</span><span>Status</span></div>
+              {(detail?.submissions || []).slice(0, 5).map((s) => (
+                <div key={s.id} className={bestSub?.id === s.id ? "hot" : ""}><span>{s.lender_name}</span><span>{s.approved_rate != null ? `${s.approved_rate}%` : "—"}</span><span>{s.approved_term ? `${s.approved_term} mo` : "—"}</span><span><i className={`dot ${s.status === "APPROVED" || s.status === "FUNDED" ? "green" : s.status === "DECLINED" ? "red" : "amber"}`} />{s.status.replace(/_/g, " ").toLowerCase()}</span></div>
+              ))}
+              {!(detail?.submissions || []).length && lenders.slice(0, 4).map((l) => (
+                <div key={l.id}><span>{l.name}</span><span>{l.buy_rate != null ? `${l.buy_rate}%` : "—"}</span><span>{l.min_credit_score ? `FICO ${l.min_credit_score}+` : "—"}</span><span><i className="dot" />not submitted</span></div>
+              ))}
+              {!(detail?.submissions || []).length && !lenders.length && <div className="fxCCEmpty">No lenders in the registry yet.</div>}
             </div>
           </div>
-        </section>
+          <div>
+            <small>STIPULATIONS &amp; DOCS</small>
+            <div className="fxCCChecks">
+              {(detail?.documents || []).slice(0, 6).map((d) => <span key={d.id} className={d.checked ? "ok" : ""}><i>{d.checked ? "✓" : "•"}</i>{d.doc_type.replace(/_/g, " ").toLowerCase()}</span>)}
+              {!(detail?.documents || []).length && <div className="fxCCEmpty">{deal ? "No documents on this deal yet." : "Pick a deal to see its checklist."}</div>}
+            </div>
+            <button className="fxCCPrimary fxCCWide" onClick={() => onView("Deal Queue")}>{deal ? "Open deal desk" : "Go to deal queue"}</button>
+          </div>
+        </div>
+      </section>
+
+      <aside className="fxCCPanel fxCCRight">
+        <div className="fxCCHead"><div><b>Gross profit</b><small>{deal ? "this deal" : "select a deal"}</small></div></div>
+        <div className="fxCCGauge">
+          <svg viewBox="0 0 120 70"><path d="M10 65 A50 50 0 0 1 110 65" className="track" /><path d="M10 65 A50 50 0 0 1 110 65" className="fill" style={{ strokeDasharray: `${deal && deal.sale_price_cents ? Math.min(157, Math.round((dealGross / Math.max(1, deal.sale_price_cents * 0.15)) * 157)) : 0} 157` }} /></svg>
+          <b>{deal ? autoMoney(dealGross) : "—"}</b><small>FRONT {deal ? autoMoney(deal.front_gross_cents) : "—"} · BACK {deal ? autoMoney(deal.back_gross_cents) : "—"}</small>
+        </div>
+        <div className="fxCCHead"><div><b>F&amp;I products</b><small>{detail?.products.length ? `${detail.products.length} on this deal` : "none attached"}</small></div></div>
+        <div className="fxCCChecks">
+          {(detail?.products || []).slice(0, 5).map((p) => <span key={p.id} className="ok"><i>✓</i>{p.name}<em>{autoMoney(p.price_cents)}</em></span>)}
+          {!(detail?.products || []).length && <div className="fxCCEmpty">Add GAP, service contracts or protection from the deal desk.</div>}
+        </div>
+        <div className="fxCCHead"><div><b>Lender registry</b><small>{lenders.filter((l) => l.active).length} active</small></div><button className="fxCCMini" onClick={() => onView("Lenders")}>All →</button></div>
+        <div className="fxCCTable compact">
+          {lenders.slice(0, 4).map((l) => <div key={l.id}><span>{l.name}</span><span>{l.buy_rate != null ? `${l.buy_rate}%` : "—"}</span><span>{l.reserve_pct != null ? `${l.reserve_pct}% rsv` : "—"}</span></div>)}
+          {!lenders.length && <div className="fxCCEmpty">No lenders yet.</div>}
+        </div>
+        {deal?.status === "FUNDED"
+          ? <div className="fxCCConfirm"><i>✓</i><span><b>{deal.year} {deal.make} {deal.model} funded</b><small>{autoMoney(deal.amount_financed_cents)} financed · journal posted</small></span></div>
+          : <div className="fxCCConfirm dim"><i>◷</i><span><b>{summary?.fundedDeals ?? 0} funded all time</b><small>{autoMoney(totalGross)} total gross</small></span></div>}
+      </aside>
+
+      <div className="fxCCKpis">
+        {[
+          ["▣", "AVAILABLE UNITS", String(summary?.availableUnits ?? "—"), "on the lot"],
+          ["≡", "ACTIVE DEALS", String(summary?.activeDeals ?? deals.length), summary?.digitalLeads ? `${summary.digitalLeads} digital leads` : "in the desk"],
+          ["✓", "FUNDED DEALS", String(summary?.fundedDeals ?? "—"), "all time"],
+          ["$", "TOTAL GROSS", autoMoney(totalGross), `${autoMoney(summary?.totalFrontGrossCents)} front · ${autoMoney(summary?.totalBackGrossCents)} back`],
+          ["◆", "PVR", pvr ? autoMoney(pvr) : "—", "gross per funded deal"],
+        ].map(([ic, l, v, s]) => <article key={l}><i>{ic}</i><div><small>{l}</small><b>{v}</b><span>{s}</span></div></article>)}
       </div>
     </div>
   );
@@ -19231,7 +19254,7 @@ function Admin({
   const [focusDate, setFocusDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [showMine, setShowMine] = useState(true);
+  const [showMine, setShowMine] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [auditLog, setAuditLog] = useState<{id:string;action:string;actor:string;created_at:string;before_state?:string;after_state?:string}[]>([]);
   const [resourcesOpen, setResourcesOpen] = useState(false);
@@ -19707,13 +19730,13 @@ function Admin({
           />{" "}
           My appointments
         </label>
-        <button onClick={() => setBlockOpen(true)} style={{background:"#1a0f12",border:"1px solid #4a2530",color:"#e07080",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+        <button className="calTool" onClick={() => setBlockOpen(true)}>
           ⊘ Block time
         </button>
-        <button onClick={() => { void loadEventTypeSettings(); setEtSettingsOpen(true); }} style={{background:"#0d1018",border:"1px solid #253040",color:"#70a0d0",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+        <button className="calTool" onClick={() => { void loadEventTypeSettings(); setEtSettingsOpen(true); }}>
           ⚙ Event types
         </button>
-        <button onClick={() => { void loadResources(); setResourcesOpen(true); }} style={{background:"#0a100a",border:"1px solid #253525",color:"#70c080",borderRadius:8,padding:"0 12px",fontSize:11,height:34,fontWeight:600}}>
+        <button className="calTool" onClick={() => { void loadResources(); setResourcesOpen(true); }}>
           ◈ Resources
         </button>
         <button
@@ -19729,6 +19752,7 @@ function Admin({
           ＋ Book appointment
         </button>
       </div>
+      <div className="calIntegrations">
       <div className="externalCalendarBar">
         <div>
           <small>GOOGLE CALENDAR CONNECTION</small>
@@ -19752,15 +19776,15 @@ function Admin({
         </div>
       </div>
       {/* AI Booking API discovery panel */}
-      <div style={{margin:"0 0 16px",padding:"14px 16px",background:"#080e14",border:"1px solid #1a2a3a",borderRadius:10,display:"flex",alignItems:"flex-start",gap:16,flexWrap:"wrap"}}>
-        <div style={{flex:"1 1 260px",minWidth:0}}>
-          <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#4080c0",display:"block",marginBottom:4}}>🤖 AI BOOKING API™ — VOICE &amp; AUTOMATION</small>
-          <b style={{fontSize:13,color:"#c8dff0",display:"block",marginBottom:4}}>POST /api/calendar/ai-book</b>
-          <span style={{fontSize:12,color:"#5a7a9a",lineHeight:1.5,display:"block"}}>
-            Connect voice assistants, AI agents, and automation workflows. Supports <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>BOOK</code>, <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>RESCHEDULE</code>, <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>CANCEL</code>, and <code style={{fontSize:11,background:"#0e1c2c",padding:"1px 4px",borderRadius:3,color:"#80b8e8"}}>CHECK_AVAILABILITY</code> intents. SmartSlot™ auto-picks the best slot.
+      <div className="aiBookingBar">
+        <div>
+          <small>AI BOOKING API™ — VOICE &amp; AUTOMATION</small>
+          <b>POST /api/calendar/ai-book</b>
+          <span>
+            Connect voice assistants, AI agents, and automation workflows. Supports <code>BOOK</code>, <code>RESCHEDULE</code>, <code>CANCEL</code>, and <code>CHECK_AVAILABILITY</code> intents. SmartSlot™ auto-picks the best slot.
           </span>
-          <div style={{marginTop:8,background:"#0a1520",borderRadius:6,padding:"8px 10px",overflowX:"auto"}}>
-            <pre style={{margin:0,fontSize:10,color:"#70a8d8",whiteSpace:"pre",fontFamily:"monospace",lineHeight:1.6}}>{`{
+          <details className="aiBookingExample"><summary>View example request</summary>
+            <pre>{`{
   "intent": "BOOK",
   "eventTypeSlug": "intro-call",
   "customerName": "Alex Smith",
@@ -19773,23 +19797,22 @@ function Admin({
   "leadScore": 85,
   "agentId": "my-voice-bot"
 }`}</pre>
-          </div>
+          </details>
         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:8,flexShrink:0,alignSelf:"center"}}>
+        <div className="aiBookingActions">
           <button
-            onClick={()=>{void navigator.clipboard.writeText(`${window.location.origin}/api/calendar/ai-book`).then(()=>setNotice("API endpoint URL copied!")).catch(()=>setNotice("Copy failed — copy the URL manually"));}}
-            style={{fontSize:11,padding:"6px 12px",background:"#0e2040",border:"1px solid #1e4080",color:"#80b8f0",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap"}}>
-            📋 Copy endpoint URL
+            onClick={()=>{void navigator.clipboard.writeText(`${window.location.origin}/api/calendar/ai-book`).then(()=>setNotice("API endpoint URL copied!")).catch(()=>setNotice("Copy failed — copy the URL manually"));}}>
+            Copy endpoint URL
           </button>
           <button
             onClick={()=>{
               const schema = {endpoint:`${window.location.origin}/api/calendar/ai-book`,method:"POST",intents:["BOOK","RESCHEDULE","CANCEL","CHECK_AVAILABILITY"],fields:{intent:"string (required)",eventTypeSlug:"string (required for BOOK/CHECK_AVAILABILITY)",customerName:"string (required for BOOK)",customerEmail:"string (required for BOOK)",preferredDate:"ISO date YYYY-MM-DD (optional)",preferredTime:"HH:MM (optional)",timezone:"IANA timezone (default UTC)",locationMode:"VIDEO|PHONE|IN_PERSON",videoPlatform:"GOOGLE_MEET|ZOOM|FACETIME",meetingAddress:"string (required for IN_PERSON)",leadScore:"0-100 (optional)",bookingId:"string (required for RESCHEDULE/CANCEL)",newStartsAt:"ISO datetime (optional for RESCHEDULE)",agentId:"string (optional, for audit)"}};
               void navigator.clipboard.writeText(JSON.stringify(schema,null,2)).then(()=>setNotice("API schema copied!")).catch(()=>setNotice("Copy failed"));
-            }}
-            style={{fontSize:11,padding:"6px 12px",background:"#0e2040",border:"1px solid #1e4080",color:"#80b8f0",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap"}}>
-            📋 Copy API schema
+            }}>
+            Copy API schema
           </button>
         </div>
+      </div>
       </div>
       {(calendarView as string) === "SLOTS" && (
         <div className="calendarSlotsView">
