@@ -24386,3 +24386,8 @@ button.crmUser i {
 .calCCList .grow small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .calCCRight .calCCHead b{white-space:nowrap}
 .calCCRight .calCCHead small{max-width:150px}
+.calCCHead>div{flex:1;min-width:0}
+.calCCHead>button,.calCCHead>.calCCNav,.calCCHead>.calCCTabs{flex:none}
+.calCCRight .calCCHead b{overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.calCCWide{width:100%;padding:11px}
+.calCCRight .calCCHead small{max-width:none}

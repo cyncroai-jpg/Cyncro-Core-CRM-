@@ -18610,14 +18610,14 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
   return (
     <div className="calCC">
       <aside className="calCCPanel calCCLeft">
-        <header className="calCCHead">
+        <div className="calCCHead">
           <div><b>{month.toLocaleString([], { month: "long", year: "numeric" })}</b><small>Universal calendar</small></div>
           <div className="calCCNav">
             <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Previous month">‹</button>
             <button onClick={() => setMonth(new Date(now.getFullYear(), now.getMonth(), 1))}>Today</button>
             <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Next month">›</button>
           </div>
-        </header>
+        </div>
         <div className="calCCMonth">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <b key={i}>{d}</b>)}
           {cells.map((d, i) => {
@@ -18644,10 +18644,10 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
       </aside>
 
       <section className="calCCPanel calCCHero">
-        <header className="calCCHead">
+        <div className="calCCHead">
           <div><b>SmartSlot™ engine</b><small>Next 7 days · every booking placed on one timeline</small></div>
           <div className="calCCTabs"><span className="on">Week</span><span onClick={() => onPickDate?.(todayKey)}>Open calendar</span></div>
-        </header>
+        </div>
         <div className="calCCWeek" style={{ ["--hours" as string]: HOURS }}>
           <div className="calCCHours">{Array.from({ length: HOURS + 1 }, (_, i) => <span key={i}>{((HOUR0 + i + 11) % 12) + 1}{HOUR0 + i < 12 ? "am" : "pm"}</span>)}</div>
           {days.map((d) => {
@@ -18694,7 +18694,7 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
       </section>
 
       <aside className="calCCPanel calCCRight">
-        <header className="calCCHead"><div><b>Booking pages</b><small>Share links · deposits apply</small></div><button className="calCCPrimary" onClick={() => onCreate?.()}>✦ New</button></header>
+        <div className="calCCHead"><div><b>Booking pages</b><small>Share links · deposits &amp; capacity apply</small></div></div>
         <div className="calCCLinks">
           {eventTypes.slice(0, 4).map((e) => (
             <button key={e.id} onClick={() => copyLink(e)} style={{ ["--c" as string]: e.color || "#e02e4c" }}>
@@ -18702,6 +18702,7 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
             </button>
           ))}
           {!eventTypes.length && <div className="calCCEmpty">Create an event type to get your first booking link.</div>}
+          <button className="calCCPrimary calCCWide" onClick={() => onCreate?.()}>✦ New event type</button>
         </div>
         <div className="calCCGauges">
           <div className="calCCGauge">
