@@ -5,8 +5,8 @@
  * POST              — owner creates an invite for a workspace_member
  * PATCH             — invited user accepts invite (sets their password)
  */
-import { coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
-import { hashPassword, createSession, sessionCookie, requireOwner } from "@/lib/core/auth";
+import { coreDb, ensureCoreSchema, normalizeEmail, isTenantAdmin, syncTenantMembership, tenantRoleFromWorkspace } from "@/lib/core/db";
+import { hashPassword, createSession, sessionCookie, requireAuth } from "@/lib/core/auth";
 import { sendEmail, workspaceInviteEmail } from "@/lib/core/email";
 
 /** 32-character random token */
@@ -46,8 +46,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    const authResult = await requireOwner(request);
+    const authResult = await requireAuth(request);
     if (authResult instanceof Response) return authResult;
+    // Company OWNER / ADMIN may invite. (Owners who signed up through the
+    // company signup carry role MEMBER on auth_users, so check the company role.)
+    const tenant = await isTenantAdmin(request);
+    if (!tenant && authResult.user.role !== "OWNER") {
+      return Response.json({ error: "Only a company owner or admin can invite teammates." }, { status: 403 });
+    }
 
     const body = (await request.json()) as Record<string, unknown>;
     const email = normalizeEmail(body.email);
@@ -76,6 +82,14 @@ export async function POST(request: Request) {
       ).bind(crypto.randomUUID(), email, tempHash, displayName, token, expires, now, now).run();
     }
 
+    // Put the teammate in the inviter's company, with a role derived from the
+    // Team access checkboxes when the owner already saved them.
+    if (tenant) {
+      const perms = await db.prepare("SELECT role, manage_users, can_delete, can_create, can_edit FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+      await syncTenantMembership(tenant.tenantId, email, displayName, perms ? tenantRoleFromWorkspace(perms as never) : "USER");
+      await db.prepare("UPDATE auth_users SET default_tenant_id=? WHERE lower(email)=lower(?)").bind(tenant.tenantId, email).run();
+    }
+
     const origin = new URL(request.url).origin;
     const inviteUrl = `${origin}/login?invite=${token}`;
 
@@ -84,19 +98,22 @@ export async function POST(request: Request) {
       .bind(authResult.user.id).first<{ display_name: string }>();
     const inviterName = inviter?.display_name || authResult.user.email;
 
-    // Fire-and-forget — failure does not block the invite from being created
+    // Email is best-effort: it only goes out when RESEND_API_KEY is configured.
+    // The link is always returned so the owner can hand it over directly.
+    let emailSent = false;
     try {
+      const companyName = await db.prepare("SELECT name FROM tenants WHERE id=?").bind(tenant?.tenantId || "").first<{ name: string }>();
       const { subject, html } = workspaceInviteEmail({
         displayName: displayName,
         inviterName,
-        workspaceName: "Cyncro Core",
+        workspaceName: companyName?.name || "Cyncro Core",
         inviteUrl,
         expiresAt: expires,
       });
-      void sendEmail({ to: email, subject, html });
+      emailSent = await sendEmail({ to: email, subject, html });
     } catch { /* non-fatal */ }
 
-    return Response.json({ ok: true, inviteUrl, expiresAt: expires, emailSent: true });
+    return Response.json({ ok: true, inviteUrl, expiresAt: expires, emailSent });
   } catch (error) {
     console.error("auth.invite.create_failed", error);
     return Response.json({ error: "Unable to create invite." }, { status: 500 });

@@ -1,4 +1,4 @@
-import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, resolveRequestEmail } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, resolveRequestEmail, getTenantContext, syncTenantMembership, tenantRoleFromWorkspace } from "@/lib/core/db";
 
 async function currentMember(request: Request) {
   const email = await resolveRequestEmail(request);
@@ -13,6 +13,18 @@ async function currentMember(request: Request) {
   if (!member && protectedOwnerEmails.has(email)) {
     await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,created_at,updated_at) VALUES (?,?,'OWNER',1,1,1,1,1,?,?) ON CONFLICT(email) DO NOTHING`).bind(email,"Account Owner",now,now).run();
     member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+  }
+
+  // A company OWNER/ADMIN (e.g. someone who signed up through company signup)
+  // may not have a team row yet — create one so they can manage their team.
+  if (!member) {
+    const tenant = await getTenantContext(request);
+    if (tenant && (tenant.role === "OWNER" || tenant.role === "ADMIN")) {
+      const user = await db.prepare("SELECT display_name FROM auth_users WHERE lower(email)=?").bind(email).first<{ display_name: string }>();
+      await db.prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,can_create,can_edit,can_delete,can_export,created_at,updated_at) VALUES (?,?,?,1,1,1,1,1,1,1,1,1,?,?) ON CONFLICT(email) DO NOTHING`)
+        .bind(email, user?.display_name || email.split("@")[0], tenant.role === "OWNER" ? "OWNER" : "ADMIN", now, now).run();
+      member = await db.prepare("SELECT * FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+    }
   }
 
   const count = await db.prepare("SELECT COUNT(*) AS total FROM workspace_members").first<{ total: number }>();
@@ -38,10 +50,14 @@ export async function GET(request: Request) {
     }
     const member = await currentMember(request);
     if (!member || !member.active) return Response.json({ error: "You do not have access to this workspace." }, { status: 403 });
+    // Only list teammates who belong to the caller's company.
+    const tenant = await getTenantContext(request);
     const members = member.manage_users
-      ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results
+      ? tenant
+        ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email, tm.role AS company_role, au.active AS account_active FROM workspace_members wm JOIN tenant_members tm ON lower(tm.email)=lower(wm.email) AND tm.tenant_id=? LEFT JOIN auth_users au ON lower(au.email)=lower(wm.email) LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").bind(tenant.tenantId).all()).results
+        : (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results
       : [];
-    return Response.json({ member, members });
+    return Response.json({ member, members, company: tenant ? { id: tenant.tenantId, role: tenant.role } : null });
   } catch (error) {
     console.error("access.get_failed", error);
     return Response.json({ error: "Unable to load permissions." }, { status: 500 });
@@ -60,6 +76,12 @@ export async function POST(request: Request) {
     if (!email || !name) return Response.json({ error: "Name and valid email are required." }, { status: 400 });
     const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO workspace_members (email,display_name,role,crm_access,calendar_access,prospecting_access,manage_users,active,can_create,can_edit,can_delete,can_export,compensation_access,invoice_access,contract_access,attribution_access,work_access,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,crm_access=excluded.crm_access,calendar_access=excluded.calendar_access,prospecting_access=excluded.prospecting_access,manage_users=excluded.manage_users,active=excluded.active,can_create=excluded.can_create,can_edit=excluded.can_edit,can_delete=excluded.can_delete,can_export=excluded.can_export,compensation_access=excluded.compensation_access,invoice_access=excluded.invoice_access,contract_access=excluded.contract_access,attribution_access=excluded.attribution_access,work_access=excluded.work_access,updated_at=excluded.updated_at`).bind(email, name, cleanText(body.role, 30).toUpperCase() || "MEMBER", body.crmAccess ? 1 : 0, body.calendarAccess ? 1 : 0, body.prospectingAccess ? 1 : 0, body.manageUsers ? 1 : 0, body.active === false ? 0 : 1, body.canCreate ? 1 : 0, body.canEdit ? 1 : 0, body.canDelete ? 1 : 0, body.canExport ? 1 : 0, body.compensationAccess ? 1 : 0, body.invoiceAccess ? 1 : 0, body.contractAccess ? 1 : 0, body.attributionAccess ? 1 : 0, body.workAccess ? 1 : 0, now, now).run();
+    // Mirror into the company so the teammate shares this owner's CRM, prospects and calendar.
+    const tenant = await getTenantContext(request);
+    if (tenant) {
+      const saved = await coreDb().prepare("SELECT role, manage_users, can_delete, can_create, can_edit FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
+      await syncTenantMembership(tenant.tenantId, email, name, tenantRoleFromWorkspace((saved || {}) as never), body.active !== false);
+    }
     return Response.json({ saved: true, invite: { email, status: "READY", signInMethod: "Verified email" } });
   } catch (error) {
     console.error("access.save_failed", error);
@@ -79,6 +101,10 @@ export async function DELETE(request: Request) {
     if (!target) return Response.json({ error: "Team member not found." }, { status: 404 });
     if (target.role === "OWNER") return Response.json({ error: "The workspace owner cannot be deleted." }, { status: 400 });
     await coreDb().prepare("DELETE FROM workspace_members WHERE lower(email)=lower(?)").bind(email).run();
+    const tenant = await getTenantContext(request);
+    if (tenant) {
+      await coreDb().prepare("DELETE FROM tenant_members WHERE tenant_id=? AND lower(email)=lower(?) AND role<>'OWNER'").bind(tenant.tenantId, email).run();
+    }
     return Response.json({ deleted: true });
   } catch (error) {
     console.error("access.delete_failed", error);

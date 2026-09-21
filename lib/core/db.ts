@@ -3925,15 +3925,80 @@ export async function resolveRequestEmail(request: Request): Promise<string | nu
   return null; // unauthenticated
 }
 
+/**
+ * Team membership bridge.
+ *
+ * The Team access screen stores per-module checkboxes in the legacy
+ * workspace_members table (one row per email), while every CRM / Calendar /
+ * Prospecting route resolves the caller's company through tenant_members.
+ * These helpers keep the two in step so an invited teammate lands in the
+ * inviter's company (never in a fresh empty workspace of their own) and the
+ * checkboxes an owner sets actually govern what that teammate can do.
+ */
+export type WorkspacePerms = {
+  role?: string | null; manage_users?: number | boolean | null; can_delete?: number | boolean | null;
+  can_create?: number | boolean | null; can_edit?: number | boolean | null; active?: number | boolean | null;
+};
+
+/** Map the legacy workspace role + checkboxes onto a tenant role. */
+export function tenantRoleFromWorkspace(perms: WorkspacePerms): "OWNER" | "ADMIN" | "MANAGER" | "USER" | "VIEWER" {
+  const role = String(perms.role || "").toUpperCase();
+  if (role === "OWNER") return "OWNER";
+  if (role === "ADMIN" || perms.manage_users) return "ADMIN";
+  if (perms.can_delete || role === "SALES_DIRECTOR" || role === "VP_SALES") return "MANAGER";
+  if (perms.can_create || perms.can_edit) return "USER";
+  return "VIEWER";
+}
+
+/** Upsert a tenant_members row so `email` belongs to `tenantId` with the given role. */
+export async function syncTenantMembership(
+  tenantId: string,
+  email: string,
+  displayName: string,
+  role: string,
+  active = true,
+): Promise<void> {
+  const db = coreDb();
+  const now = new Date().toISOString();
+  const lower = email.toLowerCase();
+  let user = await db.prepare("SELECT id FROM auth_users WHERE lower(email)=?").bind(lower).first<{ id: string }>();
+  if (!user) {
+    const id = crypto.randomUUID();
+    const unusable = crypto.randomUUID(); // no usable password until they accept an invite
+    await db.prepare(
+      `INSERT INTO auth_users (id, email, password_hash, display_name, role, active, default_tenant_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'MEMBER', 0, ?, ?, ?)`,
+    ).bind(id, lower, unusable, displayName || lower, tenantId, now, now).run();
+    user = { id };
+  } else {
+    await db.prepare("UPDATE auth_users SET default_tenant_id=COALESCE(default_tenant_id, ?) WHERE id=?").bind(tenantId, user.id).run();
+  }
+  // Never demote a company OWNER through the team screen.
+  const existing = await db.prepare("SELECT role FROM tenant_members WHERE tenant_id=? AND lower(email)=?").bind(tenantId, lower).first<{ role: string }>();
+  const finalRole = existing?.role === "OWNER" ? "OWNER" : role;
+  await db.prepare(
+    `INSERT INTO tenant_members (id, tenant_id, user_id, email, display_name, role, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(tenant_id, email) DO UPDATE SET display_name=excluded.display_name, role=excluded.role, active=excluded.active, updated_at=excluded.updated_at`,
+  ).bind(crypto.randomUUID(), tenantId, user.id, lower, displayName || lower, finalRole, active ? 1 : 0, now, now).run();
+}
+
+/** True when the signed-in caller is OWNER or ADMIN of their company. */
+export async function isTenantAdmin(request: Request): Promise<TenantContext | null> {
+  const tenant = await getTenantContext(request);
+  if (!tenant) return null;
+  return tenant.role === "OWNER" || tenant.role === "ADMIN" ? tenant : null;
+}
+
 export async function hasModuleAccess(
   request: Request,
   module: "crm" | "calendar" | "prospecting",
 ) {
-  const email = requestUser(request);
+  const email = (await resolveRequestEmail(request)) || requestUser(request);
   if (email === "platform-owner" || email === "vividpyvette@gmail.com") return true;
   const member = await coreDb()
     .prepare(
-      `SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE email=?`,
+      `SELECT role, active, ${module}_access AS allowed FROM workspace_members WHERE lower(email)=lower(?)`,
     )
     .bind(email)
     .first<{ role: string; active: number; allowed: number }>();
@@ -3942,6 +4007,9 @@ export async function hasModuleAccess(
       .prepare("SELECT COUNT(*) AS total FROM workspace_members")
       .first<{ total: number }>();
     if (!Number(count?.total || 0)) return true;
+    // No team row: fall back to the company role (owners/admins of their own company always get in).
+    const tenant = await getTenantContext(request);
+    return Boolean(tenant && (tenant.role === "OWNER" || tenant.role === "ADMIN"));
   }
   return Boolean(member?.active && (member.role === "OWNER" || member.allowed));
 }
@@ -3970,9 +4038,13 @@ export async function isWorkspaceOwner(request: Request) {
 }
 
 export async function hasCrmAction(request: Request, action: "create"|"edit"|"delete"|"export") {
-  const email=requestUser(request); if(email==="platform-owner"||email==="vividpyvette@gmail.com") return true;
-  const member=await coreDb().prepare(`SELECT role,active,crm_access,can_${action} allowed FROM workspace_members WHERE email=?`).bind(email).first<{role:string;active:number;crm_access:number;allowed:number}>();
-  if(!member){const count=await coreDb().prepare("SELECT COUNT(*) total FROM workspace_members").first<{total:number}>();if(!Number(count?.total||0))return true;}
+  const email=(await resolveRequestEmail(request))||requestUser(request); if(email==="platform-owner"||email==="vividpyvette@gmail.com") return true;
+  const member=await coreDb().prepare(`SELECT role,active,crm_access,can_${action} allowed FROM workspace_members WHERE lower(email)=lower(?)`).bind(email).first<{role:string;active:number;crm_access:number;allowed:number}>();
+  if(!member){
+    const count=await coreDb().prepare("SELECT COUNT(*) total FROM workspace_members").first<{total:number}>();if(!Number(count?.total||0))return true;
+    const tenant=await getTenantContext(request);
+    return Boolean(tenant&&(tenant.role==="OWNER"||tenant.role==="ADMIN"));
+  }
   return Boolean(member?.active&&member.crm_access&&(member.role==="OWNER"||member.allowed));
 }
 
@@ -4005,9 +4077,16 @@ export async function ensureUserDefaultTenant(email: string): Promise<string> {
   const db = coreDb();
   const now = new Date().toISOString();
 
-  // Check if user is already in a tenant
+  // Prefer the company the user was invited into / chose as default.
+  const preferred = await db.prepare(
+    `SELECT tm.tenant_id FROM auth_users au JOIN tenant_members tm ON tm.tenant_id = au.default_tenant_id AND lower(tm.email) = lower(au.email) AND tm.active = 1
+     WHERE lower(au.email) = lower(?) LIMIT 1`
+  ).bind(email).first<{ tenant_id: string }>();
+  if (preferred) return preferred.tenant_id;
+
+  // Otherwise any company they belong to (earliest membership first).
   const existing = await db.prepare(
-    "SELECT DISTINCT tenant_id FROM tenant_members WHERE email = ? LIMIT 1"
+    "SELECT tenant_id FROM tenant_members WHERE lower(email) = lower(?) AND active = 1 ORDER BY created_at ASC LIMIT 1"
   ).bind(email).first<{ tenant_id: string }>();
 
   if (existing) return existing.tenant_id;
