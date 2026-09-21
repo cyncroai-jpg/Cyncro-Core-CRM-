@@ -19615,6 +19615,19 @@ function Admin({
         .catch(()=>{});
     }
   };
+  const quickCreateEventType = async () => {
+    const res = await fetch("/api/calendar/event-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Consultation", slug: "consultation", durationMinutes: 30 }) });
+    const data = (await res.json()) as { id?: string; error?: string };
+    if (!res.ok || !data.id) { setNotice(data.error || "Could not create the event type"); return; }
+    await loadCalendarData();
+    setManual((m) => ({ ...m, eventTypeId: data.id as string }));
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "eventType", action: "created" } }));
+    setNotice("Event type created — finish the appointment below");
+  };
+  useEffect(() => {
+    if (manualOpen && !manual.eventTypeId && eventOptions.length) setManual((m) => ({ ...m, eventTypeId: m.eventTypeId || eventOptions[0].id }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualOpen, eventOptions.length]);
   const toLocalInput = (d: Date) => { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
   const openBookingAt = (at: Date) => {
     setManual((m) => ({ ...m, startsAt: toLocalInput(at), eventTypeId: m.eventTypeId || eventOptions[0]?.id || "" }));
@@ -20994,6 +21007,13 @@ function Admin({
               <button onClick={() => setManualOpen(false)}>×</button>
             </div>
             <div className="crmForm">
+              {eventOptions.length === 0 && (
+                <div className="modalHint">
+                  <b>You need an event type first.</b>
+                  <span>An event type sets the appointment name and length. Create a 30-minute Consultation now and you can rename it later under Event types.</span>
+                  <button className="calCCPrimary" onClick={() => void quickCreateEventType()}>✦ Create "Consultation · 30 min"</button>
+                </div>
+              )}
               <label>
                 Event type
                 <select
@@ -21198,7 +21218,11 @@ function Admin({
             </div>
             <div className="modalactions">
               <button onClick={() => { setManualOpen(false); setRecurringEnabled(false); setSelectedResourceIds([]); }}>Cancel</button>
+              {(!manual.eventTypeId || !manual.customerName || !manual.customerEmail || !manual.startsAt) && (
+                <small className="modalMissing">Still needed: {[!manual.eventTypeId && "event type", !manual.customerName && "customer name", !manual.customerEmail && "email", !manual.startsAt && "date and time"].filter(Boolean).join(", ")}</small>
+              )}
               <button
+                className="primary"
                 disabled={
                   !manual.eventTypeId ||
                   !manual.customerName ||
