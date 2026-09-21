@@ -24514,3 +24514,28 @@ button.crmUser i {
 .admin .bookingStatusChip.status-completed{color:#3fd982;border-color:#3fd98280}
 .admin .noProspects{color:#8f858b;font-size:11.5px;padding:18px;text-align:center;border:1px dashed #ffffff14;border-radius:12px}
 @media (max-width:1100px){.admin .calIntegrations{grid-template-columns:1fr}.admin .roleCalendarGrid{grid-template-columns:repeat(2,1fr)}.admin .table .tr{grid-template-columns:1fr 1fr}}
+/* Calendar editing: click-to-book, drag-to-reschedule, quick actions */
+.calCCCol{cursor:copy}
+.calCCBlock{cursor:grab;touch-action:none;user-select:none}
+.calCCBlock.dragging{opacity:.35;cursor:grabbing}
+.calCCGhost{position:absolute;left:4px;right:4px;border:1.5px dashed #ff2f4f;border-radius:7px;background:#ff2f4f22;z-index:3;pointer-events:none;box-shadow:0 0 18px #ff2f4f66;padding:3px 6px}
+.calCCGhost b{font-size:9.5px;color:#fff}
+.admin .roleCalendarGrid>div{cursor:copy;transition:border-color .15s,background .15s}
+.admin .roleCalendarGrid>div.dropTarget{border-color:#ff2f4f66;background:#ff2f4f0a}
+.admin .roleCalendarGrid>div:hover{border-color:#ff2f4f44}
+.admin .roleCalendarGrid button{cursor:grab}
+.admin .roleCalendarGrid button:active{cursor:grabbing}
+.bookingQuick{display:grid;gap:6px;margin:12px 0 4px}
+.bookingQuick small{color:#ff5c78!important;font-size:9px!important;letter-spacing:.14em;font-weight:700!important}
+.bookingQuick>div{display:flex;gap:6px;flex-wrap:wrap}
+.bookingQuick button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:8px;padding:7px 11px;font-size:10.5px!important;font-weight:700;cursor:pointer}
+.bookingQuick button:hover{border-color:#ff2f4f80}
+.bookingQuick button.ok{color:#3fd982;border-color:#3fd98266}.bookingQuick button.warn{color:#f3b23a;border-color:#f3b23a66}.bookingQuick button.danger{color:#ff5c78;border-color:#ff2f4f66}
+.modalback{backdrop-filter:blur(6px)}
+.bookingmodal{border:1px solid #ffffff14;border-radius:16px;background:linear-gradient(165deg,#1d181b,#0d0b0d);box-shadow:0 0 0 1px #ff2f4f1f,0 0 60px #a71f3547,0 30px 60px #000c}
+.modalhead label{color:#ff5c78!important}
+.modalactions button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer}
+.modalactions button:last-child,.modalactions button.primary{background:linear-gradient(180deg,#d1304a,#8f1a2e);border-color:#ff6f86;color:#fff;box-shadow:0 0 18px #ff2f4f66}
+.calToast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:1200;display:flex;align-items:center;gap:10px;border:1px solid #3fd98273;border-radius:12px;background:#0d0b0df2;backdrop-filter:blur(8px);padding:10px 12px 10px 14px;box-shadow:0 0 24px #3fd98233,0 20px 40px #000c;color:#fff;font-size:12px;max-width:min(560px,calc(100vw - 32px))}
+.calToast i{width:22px;height:22px;border-radius:50%;border:1.5px solid #3fd982;color:#3fd982;display:grid;place-items:center;font-style:normal;font-size:11px;flex:none;box-shadow:0 0 12px #3fd98280}
+.calToast button{border:0;background:transparent;color:#8f858b;font-size:16px;cursor:pointer;padding:0 2px;line-height:1}

@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CyncroMap, type MapPin, type MapRoute } from "@/app/components/CyncroMap";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
@@ -18613,13 +18613,16 @@ type CalendarAnalytics = {
 type CCBooking = { id: string; customer_name: string; customer_email?: string; starts_at: string; ends_at: string; event_name: string; event_type_id: string; status: string; assigned_to?: string | null; location_mode?: string; color?: string | null };
 type CCEventType = { id: string; name: string; slug: string; duration_minutes: number; capacity?: number; color?: string | null; active?: number };
 
-function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreate?: () => void; onPickDate?: (isoDate: string) => void; onOpenBooking?: (bookingId: string, startsAt: string) => void }) {
+function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking, onBookAt, onReschedule }: { onCreate?: () => void; onPickDate?: (isoDate: string) => void; onOpenBooking?: (bookingId: string, startsAt: string) => void; onBookAt?: (startsAt: Date) => void; onReschedule?: (bookingId: string, startsAt: Date) => Promise<boolean> | void }) {
   const [analytics, setAnalytics] = useState<CalendarAnalytics | null>(null);
   const [bookings, setBookings] = useState<CCBooking[]>([]);
   const [eventTypes, setEventTypes] = useState<CCEventType[]>([]);
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [now, setNow] = useState(() => new Date());
   const [copied, setCopied] = useState("");
+  const colRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [drag, setDrag] = useState<{ id: string; dayIndex: number; minutes: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; grabOffsetPx: number; durationMin: number; moved: boolean } | null>(null);
   useEffect(() => {
     const tick = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(tick);
@@ -18659,6 +18662,46 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
   const todays = weekBookings.filter((b) => dayKey(new Date(b.starts_at)) === todayKey).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const upcoming = (todays.length ? todays : weekBookings.slice().sort((a, b) => a.starts_at.localeCompare(b.starts_at))).slice(0, 6);
   const nowPct = Math.min(100, Math.max(0, ((now.getHours() + now.getMinutes() / 60 - HOUR0) / HOURS) * 100));
+  /** Map a pointer position to (day column, minutes since HOUR0) snapped to 15 minutes. */
+  const locate = (clientX: number, clientY: number) => {
+    const cols = colRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (!cols.length) return null;
+    let dayIndex = 0;
+    for (let i = 0; i < cols.length; i++) { const r = cols[i].getBoundingClientRect(); if (clientX >= r.left) dayIndex = i; }
+    const rect = cols[dayIndex].getBoundingClientRect();
+    const pct = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    const minutes = Math.round((pct * HOURS * 60) / 15) * 15;
+    return { dayIndex, minutes: Math.min(HOURS * 60 - 15, minutes) };
+  };
+  const atSlot = (dayIndex: number, minutes: number) => { const d = new Date(days[dayIndex]); d.setHours(HOUR0, minutes, 0, 0); return d; };
+  const onColumnClick = (dayIndex: number) => (e: ReactMouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest(".calCCBlock")) return;
+    const hit = locate(e.clientX, e.clientY); if (!hit) return;
+    onBookAt?.(atSlot(dayIndex, hit.minutes));
+  };
+  const onBlockPointerDown = (b: CCBooking) => (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    const dur = Math.max(15, Math.round((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60_000));
+    const top = (e.currentTarget as HTMLElement).getBoundingClientRect().top;
+    dragRef.current = { id: b.id, startX: e.clientX, startY: e.clientY, grabOffsetPx: e.clientY - top, durationMin: dur, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onBlockPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current; if (!d) return;
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 5) return;
+    d.moved = true;
+    const hit = locate(e.clientX, e.clientY - d.grabOffsetPx); if (!hit) return;
+    setDrag({ id: d.id, dayIndex: hit.dayIndex, minutes: hit.minutes, moved: true });
+  };
+  const onBlockPointerUp = (b: CCBooking) => async (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current; dragRef.current = null;
+    if (!d) return;
+    if (!d.moved) { setDrag(null); onOpenBooking?.(b.id, b.starts_at); return; }
+    const hit = locate(e.clientX, e.clientY - d.grabOffsetPx); setDrag(null); if (!hit) return;
+    const target = atSlot(hit.dayIndex, hit.minutes);
+    if (Math.abs(target.getTime() - new Date(b.starts_at).getTime()) < 60_000) return;
+    await onReschedule?.(b.id, target);
+  };
 
   // Routing graph: event types → hosts
   const hostCounts = new Map<string, number>();
@@ -18709,18 +18752,22 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
 
       <section className="calCCPanel calCCHero">
         <div className="calCCHead">
-          <div><b>SmartSlot™ engine</b><small>Next 7 days · every booking placed on one timeline</small></div>
+          <div><b>SmartSlot™ engine</b><small>Next 7 days · click an empty time to book · drag a booking to reschedule</small></div>
           <div className="calCCTabs"><span className="on">Week</span><span onClick={() => onPickDate?.(todayKey)}>Open calendar</span></div>
         </div>
         <div className="calCCWeek" style={{ ["--hours" as string]: HOURS }}>
           <div className="calCCHours">{Array.from({ length: HOURS + 1 }, (_, i) => <span key={i}>{((HOUR0 + i + 11) % 12) + 1}{HOUR0 + i < 12 ? "am" : "pm"}</span>)}</div>
-          {days.map((d) => {
+          {days.map((d, dayIndex) => {
             const k = dayKey(d); const isToday = k === todayKey;
             const items = weekBookings.filter((b) => dayKey(new Date(b.starts_at)) === k);
+            const ghost = drag && drag.dayIndex === dayIndex ? drag : null;
+            const ghostBooking = ghost ? weekBookings.find((b) => b.id === ghost.id) : null;
+            const ghostDur = ghostBooking ? Math.max(15, (new Date(ghostBooking.ends_at).getTime() - new Date(ghostBooking.starts_at).getTime()) / 60_000) : 30;
             return (
-              <div key={k} className={`calCCDay ${isToday ? "today" : ""}`} onClick={() => onPickDate?.(k)}>
-                <b>{d.toLocaleDateString([], { weekday: "short" })} <span>{d.getDate()}</span></b>
-                <div className="calCCCol">
+              <div key={k} className={`calCCDay ${isToday ? "today" : ""}`}>
+                <b onClick={() => onPickDate?.(k)}>{d.toLocaleDateString([], { weekday: "short" })} <span>{d.getDate()}</span></b>
+                <div className="calCCCol" ref={(el) => { colRefs.current[dayIndex] = el; }} onClick={onColumnClick(dayIndex)} title="Click an empty time to book it">
+                  {ghost && <div className="calCCGhost" style={{ top: `${(ghost.minutes / (HOURS * 60)) * 100}%`, height: `${(ghostDur / (HOURS * 60)) * 100}%` }}><b>{atSlot(dayIndex, ghost.minutes).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b></div>}
                   {isToday && nowPct > 0 && nowPct < 100 && <i className="now" style={{ top: `${nowPct}%` }}><em>NOW {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</em></i>}
                   {items.map((b) => {
                     const s = new Date(b.starts_at), e = new Date(b.ends_at);
@@ -18728,7 +18775,7 @@ function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreat
                     const h = Math.max(3.5, ((e.getTime() - s.getTime()) / 3_600_000 / HOURS) * 100);
                     if (top >= 100) return null;
                     return (
-                      <button key={b.id} className={`calCCBlock ${b.status === "CONFIRMED" ? "hot" : ""}`} style={{ top: `${top}%`, height: `${Math.min(h, 100 - top)}%`, ["--c" as string]: typeColor(b) }} onClick={(ev) => { ev.stopPropagation(); onOpenBooking?.(b.id, b.starts_at); }} title={`${b.customer_name} · ${b.event_name}`}>
+                      <button key={b.id} className={`calCCBlock ${b.status === "CONFIRMED" ? "hot" : ""} ${drag?.id === b.id ? "dragging" : ""}`} style={{ top: `${top}%`, height: `${Math.min(h, 100 - top)}%`, ["--c" as string]: typeColor(b) }} onClick={(ev) => ev.stopPropagation()} onPointerDown={onBlockPointerDown(b)} onPointerMove={onBlockPointerMove} onPointerUp={onBlockPointerUp(b)} onPointerCancel={() => { dragRef.current = null; setDrag(null); }} title={`${b.customer_name} · ${b.event_name} — drag to reschedule, click to open`}>
                         <b>{b.customer_name}</b><small>{s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>
                       </button>
                     );
@@ -19568,6 +19615,21 @@ function Admin({
         .catch(()=>{});
     }
   };
+  const toLocalInput = (d: Date) => { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const openBookingAt = (at: Date) => {
+    setManual((m) => ({ ...m, startsAt: toLocalInput(at), eventTypeId: m.eventTypeId || eventOptions[0]?.id || "" }));
+    setManualOpen(true);
+  };
+  const rescheduleById = async (id: string, at: Date): Promise<boolean> => {
+    const response = await fetch("/api/calendar/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "RESCHEDULE", startsAt: at.toISOString() }) });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) { setNotice(data.error || "Could not reschedule"); return false; }
+    setNotice(`Moved to ${at.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`);
+    await loadBookings();
+    window.dispatchEvent(new CustomEvent("cyncro:data-changed", { detail: { entity: "booking", action: "reschedule" } }));
+    return true;
+  };
+  const [dragBookingId, setDragBookingId] = useState<string | null>(null);
   const updateBooking = async (
     booking: Booking,
     action: string,
@@ -19723,7 +19785,7 @@ function Admin({
   };
   return (
     <section className="admin">
-      <CalendarCommandStrip onCreate={onCreate} onPickDate={(d) => { setFocusDate(d); setCalendarView("WEEK"); }} onOpenBooking={(id, startsAt) => { const b = rows.find((r) => r.id === id); if (b) setSelectedBooking(b); else { setFocusDate(startsAt.slice(0, 10)); setCalendarView("WEEK"); } }} />
+      <CalendarCommandStrip onCreate={onCreate} onBookAt={openBookingAt} onReschedule={rescheduleById} onPickDate={(d) => { setFocusDate(d); setCalendarView("WEEK"); }} onOpenBooking={(id, startsAt) => { const b = rows.find((r) => r.id === id); if (b) setSelectedBooking(b); else { setFocusDate(startsAt.slice(0, 10)); setCalendarView("WEEK"); } }} />
       <div className="calendarCommandBar">
         <div>
           {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES", "WEBHOOKS", "EXPERIMENTS"] as const).map((item) => (
@@ -20356,7 +20418,20 @@ function Admin({
                     date.toDateString(),
                 );
                 return (
-                  <div key={index}>
+                  <div
+                    key={index}
+                    className={dragBookingId ? "dropTarget" : ""}
+                    title="Click an empty space to book · drag a booking here to move it"
+                    onClick={(e) => { if ((e.target as HTMLElement).closest("button")) return; const at = new Date(date); at.setHours(10, 0, 0, 0); openBookingAt(at); }}
+                    onDragOver={(e) => { if (dragBookingId) e.preventDefault(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = dragBookingId; setDragBookingId(null); if (!id) return;
+                      const moving = rows.find((r) => r.id === id); if (!moving) return;
+                      const was = new Date(moving.starts_at); const at = new Date(date); at.setHours(was.getHours(), was.getMinutes(), 0, 0);
+                      if (at.toDateString() !== was.toDateString()) void rescheduleById(id, at);
+                    }}
+                  >
                     <time>
                       {date.toLocaleDateString(undefined, {
                         weekday: "short",
@@ -20367,7 +20442,11 @@ function Admin({
                     {dayRows.map((row) => (
                       <button
                         key={row.id}
+                        draggable
+                        onDragStart={(e) => { setDragBookingId(row.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => setDragBookingId(null)}
                         onClick={() => openBookingDetail(row)}
+                        title="Click to open · drag to another day to move"
                       >
                         <b>
                           {new Date(row.starts_at).toLocaleTimeString([], {
@@ -20473,7 +20552,7 @@ function Admin({
             ))}
         </div>
       )}
-      {notice && <div className="prospectingAlert success">{notice}</div>}
+      {notice && <div className="calToast" role="status"><i>✓</i><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss">×</button></div>}
       <footer className="features">
         ◆ Double-booking protection　◆ Weighted host routing　◆ Resource
         locking　◆ Automated reminders　◆ Calendar sync ready
@@ -20622,6 +20701,21 @@ function Admin({
                 ))}
               </div>
             )}
+            <div className="bookingQuick">
+              <small>QUICK MOVE</small>
+              <div>
+                {([["+30 min", 30], ["+1 hour", 60], ["Tomorrow", 24 * 60], ["Next week", 7 * 24 * 60]] as [string, number][]).map(([label, mins]) => (
+                  <button key={label} onClick={() => void updateBooking(selectedBooking, "RESCHEDULE", { startsAt: new Date(new Date(selectedBooking.starts_at).getTime() + mins * 60_000).toISOString() })}>{label}</button>
+                ))}
+              </div>
+              <small>STATUS</small>
+              <div>
+                <button className="ok" onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "COMPLETED" })}>✓ Completed</button>
+                <button className="warn" onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "NO_SHOW" })}>✕ No-show</button>
+                <button className="danger" onClick={() => { if (window.confirm(`Cancel ${selectedBooking.customer_name}'s appointment?`)) void updateBooking(selectedBooking, "CANCEL"); }}>⊘ Cancel</button>
+                {selectedBooking.status !== "CONFIRMED" && <button onClick={() => void updateBooking(selectedBooking, "UPDATE", { status: "CONFIRMED" })}>Re-confirm</button>}
+              </div>
+            </div>
             <label>
               New date and time
               <input
