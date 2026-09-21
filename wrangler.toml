@@ -3,12 +3,14 @@ main = "dist/worker/index.js"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Custom domain — the zone must be on the same Cloudflare account.
-# Cloudflare creates the DNS record and certificate automatically on deploy.
-routes = [
-  { pattern = "app-cyncrocore.com", custom_domain = true },
-  { pattern = "www.app-cyncrocore.com", custom_domain = true },
-]
+# Custom domain — enable once app-cyncrocore.com's nameservers point at
+# Cloudflare and the zone shows "Active" in the dashboard. Until then the
+# deploy would fail with "zone not found". Cloudflare creates the DNS record
+# and certificate automatically on deploy.
+# routes = [
+#   { pattern = "app-cyncrocore.com", custom_domain = true },
+#   { pattern = "www.app-cyncrocore.com", custom_domain = true },
+# ]
 
 # Static assets (Next.js build output)
 [assets]
