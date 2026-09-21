@@ -40,4 +40,18 @@ await page.locator(".productSwitcherBtn",{hasText:/Products/}).click();await pag
 ok(hash()==="#products"&&(await page.locator("text=/all products|choose a product|cyncro platform/i").count())>0,"products switcher in history",hash());
 await page.goBack();await page.waitForTimeout(600);
 ok(hash()==="#crm"&&(await page.locator(".crmNav").count())>0,"back from switcher returns to CRM",hash());
+// Products switcher → enter Dispatch → inner view → back, back, back
+await page.goto(`${BASE}/#home`,{waitUntil:"networkidle"});await page.waitForTimeout(800);
+await page.locator(".productSwitcherBtn",{hasText:/Products/}).click();await page.waitForTimeout(600);
+ok(hash()==="#products","switcher opens with #products",hash());
+await page.locator("button",{hasText:/Enter Dispatch|Open Dispatch|Dispatch/}).first().click();await page.waitForTimeout(1200);
+ok(hash()==="#dispatch"&&(await page.locator(".dxCC").count())>0,"entering Dispatch from switcher sets #dispatch",hash());
+await page.locator(".dxCCDock button",{hasText:/Jobs/}).first().click();await page.waitForTimeout(600);
+ok(hash()==="#dispatch/jobs","dispatch (product mode): Jobs → #dispatch/jobs",hash());
+await page.goBack();await page.waitForTimeout(600);
+ok(hash()==="#dispatch"&&(await page.locator(".dxCC").count())>0,"back → Dispatch dashboard",hash());
+await page.goBack();await page.waitForTimeout(600);
+ok(hash()==="#products","back → Products page",hash());
+await page.goBack();await page.waitForTimeout(600);
+ok((hash()===""||hash()==="#home")&&(await page.locator(".heroActions").count())>0,"back → home",hash()||"(home)");
 console.log(out.join("\n"));console.log("errors:",errors.length?errors.slice(0,4):"none");await browser.close();

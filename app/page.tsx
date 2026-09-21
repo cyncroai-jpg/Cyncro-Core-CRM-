@@ -94,7 +94,9 @@ export default function Home() {
     const syncRoute = () => {
       const first = window.location.hash.slice(1).split("/")[0];
       if (first === "products") { setProduct("switcher"); return; }
-      setProduct((current) => (current === "switcher" ? "core" : current));
+      if (first.startsWith("product-")) { setProduct(first.slice(8) as CyncroProduct); return; }
+      const productFor: Record<string, CyncroProduct> = { dispatch: "dispatch", dispute: "dispute", apex: "apex", finance: "automotive" };
+      setProduct(productFor[first] || "core");
       const route = first as Tab;
       setTab(validTabs.includes(route) ? route : "home");
     };
@@ -125,7 +127,13 @@ export default function Home() {
   }, []);
   // Show product switcher
   if (product === "switcher") {
-    return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={setProduct} />;
+    return <CyncroProductSwitcher activeProducts={activeProducts} onEnter={(p) => {
+      const hashFor: Partial<Record<CyncroProduct, string>> = { core: "", dispatch: "#dispatch", dispute: "#dispute", apex: "#apex", automotive: "#finance", prime: "#prime", messages: "#messages" };
+      const target = hashFor[p];
+      if (target !== undefined) window.history.pushState(null, "", target || window.location.pathname);
+      else window.history.pushState(null, "", `#product-${p}`);
+      setProduct(p);
+    }} />;
   }
   // Dispatch and Dispute are real, separate products — hand off to the
   // actual apps. "readable" carries the app-wide font-size legibility
@@ -6426,6 +6434,45 @@ function CyncroFinance({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   );
 }
 
+/** Side-profile luxury coupe used across Finance: glossy body, glass, rims, glowing lamps. */
+function LuxCar({ className = "", reflection = false }: { className?: string; reflection?: boolean }) {
+  const uid = useMemo(() => Math.random().toString(36).slice(2, 8), []);
+  const body = "M12 64 C12 54 20 47 40 43 L62 27 C72 18 90 13 112 13 L154 13 C176 13 194 19 208 31 L238 41 C256 45 268 51 268 61 L268 67 C268 71 265 73 261 73 L234 73 A21 21 0 0 1 192 73 L102 73 A21 21 0 0 1 60 73 L19 73 C15 73 12 70 12 67 Z";
+  const car = (
+    <g>
+      <path d={body} fill={`url(#lux-body-${uid})`} stroke="#6a5f66" strokeWidth="1" />
+      <path d="M66 30 L112 18 L154 18 C170 18 184 23 194 32 L158 35 L112 36 Z" fill={`url(#lux-glass-${uid})`} />
+      <path d="M130 18 L128 36" stroke="#0a090a" strokeWidth="2" opacity=".7" />
+      <path d="M40 46 C70 40 120 38 194 38 L232 44" fill="none" stroke="#ffffff" strokeWidth="1.2" opacity=".28" />
+      <path d="M22 66 L258 66" stroke="#ff2f4f" strokeWidth="1.6" opacity=".9" style={{ filter: "drop-shadow(0 0 4px #ff2f4f)" }} />
+      <path d="M244 47 L266 55 L266 60 L246 55 Z" fill="#fff8f0" style={{ filter: "drop-shadow(0 0 6px #ffd9b0)" }} />
+      <path d="M13 56 L26 53 L26 58 L13 60 Z" fill="#ff2f4f" style={{ filter: "drop-shadow(0 0 5px #ff2f4f)" }} />
+      <path d="M100 52 L116 52" stroke="#8f858b" strokeWidth="1.5" strokeLinecap="round" />
+      {[81, 213].map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy="73" r="19" fill="#0a090a" stroke="#3d353a" strokeWidth="1" />
+          <circle cx={cx} cy="73" r="12" fill="#151216" stroke="#a89ea4" strokeWidth="1.4" />
+          {[0, 60, 120].map((a) => <line key={a} x1={cx} y1="73" x2={cx} y2="61" stroke="#c9c0c5" strokeWidth="2" transform={`rotate(${a} ${cx} 73)`} />)}
+          {[0, 60, 120].map((a) => <line key={`b${a}`} x1={cx} y1="73" x2={cx} y2="85" stroke="#c9c0c5" strokeWidth="2" transform={`rotate(${a} ${cx} 73)`} />)}
+          <circle cx={cx} cy="73" r="3" fill="#ff2f4f" />
+        </g>
+      ))}
+    </g>
+  );
+  return (
+    <svg viewBox={reflection ? "0 0 280 150" : "0 0 280 96"} className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={`lux-body-${uid}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#5a5058" /><stop offset=".45" stopColor="#221d20" /><stop offset="1" stopColor="#0d0b0d" /></linearGradient>
+        <linearGradient id={`lux-glass-${uid}`} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#6b6470" /><stop offset=".5" stopColor="#2a252a" /><stop offset="1" stopColor="#151216" /></linearGradient>
+        <linearGradient id={`lux-fade-${uid}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".22" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <mask id={`lux-mask-${uid}`}><rect x="0" y="0" width="280" height="96" fill={`url(#lux-fade-${uid})`} /></mask>
+      </defs>
+      {reflection && <g transform="translate(0,190) scale(1,-1)" mask={`url(#lux-mask-${uid})`} opacity=".9">{car}</g>}
+      {car}
+    </svg>
+  );
+}
+
 function AutoCommand({
   summary, deals, onView, onReload, onFlash,
 }: { summary: AutoSummary | null; deals: AutoDealRow[]; onView: (v: AutoView) => void; onReload: () => void; onFlash: (m: string) => void }) {
@@ -6466,12 +6513,7 @@ function AutoCommand({
   const ltv = deal && deal.book_value_cents ? Math.round((deal.amount_financed_cents / deal.book_value_cents) * 100) : null;
   const financedPct = deal && deal.sale_price_cents ? Math.min(100, Math.round((deal.amount_financed_cents / deal.sale_price_cents) * 100)) : 0;
   const bestSub = (detail?.submissions || []).filter((s) => s.status === "APPROVED" || s.status === "FUNDED").sort((a, b) => (a.approved_rate ?? 99) - (b.approved_rate ?? 99))[0] || null;
-  const CarIcon = ({ glow }: { glow?: boolean }) => (
-    <svg viewBox="0 0 64 30" className={`fxCar ${glow ? "glow" : ""}`} aria-hidden="true">
-      <path d="M4 22 L9 12 Q12 6 20 6 L40 6 Q48 6 53 12 L60 18 L60 24 L4 24 Z" /><path d="M14 12 Q18 8 24 8 L38 8 Q44 9 48 13 Z" className="glass" />
-      <circle cx="16" cy="24" r="5" className="wheel" /><circle cx="48" cy="24" r="5" className="wheel" /><rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
-    </svg>
-  );
+  const CarIcon = ({ glow }: { glow?: boolean }) => <LuxCar className={`fxCar ${glow ? "glow" : ""}`} />;
   return (
     <div className="fxCC">
       <div className="fxCCTop">
@@ -6516,15 +6558,13 @@ function AutoCommand({
             <div className="fxCCMeter hot"><span>Payment / month</span><b>{deal ? autoMoney(deal.monthly_payment_cents) : "—"}</b><i><b style={{ width: deal && deal.sale_price_cents ? `${Math.min(100, Math.round((deal.monthly_payment_cents * 100) / deal.sale_price_cents * 10))}%` : "0%" }} /></i></div>
           </div>
           <div className="fxCCPlatform">
-            <svg viewBox="0 0 320 170" aria-hidden="true">
-              <defs><radialGradient id="fxHalo"><stop offset="0" stopColor="#ff2f4f" stopOpacity=".5" /><stop offset=".6" stopColor="#ff2f4f" stopOpacity=".1" /><stop offset="1" stopColor="#ff2f4f" stopOpacity="0" /></radialGradient></defs>
-              <ellipse cx="160" cy="140" rx="150" ry="22" fill="url(#fxHalo)" />
-              <ellipse cx="160" cy="140" rx="150" ry="22" fill="none" stroke="#ff2f4f" strokeWidth="2" className="fxRing" />
-              <g transform="translate(40,40) scale(3.7)">
-                <path d="M4 22 L9 12 Q12 6 20 6 L40 6 Q48 6 53 12 L60 18 L60 24 L4 24 Z" className="body" /><path d="M14 12 Q18 8 24 8 L38 8 Q44 9 48 13 Z" className="glass" />
-                <path d="M5 21 L59 21" className="line" /><circle cx="16" cy="24" r="5" className="wheel" /><circle cx="48" cy="24" r="5" className="wheel" /><rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
-              </g>
-            </svg>
+            <div className="fxCCStageArt">
+              <svg viewBox="0 0 320 60" className="fxCCHaloSvg" aria-hidden="true" preserveAspectRatio="none">
+                <defs><radialGradient id="fxHalo"><stop offset="0" stopColor="#ff2f4f" stopOpacity=".55" /><stop offset=".6" stopColor="#ff2f4f" stopOpacity=".12" /><stop offset="1" stopColor="#ff2f4f" stopOpacity="0" /></radialGradient></defs>
+                <ellipse cx="160" cy="30" rx="152" ry="22" fill="url(#fxHalo)" /><ellipse cx="160" cy="30" rx="152" ry="22" fill="none" stroke="#ff2f4f" strokeWidth="1.6" className="fxRing" />
+              </svg>
+              <LuxCar className="fxHeroCar" reflection />
+            </div>
             <div className="fxCCBadge">{bestSub ? <><b>{bestSub.lender_name} · {bestSub.approved_rate ?? "—"}%{bestSub.approved_term ? ` · ${bestSub.approved_term} mo` : ""}</b><small>best approval</small></> : deal ? <><b>{deal.funding_status?.replace(/_/g, " ") || "not funded"} · {deal.contract_status?.replace(/_/g, " ") || "no contract"}</b><small>funding · contract</small></> : <><b>No deal selected</b><small>pick one from the jackets</small></>}</div>
           </div>
         </div>

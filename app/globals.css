@@ -24544,3 +24544,8 @@ button.crmUser i {
 .modalMissing{display:block;width:100%;color:#f3b23a!important;font-size:10.5px!important;font-weight:600!important;margin-right:auto;align-self:center}
 .modalactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .modalactions button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.fxCCStageArt{position:relative;width:100%;display:grid;place-items:center;padding:14px 10px 40px}
+.fxCCHaloSvg{position:absolute;left:0;right:0;bottom:46px;width:100%;height:60px}
+.fxHeroCar{position:relative;width:100%;max-width:340px;height:auto;filter:drop-shadow(0 18px 24px #000c)}
+.fxCar{width:56px;height:20px;flex:none;filter:drop-shadow(0 4px 8px #000c)}
+.fxCar.glow{filter:drop-shadow(0 0 6px #ff2f4f99) drop-shadow(0 4px 8px #000c)}
