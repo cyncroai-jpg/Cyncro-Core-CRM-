@@ -8,7 +8,7 @@ function resendKey(): string | null {
   return (env as Record<string, string>).RESEND_API_KEY || null;
 }
 function fromAddress(): string {
-  return (env as Record<string, string>).EMAIL_FROM || "Cyncro <noreply@cyncro.co>";
+  return (env as Record<string, string>).EMAIL_FROM || "Cyncro Core <hello@app-cyncrocore.com>";
 }
 
 export interface EmailPayload {
