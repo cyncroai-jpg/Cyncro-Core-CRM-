@@ -19168,7 +19168,7 @@ function SimpleEventManager({
                   onClick={() => toggle("locationModes", value)}
                   key={value}
                 >
-                  ✓ {label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -19188,7 +19188,7 @@ function SimpleEventManager({
                   onClick={() => toggle("videoPlatforms", value)}
                   key={value}
                 >
-                  ✓ {label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -19727,7 +19727,7 @@ function Admin({
               key={item}
               title={item === "REVENUE" ? "Revenue Calendar™ — appointments with business context" : item === "TEAM" ? "Team view — all reps side by side" : item === "WAITLIST" ? "Waitlist — manage people waiting for open slots" : item === "RESOURCES" ? "Resource Calendar — room and equipment usage" : item === "WEBHOOKS" ? "Automation Webhooks™ — trigger external systems on booking events" : item === "EXPERIMENTS" ? "A/B Slot Experimentation — test slot presentation strategies" : undefined}
             >
-              {item === "REVENUE" ? "💰 Revenue" : item === "TEAM" ? "👥 Team" : item === "SLOTS" ? "Slots" : item === "WAITLIST" ? "⏳ Waitlist" : item === "RESOURCES" ? "📦 Resources" : item === "WEBHOOKS" ? "🔗 Webhooks" : item === "EXPERIMENTS" ? "🧪 A/B" : item[0] + item.slice(1).toLowerCase()}
+              {item === "EXPERIMENTS" ? "A/B tests" : item[0] + item.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -19768,13 +19768,13 @@ function Admin({
           My appointments
         </label>
         <button className="calTool" onClick={() => setBlockOpen(true)}>
-          ⊘ Block time
+          Block time
         </button>
         <button className="calTool" onClick={() => { void loadEventTypeSettings(); setEtSettingsOpen(true); }}>
-          ⚙ Event types
+          Event types
         </button>
         <button className="calTool" onClick={() => { void loadResources(); setResourcesOpen(true); }}>
-          ◈ Resources
+          Resources
         </button>
         <button
           className="crmCreate"
@@ -19786,7 +19786,7 @@ function Admin({
             setManualOpen(true);
           }}
         >
-          ＋ Book appointment
+          + Book appointment
         </button>
       </div>
       <div className="calIntegrations">
@@ -19805,7 +19805,7 @@ function Admin({
         </div>
         <div>
           <button onClick={() => { window.location.href = "/api/integrations/google-calendar/connect"; }}>
-            {calendarFeed ? "✓ Reconnect Google Calendar" : "Connect Google Calendar"}
+            {calendarFeed ? "Reconnect Google Calendar" : "Connect Google Calendar"}
           </button>
           <button onClick={() => void connectCalendar()}>
             {calendarFeed ? "Copy subscription link" : "Create subscription link"}
@@ -20028,7 +20028,7 @@ function Admin({
               <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70"}}>WAITLIST MANAGEMENT</small>
               <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{waitlistEntries.length} waiting</h3>
             </div>
-            <button onClick={()=>void loadWaitlist()} style={{background:"none",border:"1px solid #2e2527",borderRadius:8,color:"#b8abad",padding:"6px 12px",fontSize:11,cursor:"pointer"}}>↺ Refresh</button>
+            <button onClick={()=>void loadWaitlist()} className="calOccRefresh">Refresh</button>
           </div>
           {waitlistEntries.length === 0 ? (
             <div style={{padding:"32px",textAlign:"center",color:"#5a4e51",fontSize:13,border:"1px dashed #2e2527",borderRadius:10}}>
@@ -20070,17 +20070,17 @@ function Admin({
         </div>
       )}
       {(calendarView as string) === "RESOURCES" && (
-        <div style={{padding:"0 0 24px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div className="calOcc">
+          <div className="calOccHead">
             <div>
-              <small style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:"#7a6e70"}}>UNIVERSAL RESOURCE GRAPH™ — OCCUPANCY CALENDAR</small>
-              <h3 style={{margin:"4px 0 0",fontSize:15,fontWeight:700}}>{resources.length} resources · next 30 days</h3>
+              <small>UNIVERSAL RESOURCE GRAPH™ — OCCUPANCY CALENDAR</small>
+              <h3>{resources.length} resources · next 30 days</h3>
             </div>
-            <button onClick={()=>{ void loadResources(); void loadResourceBookings(); }} style={{background:"none",border:"1px solid #2e2527",borderRadius:8,color:"#b8abad",padding:"6px 12px",fontSize:11,cursor:"pointer"}}>↺ Refresh</button>
+            <button onClick={()=>{ void loadResources(); void loadResourceBookings(); }} className="calOccRefresh">Refresh</button>
           </div>
           {!resources.length ? (
-            <div style={{padding:"32px",textAlign:"center",color:"#5a4e51",fontSize:13,border:"1px dashed #2e2527",borderRadius:10}}>
-              No resources yet. Add rooms, vehicles, and equipment via the ◈ Resources button to track their usage here.
+            <div className="calOccEmpty">
+              No resources yet. Add rooms, vehicles, and equipment with the Resources button to track their usage here.
             </div>
           ) : (
             <div style={{display:"flex",flexDirection:"column",gap:8}}>

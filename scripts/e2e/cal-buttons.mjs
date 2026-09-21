@@ -30,7 +30,7 @@ await tryClick("Block time",bar.getByRole("button",{name:/Block time/}),async()=
 await page.locator(".modalback").first().click({position:{x:5,y:5}}).catch(()=>{});await page.waitForTimeout(300);
 await tryClick("Event types",bar.getByRole("button",{name:/Event types/}),async()=>(await page.locator("text=/event type/i").count())>1);
 await page.locator(".modalback").first().click({position:{x:5,y:5}}).catch(()=>{});await page.waitForTimeout(300);
-await tryClick("Resources",bar.getByRole("button",{name:/^◈ Resources$/}),async()=>(await page.locator("text=/resource/i").count())>1);
+await tryClick("Resources",bar.locator("button.calTool",{hasText:/^Resources$/}),async()=>(await page.locator("text=/resource/i").count())>1);
 await page.locator(".modalback").first().click({position:{x:5,y:5}}).catch(()=>{});await page.waitForTimeout(300);
 await tryClick("Book appointment",bar.getByRole("button",{name:/Book appointment/}),async()=>(await page.locator("text=/customer/i").count())>0);
 await page.locator(".modalback").first().click({position:{x:5,y:5}}).catch(()=>{});await page.waitForTimeout(300);
@@ -40,7 +40,7 @@ await tryClick("Refresh",page.locator(".table .crmPanelHead button"),async()=>tr
 await tryClick("Strip: day click",page.locator(".calCCMonth button.today"),async()=>await page.locator(".roleCalendar.week").count()>0);
 await tryClick("Strip: booking block",page.locator(".calCCBlock").first(),async()=>(await page.locator("text=/reschedule|cancel/i").count())>0);
 await page.locator(".modalback").first().click({position:{x:5,y:5}}).catch(()=>{});await page.waitForTimeout(300);
-await tryClick("Strip: copy link",page.locator(".calCCLinks > button").first(),async()=>(await page.locator(".calCCLinks em").first().innerText()).includes("Copied"));
+await tryClick("Strip: copy link",page.locator(".calCCLinks > button").first(),async()=>(await page.locator(".calCCLinks em").first().innerText()).toLowerCase().includes("copied"));
 await tryClick("Connect Google",page.locator(".externalCalendarBar button").first(),async()=>true);
 console.log(results.join("\n")); console.log("errors:",errors.length?errors.slice(0,6):"none"); await page.screenshot({path:process.env.OUT+"/btn-end.png"});
 // back-button behaviour
