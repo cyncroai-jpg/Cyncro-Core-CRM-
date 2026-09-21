@@ -3545,6 +3545,26 @@ export async function ensureCoreSchema() {
       FOREIGN KEY(job_id) REFERENCES dispatch_jobs(id)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_materials_job ON dispatch_job_materials(job_id)"),
+    db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_inventory (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT,
+      brand TEXT,
+      size TEXT,
+      sku TEXT,
+      quantity REAL NOT NULL DEFAULT 0,
+      unit TEXT,
+      min_quantity REAL,
+      unit_cost_cents INTEGER,
+      location TEXT,
+      condition TEXT,
+      notes TEXT,
+      source TEXT NOT NULL DEFAULT 'MANUAL',
+      scan_confidence TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_dispatch_inventory_name ON dispatch_inventory(name)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS dispatch_invoices (
       id TEXT PRIMARY KEY,
       job_id TEXT NOT NULL,

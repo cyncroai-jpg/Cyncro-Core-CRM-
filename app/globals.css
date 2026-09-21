@@ -24711,3 +24711,54 @@ button.crmUser i {
 .readable .calOccHead small{font-size:9px!important;font-weight:700!important;letter-spacing:.16em}
 .readable .calOccHead h3{font-size:15px!important}
 .readable .calOccRefresh{font-size:10.5px!important}
+
+/* ─── Dispatch: stock & inventory + photo count ─── */
+.dxInv{display:grid;gap:14px;align-content:start}
+.dxInv .dxCCTop .fxInvSearch{margin-left:0}
+.dxInvScan{gap:12px}
+.dxInvNotice{border:1px solid #f3b23a66;background:#f3b23a12;color:#f3d59a;border-radius:10px;padding:9px 12px;font-size:11px;line-height:1.5}
+.dxInvNotice code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0d0b0d;border:1px solid #ffffff14;border-radius:5px;padding:1px 6px;color:#fff}
+.dxInvScanGrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.8fr);gap:14px}
+.dxInvDrop{position:relative;display:grid;gap:10px;justify-items:center;align-content:center;min-height:260px;border:1px dashed #ff2f4f66;border-radius:14px;background:radial-gradient(ellipse 70% 70% at 50% 50%,#2a1a1e,#0d0b0d 75%);padding:14px;overflow:hidden}
+.dxInvDrop img{max-width:100%;max-height:360px;border-radius:10px;box-shadow:0 20px 40px #000c;object-fit:contain}
+.dxInvDropEmpty{text-align:center;display:grid;gap:4px}.dxInvDropEmpty b{color:#fff;font-size:14px}.dxInvDropEmpty small{color:#8f858b;font-size:11px;max-width:320px}
+.dxInvDropBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.dxInvDropBtns button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.dxInvDropBtns button.fxCCPrimary{border-color:#ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;box-shadow:0 0 22px #ff2f4f88}
+.dxInvScanSide{display:grid;gap:10px;align-content:start;border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:14px}
+.dxInvScanSide label{display:grid;gap:5px;color:#8f858b;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.dxInvScanSide label span{color:#5f565b;font-weight:600;letter-spacing:.04em;text-transform:none}
+.dxInvScanSide input,.dxInvScanSide select{border:1px solid #3d353a;border-radius:9px;background:#141114;color:#fff;padding:10px 12px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;width:100%;min-width:0;color-scheme:dark}
+.dxInvScanSide input:focus,.dxInvScanSide select:focus{outline:none;border-color:#ff2f4f;box-shadow:0 0 0 2px #ff2f4f33}
+.dxInvScanSide>small{color:#8f858b;font-size:10px;line-height:1.5}
+.dxInvAnalyze,.dxInvScanSide button.dxInvAnalyze{border:1px solid #ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-radius:10px;padding:13px 14px;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 26px #ff2f4f88}
+.dxInvAnalyze:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.dxInvResults{display:grid;gap:10px;border-top:1px solid #ffffff0d;padding-top:12px}
+.dxInvTable{min-width:760px}
+.dxInvTable tbody tr{cursor:default}
+.dxInvTable tbody tr.off{opacity:.4}
+.dxInvTable tbody tr.low{background:linear-gradient(90deg,#f3b23a14,transparent)}
+.dxInvCell{border:1px solid #3d353a;border-radius:7px;background:#141114;color:#fff;padding:6px 8px;font-size:11.5px;font-weight:600;width:100%;min-width:120px}
+.dxInvCell.num{min-width:64px;width:72px;text-align:right}.dxInvCell.sm{min-width:64px;width:80px}
+.dxInvQty{white-space:nowrap}
+.dxInvQty button{width:26px;height:26px;border:1px solid #3d353a;border-radius:7px;background:#141114;color:#efe9ec;font-size:14px;line-height:1;cursor:pointer;vertical-align:middle}
+.dxInvQty button:hover{border-color:#ff2f4f;color:#fff}
+.dxInvQty b{display:inline-block;min-width:44px;text-align:center;vertical-align:middle;font-size:13px}
+.dxInvQty small{display:inline;color:#8f858b;font-size:9.5px;margin-right:6px;vertical-align:middle}
+.dxInvQty .fxPill{margin-left:6px;vertical-align:middle}
+.dxInvForm{gap:12px}
+.dxInvForm .fxInvFields{grid-template-columns:repeat(4,1fr)}.dxInvForm .fxInvFields label.wide{grid-column:span 2}
+.dxCCStock{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border:1px solid #ffffff12;border-radius:14px;background:linear-gradient(165deg,#1d181b,#0d0b0d);padding:10px 8px;box-shadow:0 20px 40px #0008,inset 0 1px #ffffff10;cursor:pointer;text-align:left;color:#efe9ec;transition:border-color .12s}
+.dxCCStock:hover{border-color:#ff2f4f66}
+.dxCCStock>div{display:grid;gap:1px;padding:4px 8px;border-left:1px solid #ffffff10;min-width:0}.dxCCStock>div:first-child{border-left:0}
+.dxCCStock small{color:#8f858b;font-size:8px;letter-spacing:.14em;font-weight:700}
+.dxCCStock b{color:#fff;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.dxCCStock span{color:#ff5c78;font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dxCCStock>div.warn b{color:#f3b23a}
+.readable .dxInv :is(small){font-size:10.5px!important;font-weight:700!important;line-height:1.35!important}
+.readable .dxInv :is(.fxInvTable th,.dxInvScanSide label,.fxInvFields label,.fxInvFields legend,.fxCCKpis small,.fxCCHead small){font-size:9px!important}
+.readable .dxInv .fxCCHead small,.readable .dxInv .dxInvScanSide>small,.readable .dxInv .dxInvDropEmpty small,.readable .dxInv .fxInvTable td small,.readable .dxInv .dxInvNotice{font-size:10.5px!important;font-weight:600!important}
+.readable .dxInv :is(button){font-size:10.5px!important}
+.readable .dxInv .fxPill{font-size:9px!important}
+.readable .dxCC .dxCCStock small{font-size:8px!important}.readable .dxCC .dxCCStock span{font-size:9px!important;font-weight:600!important}
+@media (max-width:900px){.dxInvScanGrid{grid-template-columns:1fr}.dxInvForm .fxInvFields{grid-template-columns:1fr 1fr}}

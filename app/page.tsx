@@ -4,6 +4,7 @@ import { CyncroMap, type MapPin, type MapRoute } from "@/app/components/CyncroMa
 import { LuxCar } from "@/app/components/LuxCar";
 import { AutoInventoryDesk } from "@/app/components/AutoInventoryDesk";
 import { AutoLenderDirectory } from "@/app/components/AutoLenderDirectory";
+import { DispatchInventory, type StockSummary } from "@/app/components/DispatchInventory";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -7477,6 +7478,7 @@ type DispatchView =
   | "Analytics"
   | "AI Agents"
   | "Equipment"
+  | "Inventory"
   | "Team"
   | "Settings";
 
@@ -7544,7 +7546,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
   const [authenticated, setAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [role, setRole] = useState<DispatchRole>("Owner");
-  const [view, setView] = useHashView<DispatchView>("dispatch", "Dashboard", ["Dashboard", "Jobs", "Work Orders", "Payments", "GPS Map", "Analytics", "AI Agents", "Equipment", "Team", "Settings"]);
+  const [view, setView] = useHashView<DispatchView>("dispatch", "Dashboard", ["Dashboard", "Jobs", "Work Orders", "Payments", "GPS Map", "Analytics", "AI Agents", "Equipment", "Inventory", "Team", "Settings"]);
   const [notice, setNotice] = useState("");
   const [jobs, setJobs] = useState<DispatchJob[]>([]);
   const [customers, setCustomers] = useState<DispatchCustomer[]>([]);
@@ -7973,6 +7975,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
     { name: "Analytics", icon: "⌁" },
     { name: "AI Agents", icon: "✦" },
     { name: "Equipment", icon: "◇" },
+    { name: "Inventory", icon: "▦" },
     { name: "Team", icon: "◎" },
     { name: "Settings", icon: "⚙" },
   ];
@@ -8175,6 +8178,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           {view === "Analytics" && <DispatchAnalytics onFlash={flash} />}
           {view === "AI Agents" && <DispatchAgents onFlash={flash} />}
           {view === "Equipment" && <DispatchEquipment onFlash={flash} />}
+          {view === "Inventory" && <DispatchInventory onFlash={flash} />}
           {view === "Team" && (
             <DispatchTeam
               technicians={technicians}
@@ -8286,7 +8290,9 @@ function DispatchDashboard({
       <rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
     </svg>
   );
-  const dockItems: [string, DispatchView][] = [["▦", "Jobs"], ["≡", "Work Orders"], ["◎", "GPS Map"], ["$", "Payments"], ["↗", "Analytics"], ["◉", "Team"]];
+  const dockItems: [string, DispatchView][] = [["▦", "Jobs"], ["≡", "Work Orders"], ["◎", "GPS Map"], ["$", "Payments"], ["▤", "Inventory"], ["↗", "Analytics"], ["◉", "Team"]];
+  const [stock, setStock] = useState<StockSummary | null>(null);
+  useEffect(() => { void fetch("/api/dispatch/inventory").then((r) => r.json()).then((d: { summary?: StockSummary }) => setStock(d.summary || null)).catch(() => undefined); }, [jobs.length]);
   return (
     <>
       <div className="dxCC">
@@ -8350,6 +8356,11 @@ function DispatchDashboard({
               <b>{donePct}%</b><small>COMPLETE</small>
             </div>
           </div>
+          <button className="dxCCStock" onClick={() => onView("Inventory")} title="Open stock & inventory">
+            <div><small>STOCK ON HAND</small><b>{stock ? stock.count : "—"}</b><span>items tracked</span></div>
+            <div className={stock && stock.low ? "warn" : ""}><small>LOW</small><b>{stock ? stock.low : "—"}</b><span>need reorder</span></div>
+            <div><small>VALUE</small><b>{stock ? `$${Math.round(stock.valueCents / 100).toLocaleString()}` : "—"}</b><span>{stock?.lastScan ? `photo count ${new Date(stock.lastScan).toLocaleDateString([], { month: "short", day: "numeric" })}` : "photo count →"}</span></div>
+          </button>
         </aside>
       </div>
       <div className="dispatchDashboardGrid">
