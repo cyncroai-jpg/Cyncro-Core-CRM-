@@ -5,6 +5,7 @@ import { LuxCar } from "@/app/components/LuxCar";
 import { AutoInventoryDesk } from "@/app/components/AutoInventoryDesk";
 import { AutoLenderDirectory } from "@/app/components/AutoLenderDirectory";
 import { DispatchInventory, type StockSummary } from "@/app/components/DispatchInventory";
+import { DispatchWorkOrders } from "@/app/components/DispatchWorkOrders";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -8163,10 +8164,12 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           )}
           {view === "Work Orders" && (
             <DispatchWorkOrders
-              jobs={jobs}
               onFlash={flash}
-              onViewJob={(index) => {
-                setSelectedJob(index);
+              refreshKey={jobs.length}
+              onNew={() => setJobModalOpen(true)}
+              onViewJob={(jobId) => {
+                const index = jobs.findIndex((j) => j.id === jobId);
+                if (index >= 0) setSelectedJob(index);
                 setView("Jobs");
               }}
             />
@@ -8854,110 +8857,6 @@ function DispatchJobs({
           </div>
         )}
       </aside>
-    </div>
-  );
-}
-
-function DispatchWorkOrders({
-  jobs,
-  onFlash,
-  onViewJob,
-}: {
-  jobs: DispatchJob[];
-  onFlash: (message: string) => void;
-  onViewJob: (index: number) => void;
-}) {
-  const [status, setStatus] = useState("All");
-  return (
-    <div className="workOrdersWorkspace">
-      <div className="dispatchPageHead">
-        <div>
-          <span>FIELD DOCUMENT CONTROL</span>
-          <h1>Every job, documented and billable.</h1>
-          <p>
-            Scope, labor, photos, notes, approvals, signatures, and invoice
-            readiness in one record.
-          </p>
-        </div>
-        <button onClick={() => onFlash("Create a job from the Jobs tab — every job is its own work order")}>
-          ＋ Work order
-        </button>
-      </div>
-      <div className="workOrderMetrics">
-        {[
-          ["OPEN", String(jobs.filter((j) => !["COMPLETE", "INVOICED", "CANCELLED"].includes(j.status)).length), `${jobs.filter((j) => j.techId && !["COMPLETE", "INVOICED", "CANCELLED"].includes(j.status)).length} assigned`],
-          ["AWAITING INVOICE", String(jobs.filter((j) => j.status === "COMPLETE").length), money(jobs.filter((j) => j.status === "COMPLETE").reduce((s, j) => s + j.revenueCents, 0))],
-          ["INVOICED", String(jobs.filter((j) => j.status === "INVOICED").length), money(jobs.filter((j) => j.status === "INVOICED").reduce((s, j) => s + j.revenueCents, 0))],
-          ["TOTAL VALUE", money(jobs.reduce((s, j) => s + j.revenueCents, 0)), `${jobs.length} job(s)`],
-        ].map((metric) => (
-          <article className="dispatchPanel" key={metric[0]}>
-            <small>{metric[0]}</small>
-            <b>{metric[1]}</b>
-            <span>{metric[2]}</span>
-          </article>
-        ))}
-      </div>
-      <section className="dispatchPanel workOrderCommandTable">
-        <header>
-          <div>
-            <small>WORK ORDER COMMAND</small>
-            <h2>Operational records</h2>
-          </div>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            aria-label="Filter work orders"
-          >
-            <option>All</option>
-            <option>Open</option>
-            <option>Ready to invoice</option>
-            <option>Complete</option>
-          </select>
-        </header>
-        <div className="workOrderTableHead">
-          <span>WORK ORDER</span>
-          <span>DOCUMENTATION</span>
-          <span>LABOR</span>
-          <span>PAYMENT</span>
-          <span>READINESS</span>
-        </div>
-        {jobs.map((job, index) => {
-          const ready = index === 0 || job.status === "COMPLETE";
-          return (
-            <button onClick={() => onViewJob(index)} key={job.id}>
-              <span>
-                <b>
-                  {job.id} · {job.customer}
-                </b>
-                <small>
-                  {job.service}
-                  <br />
-                  {job.tech}
-                </small>
-              </span>
-              <span>
-                <b>{index === 0 ? "6/6 complete" : "3/6 complete"}</b>
-                <small>
-                  {index === 0
-                    ? "Notes · photos · signature"
-                    : "Missing photos or sign-off"}
-                </small>
-              </span>
-              <span>
-                <b>{index === 0 ? "1h 34m" : "Scheduled"}</b>
-                <small>{index === 0 ? "$420 labor" : job.time}</small>
-              </span>
-              <span>
-                <b>{ready ? "Invoice ready" : "Not billed"}</b>
-                <small>{job.revenue}</small>
-              </span>
-              <em className={ready ? "ready" : "attention"}>
-                {ready ? "READY" : "ACTION NEEDED"}
-              </em>
-            </button>
-          );
-        })}
-      </section>
     </div>
   );
 }

@@ -36,6 +36,25 @@ export async function GET(request: Request) {
       const invoice = await db.prepare("SELECT * FROM dispatch_invoices WHERE job_id=?").bind(id).first();
       return Response.json({ job, notes: notes.results, materials: materials.results, time: time.results, invoice });
     }
+    if (url.searchParams.get("summary") === "1") {
+      // Work-order readiness in one query: documentation, labor and billing per job.
+      const { results } = await db.prepare(`
+        SELECT j.*, c.name customer_name, c.phone customer_phone, t.name tech_name,
+          (SELECT COUNT(*) FROM dispatch_job_notes n WHERE n.job_id=j.id) AS notes_count,
+          (SELECT COUNT(*) FROM dispatch_job_materials m WHERE m.job_id=j.id) AS materials_count,
+          (SELECT COALESCE(SUM(m.quantity*m.unit_cost_cents),0) FROM dispatch_job_materials m WHERE m.job_id=j.id) AS materials_cents,
+          (SELECT COALESCE(SUM((julianday(COALESCE(e.clock_out_at, CURRENT_TIMESTAMP)) - julianday(e.clock_in_at))*1440),0) FROM dispatch_job_time_entries e WHERE e.job_id=j.id) AS labor_minutes,
+          (SELECT COUNT(*) FROM dispatch_job_time_entries e WHERE e.job_id=j.id AND e.clock_out_at IS NULL) AS open_clocks,
+          (SELECT i.status FROM dispatch_invoices i WHERE i.job_id=j.id ORDER BY i.created_at DESC LIMIT 1) AS invoice_status,
+          (SELECT i.amount_cents FROM dispatch_invoices i WHERE i.job_id=j.id ORDER BY i.created_at DESC LIMIT 1) AS invoice_cents,
+          (SELECT i.id FROM dispatch_invoices i WHERE i.job_id=j.id ORDER BY i.created_at DESC LIMIT 1) AS invoice_id
+        FROM dispatch_jobs j
+        LEFT JOIN dispatch_customers c ON c.id=j.customer_id
+        LEFT JOIN dispatch_technicians t ON t.id=j.assigned_tech_id
+        ORDER BY j.scheduled_at DESC LIMIT 300
+      `).all();
+      return Response.json({ jobs: results });
+    }
     const { results } = await db.prepare(`
       SELECT j.*, c.name customer_name, t.name tech_name
       FROM dispatch_jobs j
