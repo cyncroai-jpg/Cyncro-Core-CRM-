@@ -1395,7 +1395,7 @@ function FrontExperience({
       ],
       proof: "96%",
       proofLabel: "confirmation rate",
-      image: "/module-images/cyncro-calendar.webp",
+      image: "/module-images/cyncro-calendar-v2.webp",
       imageAlt:
         "Universal calendar command center with month, week, and capacity views",
       route: "book" as Tab,
@@ -1414,7 +1414,7 @@ function FrontExperience({
       ],
       proof: "360°",
       proofLabel: "customer context",
-      image: "/module-images/cyncro-crm.webp",
+      image: "/module-images/cyncro-crm-v2.webp",
       imageAlt:
         "Customer intelligence command center with pipeline and relationship signals",
       route: "messages" as Tab,
@@ -1504,7 +1504,7 @@ function FrontExperience({
       ],
       proof: "$2.8M",
       proofLabel: "tracked deal value",
-      image: "/module-images/cyncro-finance.webp",
+      image: "/module-images/cyncro-finance-v2.webp",
       imageAlt:
         "Automotive finance desk with deal analytics, inventory, and lender signals",
       route: "finance" as Tab,
@@ -1540,7 +1540,7 @@ function FrontExperience({
       ],
       proof: "100%",
       proofLabel: "case visibility",
-      image: "/module-images/cyncro-dispute.webp",
+      image: "/module-images/cyncro-dispute-v2.webp",
       imageAlt:
         "Secure dispute operations workspace with document and case workflows",
       route: "dispute" as Tab,
