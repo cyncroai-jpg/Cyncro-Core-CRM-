@@ -1,6 +1,6 @@
 "use client";
 import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
-import { CyncroMap, type MapPin } from "@/app/components/CyncroMap";
+import { CyncroMap, type MapPin, type MapRoute } from "@/app/components/CyncroMap";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -8140,7 +8140,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
       <main className="dispatchMain">
         <header className="dispatchTopbar">
           <div>
-            <small>THURSDAY, AUGUST 13</small>
+            <small>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</small>
             <b>{view === "Dashboard" ? `${role} Command Center` : view}</b>
           </div>
           <div>
@@ -8163,6 +8163,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           {view === "Dashboard" && (
             <DispatchDashboard
               jobs={jobs}
+              technicians={technicians}
               onView={setView}
               onFlash={flash}
               onMove={moveJob}
@@ -8241,6 +8242,7 @@ function money(cents: number) {
 }
 function DispatchDashboard({
   jobs,
+  technicians = [],
   onView,
   onFlash,
   onMove,
@@ -8248,6 +8250,7 @@ function DispatchDashboard({
   onReload,
 }: {
   jobs: DispatchJob[];
+  technicians?: DispatchTechnician[];
   onView: (view: DispatchView) => void;
   onFlash: (message: string) => void;
   onMove: (index: number, direction: number) => void;
@@ -8293,89 +8296,87 @@ function DispatchDashboard({
         else onFlash(d.reason || "Could not load demo data");
       });
   };
+  const placed = jobs.filter((j) => j.lat != null && j.lng != null);
+  const runRoute: MapRoute[] = placed.length > 1 ? [{ id: "run", points: placed.map((j) => [j.lat as number, j.lng as number] as [number, number]), tone: "red" }] : [];
+  const open = jobs.filter((j) => j.status !== "COMPLETE" && j.status !== "INVOICED" && j.status !== "CANCELLED");
+  const done = jobs.filter((j) => j.status === "COMPLETE" || j.status === "INVOICED");
+  const donePct = jobs.length ? Math.round((done.length / jobs.length) * 100) : 0;
+  const VehicleIcon = ({ kind }: { kind: number }) => (
+    <svg viewBox="0 0 64 32" className="dxVehicle" aria-hidden="true">
+      {kind % 2 === 0
+        ? <path d="M4 22 L8 12 Q10 7 16 7 L40 7 Q46 7 50 12 L58 18 L60 22 L60 25 L4 25 Z" />
+        : <path d="M4 22 L6 14 Q8 8 14 8 L26 8 L26 22 Z M28 8 L50 8 Q58 8 60 16 L60 25 L4 25 L4 22 Z" />}
+      <circle cx="16" cy="25" r="5" className="wheel" /><circle cx="48" cy="25" r="5" className="wheel" />
+      <rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
+    </svg>
+  );
+  const dockItems: [string, DispatchView][] = [["▦", "Jobs"], ["≡", "Work Orders"], ["◎", "GPS Map"], ["$", "Payments"], ["↗", "Analytics"], ["◉", "Team"]];
   return (
     <>
-      <div className="dispatchPageHead">
-        <div>
-          <span>LIVE FIELD INTELLIGENCE</span>
-          <h1>
-            {role === "Owner"
-              ? "Your field business, in motion."
-              : "Every crew. Every job. Right now."}
-          </h1>
-          <p>
-            Real-time jobs, crews, routes, revenue, and exceptions—one command
-            surface.
-          </p>
+      <div className="dxCC">
+        <div className="dxCCTop">
+          <div className="dxCCDate"><b>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</b><small>{role === "Owner" ? "Owner command center" : "Field command center"} · live field intelligence</small></div>
+          <div className="dxCCPills">
+            <span><small>BOOKED · 7D</small><b>{analytics ? money(analytics.bookedThisWeekCents) : "—"}</b></span>
+            <span><small>COLLECTED</small><b>{analytics ? money(analytics.collectedCents) : "—"}</b></span>
+            <span><small>OUTSTANDING</small><b>{analytics ? money(analytics.outstandingCents) : "—"}</b></span>
+            <span><small>OPEN JOBS</small><b>{open.length}</b></span>
+          </div>
+          {isEmpty ? <button className="dxCCPrimary" onClick={loadDemoData}>◈ Load demo data</button> : <button className="dxCCPrimary" onClick={generateBrief}>✦ Daily brief</button>}
         </div>
-        {isEmpty
-          ? <button onClick={loadDemoData}>◈ Load demo data</button>
-          : <button onClick={generateBrief}>✦ Generate daily brief</button>}
-      </div>
-      {isEmpty && <p className="disputeEmpty">This workspace is empty. "Load demo data" seeds real sample customers, technicians, and jobs across booked, in-progress, and invoiced-and-paid stages — genuine rows that flow through the same logic as anything you'd enter by hand.</p>}
-      <div className="dispatchMetrics">
-        {[
-          ["BOOKED THIS WEEK", analytics ? money(analytics.bookedThisWeekCents) : "—", "Last 7 days"],
-          ["COLLECTED", analytics ? money(analytics.collectedCents) : "—", "Last 7 days"],
-          ["OUTSTANDING", analytics ? money(analytics.outstandingCents) : "—", analytics ? `${analytics.outstandingCount} invoices` : ""],
-          ["JOBS COMPLETED", analytics ? String(analytics.jobsCompletedThisWeek) : "—", "Last 7 days"],
-        ].map((item) => (
-          <article key={item[0]}>
-            <small>{item[0]}</small>
-            <b>{item[1]}</b>
-            <span>{item[2]}</span>
-          </article>
-        ))}
+        <section className="dxCCMap">
+          <CyncroMap pins={dispatchPins(jobs)} routes={runRoute} radar className="dxCCLeaflet" emptyText="Jobs appear here once they have an address we can place on the map." />
+          <div className="dxCCRun">
+            <small>TODAY&apos;S RUN · {placed.length > 1 ? "ROUTE DRAWN" : "MANUAL ORDER"}</small>
+            {jobs.slice(0, 3).map((job, index) => (
+              <div key={job.id}>
+                <i className={job.color}>{index + 1}</i>
+                <span><b>{job.time} · {job.customer}</b><small>{job.service}</small></span>
+                <em>{job.eta}</em>
+                <span className="dxCCArrows"><button onClick={() => onMove(index, -1)} aria-label="Move up">↑</button><button onClick={() => onMove(index, 1)} aria-label="Move down">↓</button></span>
+              </div>
+            ))}
+            {!jobs.length && <p>No jobs yet.</p>}
+          </div>
+          <div className="dxCCLegend"><span><i className="red" />In progress</span><span><i className="amber" />Assigned</span><span><i className="green" />Booked</span><b>{placed.length} of {jobs.length} placed · tech GPS not connected</b></div>
+          <nav className="dxCCDock">
+            {dockItems.map(([ic, v]) => <button key={v} onClick={() => onView(v)} title={v}><i>{ic}</i><small>{v}</small></button>)}
+          </nav>
+        </section>
+        <aside className="dxCCSide">
+          <div className="dxCCTechs">
+            {technicians.slice(0, 3).map((t, i) => {
+              const mine = jobs.filter((j) => j.techId === t.id);
+              const maxRev = Math.max(1, ...mine.map((j) => j.revenueCents));
+              const prod = (analytics?.techProductivity || []).find((p) => p.id === t.id);
+              return (
+                <article key={t.id} className={i === 0 ? "lead" : ""}>
+                  <VehicleIcon kind={i} />
+                  <div className="dxCCTechBody">
+                    <b>{t.name}</b><small>{t.role} · {t.active_jobs} active{prod?.revenuePerHourCents ? ` · ${money(prod.revenuePerHourCents)}/hr` : ""}</small>
+                    <div className="dxCCDots">{mine.slice(0, 6).map((j) => <i key={j.id} className={j.color} title={`${j.customer} · ${j.status}`} />)}{!mine.length && <em>no jobs assigned</em>}</div>
+                  </div>
+                  <div className="dxCCWave">{(mine.length ? mine : []).slice(0, 12).map((j) => <i key={j.id} style={{ height: `${Math.max(12, Math.round((j.revenueCents / maxRev) * 100))}%` }} />)}{!mine.length && Array.from({ length: 8 }, (_, k) => <i key={k} className="dim" />)}</div>
+                  <span className={`dxCCStatus ${mine.some((j) => j.status === "IN PROGRESS") ? "red" : mine.length ? "amber" : ""}`} />
+                </article>
+              );
+            })}
+            {!technicians.length && <article className="empty"><b>No technicians yet</b><small>Add your crew under Team and assign jobs to see them here.</small></article>}
+          </div>
+          <div className="dxCCTelemetry">
+            <div className="dxCCRadar" title="Jobs placed on the map"><i /><i /><i /><b>{placed.length}</b><small>ON MAP</small></div>
+            <div className="dxCCPulse" title="Revenue per job">
+              <div>{jobs.slice(0, 14).map((j) => <i key={j.id} style={{ height: `${Math.max(10, Math.round((j.revenueCents / Math.max(1, ...jobs.map((x) => x.revenueCents))) * 100))}%` }} />)}{!jobs.length && Array.from({ length: 10 }, (_, k) => <i key={k} className="dim" />)}</div>
+              <b>{analytics ? money(analytics.bookedThisWeekCents) : "—"}</b><small>BOOKED · 7D</small>
+            </div>
+            <div className="dxCCGauge" title="Jobs completed">
+              <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="32" className="track" /><circle cx="40" cy="40" r="32" className="fill" style={{ strokeDasharray: `${Math.round((donePct / 100) * 201)} 201` }} /></svg>
+              <b>{donePct}%</b><small>COMPLETE</small>
+            </div>
+          </div>
+        </aside>
       </div>
       <div className="dispatchDashboardGrid">
-        <section className="liveOpsMap dispatchPanel">
-          <header>
-            <div>
-              <small>LIVE JOB MAP</small>
-              <h2>{jobs.filter((j) => j.techId).length} assigned · {jobs.length} jobs</h2>
-            </div>
-            <button onClick={() => onView("GPS Map")}>Full map →</button>
-          </header>
-          <CyncroMap pins={dispatchPins(jobs)} radar emptyText="Jobs appear here once they have an address we can place on the map." />
-          <footer>
-            <span><i className="moving" /> In progress</span>
-            <span><i className="onsite" /> Assigned</span>
-            <span><i className="available" /> Booked</span>
-            <b>{jobs.filter((j) => j.lat != null).length} of {jobs.length} placed · tech GPS not connected</b>
-          </footer>
-        </section>
-        <section className="routeCommand dispatchPanel">
-          <header>
-            <div>
-              <small>JOB ORDER · MANUAL</small>
-              <h2>Today's run · {Math.min(jobs.length, 3)} jobs</h2>
-            </div>
-          </header>
-          <div className="routeList">
-            {jobs.slice(0, 3).map((job, index) => (
-              <article key={job.id}>
-                <span>{index + 1}</span>
-                <div>
-                  <b>
-                    {job.time} · {job.customer}
-                  </b>
-                  <small>{job.service}</small>
-                </div>
-                <em>{job.eta}</em>
-                <div>
-                  <button onClick={() => onMove(index, -1)}>↑</button>
-                  <button onClick={() => onMove(index, 1)}>↓</button>
-                </div>
-              </article>
-            ))}
-          </div>
-          <button
-            className="optimizeRoute"
-            onClick={() => onFlash("Automatic route optimization needs a maps/routing integration — reorder manually with ↑↓ for now")}
-          >
-            ✦ Optimize route now
-          </button>
-        </section>
         <section className="todayDispatch dispatchPanel">
           <header>
             <div>
@@ -9141,7 +9142,7 @@ function DispatchMap({
             <h1>Field visibility</h1>
           </div>
         </header>
-        <CyncroMap pins={dispatchPins(jobs)} radar className="fullDispatchLeaflet" emptyText="No jobs with map coordinates yet — new jobs are placed automatically from their address." />
+        <CyncroMap pins={dispatchPins(jobs)} routes={(() => { const p = jobs.filter((j) => j.lat != null && j.lng != null); return p.length > 1 ? [{ id: "run", points: p.map((j) => [j.lat as number, j.lng as number] as [number, number]), tone: "red" as const }] : []; })()} radar className="fullDispatchLeaflet" emptyText="No jobs with map coordinates yet — new jobs are placed automatically from their address." />
         <footer className="ccMapFoot">
           <span><i /> In progress</span>
           <span><i className="amber" /> Assigned</span>
@@ -18545,65 +18546,182 @@ type CalendarAnalytics = {
   upcomingList: { customer_name: string; starts_at: string; status: string; event_name: string; color: string; assigned_to: string | null }[];
 };
 
-function CalendarCommandStrip({ onCreate }: { onCreate?: () => void }) {
+type CCBooking = { id: string; customer_name: string; customer_email?: string; starts_at: string; ends_at: string; event_name: string; event_type_id: string; status: string; assigned_to?: string | null; location_mode?: string; color?: string | null };
+type CCEventType = { id: string; name: string; slug: string; duration_minutes: number; capacity?: number; color?: string | null; active?: number };
+
+function CalendarCommandStrip({ onCreate, onPickDate, onOpenBooking }: { onCreate?: () => void; onPickDate?: (isoDate: string) => void; onOpenBooking?: (bookingId: string, startsAt: string) => void }) {
   const [analytics, setAnalytics] = useState<CalendarAnalytics | null>(null);
+  const [bookings, setBookings] = useState<CCBooking[]>([]);
+  const [eventTypes, setEventTypes] = useState<CCEventType[]>([]);
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [now, setNow] = useState(() => new Date());
+  const [copied, setCopied] = useState("");
   useEffect(() => {
-    const load = () => void fetch("/api/calendar/analytics").then((r) => (r.ok ? r.json() : null)).then((d: CalendarAnalytics | null) => setAnalytics(d));
+    const tick = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(tick);
+  }, []);
+  useEffect(() => {
+    const load = () => {
+      void fetch("/api/calendar/analytics").then((r) => (r.ok ? r.json() : null)).then((d: CalendarAnalytics | null) => setAnalytics(d));
+      const from = new Date(month.getFullYear(), month.getMonth(), 1); from.setDate(from.getDate() - 7);
+      const to = new Date(month.getFullYear(), month.getMonth() + 1, 1); to.setDate(to.getDate() + 14);
+      void fetch(`/api/calendar/bookings?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`).then((r) => (r.ok ? r.json() : null)).then((d: { bookings?: CCBooking[] } | null) => setBookings(d?.bookings || []));
+      void fetch("/api/calendar/event-types").then((r) => (r.ok ? r.json() : null)).then((d: { eventTypes?: CCEventType[] } | null) => setEventTypes((d?.eventTypes || []).filter((e) => e.active !== 0)));
+    };
     load();
     window.addEventListener("cyncro:data-changed", load);
     return () => window.removeEventListener("cyncro:data-changed", load);
-  }, []);
+  }, [month]);
+
   const usd = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
-  const maxType = Math.max(1, ...(analytics?.byEventType || []).map((t) => Number(t.count)));
+  const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const live = bookings.filter((b) => b.status !== "CANCELLED");
+  const typeColor = (b: CCBooking) => b.color || eventTypes.find((e) => e.id === b.event_type_id)?.color || "#e02e4c";
+  const initials = (name: string) => name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  const perDay = new Map<string, number>();
+  for (const b of live) { const k = dayKey(new Date(b.starts_at)); perDay.set(k, (perDay.get(k) || 0) + 1); }
+
+  // Month grid
+  const firstWeekday = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const todayKey = dayKey(now);
+  const cells: (Date | null)[] = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => new Date(month.getFullYear(), month.getMonth(), i + 1))];
+  while (cells.length % 7) cells.push(null);
+
+  // 7-day timeline, 7am–7pm
+  const HOUR0 = 7, HOURS = 12;
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d; });
+  const weekBookings = live.filter((b) => { const t = new Date(b.starts_at).getTime(); return t >= days[0].getTime() && t < days[6].getTime() + 86_400_000; });
+  const todays = weekBookings.filter((b) => dayKey(new Date(b.starts_at)) === todayKey).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const upcoming = (todays.length ? todays : weekBookings.slice().sort((a, b) => a.starts_at.localeCompare(b.starts_at))).slice(0, 6);
+  const nowPct = Math.min(100, Math.max(0, ((now.getHours() + now.getMinutes() / 60 - HOUR0) / HOURS) * 100));
+
+  // Routing graph: event types → hosts
+  const hostCounts = new Map<string, number>();
+  for (const b of weekBookings) { const h = b.assigned_to || "Unassigned"; hostCounts.set(h, (hostCounts.get(h) || 0) + 1); }
+  const hosts = [...hostCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const typeCounts = new Map<string, number>();
+  for (const b of weekBookings) typeCounts.set(b.event_name, (typeCounts.get(b.event_name) || 0) + 1);
+  const topTypes = [...typeCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const showRate = analytics?.thisMonth.showRate ?? 0;
+  const bookingUrl = (slug: string) => `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(slug)}#book`;
+  const copyLink = (e: CCEventType) => { void navigator.clipboard.writeText(bookingUrl(e.slug)); setCopied(e.id); window.setTimeout(() => setCopied(""), 1600); };
+
   return (
-    <div className="ccShell" style={{ marginBottom: 16 }}>
-      <div className="ccTop">
-        <div>
-          <label>CYNCRO UNIVERSAL CALENDAR</label>
-          <h1>Turn open availability into booked, paid revenue.</h1>
-          <p>SmartSlot™ ranking, Outcome Routing™, capacity, deposits, waitlists — every appointment on one connected calendar.</p>
+    <div className="calCC">
+      <aside className="calCCPanel calCCLeft">
+        <header className="calCCHead">
+          <div><b>{month.toLocaleString([], { month: "long", year: "numeric" })}</b><small>Universal calendar</small></div>
+          <div className="calCCNav">
+            <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Previous month">‹</button>
+            <button onClick={() => setMonth(new Date(now.getFullYear(), now.getMonth(), 1))}>Today</button>
+            <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Next month">›</button>
+          </div>
+        </header>
+        <div className="calCCMonth">
+          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <b key={i}>{d}</b>)}
+          {cells.map((d, i) => {
+            if (!d) return <span key={i} className="blank" />;
+            const k = dayKey(d); const n = perDay.get(k) || 0;
+            return (
+              <button key={i} className={`${k === todayKey ? "today" : ""} ${n ? "has" : ""}`} onClick={() => onPickDate?.(k)} title={n ? `${n} booking${n === 1 ? "" : "s"}` : undefined}>
+                {d.getDate()}{n > 0 && <i>{n > 3 ? "3+" : n}</i>}
+              </button>
+            );
+          })}
         </div>
-        <div className="ccTopActions">
-          <button className="primary" onClick={() => (onCreate ? onCreate() : document.getElementById("calendar-event-settings")?.scrollIntoView({ behavior: "smooth" }))}>✦ NEW EVENT TYPE</button>
+        <div className="calCCSub"><b>{todays.length ? `Today · ${todays.length} booked` : "Up next"}</b><em>LIVE</em></div>
+        <div className="calCCList">
+          {upcoming.map((b, i) => (
+            <button key={b.id} className={i === 0 ? "sel" : ""} onClick={() => onOpenBooking?.(b.id, b.starts_at)}>
+              <span className="av" style={{ borderColor: typeColor(b) }}>{initials(b.customer_name)}</span>
+              <span className="grow"><b>{b.event_name} · {b.customer_name}</b><small>{new Date(b.starts_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}{b.assigned_to ? ` · ${b.assigned_to}` : ""}{b.location_mode ? ` · ${b.location_mode.replace("_", " ").toLowerCase()}` : ""}</small></span>
+              <span className={`pill ${b.status === "CONFIRMED" ? "red" : b.status === "COMPLETED" ? "green" : ""}`}>{b.status.toLowerCase()}</span>
+            </button>
+          ))}
+          {!upcoming.length && <div className="calCCEmpty">Nothing booked in the next 7 days. Share a booking link to fill the week.</div>}
         </div>
-      </div>
-      <div className="ccKpis">
-        <article><small>BOOKED THIS MONTH</small><b>{analytics ? analytics.thisMonth.total : "—"}</b><span>{analytics ? `${analytics.thisMonth.completed} completed` : ""}</span></article>
-        <article><small>SHOW RATE</small><b>{analytics ? `${analytics.thisMonth.showRate}%` : "—"}</b><span>{analytics ? `${analytics.thisMonth.noShows} no-shows` : ""}</span></article>
-        <article><small>NEXT 7 DAYS</small><b>{analytics ? analytics.next7Days : "—"}</b><span>{analytics ? `${analytics.thisWeek} this week` : ""}</span></article>
-        <article><small>REVENUE THIS MONTH</small><b>{analytics ? usd(analytics.thisMonth.revenueCents) : "—"}</b><span>priced event types</span></article>
-        <article><small>ALL-TIME BOOKINGS</small><b>{analytics ? analytics.allTime.total : "—"}</b><span>{analytics ? `${analytics.allTime.cancelled} cancelled` : ""}</span></article>
-      </div>
-      <div className="ccGrid2">
-        <section className="ccPanel">
-          <header><div><small>UP NEXT</small><b>Next 7 days</b></div><em>LIVE</em></header>
-          <div className="ccScroll">
-            <div className="ccFeed">
-              {(analytics?.upcomingList || []).map((b, i) => (
-                <div key={`${b.starts_at}-${i}`}>
-                  <i style={{ background: b.color || undefined, boxShadow: b.color ? `0 0 8px ${b.color}` : undefined }} />
-                  <span><b>{b.customer_name}</b><small style={{ display: "block" }}>{b.event_name}{b.assigned_to ? ` · ${b.assigned_to}` : ""} · {b.status}</small></span>
-                  <small>{new Date(b.starts_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</small>
+      </aside>
+
+      <section className="calCCPanel calCCHero">
+        <header className="calCCHead">
+          <div><b>SmartSlot™ engine</b><small>Next 7 days · every booking placed on one timeline</small></div>
+          <div className="calCCTabs"><span className="on">Week</span><span onClick={() => onPickDate?.(todayKey)}>Open calendar</span></div>
+        </header>
+        <div className="calCCWeek" style={{ ["--hours" as string]: HOURS }}>
+          <div className="calCCHours">{Array.from({ length: HOURS + 1 }, (_, i) => <span key={i}>{((HOUR0 + i + 11) % 12) + 1}{HOUR0 + i < 12 ? "am" : "pm"}</span>)}</div>
+          {days.map((d) => {
+            const k = dayKey(d); const isToday = k === todayKey;
+            const items = weekBookings.filter((b) => dayKey(new Date(b.starts_at)) === k);
+            return (
+              <div key={k} className={`calCCDay ${isToday ? "today" : ""}`} onClick={() => onPickDate?.(k)}>
+                <b>{d.toLocaleDateString([], { weekday: "short" })} <span>{d.getDate()}</span></b>
+                <div className="calCCCol">
+                  {isToday && nowPct > 0 && nowPct < 100 && <i className="now" style={{ top: `${nowPct}%` }}><em>NOW {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</em></i>}
+                  {items.map((b) => {
+                    const s = new Date(b.starts_at), e = new Date(b.ends_at);
+                    const top = Math.max(0, ((s.getHours() + s.getMinutes() / 60 - HOUR0) / HOURS) * 100);
+                    const h = Math.max(3.5, ((e.getTime() - s.getTime()) / 3_600_000 / HOURS) * 100);
+                    if (top >= 100) return null;
+                    return (
+                      <button key={b.id} className={`calCCBlock ${b.status === "CONFIRMED" ? "hot" : ""}`} style={{ top: `${top}%`, height: `${Math.min(h, 100 - top)}%`, ["--c" as string]: typeColor(b) }} onClick={(ev) => { ev.stopPropagation(); onOpenBooking?.(b.id, b.starts_at); }} title={`${b.customer_name} · ${b.event_name}`}>
+                        <b>{b.customer_name}</b><small>{s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
-              {analytics && !analytics.upcomingList.length && <div className="ccEmpty">Nothing booked in the next 7 days.</div>}
-            </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="calCCRouting">
+          <div className="calCCRouteCol">
+            <small>EVENT TYPES</small>
+            {(topTypes.length ? topTypes : eventTypes.slice(0, 3).map((e) => [e.name, 0] as [string, number])).map(([n, c]) => <span key={n}><i /><b>{n}</b><em>{c}</em></span>)}
+            {!topTypes.length && !eventTypes.length && <span className="dim"><i /><b>No event types yet</b></span>}
           </div>
-        </section>
-        <section className="ccPanel">
-          <header><div><small>BY EVENT TYPE</small><b>This month</b></div></header>
-          <div className="ccScroll">
-            <div className="ccRank">
-              {(analytics?.byEventType || []).map((t) => (
-                <button key={t.event_name} style={{ gridTemplateColumns: "1fr auto", cursor: "default" }}>
-                  <span><b>{t.event_name}</b><div className="ccBars" style={{ height: 8, paddingTop: 6 }}><i style={{ width: `${Math.round((Number(t.count) / maxType) * 100)}%`, flex: "none", height: 4, background: t.color || undefined }} /></div></span>
-                  <span style={{ color: "#fff", fontWeight: 600 }}>{t.count}</span>
-                </button>
-              ))}
-              {analytics && !analytics.byEventType.length && <div className="ccEmpty">No bookings this month yet.</div>}
-            </div>
+          <svg className="calCCRouteLines" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
+            {[0, 1, 2].map((i) => <path key={`l${i}`} d={`M0 ${20 + i * 40} C70 ${20 + i * 40} 70 60 100 60`} />)}
+            {[0, 1, 2].map((i) => <path key={`r${i}`} d={`M100 60 C130 60 130 ${20 + i * 40} 200 ${20 + i * 40}`} />)}
+            <circle cx="100" cy="60" r="9" className="core" />
+          </svg>
+          <div className="calCCRouteCore"><b>SMARTSLOT</b><small>ranked · routed · conflict-checked</small></div>
+          <div className="calCCRouteCol right">
+            <small>HOSTS</small>
+            {(hosts.length ? hosts : [["Unassigned", 0] as [string, number]]).map(([n, c]) => <span key={n}><em>{c}</em><b>{n}</b><i /></span>)}
           </div>
-        </section>
+        </div>
+      </section>
+
+      <aside className="calCCPanel calCCRight">
+        <header className="calCCHead"><div><b>Booking pages</b><small>Share links · deposits apply</small></div><button className="calCCPrimary" onClick={() => onCreate?.()}>✦ New</button></header>
+        <div className="calCCLinks">
+          {eventTypes.slice(0, 4).map((e) => (
+            <button key={e.id} onClick={() => copyLink(e)} style={{ ["--c" as string]: e.color || "#e02e4c" }}>
+              <i /><span><b>{e.name}</b><small>{e.duration_minutes} min{e.capacity && e.capacity > 1 ? ` · ${e.capacity} seats` : ""}</small></span><em>{copied === e.id ? "Copied ✓" : "Copy link"}</em>
+            </button>
+          ))}
+          {!eventTypes.length && <div className="calCCEmpty">Create an event type to get your first booking link.</div>}
+        </div>
+        <div className="calCCGauges">
+          <div className="calCCGauge">
+            <svg viewBox="0 0 120 70"><path d="M10 65 A50 50 0 0 1 110 65" className="track" /><path d="M10 65 A50 50 0 0 1 110 65" className="fill" style={{ strokeDasharray: `${Math.round((showRate / 100) * 157)} 157` }} /></svg>
+            <b>{analytics ? `${showRate}%` : "—"}</b><small>SHOW RATE</small>
+          </div>
+          <div className="calCCStat"><small>REVENUE · MONTH</small><b>{analytics ? usd(analytics.thisMonth.revenueCents) : "—"}</b><span>priced event types</span></div>
+          <div className="calCCStat"><small>NO-SHOWS</small><b>{analytics ? analytics.thisMonth.noShows : "—"}</b><span>{analytics ? `${analytics.thisMonth.cancelled} cancelled` : ""}</span></div>
+        </div>
+        <div className="calCCConfirm"><i>✓</i><span><b>Conflict protection on</b><small>Capacity, buffers and holds are checked on every booking.</small></span></div>
+      </aside>
+
+      <div className="calCCKpis">
+        {[
+          ["◷", "BOOKED THIS MONTH", analytics ? String(analytics.thisMonth.total) : "—", analytics ? `${analytics.thisMonth.completed} completed` : ""],
+          ["✓", "SHOW RATE", analytics ? `${showRate}%` : "—", analytics ? `${analytics.thisMonth.noShows} no-shows` : ""],
+          ["≡", "NEXT 7 DAYS", analytics ? String(analytics.next7Days) : "—", analytics ? `${analytics.thisWeek} this week` : ""],
+          ["$", "REVENUE THIS MONTH", analytics ? usd(analytics.thisMonth.revenueCents) : "—", "priced event types"],
+          ["∞", "ALL-TIME BOOKINGS", analytics ? String(analytics.allTime.total) : "—", analytics ? `${analytics.allTime.cancelled} cancelled` : ""],
+        ].map(([ic, l, v, s]) => <article key={l}><i>{ic}</i><div><small>{l}</small><b>{v}</b><span>{s}</span></div></article>)}
       </div>
     </div>
   );
@@ -19532,7 +19650,7 @@ function Admin({
   };
   return (
     <section className="admin">
-      <CalendarCommandStrip onCreate={onCreate} />
+      <CalendarCommandStrip onCreate={onCreate} onPickDate={(d) => { setFocusDate(d); setCalendarView("WEEK"); }} onOpenBooking={(id, startsAt) => { const b = rows.find((r) => r.id === id); if (b) setSelectedBooking(b); else { setFocusDate(startsAt.slice(0, 10)); setCalendarView("WEEK"); } }} />
       <div className="calendarCommandBar">
         <div>
           {(["LIST", "WEEK", "MONTH", "SLOTS", "REVENUE", "TEAM", "WAITLIST", "RESOURCES", "WEBHOOKS", "EXPERIMENTS"] as const).map((item) => (

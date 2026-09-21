@@ -13,8 +13,18 @@ export type MapPin = {
   tone?: "red" | "amber" | "green" | "blue" | "grey";
 };
 
+export type MapRoute = {
+  id: string;
+  points: [number, number][];
+  tone?: "red" | "amber" | "green" | "blue" | "grey";
+  dashed?: boolean;
+};
+
+const TONE_HEX: Record<NonNullable<MapPin["tone"]>, string> = { red: "#ff2f4f", amber: "#f0a52a", green: "#38d58a", blue: "#4b8ef5", grey: "#8d7f83" };
+
 export function CyncroMap({
   pins,
+  routes = [],
   selectedId,
   onSelect,
   radar = false,
@@ -22,6 +32,8 @@ export function CyncroMap({
   className = "",
 }: {
   pins: MapPin[];
+  /** Glowing polylines drawn under the pins, e.g. today's run in stop order. */
+  routes?: MapRoute[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   radar?: boolean;
@@ -31,6 +43,7 @@ export function CyncroMap({
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
+  const routeLayerRef = useRef<LayerGroup | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
@@ -50,6 +63,7 @@ export function CyncroMap({
         subdomains: "abcd",
         maxZoom: 19,
       }).addTo(map);
+      routeLayerRef.current = L.layerGroup().addTo(map);
       layerRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
       window.setTimeout(() => map.invalidateSize(), 50);
@@ -59,8 +73,29 @@ export function CyncroMap({
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
+      routeLayerRef.current = null;
     };
   }, []);
+
+  const routeKey = routes.map((r) => `${r.id}:${r.tone || ""}:${r.dashed ? "d" : "s"}:${r.points.map((p) => `${p[0].toFixed(4)},${p[1].toFixed(4)}`).join(";")}`).join("|");
+  useEffect(() => {
+    let cancelled = false;
+    void import("leaflet").then((L) => {
+      const layer = routeLayerRef.current;
+      if (cancelled || !layer) return;
+      layer.clearLayers();
+      for (const route of routes) {
+        if (route.points.length < 2) continue;
+        const color = TONE_HEX[route.tone || "red"];
+        // Wide translucent stroke underneath gives the neon bloom; thin bright stroke on top is the line.
+        L.polyline(route.points, { color, weight: 12, opacity: 0.18, lineCap: "round", lineJoin: "round", interactive: false }).addTo(layer);
+        L.polyline(route.points, { color, weight: 5, opacity: 0.35, lineCap: "round", lineJoin: "round", interactive: false }).addTo(layer);
+        L.polyline(route.points, { color, weight: 2.5, opacity: 1, dashArray: route.dashed ? "6 8" : undefined, lineCap: "round", lineJoin: "round", interactive: false, className: route.dashed ? "cyncroRouteDashed" : "cyncroRoute" }).addTo(layer);
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
 
   const pinKey = pins.map((p) => `${p.id}:${p.lat.toFixed(4)},${p.lng.toFixed(4)}:${p.tone || ""}:${p.badge ?? ""}`).join("|");
   const boundsKey = pins.map((p) => p.id).join("|");
@@ -96,12 +131,13 @@ export function CyncroMap({
   useEffect(() => {
     void import("leaflet").then((L) => {
       const map = mapRef.current;
-      if (!map || !pins.length) return;
-      const bounds = L.latLngBounds(pins.map((p) => [p.lat, p.lng] as [number, number]));
+      const all: [number, number][] = [...pins.map((p) => [p.lat, p.lng] as [number, number]), ...routes.flatMap((r) => r.points)];
+      if (!map || !all.length) return;
+      const bounds = L.latLngBounds(all);
       map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13 });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundsKey]);
+  }, [boundsKey, routeKey]);
 
   useEffect(() => {
     const map = mapRef.current, target = container.current;
