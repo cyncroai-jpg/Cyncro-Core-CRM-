@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
           eventName: String(entry.event_name || "appointment"),
           bookingUrl: null, // Booking URL would be the public event type link; left for admin to customise
         });
-        void sendEmail({ to: String(entry.customer_email), subject, html });
+        void sendEmail({ to: String(entry.customer_email), subject, html, tenantId: String(entry.tenant_id || "") || undefined });
       } catch { /* non-fatal */ }
     }
 
@@ -145,7 +145,7 @@ export async function PATCH(request: Request) {
           assignedTo,
           notes: String(entry.notes || "") || null,
         });
-        void sendEmail({ to: String(entry.customer_email), subject, html });
+        void sendEmail({ to: String(entry.customer_email), subject, html, tenantId: String(entry.tenant_id || "") || undefined });
       } catch { /* non-fatal */ }
     }
 

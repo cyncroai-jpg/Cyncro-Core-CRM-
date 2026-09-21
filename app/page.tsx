@@ -17619,6 +17619,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
   };
   const [members, setMembers] = useState<Member[]>([]);
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const [emailTransport, setEmailTransport] = useState<{ transport: "resend" | "gmail" | "none"; from: string } | null>(null);
   const [allowed, setAllowed] = useState(false);
   const [editingEmail, setEditingEmail] = useState("");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -17641,6 +17642,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
       members?: Member[];
       member?: Member;
       error?: string;
+      emailTransport?: { transport: "resend" | "gmail" | "none"; from: string };
     };
     if (!response.ok) {
       onFlash(data.error || "Permissions could not be loaded");
@@ -17648,6 +17650,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     }
     setAllowed(Boolean(data.member?.manage_users));
     setCurrentMember(data.member || null);
+    setEmailTransport(data.emailTransport || null);
     setMembers(data.members?.length ? data.members : data.member ? [data.member] : []);
   };
   useEffect(() => {
@@ -17730,6 +17733,11 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
             <span>{currentMember.role} · CRM · Calendar · Prospecting · User management</span>
           </div>
         )}
+        <div className="secureAccessNote emailTransportNote"><span>EMAIL SENDING</span><div>
+          {emailTransport?.transport === "gmail" && <><b>Live · sends from {emailTransport.from}</b><p>Invites, booking confirmations and reminders go out through the connected Google account.</p></>}
+          {emailTransport?.transport === "resend" && <><b>Live · sends from {emailTransport.from}</b><p>Delivered through Resend.</p></>}
+          {(!emailTransport || emailTransport.transport === "none") && <><b>Not connected</b><p>Click "Connect my Google" on your own row below and allow "Send email on your behalf". Cyncro then sends invites, booking confirmations and reminders from that Gmail account. Until then, copy invite links and send them yourself.</p></>}
+        </div>{(!emailTransport || emailTransport.transport === "none") && <button onClick={() => { window.location.href = "/api/integrations/google-calendar/connect"; }}>Connect my Google</button>}</div>
         <div className="secureAccessNote"><span>SECURE TEAM SIGN-IN</span><div><b>Invite by verified email</b><p>Add the exact email each teammate will use. They sign in privately, and Cyncro applies the permissions you choose below. Passwords are never visible to the owner or stored in readable form.</p></div><button onClick={()=>onFlash("Add the teammate, then send them the Cyncro sign-in link")}>Access steps</button></div>
         <div className="crmForm">
           <label>

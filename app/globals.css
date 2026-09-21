@@ -24205,3 +24205,4 @@ button.crmUser i {
 @media (max-width:900px){.ccGrid2{grid-template-columns:1fr}.ccMapStats{display:none}}
 
 .teamAccess .fieldNote{display:block;margin-top:6px;font-size:11px;color:#8f858b;line-height:1.4}
+.teamAccess .emailTransportNote{margin-bottom:12px}

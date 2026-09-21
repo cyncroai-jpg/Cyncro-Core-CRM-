@@ -33,7 +33,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
   const { results: results24h } = await db.prepare(`
     SELECT b.id, b.customer_name, b.customer_email, b.starts_at, b.timezone,
            b.location_mode, b.video_platform, b.meeting_address, b.assigned_to,
-           e.name AS event_name
+           e.name AS event_name, b.tenant_id
     FROM calendar_bookings b
     JOIN calendar_event_types e ON e.id = b.event_type_id
     WHERE b.status IN ('CONFIRMED','RESCHEDULED')
@@ -44,7 +44,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
     id: string; customer_name: string; customer_email: string;
     starts_at: string; timezone: string; location_mode: string;
     video_platform: string | null; meeting_address: string | null;
-    assigned_to: string; event_name: string;
+    assigned_to: string; event_name: string; tenant_id: string | null;
   }>();
 
   for (const booking of results24h) {
@@ -60,7 +60,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
         assignedTo: booking.assigned_to,
         hoursUntil: 24,
       });
-      const ok = await sendEmail({ to: booking.customer_email, subject, html });
+      const ok = await sendEmail({ to: booking.customer_email, subject, html, tenantId: booking.tenant_id || undefined });
       if (ok) {
         await db.prepare("UPDATE calendar_bookings SET reminder_24h_sent=1 WHERE id=?").bind(booking.id).run();
         sent24h++;
@@ -78,7 +78,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
   const { results: results1h } = await db.prepare(`
     SELECT b.id, b.customer_name, b.customer_email, b.starts_at, b.timezone,
            b.location_mode, b.video_platform, b.meeting_address, b.assigned_to,
-           e.name AS event_name
+           e.name AS event_name, b.tenant_id
     FROM calendar_bookings b
     JOIN calendar_event_types e ON e.id = b.event_type_id
     WHERE b.status IN ('CONFIRMED','RESCHEDULED')
@@ -89,7 +89,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
     id: string; customer_name: string; customer_email: string;
     starts_at: string; timezone: string; location_mode: string;
     video_platform: string | null; meeting_address: string | null;
-    assigned_to: string; event_name: string;
+    assigned_to: string; event_name: string; tenant_id: string | null;
   }>();
 
   for (const booking of results1h) {
@@ -105,7 +105,7 @@ async function runReminders(): Promise<{ sent24h: number; sent1h: number; errors
         assignedTo: booking.assigned_to,
         hoursUntil: 1,
       });
-      const ok = await sendEmail({ to: booking.customer_email, subject, html });
+      const ok = await sendEmail({ to: booking.customer_email, subject, html, tenantId: booking.tenant_id || undefined });
       if (ok) {
         await db.prepare("UPDATE calendar_bookings SET reminder_1h_sent=1 WHERE id=?").bind(booking.id).run();
         sent1h++;

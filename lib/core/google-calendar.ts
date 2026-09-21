@@ -4,7 +4,7 @@ import { coreDb } from "@/lib/core/db";
 type Booking = Record<string, unknown>;
 const values = () => env as unknown as Record<string, string | undefined>;
 
-async function accessToken(owner: string) {
+export async function googleAccessToken(owner: string) {
   const row = await coreDb().prepare("SELECT * FROM calendar_oauth_connections WHERE owner=? AND provider='GOOGLE'").bind(owner).first<Record<string, unknown>>();
   if (!row) return null;
   if (new Date(String(row.expires_at)).getTime() > Date.now() + 60_000) return String(row.access_token);
@@ -20,7 +20,7 @@ async function accessToken(owner: string) {
 
 export async function syncGoogleBooking(owner: string, booking: Booking) {
   try {
-    const token = await accessToken(owner);
+    const token = await googleAccessToken(owner);
     if (!token) return;
     const existing = await coreDb().prepare("SELECT external_event_id FROM calendar_external_events WHERE booking_id=?").bind(String(booking.id)).first<{ external_event_id: string }>();
     const cancelled = String(booking.status) === "CANCELLED";

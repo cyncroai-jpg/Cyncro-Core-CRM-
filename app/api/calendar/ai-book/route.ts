@@ -346,7 +346,7 @@ export async function POST(request: Request) {
         assignedTo,
         notes,
       });
-      void sendEmail({ to: customerEmail, subject, html });
+      void sendEmail({ to: customerEmail, subject, html, tenantId });
     } catch { /* non-fatal */ }
 
     return Response.json({

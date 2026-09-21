@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, resolveRequestEmail, getTenantContext, syncTenantMembership, tenantRoleFromWorkspace } from "@/lib/core/db";
+import { emailTransportStatus } from "@/lib/core/email";
 
 async function currentMember(request: Request) {
   const email = await resolveRequestEmail(request);
@@ -57,7 +58,8 @@ export async function GET(request: Request) {
         ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email, tm.role AS company_role, au.active AS account_active FROM workspace_members wm JOIN tenant_members tm ON lower(tm.email)=lower(wm.email) AND tm.tenant_id=? LEFT JOIN auth_users au ON lower(au.email)=lower(wm.email) LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").bind(tenant.tenantId).all()).results
         : (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results
       : [];
-    return Response.json({ member, members, company: tenant ? { id: tenant.tenantId, role: tenant.role } : null });
+    const emailTransport = await emailTransportStatus(tenant?.tenantId);
+    return Response.json({ member, members, company: tenant ? { id: tenant.tenantId, role: tenant.role } : null, emailTransport });
   } catch (error) {
     console.error("access.get_failed", error);
     return Response.json({ error: "Unable to load permissions." }, { status: 500 });

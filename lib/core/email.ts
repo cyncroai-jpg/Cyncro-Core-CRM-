@@ -3,6 +3,8 @@
  * Gracefully no-ops when RESEND_API_KEY is not configured.
  */
 import { env } from "cloudflare:workers";
+import { coreDb } from "@/lib/core/db";
+import { googleAccessToken } from "@/lib/core/google-calendar";
 
 function resendKey(): string | null {
   return (env as Record<string, string>).RESEND_API_KEY || null;
@@ -16,13 +18,22 @@ export interface EmailPayload {
   subject: string;
   html: string;
   replyTo?: string;
+  /** Company sending the email; picks that company's connected Gmail account when Resend isn't configured. */
+  tenantId?: string;
 }
 
+/**
+ * Sends through Resend when RESEND_API_KEY is set. Otherwise sends through
+ * the Gmail account a teammate connected with "Connect my Google" (the
+ * connection must include the gmail.send scope). Returns false when neither
+ * transport is available, so callers can fall back to showing links on screen.
+ */
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   const key = resendKey();
   if (!key) {
-    console.warn("email.skipped: RESEND_API_KEY is not configured");
-    return false;
+    const viaGmail = await sendViaGmail(payload);
+    if (!viaGmail) console.warn("email.skipped: no RESEND_API_KEY and no connected Gmail sender");
+    return viaGmail;
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -47,6 +58,78 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
     return true;
   } catch (err) {
     console.error("email.send_error", err);
+    return false;
+  }
+}
+
+// ── Gmail transport (via the Google account connected for calendar) ────────
+
+type GmailSender = { owner: string; account_email: string | null };
+
+/** Which transport is live: Resend, a connected Gmail account, or nothing. */
+export async function emailTransportStatus(tenantId?: string): Promise<{ transport: "resend" | "gmail" | "none"; from: string }> {
+  if (resendKey()) return { transport: "resend", from: fromAddress() };
+  const sender = await pickGmailSender(tenantId);
+  if (sender) return { transport: "gmail", from: sender.account_email || sender.owner };
+  return { transport: "none", from: "" };
+}
+
+async function pickGmailSender(tenantId?: string): Promise<GmailSender | null> {
+  const db = coreDb();
+  const rows = tenantId
+    ? await db.prepare(
+        `SELECT c.owner, c.account_email FROM calendar_oauth_connections c
+         JOIN tenant_members tm ON lower(tm.email) = lower(c.owner) AND tm.tenant_id = ? AND tm.active = 1
+         WHERE c.provider = 'GOOGLE' AND c.refresh_token IS NOT NULL AND c.scopes LIKE '%gmail.send%'
+         ORDER BY CASE tm.role WHEN 'OWNER' THEN 0 WHEN 'ADMIN' THEN 1 ELSE 2 END, c.updated_at DESC LIMIT 1`,
+      ).bind(tenantId).all<GmailSender>()
+    : await db.prepare(
+        `SELECT owner, account_email FROM calendar_oauth_connections
+         WHERE provider = 'GOOGLE' AND refresh_token IS NOT NULL AND scopes LIKE '%gmail.send%'
+         ORDER BY updated_at DESC LIMIT 1`,
+      ).all<GmailSender>();
+  return rows.results?.[0] ?? null;
+}
+
+function base64Url(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function encodeHeader(value: string): string {
+  return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${btoa(unescape(encodeURIComponent(value)))}?=`;
+}
+
+async function sendViaGmail(payload: EmailPayload): Promise<boolean> {
+  try {
+    const sender = await pickGmailSender(payload.tenantId);
+    if (!sender) return false;
+    const token = await googleAccessToken(sender.owner);
+    if (!token) { console.error("email.gmail.no_token", sender.owner); return false; }
+    const from = sender.account_email || sender.owner;
+    const displayName = fromAddress().replace(/<.*$/, "").trim() || "Cyncro Core";
+    const mime = [
+      `From: ${encodeHeader(displayName)} <${from}>`,
+      `To: ${payload.to}`,
+      payload.replyTo ? `Reply-To: ${payload.replyTo}` : "",
+      `Subject: ${encodeHeader(payload.subject)}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/html; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      btoa(unescape(encodeURIComponent(payload.html))),
+    ].filter((line) => line !== "").join("\r\n");
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ raw: base64Url(mime) }),
+    });
+    if (!res.ok) { console.error("email.gmail.send_failed", res.status, (await res.text()).slice(0, 300)); return false; }
+    return true;
+  } catch (err) {
+    console.error("email.gmail.send_error", err);
     return false;
   }
 }

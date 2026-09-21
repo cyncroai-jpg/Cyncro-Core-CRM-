@@ -3664,6 +3664,7 @@ export async function ensureCoreSchema() {
     "CREATE UNIQUE INDEX IF NOT EXISTS crm_contacts_tenant_email_unique ON crm_contacts(tenant_id, lower(email)) WHERE email IS NOT NULL",
     "ALTER TABLE dispatch_jobs ADD COLUMN lat REAL",
     "ALTER TABLE dispatch_jobs ADD COLUMN lng REAL",
+    "ALTER TABLE calendar_oauth_connections ADD COLUMN scopes TEXT",
     "CREATE INDEX IF NOT EXISTS calendar_audit_log_tenant_idx ON calendar_audit_log(tenant_id)",
     "ALTER TABLE loan_applications ADD COLUMN annual_income_cents INTEGER",
     "ALTER TABLE loan_applications ADD COLUMN monthly_debt_payments_cents INTEGER",

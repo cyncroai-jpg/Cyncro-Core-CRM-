@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         assignedTo,
         notes: cleanText(body.notes, 500) || null,
       });
-      void sendEmail({ to: customerEmail, subject, html });
+      void sendEmail({ to: customerEmail, subject, html, tenantId: tenant.tenantId });
     } catch { /* non-fatal */ }
     return Response.json({ booking: { id: bookingId, startsAt: starts.toISOString(), endsAt: ends.toISOString(), status: "CONFIRMED" } }, { status: 201 });
   } catch (error) {
@@ -293,10 +293,10 @@ export async function PATCH(request: Request) {
       if (customerEmail) {
         if (action === "CANCEL") {
           const { subject, html } = bookingCancellationEmail({ customerName, eventName, startsAt: String(booking.starts_at), timezone: tz });
-          void sendEmail({ to: customerEmail, subject, html });
+          void sendEmail({ to: customerEmail, subject, html, tenantId: tenant.tenantId });
         } else if (action === "RESCHEDULE" && updated) {
           const { subject, html } = bookingRescheduleEmail({ customerName, eventName, newStartsAt: String(updated.starts_at), timezone: tz, locationMode, videoPlatform, meetingAddress });
-          void sendEmail({ to: customerEmail, subject, html });
+          void sendEmail({ to: customerEmail, subject, html, tenantId: tenant.tenantId });
         }
       }
     } catch { /* non-fatal */ }

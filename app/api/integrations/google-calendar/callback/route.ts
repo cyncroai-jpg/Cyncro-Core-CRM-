@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     });
     if (!tokenResponse.ok) return Response.redirect(`${url.origin}/?connection=google-error#crm`, 302);
 
-    const token = await tokenResponse.json() as { access_token?: string; refresh_token?: string; expires_in?: number };
+    const token = await tokenResponse.json() as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string };
     if (!token.access_token) return Response.redirect(`${url.origin}/?connection=google-error#crm`, 302);
 
     const profileResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -47,16 +47,17 @@ export async function GET(request: Request) {
     await coreDb()
       .prepare(
         `INSERT INTO calendar_oauth_connections
-          (owner,provider,account_email,calendar_id,access_token,refresh_token,expires_at,created_at,updated_at)
-          VALUES (?,'GOOGLE',?,'primary',?,?,?,?,?)
+          (owner,provider,account_email,calendar_id,access_token,refresh_token,expires_at,scopes,created_at,updated_at)
+          VALUES (?,'GOOGLE',?,'primary',?,?,?,?,?,?)
           ON CONFLICT(owner,provider) DO UPDATE SET
             account_email=excluded.account_email,
             access_token=excluded.access_token,
             refresh_token=COALESCE(excluded.refresh_token,calendar_oauth_connections.refresh_token),
             expires_at=excluded.expires_at,
+            scopes=excluded.scopes,
             updated_at=excluded.updated_at`,
       )
-      .bind(String(saved.owner), profile.email || null, token.access_token, token.refresh_token || null, expiresAt, now, now)
+      .bind(String(saved.owner), profile.email || null, token.access_token, token.refresh_token || null, expiresAt, token.scope || null, now, now)
       .run();
 
     return Response.redirect(`${url.origin}/?connection=google-connected#crm`, 302);

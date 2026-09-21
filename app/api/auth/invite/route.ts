@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         inviteUrl,
         expiresAt: expires,
       });
-      emailSent = await sendEmail({ to: email, subject, html });
+      emailSent = await sendEmail({ to: email, subject, html, tenantId: tenant?.tenantId });
     } catch { /* non-fatal */ }
 
     return Response.json({ ok: true, inviteUrl, expiresAt: expires, emailSent });
