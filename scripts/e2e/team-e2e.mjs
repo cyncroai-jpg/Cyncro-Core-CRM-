@@ -70,5 +70,24 @@ const mateEt = await api("/api/calendar/event-types", {}, mc);
 const ets = mateEt.body?.eventTypes || mateEt.body?.items || [];
 check(ets.some((e) => e.name === "Team Consult"), "teammate sees the shared calendar event type", `count=${ets.length} status=${mateEt.res.status}`);
 
+// 9) Owner promotes a second person to OWNER; that person can then manage the team and delete
+const coEmail = `co+${stamp}@example.com`;
+const co = await api("/api/access", { method: "POST", body: JSON.stringify({ email: coEmail, displayName: "Co Owner", role: "OWNER" }) }, oc);
+check(co.res.status === 200, "owner grants OWNER role", String(co.res.status) + " " + JSON.stringify(co.body).slice(0, 80));
+const coInv = await api("/api/auth/invite", { method: "POST", body: JSON.stringify({ email: coEmail, displayName: "Co Owner" }) }, oc);
+const coToken = new URL(coInv.body.inviteUrl).searchParams.get("invite");
+await api("/api/auth/invite", { method: "PATCH", body: JSON.stringify({ token: coToken, password: "CoPass12345!" }) });
+const coLogin = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: coEmail, password: "CoPass12345!" }) });
+const cc = coLogin.cookie;
+const coAccess = await api("/api/access", {}, cc);
+check(coAccess.body?.member?.role === "OWNER" && coAccess.body?.member?.manage_users, "co-owner can manage the team", JSON.stringify(coAccess.body?.member?.role));
+const coTenants = await api("/api/tenants", {}, cc);
+check(coTenants.body?.tenants?.[0]?.role === "OWNER", "co-owner is OWNER of the company", JSON.stringify(coTenants.body?.tenants?.map((t) => t.role)));
+const coDelete = await api(`/api/crm/contacts?id=${encodeURIComponent(targetId)}`, { method: "DELETE" }, cc);
+check(coDelete.res.status === 200, "co-owner can delete", String(coDelete.res.status));
+// A non-owner admin must NOT be able to grant OWNER
+const mateGrant = await api("/api/access", { method: "POST", body: JSON.stringify({ email: `x+${stamp}@example.com`, displayName: "X", role: "OWNER" }) }, mc);
+check(mateGrant.res.status === 403, "non-owner cannot grant OWNER (403)", String(mateGrant.res.status));
+
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nALL PASS");
 process.exit(failures ? 1 : 0);

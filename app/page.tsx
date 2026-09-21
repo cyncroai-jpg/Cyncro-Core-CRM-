@@ -17761,7 +17761,9 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
               <option value="SALES_DIRECTOR">Sales director</option>
               <option value="VP_SALES">VP of sales</option>
               <option value="ADMIN">Administrator</option>
+              {currentMember?.role === "OWNER" && <option value="OWNER">Owner (full control)</option>}
             </select>
+            {form.role === "OWNER" && <small className="fieldNote">Owners get every permission, can manage the team, and cannot be removed by anyone else.</small>}
           </label>
         </div>
         <div className="permissionChecks">

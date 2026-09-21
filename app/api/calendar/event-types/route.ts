@@ -30,15 +30,25 @@ export async function POST(request: Request) {
       return Response.json({ error: "Capacity must be between 1 and 500." }, { status: 400 });
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    // Booking links are public URLs, so slugs are unique across every company.
+    // If another company already uses this one, pick the next free variant
+    // (team-consult, team-consult-2, …) instead of failing.
+    let finalSlug = slug;
+    for (let n = 2; n < 50; n++) {
+      const taken = await coreDb().prepare("SELECT id, tenant_id FROM calendar_event_types WHERE slug=?").bind(finalSlug).first<{ id: string; tenant_id: string }>();
+      if (!taken) break;
+      if (taken.tenant_id === tenant.tenantId) return Response.json({ error: `You already have a booking link called "${finalSlug}". Choose a different slug.` }, { status: 409 });
+      finalSlug = `${slug}-${n}`;
+    }
     await coreDb().prepare(`INSERT INTO calendar_event_types
       (id, name, slug, description, duration_minutes, duration_options, buffer_before_minutes, buffer_after_minutes, capacity, location_modes, video_platforms, tenant_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, name, slug, cleanText(body.description, 1000) || null, duration, JSON.stringify([duration]),
+      .bind(id, name, finalSlug, cleanText(body.description, 1000) || null, duration, JSON.stringify([duration]),
         Math.max(0, Number(body.bufferBeforeMinutes || 0)), Math.max(0, Number(body.bufferAfterMinutes || 0)), capacity,
         JSON.stringify(Array.isArray(body.locationModes) ? body.locationModes : ["VIDEO"]),
         JSON.stringify(Array.isArray(body.videoPlatforms) ? body.videoPlatforms : ["GOOGLE_MEET", "ZOOM", "FACETIME"]), tenant.tenantId, now, now).run();
     if (cleanText(body.hostName, 160)) await coreDb().prepare("UPDATE calendar_event_types SET host_name=? WHERE id=? AND tenant_id=?").bind(cleanText(body.hostName,160),id,tenant.tenantId).run();
-    return Response.json({ id, slug }, { status: 201 });
+    return Response.json({ id, slug: finalSlug, slugAdjusted: finalSlug !== slug }, { status: 201 });
   } catch (error) {
     console.error("calendar.event_types.create_failed", error);
     return Response.json({ error: "Unable to create event type. The booking-link slug may already exist." }, { status: 409 });
