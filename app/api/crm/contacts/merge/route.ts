@@ -11,7 +11,7 @@
  *
  * Both contacts must exist. The caller must have "edit" + "delete" CRM permissions.
  */
-import { cleanText, coreDb, ensureCoreSchema, hasCrmAction } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, getTenantContext, hasCrmAction } from "@/lib/core/db";
 
 export async function POST(request: Request) {
   try {
@@ -27,9 +27,11 @@ export async function POST(request: Request) {
     if (winnerId === loserId) return Response.json({ error: "Cannot merge a contact with itself." }, { status: 400 });
 
     const db = coreDb();
+    const tenant = await getTenantContext(request);
+    if (!tenant) return Response.json({ error: "Sign in to merge contacts." }, { status: 401 });
     const [winner, loser] = await Promise.all([
-      db.prepare("SELECT * FROM crm_contacts WHERE id=?").bind(winnerId).first<Record<string, unknown>>(),
-      db.prepare("SELECT * FROM crm_contacts WHERE id=?").bind(loserId).first<Record<string, unknown>>(),
+      db.prepare("SELECT * FROM crm_contacts WHERE id=? AND tenant_id=?").bind(winnerId, tenant.tenantId).first<Record<string, unknown>>(),
+      db.prepare("SELECT * FROM crm_contacts WHERE id=? AND tenant_id=?").bind(loserId, tenant.tenantId).first<Record<string, unknown>>(),
     ]);
 
     if (!winner) return Response.json({ error: "Winner contact not found." }, { status: 404 });

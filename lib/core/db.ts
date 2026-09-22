@@ -3625,6 +3625,8 @@ export async function ensureCoreSchema() {
     "ALTER TABLE crm_accounts ADD COLUMN tenant_id TEXT",
     "CREATE INDEX IF NOT EXISTS crm_accounts_tenant_idx ON crm_accounts(tenant_id)",
     "ALTER TABLE crm_contacts ADD COLUMN tenant_id TEXT",
+    "UPDATE crm_contacts SET tenant_id=(SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1) WHERE tenant_id IS NULL",
+    "UPDATE crm_accounts SET tenant_id=(SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1) WHERE tenant_id IS NULL",
     "CREATE INDEX IF NOT EXISTS crm_contacts_tenant_idx ON crm_contacts(tenant_id)",
     "ALTER TABLE crm_opportunities ADD COLUMN tenant_id TEXT",
     "CREATE INDEX IF NOT EXISTS crm_opportunities_tenant_idx ON crm_opportunities(tenant_id)",

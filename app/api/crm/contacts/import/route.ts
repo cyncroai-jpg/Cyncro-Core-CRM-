@@ -1,9 +1,11 @@
-import { cleanText, coreDb, ensureCoreSchema, hasCrmAction, normalizeEmail, normalizePhone, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, normalizePhone } from "@/lib/core/db";
+import { requireTenantAction } from "@/lib/core/tenantAuth";
 
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await hasCrmAction(request, "create"))) return Response.json({ error: "Create permission required." }, { status: 403 });
+    const tenant = await requireTenantAction(request, "create");
+    if (tenant instanceof Response) return tenant;
 
     const body = await request.json() as { rows?: Record<string, unknown>[]; assignedRep?: string; source?: string };
     const rows = Array.isArray(body.rows) ? body.rows.slice(0, 1000) : [];
@@ -12,14 +14,14 @@ export async function POST(request: Request) {
     const db = coreDb();
     const now = new Date().toISOString();
     const source = cleanText(body.source, 80) || "CSV_IMPORT";
-    const assigned = cleanText(body.assignedRep, 160) || requestUser(request);
+    const assigned = cleanText(body.assignedRep, 160) || tenant.email;
 
-    // Pre-load existing emails and normalized phone digits for deduplication.
+    // Dedupe inside this company only.
     const existingEmails = new Set<string>();
     const existingPhones = new Set<string>();
     const [emailRows, phoneRows] = await Promise.all([
-      db.prepare("SELECT lower(email) email FROM crm_contacts WHERE email IS NOT NULL").all<{ email: string }>(),
-      db.prepare("SELECT phone FROM crm_contacts WHERE phone IS NOT NULL").all<{ phone: string }>(),
+      db.prepare("SELECT lower(email) email FROM crm_contacts WHERE tenant_id=? AND email IS NOT NULL").bind(tenant.tenantId).all<{ email: string }>(),
+      db.prepare("SELECT phone FROM crm_contacts WHERE tenant_id=? AND phone IS NOT NULL").bind(tenant.tenantId).all<{ phone: string }>(),
     ]);
     emailRows.results.forEach(r => existingEmails.add(r.email));
     phoneRows.results.forEach(r => { const d = normalizePhone(r.phone); if (d) existingPhones.add(d); });
@@ -48,12 +50,12 @@ export async function POST(request: Request) {
       const contactId = crypto.randomUUID();
 
       statements.push(
-        db.prepare(`INSERT INTO crm_accounts (id,name,domain,phone,address,owner_email,source,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'ACTIVE',?,?)`)
-          .bind(accountId, company, cleanText(row.website, 240) || null, phone, cleanText(row.address, 300) || null, requestUser(request), source, now, now)
+        db.prepare(`INSERT INTO crm_accounts (id,name,domain,phone,address,owner_email,source,status,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'ACTIVE',?,?,?)`)
+          .bind(accountId, company, cleanText(row.website, 240) || null, phone, cleanText(row.address, 300) || null, tenant.email, source, tenant.tenantId, now, now)
       );
       statements.push(
-        db.prepare(`INSERT INTO crm_contacts (id,account_id,full_name,email,phone,title,lifecycle,assigned_rep,source,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,'LEAD',?,?,?,?,?)`)
-          .bind(contactId, accountId, full, email, phone, cleanText(row.title, 120) || null, assigned, source, cleanText(row.notes, 2000) || null, now, now)
+        db.prepare(`INSERT INTO crm_contacts (id,account_id,full_name,email,phone,title,lifecycle,assigned_rep,source,notes,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'LEAD',?,?,?,?,?,?)`)
+          .bind(contactId, accountId, full, email, phone, cleanText(row.title, 120) || null, assigned, source, cleanText(row.notes, 2000) || null, tenant.tenantId, now, now)
       );
       imported++;
     }

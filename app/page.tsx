@@ -8,6 +8,8 @@ import { DispatchInventory, type StockSummary } from "@/app/components/DispatchI
 import { DispatchWorkOrders } from "@/app/components/DispatchWorkOrders";
 import { DispatchSchedule } from "@/app/components/DispatchSchedule";
 import { DispatchTimeClock } from "@/app/components/DispatchTimeClock";
+import { CRMConversations } from "@/app/components/CRMConversations";
+import { TeamDatalist } from "@/app/components/TeamDatalist";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -11614,7 +11616,8 @@ function UniversalCRM({
             />
           )}
           {view === "Team Chat" && <TeamChat />}
-          {view === "Conversations" && <CRMConversations onFlash={flash} />}
+          <TeamDatalist />
+          {view === "Conversations" && <CRMConversations onFlash={flash} onOpenContact={(id) => { setView("Contacts"); window.setTimeout(() => document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: "smooth" }), 300); }} />}
           {view === "Social Automations" && (
             <CRMSocialAutomations onFlash={flash} />
           )}
@@ -12812,7 +12815,7 @@ function CRMPipeline({
                 </label>
                 <label>
                   Assigned rep
-                  <input value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} />
+                  <input list="cyncro-team" placeholder="Teammate email" value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} />
                 </label>
                 <label>
                   Notes
@@ -13024,6 +13027,8 @@ function CRMPipeline({
               <label>
                 Assigned rep
                 <input
+                  list="cyncro-team"
+                  placeholder="Teammate email"
                   value={newDeal.assignedRep}
                   onChange={(event) =>
                     setNewDeal({ ...newDeal, assignedRep: event.target.value })
@@ -13500,114 +13505,6 @@ function CRMContactDetail({
         ))}
       </div>
     </aside>
-  );
-}
-
-function CRMConversations({ onFlash }: { onFlash: (message: string) => void }) {
-  const [thread, setThread] = useState(0);
-  const threads = [
-    [
-      "Marcus Reed",
-      "Let’s move forward. What do you need from me?",
-      "SMS",
-      "2m",
-    ],
-    [
-      "Alexandra Lewis",
-      "Confirmed—looking forward to tomorrow.",
-      "Email",
-      "18m",
-    ],
-    ["Sophia Bennett", "Can we add a second location?", "Instagram", "1h"],
-    ["Nia Carter", "A seat opened for the intensive.", "Automation", "2h"],
-  ];
-  return (
-    <div className="conversationWorkspace crmPanel">
-      <aside>
-        <div className="inboxHead">
-          <div>
-            <small>UNIFIED INBOX · EXAMPLE DATA</small>
-            <h2>All conversations</h2>
-          </div>
-          <button onClick={() => onFlash("This is example conversation data — no live channel is connected yet")}>⌁</button>
-        </div>
-        {threads.map((item, index) => (
-          <button
-            className={thread === index ? "active" : ""}
-            onClick={() => setThread(index)}
-            key={item[0]}
-          >
-            <i>
-              {item[0]
-                .split(" ")
-                .map((part) => part[0])
-                .join("")}
-            </i>
-            <div>
-              <b>{item[0]}</b>
-              <p>{item[1]}</p>
-              <small>{item[2]}</small>
-            </div>
-            <time>{item[3]}</time>
-          </button>
-        ))}
-      </aside>
-      <article>
-        <header>
-          <div>
-            <i>
-              {threads[thread][0]
-                .split(" ")
-                .map((part) => part[0])
-                .join("")}
-            </i>
-            <span>
-              <b>{threads[thread][0]}</b>
-              <small>Opportunity · Qualified · $12,000</small>
-            </span>
-          </div>
-          <div>
-            <button onClick={() => onFlash("Calling isn't connected yet — no telephony provider configured")}>Call</button>
-            <button onClick={() => onFlash("This is example conversation data — no matching contact record exists")}>
-              Open record
-            </button>
-          </div>
-        </header>
-        <div className="messageCanvas">
-          <div className="messageDate">TODAY</div>
-          <div className="message inbound">
-            Hi, I reviewed everything with my team.
-          </div>
-          <div className="message inbound">{threads[thread][1]}</div>
-          <div className="message outbound">
-            Absolutely—I’ll prepare the next step and send it over today.
-          </div>
-        </div>
-        <footer>
-          <button>＋</button>
-          <input placeholder="Reply by SMS…" />
-          <button onClick={() => onFlash("No live channel is connected yet — nothing was sent")}>Send ↑</button>
-        </footer>
-      </article>
-      <aside className="conversationContext">
-        <small>CONVERSATION INTELLIGENCE</small>
-        <div className="sentiment">
-          <span>↗</span>
-          <div>
-            <b>High buying intent</b>
-            <small>Positive sentiment · Decision language detected</small>
-          </div>
-        </div>
-        <h3>Suggested next move</h3>
-        <p>
-          Send the proposal and payment link, then create a 24-hour follow-up
-          task.
-        </p>
-        <button onClick={() => onFlash("AI next-move suggestions aren't connected yet")}>
-          ✦ Execute next move
-        </button>
-      </aside>
-    </div>
   );
 }
 
@@ -18997,8 +18894,9 @@ function SimpleEventManager({
           <label>
             Assigned manager / host
             <input
+              list="cyncro-team"
               value={form.hostName}
-              placeholder="Manager name or email"
+              placeholder="Pick a teammate"
               onChange={(event) =>
                 setForm({ ...form, hostName: event.target.value })
               }
