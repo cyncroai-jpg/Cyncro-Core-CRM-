@@ -1,5 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
-import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { requireTenant, requireTenantAction, tenantForBooking } from "@/lib/core/tenantAuth";
 import { emitAutomationEvent } from "@/lib/automations/engine";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
@@ -99,10 +99,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    const tenant = await requireTenantAction(request, "create");
-    if (tenant instanceof Response) return tenant;
     const body = (await request.json()) as Record<string, unknown>;
     const eventTypeId = cleanText(body.eventTypeId, 80);
+    // Customers book from the public link without an account; members book from inside the calendar.
+    const tenant = await tenantForBooking(request, { eventTypeId });
+    if (tenant instanceof Response) return tenant;
     const customerName = cleanText(body.customerName, 160);
     const customerEmail = normalizeEmail(body.customerEmail);
     const starts = new Date(String(body.startsAt || ""));

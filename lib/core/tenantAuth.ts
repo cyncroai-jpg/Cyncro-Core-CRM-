@@ -7,7 +7,7 @@
  * real company (tenant) via getTenantContext() and every query a route
  * makes after that must be scoped to tenant.tenantId.
  */
-import { getTenantContext, type TenantContext } from "@/lib/core/db";
+import { coreDb, getTenantContext, type TenantContext } from "@/lib/core/db";
 
 export type TenantAction = "view" | "create" | "edit" | "delete" | "export";
 
@@ -33,4 +33,26 @@ export async function requireTenantAction(request: Request, action: TenantAction
   if (result instanceof Response) return result;
   if (!canTenantAct(result, action)) return Response.json({ error: "Your role in this workspace doesn't allow that." }, { status: 403 });
   return result;
+}
+
+/**
+ * Public booking access. Shared booking links (/?event=slug#book) are opened by
+ * customers who are not signed in, so these routes resolve the company from the
+ * event type itself when there is no session. A signed-in member still gets
+ * their own tenant context (and is denied for other companies' event types).
+ * The returned `email` for a visitor is the company owner's, used only as the
+ * fallback host / created_by on the booking.
+ */
+export async function tenantForBooking(request: Request, lookup: { eventTypeId?: string; slug?: string }): Promise<TenantContext | Response> {
+  const signedIn = await getTenantContext(request);
+  if (signedIn) return signedIn;
+  const db = coreDb();
+  const row = lookup.eventTypeId
+    ? await db.prepare("SELECT tenant_id FROM calendar_event_types WHERE id=? AND active=1").bind(lookup.eventTypeId).first<{ tenant_id: string | null }>()
+    : lookup.slug
+      ? await db.prepare("SELECT tenant_id FROM calendar_event_types WHERE slug=? AND active=1").bind(lookup.slug).first<{ tenant_id: string | null }>()
+      : null;
+  if (!row?.tenant_id) return Response.json({ error: "This booking link is not available." }, { status: 404 });
+  const owner = await db.prepare("SELECT email, user_id FROM tenant_members WHERE tenant_id=? AND active=1 ORDER BY CASE role WHEN 'OWNER' THEN 0 WHEN 'ADMIN' THEN 1 ELSE 2 END, created_at ASC LIMIT 1").bind(row.tenant_id).first<{ email: string; user_id: string }>();
+  return { tenantId: row.tenant_id, userId: owner?.user_id || "", email: owner?.email || "booking", role: "VIEWER" as TenantContext["role"] };
 }

@@ -1,6 +1,7 @@
 import { emitAutomationEvent } from "@/lib/automations/engine";
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { applyAfterSubmit, nextUrl, parseAfterSubmit } from "@/lib/forms/afterSubmit";
 
 const safeFields = (value: unknown) => Array.isArray(value) ? value.slice(0, 60).map((raw) => {
   const x = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -12,8 +13,10 @@ export async function GET(request: Request) {
   try {
     await ensureCoreSchema(); const url = new URL(request.url), token = cleanText(url.searchParams.get("token"), 100), id = cleanText(url.searchParams.get("id"), 80);
     if (token) {
-      const form = await coreDb().prepare("SELECT id,title,description,fields_json,requires_signature,status,public_token FROM crm_forms WHERE public_token=? AND status='PUBLISHED'").bind(token).first();
-      return form ? Response.json({ form }) : Response.json({ error: "This form is unavailable." }, { status: 404 });
+      const form = await coreDb().prepare("SELECT id,title,description,fields_json,requires_signature,status,public_token,settings_json FROM crm_forms WHERE public_token=? AND status='PUBLISHED'").bind(token).first<Record<string, unknown>>();
+      if (!form) return Response.json({ error: "This form is unavailable." }, { status: 404 });
+      const st = parseAfterSubmit(form.settings_json);
+      return Response.json({ form: { ...form, settings_json: undefined, settings: { afterSubmit: st.afterSubmit, successMessage: st.successMessage } } });
     }
     const tenant = await requireTenant(request);
     if (tenant instanceof Response) return tenant;
@@ -34,8 +37,8 @@ export async function POST(request: Request) {
     if (tenant instanceof Response) return tenant;
     const b = await request.json() as Record<string, unknown>, title = cleanText(b.title, 180); if (!title) return Response.json({ error: "Form title is required." }, { status: 400 });
     const id=crypto.randomUUID(), token=crypto.randomUUID().replaceAll("-", ""), now=new Date().toISOString();
-    await coreDb().prepare("INSERT INTO crm_forms (id,title,description,status,public_token,fields_json,requires_signature,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-      .bind(id,title,cleanText(b.description,1200)||null,cleanText(b.status,20)||"DRAFT",token,JSON.stringify(safeFields(b.fields)),b.requiresSignature?1:0,tenant.email,tenant.tenantId,now,now).run();
+    await coreDb().prepare("INSERT INTO crm_forms (id,title,description,status,public_token,fields_json,requires_signature,created_by,tenant_id,settings_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+      .bind(id,title,cleanText(b.description,1200)||null,cleanText(b.status,20)||"DRAFT",token,JSON.stringify(safeFields(b.fields)),b.requiresSignature?1:0,tenant.email,tenant.tenantId,JSON.stringify(parseAfterSubmit(b.settings)),now,now).run();
     return Response.json({ id, token }, { status: 201 });
   } catch (error) { console.error("forms.create_failed", error); return Response.json({ error: "Unable to create form." }, { status: 500 }); }
 }
@@ -58,14 +61,16 @@ export async function PATCH(request: Request) {
         await coreDb().prepare("INSERT INTO crm_contacts (id,full_name,email,lifecycle,source,tenant_id,created_at,updated_at) VALUES (?,?,?,'LEAD','FORM',?,?,?)").bind(cid,name,email,form.tenant_id,now,now).run();
         contact={id:cid};
       }
-      await emitAutomationEvent(String(form.tenant_id), "FORM_SUBMITTED", { contactId: contact.id, formId: String(form.id), formTitle: String(form.title||""), submissionId: id, trigger: "FORM_SUBMITTED" });
-      return Response.json({ submitted:true, submissionId:id });
+      const settings = parseAfterSubmit(form.settings_json);
+      await applyAfterSubmit(String(form.tenant_id), contact.id, settings);
+      await emitAutomationEvent(String(form.tenant_id), "FORM_SUBMITTED", { contactId: contact.id, formId: String(form.id), formTitle: String(form.title||""), submissionId: id, source: "FORM", trigger: "FORM_SUBMITTED" });
+      return Response.json({ submitted:true, submissionId:id, next: nextUrl(settings, { name, email }), successMessage: settings.successMessage || null });
     }
     const tenant = await requireTenantAction(request, "edit");
     if (tenant instanceof Response) return tenant;
     const id=cleanText(b.id,80); if(!id) return Response.json({error:"Form id is required."},{status:400});
-    await coreDb().prepare("UPDATE crm_forms SET title=?,description=?,status=?,fields_json=?,requires_signature=?,updated_at=? WHERE id=? AND tenant_id=?")
-      .bind(cleanText(b.title,180),cleanText(b.description,1200)||null,cleanText(b.status,20)||"DRAFT",JSON.stringify(safeFields(b.fields)),b.requiresSignature?1:0,new Date().toISOString(),id,tenant.tenantId).run();
+    await coreDb().prepare("UPDATE crm_forms SET title=?,description=?,status=?,fields_json=?,requires_signature=?,settings_json=?,updated_at=? WHERE id=? AND tenant_id=?")
+      .bind(cleanText(b.title,180),cleanText(b.description,1200)||null,cleanText(b.status,20)||"DRAFT",JSON.stringify(safeFields(b.fields)),b.requiresSignature?1:0,JSON.stringify(parseAfterSubmit(b.settings)),new Date().toISOString(),id,tenant.tenantId).run();
     return Response.json({saved:true});
   } catch(error){console.error("forms.update_failed",error);return Response.json({error:"Unable to save form."},{status:500});}
 }

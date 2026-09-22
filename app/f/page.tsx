@@ -15,6 +15,7 @@ export default function PublicFormPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [thanks, setThanks] = useState("");
 
   useEffect(() => {
     if (!token) { setError("Form link is missing."); return; }
@@ -40,7 +41,7 @@ export default function PublicFormPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "SUBMIT", token, respondentName: name, respondentEmail: email, answers, signatureName: signature }),
     });
-    const d = (await r.json()) as { submissionId?: string; error?: string };
+    const d = (await r.json()) as { submissionId?: string; error?: string; next?: string | null; successMessage?: string | null };
     if (!r.ok) { setSaving(false); return setError(d.error || "Submission failed"); }
     for (const [questionId, list] of Object.entries(files)) {
       for (const file of list) {
@@ -54,6 +55,8 @@ export default function PublicFormPage() {
       }
     }
     setSaving(false);
+    if (d.next) { window.location.assign(d.next); return; }
+    setThanks(d.successMessage || "");
     setDone(true);
   };
 
@@ -63,8 +66,8 @@ export default function PublicFormPage() {
         <main className="formThankYou">
           <i>✓</i>
           <small>SUBMISSION RECEIVED</small>
-          <h1>Everything is safely with our team.</h1>
-          <p>Your answers, signature, and uploaded files were recorded.</p>
+          <h1>{thanks || "Everything is safely with our team."}</h1>
+          <p>{thanks ? "Your answers were recorded." : "Your answers, signature, and uploaded files were recorded."}</p>
         </main>
       </section>
     );

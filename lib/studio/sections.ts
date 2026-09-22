@@ -35,7 +35,7 @@ export function defaultPropsFor(type: StudioSectionType): Record<string, unknown
     case "image":
       return { url: "", caption: "" };
     case "form":
-      return { heading: "Get in touch", subheading: "Tell us a bit about your business.", fields: [{ id: "name", label: "Full name", type: "text", required: true }, { id: "email", label: "Email", type: "email", required: true }] as StudioFormField[], submitLabel: "Submit", successMessage: "Thanks — we'll be in touch shortly." };
+      return { heading: "Get in touch", subheading: "Tell us a bit about your business.", fields: [{ id: "name", label: "Full name", type: "text", required: true }, { id: "email", label: "Email", type: "email", required: true }] as StudioFormField[], submitLabel: "Submit", successMessage: "Thanks — we'll be in touch shortly.", afterSubmit: "message", bookingEvent: "", tags: "", assignTo: "" };
     case "testimonial":
       return { quote: "This changed how we run our business.", name: "Jane Doe", role: "Owner, Acme Co." };
     case "faq":

@@ -1,11 +1,17 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
-import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { requireTenant, requireTenantAction, tenantForBooking } from "@/lib/core/tenantAuth";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    const tenant = await requireTenant(request);
+    const slug = cleanText(new URL(request.url).searchParams.get("slug"), 120);
+    const tenant = slug ? await tenantForBooking(request, { slug }) : await requireTenant(request);
     if (tenant instanceof Response) return tenant;
+    if (slug && tenant.role === "VIEWER" && !tenant.userId) {
+      // Anonymous visitor on a shared booking link: expose only that event type, with the booking-page fields.
+      const one = await coreDb().prepare("SELECT id,name,slug,description,duration_minutes,duration_options,capacity,location_modes,video_platforms,host_name,custom_questions,smartslot_enabled FROM calendar_event_types WHERE slug = ? AND active = 1 AND tenant_id = ?").bind(slug, tenant.tenantId).first();
+      return Response.json({ eventTypes: one ? [one] : [], public: true });
+    }
     const { results } = await coreDb().prepare("SELECT * FROM calendar_event_types WHERE active = 1 AND tenant_id = ? ORDER BY name").bind(tenant.tenantId).all();
     return Response.json({ eventTypes: results });
   } catch (error) {

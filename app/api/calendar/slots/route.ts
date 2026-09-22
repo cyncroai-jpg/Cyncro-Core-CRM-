@@ -1,5 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
-import { requireTenant } from "@/lib/core/tenantAuth";
+import { tenantForBooking } from "@/lib/core/tenantAuth";
 
 /**
  * SmartSlot™ Engine — ranked slot recommendations with explainable scoring.
@@ -13,10 +13,10 @@ import { requireTenant } from "@/lib/core/tenantAuth";
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    const tenant = await requireTenant(request);
-    if (tenant instanceof Response) return tenant;
     const url = new URL(request.url);
     const eventTypeId = cleanText(url.searchParams.get("eventTypeId"), 80);
+    const tenant = await tenantForBooking(request, { eventTypeId });
+    if (tenant instanceof Response) return tenant;
     const from = new Date(url.searchParams.get("from") || "");
     const days = Math.min(Math.max(Number(url.searchParams.get("days") || 14), 1), 30);
     const leadScore = Math.min(100, Math.max(0, Number(url.searchParams.get("leadScore") || 50)));
