@@ -48,7 +48,7 @@ check("time clock renders", await page.locator(".dxClk").count()===1);
 await page.locator(".dxClkForm select").nth(0).selectOption(tech.b.id); await page.locator(".dxClkForm select").nth(1).selectOption(job.b.id); await page.waitForTimeout(200);
 await page.locator("button.dxClkBig",{hasText:"Clock in"}).click(); await page.waitForTimeout(1500);
 check("live timer shows", await page.locator(".dxClkLive .dxClkTimer").count()===1);
-check("board card for Tara", (await page.locator(".dxClkCards article").first().textContent()).includes("Test Technician"));
+check("board card for the tech", (await page.locator(".dxClkCards article").first().textContent()).includes("Test Technician"));
 j=(await api(`/api/dispatch/jobs?id=${job.b.id}`,{},c)).b.job; check("clock in moved job to IN PROGRESS", j.status==="IN PROGRESS");
 await page.waitForTimeout(2100);
 check("timer is counting", /00:00:0[2-9]/.test(await page.locator(".dxClkLive .dxClkTimer").textContent()));
