@@ -39,7 +39,8 @@ check("clock out button after clock in", await desk.locator("button",{hasText:"C
 await desk.locator("button",{hasText:"Clock out"}).click(); await page.waitForTimeout(1000);
 check("time entry listed", (await desk.textContent()).includes("TIME ENTRIES"));
 // advance status to complete (booked→assigned→in progress→complete)
-for(const s of ["assigned","in progress","complete"]){ await desk.locator("button.fxCCPrimary",{hasText:`Mark ${s}`}).click(); await page.waitForTimeout(900); }
+check("clock in moved job to in progress", (await desk.locator(".dxWOStages span.now small").textContent())==="in progress");
+await desk.locator("button.fxCCPrimary",{hasText:"Mark complete"}).click(); await page.waitForTimeout(900);
 check("stage COMPLETE current", (await desk.locator(".dxWOStages span.now small").textContent())==="complete");
 check("readiness now 5/6 (no tech)", (await desk.locator(".dxWOChecks>small").textContent()).includes("5/6"));
 check("row pill says ready", (await page.locator(".dxWORow em").first().textContent())==="ready");

@@ -1,23 +1,14 @@
-import { cleanText, coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { geocodeAddress } from "@/lib/core/geocode";
-
-async function requireDispatchAccess(request: Request) {
-  const email = requestUser(request);
-  if (email === "platform-owner") return true;
-  const member = await coreDb().prepare("SELECT role,active FROM workspace_members WHERE email=?").bind(email).first<{ role: string; active: number }>();
-  if (!member) {
-    const count = await coreDb().prepare("SELECT COUNT(*) AS c FROM workspace_members").first<{ c: number }>();
-    if (!Number(count?.c || 0)) return true;
-  }
-  return Boolean(member?.active);
-}
+import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
+import { syncGoogleJob } from "@/lib/dispatch/google";
 
 const STATUSES = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"];
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const db = coreDb();
     const url = new URL(request.url);
     const id = cleanText(url.searchParams.get("id"), 80);
@@ -27,8 +18,8 @@ export async function GET(request: Request) {
         FROM dispatch_jobs j
         LEFT JOIN dispatch_customers c ON c.id=j.customer_id
         LEFT JOIN dispatch_technicians t ON t.id=j.assigned_tech_id
-        WHERE j.id=?
-      `).bind(id).first();
+        WHERE j.tenant_id=? AND j.id=?
+      `).bind(t.tenantId, id).first();
       if (!job) return Response.json({ error: "Job not found." }, { status: 404 });
       const notes = await db.prepare("SELECT * FROM dispatch_job_notes WHERE job_id=? ORDER BY created_at DESC").bind(id).all();
       const materials = await db.prepare("SELECT * FROM dispatch_job_materials WHERE job_id=? ORDER BY created_at").bind(id).all();
@@ -51,8 +42,9 @@ export async function GET(request: Request) {
         FROM dispatch_jobs j
         LEFT JOIN dispatch_customers c ON c.id=j.customer_id
         LEFT JOIN dispatch_technicians t ON t.id=j.assigned_tech_id
+        WHERE j.tenant_id=?
         ORDER BY j.scheduled_at DESC LIMIT 300
-      `).all();
+      `).bind(t.tenantId).all();
       return Response.json({ jobs: results });
     }
     const { results } = await db.prepare(`
@@ -60,8 +52,9 @@ export async function GET(request: Request) {
       FROM dispatch_jobs j
       LEFT JOIN dispatch_customers c ON c.id=j.customer_id
       LEFT JOIN dispatch_technicians t ON t.id=j.assigned_tech_id
+      WHERE j.tenant_id=?
       ORDER BY j.scheduled_at DESC LIMIT 200
-    `).all();
+    `).bind(t.tenantId).all();
     return Response.json({ jobs: results });
   } catch (error) {
     console.error("dispatch.jobs.list_failed", error);
@@ -72,7 +65,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const body = await request.json() as Record<string, unknown>;
     const customerId = cleanText(body.customerId, 80);
     const serviceType = cleanText(body.serviceType, 200);
@@ -81,20 +74,23 @@ export async function POST(request: Request) {
     if (!customerId || !serviceType || !address || !scheduledAt) {
       return Response.json({ error: "Customer, service type, address, and schedule time are required." }, { status: 400 });
     }
+    const owner = await coreDb().prepare("SELECT id FROM dispatch_customers WHERE tenant_id=? AND id=?").bind(t.tenantId, customerId).first();
+    if (!owner) return Response.json({ error: "Customer not found." }, { status: 404 });
     const assignedTechId = cleanText(body.assignedTechId, 80) || null;
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await coreDb().prepare(`INSERT INTO dispatch_jobs
-      (id,customer_id,property_id,service_type,description,address,scheduled_at,status,assigned_tech_id,revenue_cents,estimated_minutes,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      (id,tenant_id,customer_id,property_id,service_type,description,address,scheduled_at,status,assigned_tech_id,revenue_cents,estimated_minutes,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(
-        id, customerId, cleanText(body.propertyId, 80) || null, serviceType, cleanText(body.description, 2000) || null,
+        id, t.tenantId, customerId, cleanText(body.propertyId, 80) || null, serviceType, cleanText(body.description, 2000) || null,
         address, scheduledAt, assignedTechId ? "ASSIGNED" : "BOOKED", assignedTechId,
         Math.round(Number(body.revenue || 0) * 100), Number(body.estimatedMinutes) || null, now, now,
       ).run();
     const point = await geocodeAddress(address);
     if (point) await coreDb().prepare("UPDATE dispatch_jobs SET lat=?, lng=? WHERE id=?").bind(point.lat, point.lng, id).run();
-    return Response.json({ id }, { status: 201 });
+    const google = await syncGoogleJob(t.email, t.tenantId, id);
+    return Response.json({ id, google }, { status: 201 });
   } catch (error) {
     console.error("dispatch.jobs.create_failed", error);
     return Response.json({ error: "Unable to create job." }, { status: 500 });
@@ -104,7 +100,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const body = await request.json() as Record<string, unknown>;
     const id = cleanText(body.id, 80);
     if (!id) return Response.json({ error: "Job id is required." }, { status: 400 });
@@ -121,9 +117,10 @@ export async function PATCH(request: Request) {
     if (body.revenue !== undefined) { updates.push("revenue_cents=?"); vals.push(Math.round(Number(body.revenue) * 100)); }
     if (!updates.length) return Response.json({ updated: false });
     updates.push("updated_at=?"); vals.push(new Date().toISOString());
-    vals.push(id);
-    await coreDb().prepare(`UPDATE dispatch_jobs SET ${updates.join(",")} WHERE id=?`).bind(...vals).run();
-    return Response.json({ updated: true });
+    vals.push(t.tenantId, id);
+    await coreDb().prepare(`UPDATE dispatch_jobs SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
+    const google = body.scheduledAt !== undefined || body.status !== undefined || body.assignedTechId !== undefined ? await syncGoogleJob(t.email, t.tenantId, id) : "skipped";
+    return Response.json({ updated: true, google });
   } catch (error) {
     console.error("dispatch.jobs.update_failed", error);
     return Response.json({ error: "Unable to update job." }, { status: 500 });
@@ -133,9 +130,11 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "Job id is required." }, { status: 400 });
+    const own = await coreDb().prepare("SELECT id FROM dispatch_jobs WHERE tenant_id=? AND id=?").bind(t.tenantId, id).first();
+    if (!own) return Response.json({ error: "Job not found." }, { status: 404 });
     await coreDb().batch([
       coreDb().prepare("DELETE FROM dispatch_job_notes WHERE job_id=?").bind(id),
       coreDb().prepare("DELETE FROM dispatch_job_materials WHERE job_id=?").bind(id),

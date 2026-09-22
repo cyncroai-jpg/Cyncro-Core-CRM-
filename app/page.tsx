@@ -6,6 +6,8 @@ import { AutoInventoryDesk } from "@/app/components/AutoInventoryDesk";
 import { AutoLenderDirectory } from "@/app/components/AutoLenderDirectory";
 import { DispatchInventory, type StockSummary } from "@/app/components/DispatchInventory";
 import { DispatchWorkOrders } from "@/app/components/DispatchWorkOrders";
+import { DispatchSchedule } from "@/app/components/DispatchSchedule";
+import { DispatchTimeClock } from "@/app/components/DispatchTimeClock";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -7473,6 +7475,8 @@ type DispatchRole = "Owner" | "Dispatcher" | "Technician";
 type DispatchView =
   | "Dashboard"
   | "Jobs"
+  | "Schedule"
+  | "Time Clock"
   | "Work Orders"
   | "Payments"
   | "GPS Map"
@@ -7547,7 +7551,7 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
   const [authenticated, setAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [role, setRole] = useState<DispatchRole>("Owner");
-  const [view, setView] = useHashView<DispatchView>("dispatch", "Dashboard", ["Dashboard", "Jobs", "Work Orders", "Payments", "GPS Map", "Analytics", "AI Agents", "Equipment", "Inventory", "Team", "Settings"]);
+  const [view, setView] = useHashView<DispatchView>("dispatch", "Dashboard", ["Dashboard", "Jobs", "Schedule", "Time Clock", "Work Orders", "Payments", "GPS Map", "Analytics", "AI Agents", "Equipment", "Inventory", "Team", "Settings"]);
   const [notice, setNotice] = useState("");
   const [jobs, setJobs] = useState<DispatchJob[]>([]);
   const [customers, setCustomers] = useState<DispatchCustomer[]>([]);
@@ -7970,6 +7974,8 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
   const navItems: { name: DispatchView; icon: string }[] = [
     { name: "Dashboard", icon: "⌂" },
     { name: "Jobs", icon: "▦" },
+    { name: "Schedule", icon: "◫" },
+    { name: "Time Clock", icon: "◷" },
     { name: "Work Orders", icon: "▤" },
     { name: "Payments", icon: "$" },
     { name: "GPS Map", icon: "⌖" },
@@ -8174,6 +8180,21 @@ function CyncroDispatch({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
               }}
             />
           )}
+          {view === "Schedule" && (
+            <DispatchSchedule
+              onFlash={flash}
+              refreshKey={jobs.length}
+              onNew={() => setJobModalOpen(true)}
+              onOpenJob={(jobId) => { const index = jobs.findIndex((j) => j.id === jobId); if (index >= 0) setSelectedJob(index); setView("Jobs"); }}
+            />
+          )}
+          {view === "Time Clock" && (
+            <DispatchTimeClock
+              onFlash={flash}
+              refreshKey={jobs.length}
+              onOpenJob={(jobId) => { const index = jobs.findIndex((j) => j.id === jobId); if (index >= 0) setSelectedJob(index); setView("Jobs"); }}
+            />
+          )}
           {view === "Payments" && <DispatchPayments jobs={jobs} onFlash={flash} />}
           {view === "GPS Map" && (
             <DispatchMap jobs={jobs} onFlash={flash} onMove={moveJob} />
@@ -8293,7 +8314,7 @@ function DispatchDashboard({
       <rect x="4" y="18" width="4" height="3" className="lamp" /><rect x="56" y="18" width="4" height="3" className="lamp" />
     </svg>
   );
-  const dockItems: [string, DispatchView][] = [["▦", "Jobs"], ["≡", "Work Orders"], ["◎", "GPS Map"], ["$", "Payments"], ["▤", "Inventory"], ["↗", "Analytics"], ["◉", "Team"]];
+  const dockItems: [string, DispatchView][] = [["▦", "Jobs"], ["◫", "Schedule"], ["◷", "Time Clock"], ["≡", "Work Orders"], ["◎", "GPS Map"], ["$", "Payments"], ["▤", "Inventory"], ["↗", "Analytics"]];
   const [stock, setStock] = useState<StockSummary | null>(null);
   useEffect(() => { void fetch("/api/dispatch/inventory").then((r) => r.json()).then((d: { summary?: StockSummary }) => setStock(d.summary || null)).catch(() => undefined); }, [jobs.length]);
   return (

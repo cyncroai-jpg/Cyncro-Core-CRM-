@@ -1,18 +1,8 @@
-import { cleanText, coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
 import { env } from "cloudflare:workers";
 
 type CfEnv = Record<string, string | undefined>;
-
-async function requireDispatchAccess(request: Request) {
-  const email = requestUser(request);
-  if (email === "platform-owner") return true;
-  const member = await coreDb().prepare("SELECT role,active FROM workspace_members WHERE email=?").bind(email).first<{ role: string; active: number }>();
-  if (!member) {
-    const count = await coreDb().prepare("SELECT COUNT(*) AS c FROM workspace_members").first<{ c: number }>();
-    if (!Number(count?.c || 0)) return true;
-  }
-  return Boolean(member?.active);
-}
 
 const CATEGORIES = ["PARTS", "MATERIALS", "TOOLS", "CONSUMABLES", "SAFETY", "EQUIPMENT", "OTHER"];
 const LOCATIONS = ["TRUCK", "WAREHOUSE", "SHOP", "JOB_SITE", "OTHER"];
@@ -124,9 +114,9 @@ async function scanImage(image: string, mediaType: string, hint: string): Promis
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const db = coreDb();
-    const { results } = await db.prepare("SELECT * FROM dispatch_inventory ORDER BY updated_at DESC LIMIT 2000").all();
+    const { results } = await db.prepare("SELECT * FROM dispatch_inventory WHERE tenant_id=? ORDER BY updated_at DESC LIMIT 2000").bind(t.tenantId).all();
     const items = results as Array<{ quantity: number; min_quantity: number | null; unit_cost_cents: number | null; source: string; updated_at: string }>;
     const low = items.filter((i) => i.min_quantity !== null && Number(i.quantity) <= Number(i.min_quantity)).length;
     const valueCents = items.reduce((a, i) => a + (Number(i.unit_cost_cents) || 0) * Number(i.quantity || 0), 0);
@@ -141,7 +131,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const url = new URL(request.url);
     const action = url.searchParams.get("action");
     const body = (await request.json()) as Record<string, unknown>;
@@ -179,7 +169,7 @@ export async function POST(request: Request) {
       if (!("quantity" in cols)) cols.quantity = 1;
       if (row.confidence !== undefined) cols.scan_confidence = cleanText(row.confidence, 10).toLowerCase() || null;
       const existing = merge
-        ? await db.prepare("SELECT id, quantity FROM dispatch_inventory WHERE lower(name)=lower(?) AND COALESCE(location,'')=COALESCE(?,'') LIMIT 1").bind(cols.name, cols.location ?? null).first<{ id: string; quantity: number }>()
+        ? await db.prepare("SELECT id, quantity FROM dispatch_inventory WHERE tenant_id=? AND lower(name)=lower(?) AND COALESCE(location,'')=COALESCE(?,'') LIMIT 1").bind(t.tenantId, cols.name, cols.location ?? null).first<{ id: string; quantity: number }>()
         : null;
       if (existing) {
         await db.prepare("UPDATE dispatch_inventory SET quantity=?, source=?, scan_confidence=COALESCE(?, scan_confidence), updated_at=? WHERE id=?")
@@ -187,8 +177,8 @@ export async function POST(request: Request) {
         merged++; ids.push(existing.id);
       } else {
         const id = crypto.randomUUID();
-        const names = ["id", ...Object.keys(cols), "source", "created_at", "updated_at"];
-        const values = [id, ...Object.values(cols), source, now, now];
+        const names = ["id", "tenant_id", ...Object.keys(cols), "source", "created_at", "updated_at"];
+        const values = [id, t.tenantId, ...Object.values(cols), source, now, now];
         await db.prepare(`INSERT INTO dispatch_inventory (${names.join(",")}) VALUES (${names.map(() => "?").join(",")})`).bind(...values).run();
         inserted++; ids.push(id);
       }
@@ -203,14 +193,14 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const id = cleanText(new URL(request.url).searchParams.get("id"), 80);
     if (!id) return Response.json({ error: "id is required." }, { status: 400 });
     const body = (await request.json()) as Record<string, unknown>;
     const cols = itemColumns(body);
     if ("name" in cols && !cols.name) delete cols.name;
     if (!Object.keys(cols).length) return Response.json({ updated: false });
-    await coreDb().prepare(`UPDATE dispatch_inventory SET ${Object.keys(cols).map((c) => `${c}=?`).join(",")}, updated_at=? WHERE id=?`).bind(...Object.values(cols), new Date().toISOString(), id).run();
+    await coreDb().prepare(`UPDATE dispatch_inventory SET ${Object.keys(cols).map((c) => `${c}=?`).join(",")}, updated_at=? WHERE tenant_id=? AND id=?`).bind(...Object.values(cols), new Date().toISOString(), t.tenantId, id).run();
     return Response.json({ updated: true });
   } catch (error) {
     console.error("dispatch.inventory.update_failed", error);
@@ -221,12 +211,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const url = new URL(request.url);
     const ids = String(url.searchParams.get("ids") || url.searchParams.get("id") || "").split(",").map((x) => cleanText(x, 80)).filter(Boolean);
     if (!ids.length) return Response.json({ error: "id is required." }, { status: 400 });
     const db = coreDb();
-    for (const id of ids) await db.prepare("DELETE FROM dispatch_inventory WHERE id=?").bind(id).run();
+    for (const id of ids) await db.prepare("DELETE FROM dispatch_inventory WHERE tenant_id=? AND id=?").bind(t.tenantId, id).run();
     return Response.json({ deleted: ids.length });
   } catch (error) {
     console.error("dispatch.inventory.delete_failed", error);

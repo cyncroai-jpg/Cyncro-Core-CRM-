@@ -24820,3 +24820,74 @@ button.crmUser i {
 .readable .dxWO :is(.dxWORow small,.dxWOFeed li small,.fxCCHead small,.dxWOChecks span em){font-size:10px!important;font-weight:600!important}
 .readable .dxWO :is(button){font-size:10.5px!important}.readable .dxWO .fxPill{font-size:9px!important}
 @media (max-width:1100px){.dxWO{grid-template-columns:1fr}.dxWOList,.dxWODesk{grid-column:1}.dxWORow{grid-template-columns:100px 1fr 110px auto}.dxWOLabor,.dxWOMoney{display:none}.dxWOGrid,.dxWOLower{grid-template-columns:1fr}}
+
+/* ─── Dispatch: schedule ─── */
+.dxSch{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,.8fr);gap:14px;align-content:start}
+.dxSch .dxCCTop{grid-column:1/-1}
+.dxSchNav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dxSchNav>button,.dxSchMode button{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:8px 12px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.dxSchMode{display:inline-flex;gap:3px;padding:3px;border:1px solid #ffffff10;border-radius:10px;background:#0d0b0d;margin-left:6px}
+.dxSchMode button{border-color:transparent;background:transparent;color:#a0898e;padding:6px 10px}.dxSchMode button.on{background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-color:#ff6f86;box-shadow:0 0 14px #ff2f4f66}
+.dxSchNav select{border:1px solid #3d353a;background:#0d0b0d;color:#efe9ec;border-radius:9px;padding:8px 10px;font-size:11.5px;margin-left:6px}
+.dxSchGrid{grid-column:1;align-self:start;gap:10px}
+.dxSchWeek{display:grid;grid-template-columns:40px repeat(7,minmax(0,1fr));border-top:1px solid #ffffff0d;padding-top:6px;min-height:560px}
+.dxSchWeek.day{grid-template-columns:40px 1fr}
+.dxSchHours{display:grid;grid-template-rows:34px repeat(var(--hours),1fr);color:#5d555a;font-size:8.5px;font-weight:600}
+.dxSchHours span{transform:translateY(-6px)}
+.dxSchDay{display:grid;grid-template-rows:34px 1fr;border-left:1px solid #ffffff0a;min-width:0}
+.dxSchDay>b{color:#8f858b;font-size:9.5px;font-weight:700;text-align:center;letter-spacing:.08em;text-transform:uppercase;line-height:1.2}
+.dxSchDay>b span{color:#efe9ec}.dxSchDay>b small{display:block;font-size:8px;color:#5d555a;letter-spacing:.04em;text-transform:none;font-weight:600}
+.dxSchDay.today>b{color:#ff5c78}.dxSchDay.today>b span{color:#fff}
+.dxSchCol{position:relative;min-height:520px;background:transparent}
+.dxSchDay.today .dxSchCol{background:linear-gradient(180deg,#ff2f4f0d,transparent)}
+.dxSchLine{position:absolute;left:0;right:0;height:1px;background:#ffffff08;pointer-events:none}
+.dxSchNow{position:absolute;left:0;right:0;height:2px;background:#ff2f4f;box-shadow:0 0 10px #ff2f4f;z-index:2;pointer-events:none}
+.dxSchBlock{position:absolute;left:3px;right:3px;z-index:1;text-align:left;border-radius:7px;border:1px solid color-mix(in srgb,var(--c) 70%,#fff 0%);background:color-mix(in srgb,var(--c) 26%,#141114);color:#fff;padding:4px 6px;overflow:hidden;cursor:grab;user-select:none;min-height:22px;box-shadow:0 6px 14px #0006}
+.dxSchBlock.sel{box-shadow:0 0 0 1.5px #fff,0 0 18px color-mix(in srgb,var(--c) 70%,transparent)}
+.dxSchBlock.dragging{opacity:.35;cursor:grabbing}
+.dxSchBlock b{display:block;font-size:9.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dxSchBlock small{display:block;font-size:8px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dxSchLegend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:#8f858b}.dxSchLegend span{display:inline-flex;align-items:center;gap:6px}.dxSchLegend i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor}
+.dxSchSide{grid-column:2;display:grid;gap:14px;align-content:start}
+.dxSchDetail,.dxSchGoogle,.dxSchAgenda{gap:10px}
+.dxSchField{display:grid;gap:5px;color:#8f858b;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.dxSchField input,.dxSchField select{border:1px solid #3d353a;border-radius:9px;background:#141114;color:#fff;padding:9px 11px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;width:100%;min-width:0;color-scheme:dark}
+.dxSchField input:focus,.dxSchField select:focus{outline:none;border-color:#ff2f4f;box-shadow:0 0 0 2px #ff2f4f33}
+.dxSchActions{display:flex;gap:8px;flex-wrap:wrap}
+.dxSchActions button,.dxSchGoogle button,.dxSchConnect{border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
+.dxSchActions button.fxCCPrimary,.dxSchGoogle button.fxCCPrimary,.dxSchConnect{border-color:#ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;box-shadow:0 0 22px #ff2f4f88}
+.dxSchActions button:disabled,.dxSchGoogle button:disabled{opacity:.5;cursor:not-allowed}
+.dxSchHint{color:#8f858b;font-size:10px;line-height:1.4}
+.dxSchGoogle p{margin:0;color:#c9c0c5;font-size:11.5px;line-height:1.5}.dxSchGoogle>small{color:#8f858b;font-size:10px;line-height:1.4}
+.dxSchAgenda ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.dxSchAgenda li{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;border:1px solid #ffffff0a;border-radius:9px;background:#0d0b0d;padding:7px 9px;font-size:11px;color:#efe9ec;cursor:pointer}
+.dxSchAgenda li i{width:8px;height:8px;border-radius:50%;box-shadow:0 0 8px currentColor}.dxSchAgenda li b{color:#fff;white-space:nowrap}.dxSchAgenda li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dxSchAgenda li small{color:#8f858b;font-size:9.5px}
+.dxSchAgenda li.dim{grid-template-columns:1fr;color:#5f565b;font-style:italic;border-style:dashed;cursor:default}
+.dxSchKpis{grid-column:1/-1}
+/* ─── Dispatch: time clock ─── */
+.dxClk{display:grid;grid-template-columns:minmax(360px,.9fr) minmax(0,1.1fr);gap:14px;align-content:start}
+.dxClk .dxCCTop,.dxClkSheet,.dxClkKpis{grid-column:1/-1}
+.dxClkPunch{gap:12px}
+.dxClkForm{display:grid;gap:10px}
+.dxClkForm label{display:grid;gap:5px;color:#8f858b;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.dxClkForm select{border:1px solid #3d353a;border-radius:9px;background:#141114;color:#fff;padding:10px 11px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;width:100%;min-width:0}
+.dxClkBig,.dxClkPunch button.dxClkBig{width:100%;border:1px solid #ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-radius:14px;padding:22px 14px;font-size:15px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 34px #ff2f4f88}
+.dxClkBig.out{background:linear-gradient(180deg,#2a2226,#141114);border-color:#ff2f4f80;color:#ff8fa3;box-shadow:0 0 20px #ff2f4f40}
+.dxClkBig:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.dxClkLive{display:grid;gap:8px;justify-items:center;border:1px solid #ff2f4f44;border-radius:14px;background:radial-gradient(ellipse 70% 80% at 50% 0%,#a71f3533,#0d0b0d 70%);padding:16px}
+.dxClkTimer{font-size:44px;font-weight:800;color:#fff;letter-spacing:.06em;font-variant-numeric:tabular-nums;text-shadow:0 0 24px #ff2f4f99}
+.dxClkTimer.sm{font-size:22px;text-shadow:0 0 14px #ff2f4f66}
+.dxClkLive span{color:#8f858b;font-size:11px;text-align:center}
+.dxClkBoard{gap:10px}
+.dxClkCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.dxClkCards article{display:grid;gap:4px;border:1px solid #ff2f4f44;border-radius:12px;background:linear-gradient(180deg,#1d181b,#0d0b0d);padding:12px;box-shadow:0 0 24px #ff2f4f22}
+.dxClkCards article b{color:#fff;font-size:12.5px}.dxClkCards article small{color:#8f858b;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dxClkCards article div{display:flex;gap:6px;margin-top:4px}
+.dxClkTechs{grid-column:2}
+.dxClkTechs .fxCCBars>div span b{font-weight:700;color:#fff}
+.dxClkTable tbody tr{cursor:default}.dxClkTable tbody tr.live{background:linear-gradient(90deg,#a71f3522,transparent)}
+.readable .dxSch :is(small),.readable .dxClk :is(small){font-size:10px!important;font-weight:700!important;line-height:1.35!important}
+.readable .dxSch :is(.dxSchHours span,.dxSchDay>b,.dxSchDay>b small,.dxSchBlock small,.dxSchField,.fxCCKpis small,.fxCCHead small),.readable .dxClk :is(.dxClkForm label,.fxCCKpis small,.fxCCHead small,.fxInvTable th){font-size:9px!important}
+.readable .dxSch .dxSchBlock b{font-size:9.5px!important}.readable .dxSch .dxSchBlock small{font-size:8px!important;font-weight:600!important}
+.readable .dxSch :is(button),.readable .dxClk :is(button){font-size:10.5px!important}.readable .dxClk .dxClkBig{font-size:15px!important}
+.readable .dxSch .dxSchGoogle p,.readable .dxClk .dxClkLive span{font-size:11px!important}
+@media (max-width:1100px){.dxSch,.dxClk{grid-template-columns:1fr}.dxSchGrid,.dxSchSide,.dxClkTechs{grid-column:1}.dxSchWeek{overflow-x:auto}}

@@ -1,15 +1,5 @@
-import { coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
-
-async function requireDispatchAccess(request: Request) {
-  const email = requestUser(request);
-  if (email === "platform-owner") return true;
-  const member = await coreDb().prepare("SELECT role,active FROM workspace_members WHERE email=?").bind(email).first<{ role: string; active: number }>();
-  if (!member) {
-    const count = await coreDb().prepare("SELECT COUNT(*) AS c FROM workspace_members").first<{ c: number }>();
-    if (!Number(count?.c || 0)) return true;
-  }
-  return Boolean(member?.active);
-}
+import { coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
 
 const MIN_BILLABLE_HOURS = 1 / 60; // entries under a minute are almost certainly a clock mistake, not real time
 
@@ -25,16 +15,16 @@ function hoursBetween(clockIn: string, clockOut: string | null): number {
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
-    if (!(await requireDispatchAccess(request))) return Response.json({ error: "Dispatch access required." }, { status: 403 });
+    const t = await requireDispatch(request); if (!t) return DISPATCH_DENIED();
     const db = coreDb();
     const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
     const [jobsRes, invoicesRes, techsRes, timeRes, materialsRes] = await Promise.all([
-      db.prepare("SELECT id,status,revenue_cents,scheduled_at,updated_at,assigned_tech_id FROM dispatch_jobs").all(),
-      db.prepare("SELECT id,job_id,amount_cents,status,paid_at FROM dispatch_invoices").all(),
-      db.prepare("SELECT id,name,hourly_rate_cents FROM dispatch_technicians WHERE active=1").all(),
-      db.prepare("SELECT job_id,tech_id,clock_in_at,clock_out_at FROM dispatch_job_time_entries").all(),
-      db.prepare("SELECT job_id,quantity,unit_cost_cents FROM dispatch_job_materials").all(),
+      db.prepare("SELECT id,status,revenue_cents,scheduled_at,updated_at,assigned_tech_id FROM dispatch_jobs WHERE tenant_id=?").bind(t.tenantId).all(),
+      db.prepare("SELECT id,job_id,amount_cents,status,paid_at FROM dispatch_invoices WHERE tenant_id=?").bind(t.tenantId).all(),
+      db.prepare("SELECT id,name,hourly_rate_cents FROM dispatch_technicians WHERE tenant_id=? AND active=1").bind(t.tenantId).all(),
+      db.prepare("SELECT job_id,tech_id,clock_in_at,clock_out_at FROM dispatch_job_time_entries WHERE tenant_id=?").bind(t.tenantId).all(),
+      db.prepare("SELECT job_id,quantity,unit_cost_cents FROM dispatch_job_materials WHERE tenant_id=?").bind(t.tenantId).all(),
     ]);
 
     const jobs = (jobsRes.results || []) as Record<string, unknown>[];
