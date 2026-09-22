@@ -2,6 +2,8 @@ import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { geocodeAddress } from "@/lib/core/geocode";
 import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
 import { syncGoogleJob } from "@/lib/dispatch/google";
+import { emitAutomationEvent } from "@/lib/automations/engine";
+
 
 const STATUSES = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"];
 
@@ -120,6 +122,19 @@ export async function PATCH(request: Request) {
     vals.push(t.tenantId, id);
     await coreDb().prepare(`UPDATE dispatch_jobs SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
     const google = body.scheduledAt !== undefined || body.status !== undefined || body.assignedTechId !== undefined ? await syncGoogleJob(t.email, t.tenantId, id) : "skipped";
+    if (String(body.status || "").toUpperCase() === "COMPLETE") {
+      const done = await coreDb().prepare("SELECT j.service_type, j.customer_id, c.name customer_name, c.email customer_email, c.phone customer_phone FROM dispatch_jobs j LEFT JOIN dispatch_customers c ON c.id=j.customer_id WHERE j.id=?").bind(id).first<{ service_type: string; customer_id: string; customer_name: string | null; customer_email: string | null; customer_phone: string | null }>();
+      if (done) {
+        // Dispatch customers live in their own table; link (or create) the CRM contact by email so automations can email/text them.
+        let contactId = "";
+        if (done.customer_email) {
+          const existing = await coreDb().prepare("SELECT id FROM crm_contacts WHERE tenant_id=? AND lower(email)=lower(?)").bind(t.tenantId, done.customer_email).first<{ id: string }>();
+          if (existing) contactId = existing.id;
+          else { contactId = crypto.randomUUID(); const now2 = new Date().toISOString(); await coreDb().prepare("INSERT INTO crm_contacts (id,full_name,email,phone,lifecycle,source,tenant_id,created_at,updated_at) VALUES (?,?,?,?,'CUSTOMER','DISPATCH',?,?,?)").bind(contactId, done.customer_name || "Customer", done.customer_email, done.customer_phone, t.tenantId, now2, now2).run(); }
+        }
+        await emitAutomationEvent(t.tenantId, "JOB_COMPLETED", { contactId, jobId: id, serviceType: done.service_type, customerName: done.customer_name || "", customerEmail: done.customer_email || "", customerPhone: done.customer_phone || "", trigger: "JOB_COMPLETED" });
+      }
+    }
     return Response.json({ updated: true, google });
   } catch (error) {
     console.error("dispatch.jobs.update_failed", error);

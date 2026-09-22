@@ -10,6 +10,7 @@ import { DispatchSchedule } from "@/app/components/DispatchSchedule";
 import { DispatchTimeClock } from "@/app/components/DispatchTimeClock";
 import { CRMConversations } from "@/app/components/CRMConversations";
 import { TeamDatalist } from "@/app/components/TeamDatalist";
+import { CRMAutomations } from "@/app/components/CRMAutomations";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -15024,132 +15025,6 @@ const AUTOMATION_ACTIONS = [
   { value: "ADD_ACTIVITY_NOTE", label: "Add a note to the contact" },
   { value: "ASSIGN_REP", label: "Assign the opportunity to a rep" },
 ];
-
-function CRMAutomations({ onFlash }: { onFlash: (message: string) => void }) {
-  const [rules, setRules] = useState<CrmAutomationRule[]>([]);
-  const [runs, setRuns] = useState<CrmAutomationRun[]>([]);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", triggerEvent: "OPPORTUNITY_STAGE_CHANGED", stageFilter: "", actionType: "CREATE_TASK", taskTitle: "", dueInDays: "1", noteTitle: "", noteDetails: "", rep: "" });
-  const load = () => {
-    void fetch("/api/crm/automations").then((r) => r.json()).then((d: { rules?: CrmAutomationRule[]; runs?: CrmAutomationRun[] }) => {
-      setRules(d.rules || []); setRuns(d.runs || []);
-    });
-  };
-  useEffect(load, []);
-
-  const activeCount = rules.filter((r) => r.active).length;
-  const successCount = runs.filter((r) => r.result === "SUCCESS").length;
-  const successRate = runs.length ? Math.round((successCount / runs.length) * 100) : 0;
-
-  const createRule = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) { onFlash("Give the rule a name"); return; }
-    const triggerFilter = form.triggerEvent === "OPPORTUNITY_STAGE_CHANGED" && form.stageFilter ? { stage: form.stageFilter.toUpperCase() } : {};
-    const actionConfig = form.actionType === "CREATE_TASK" ? { title: form.taskTitle || "Follow up", dueInDays: Number(form.dueInDays) || 1 }
-      : form.actionType === "ADD_ACTIVITY_NOTE" ? { title: form.noteTitle || "Automation note", details: form.noteDetails }
-      : { rep: form.rep };
-    void fetch("/api/crm/automations", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, triggerEvent: form.triggerEvent, triggerFilter, actionType: form.actionType, actionConfig }),
-    }).then((r) => r.json()).then((d: { id?: string; error?: string }) => {
-      if (d.error) { onFlash(d.error); return; }
-      onFlash("Automation rule created"); setCreating(false);
-      setForm({ name: "", triggerEvent: "OPPORTUNITY_STAGE_CHANGED", stageFilter: "", actionType: "CREATE_TASK", taskTitle: "", dueInDays: "1", noteTitle: "", noteDetails: "", rep: "" });
-      load();
-    });
-  };
-  const toggleRule = (rule: CrmAutomationRule) => {
-    void fetch("/api/crm/automations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: rule.id, active: !rule.active }) })
-      .then((r) => { if (r.ok) load(); });
-  };
-  const deleteRule = (id: string) => {
-    void fetch(`/api/crm/automations?id=${id}`, { method: "DELETE" }).then((r) => { if (r.ok) { onFlash("Rule deleted"); load(); } });
-  };
-
-  return (
-    <div className="automationWorkspace">
-      <div className="dispatchPageHead">
-        <div>
-          <span>CRM AUTOMATIONS</span>
-          <h1>Real rules that run against your real data.</h1>
-          <p>When a contact is created or an opportunity's stage changes, matching rules create a task, log a note, or reassign
-            the deal automatically — no AI persona, just a real trigger → action engine you can audit.</p>
-        </div>
-        <button onClick={() => setCreating(!creating)}>{creating ? "Cancel" : "＋ New rule"}</button>
-      </div>
-      <div className="automationSummary">
-        {[[String(activeCount), "ACTIVE RULES"], [String(runs.length), "RUNS LOGGED"], [`${successRate}%`, "SUCCESS RATE"]].map((item) => (
-          <div key={item[1]}><b>{item[0]}</b><small>{item[1]}</small></div>
-        ))}
-      </div>
-      {creating && (
-        <form className="disputeAddClientForm" onSubmit={createRule}>
-          <input placeholder="Rule name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <select value={form.triggerEvent} onChange={(e) => setForm({ ...form, triggerEvent: e.target.value })}>
-            {AUTOMATION_TRIGGERS.map((t) => <option value={t.value} key={t.value}>{t.label}</option>)}
-          </select>
-          {form.triggerEvent === "OPPORTUNITY_STAGE_CHANGED" && (
-            <input placeholder="Only when stage becomes (optional, e.g. PROPOSAL)" value={form.stageFilter} onChange={(e) => setForm({ ...form, stageFilter: e.target.value })} />
-          )}
-          <select value={form.actionType} onChange={(e) => setForm({ ...form, actionType: e.target.value })}>
-            {AUTOMATION_ACTIONS.map((a) => <option value={a.value} key={a.value}>{a.label}</option>)}
-          </select>
-          {form.actionType === "CREATE_TASK" && (
-            <>
-              <input placeholder="Task title" value={form.taskTitle} onChange={(e) => setForm({ ...form, taskTitle: e.target.value })} />
-              <input type="number" min="0" placeholder="Due in N days" value={form.dueInDays} onChange={(e) => setForm({ ...form, dueInDays: e.target.value })} />
-            </>
-          )}
-          {form.actionType === "ADD_ACTIVITY_NOTE" && (
-            <>
-              <input placeholder="Note title" value={form.noteTitle} onChange={(e) => setForm({ ...form, noteTitle: e.target.value })} />
-              <input placeholder="Note details" value={form.noteDetails} onChange={(e) => setForm({ ...form, noteDetails: e.target.value })} />
-            </>
-          )}
-          {form.actionType === "ASSIGN_REP" && (
-            <input placeholder="Rep email" value={form.rep} onChange={(e) => setForm({ ...form, rep: e.target.value })} />
-          )}
-          <button type="submit">Create rule</button>
-        </form>
-      )}
-      <div className="automationGrid">
-        {rules.map((rule) => {
-          let filter: Record<string, unknown> = {};
-          try { filter = JSON.parse(rule.trigger_filter || "{}"); } catch { /* ignore */ }
-          return (
-            <article className="crmPanel" key={rule.id}>
-              <header>
-                <span>{AUTOMATION_TRIGGERS.find((t) => t.value === rule.trigger_event)?.label || rule.trigger_event}</span>
-                <i className={rule.active ? "on" : ""}>{rule.active ? "ACTIVE" : "PAUSED"}</i>
-              </header>
-              <h2>{rule.name}</h2>
-              <p>{AUTOMATION_ACTIONS.find((a) => a.value === rule.action_type)?.label || rule.action_type}
-                {Object.keys(filter).length ? ` — only when ${Object.entries(filter).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}</p>
-              <footer>
-                <small>{rule.run_count} run(s){rule.last_run_at ? ` · last ${new Date(rule.last_run_at).toLocaleString()}` : ""}</small>
-                <button onClick={() => toggleRule(rule)}>{rule.active ? "Pause" : "Activate"}</button>
-                <button onClick={() => deleteRule(rule.id)}>Delete</button>
-              </footer>
-            </article>
-          );
-        })}
-        {!rules.length && <p className="disputeEmpty">No automation rules yet — create one above. It'll run for real the next time its trigger happens.</p>}
-      </div>
-      <section className="dispatchPanel">
-        <header><div><small>RUN LOG</small><h2>What actually happened</h2></div></header>
-        {runs.slice(0, 20).map((run) => (
-          <div className="disputeListRow" key={run.id}>
-            <b>{rules.find((r) => r.id === run.rule_id)?.name || "Deleted rule"}</b>
-            <span>{run.detail || run.trigger_event}</span>
-            <em style={{ color: run.result === "SUCCESS" ? undefined : "#ff8fa3" }}>{run.result}</em>
-            <small>{new Date(run.created_at).toLocaleString()}</small>
-          </div>
-        ))}
-        {!runs.length && <p className="disputeEmpty">No rules have run yet.</p>}
-      </section>
-    </div>
-  );
-}
 
 function CRMDataGraph({ onFlash }: { onFlash: (message: string) => void }) {
   const [focus, setFocus] = useState("Alexandra Lewis");

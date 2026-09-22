@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { emitAutomationEvent } from "@/lib/automations/engine";
 import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
@@ -73,7 +74,7 @@ export async function PATCH(request: Request) {
     const updates = body.updates && typeof body.updates === "object" ? body.updates as Record<string, unknown> : {};
     const compensationKeys = ["commissionRate","commissionStatus","residualRate","residualMonths","residualFlat","collected","paymentStatus","commissionNotes"];
     const isOwner = tenant.role === "OWNER";
-    const deal = await coreDb().prepare("SELECT assigned_rep, stage, account_id, primary_contact_id FROM crm_opportunities WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<{assigned_rep:string; stage:string; account_id:string; primary_contact_id:string|null}>();
+    const deal = await coreDb().prepare("SELECT assigned_rep, stage, account_id, primary_contact_id, name FROM crm_opportunities WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<{assigned_rep:string; stage:string; account_id:string; primary_contact_id:string|null; name:string}>();
     if (!deal) return Response.json({ error: "Opportunity not found." }, { status: 404 });
     const isAssignedRep = deal.assigned_rep && deal.assigned_rep.toLowerCase() === tenant.email.toLowerCase();
     if (compensationKeys.some((key) => updates[key] !== undefined) && !isOwner && !isAssignedRep) return Response.json({ error: "Owner or assigned rep permission is required to change compensation." }, { status: 403 });
@@ -111,6 +112,10 @@ export async function PATCH(request: Request) {
         await runAutomations(request, "OPPORTUNITY_STAGE_CHANGED", automationContext);
         if (newStage === "CLOSED WON") await runAutomations(request, "OPPORTUNITY_WON", automationContext);
         if (newStage === "CLOSED LOST") await runAutomations(request, "OPPORTUNITY_LOST", automationContext);
+        const dealCtx = { ...automationContext, contactId: String(deal.primary_contact_id || ""), dealName: String(deal.name || ""), trigger: "DEAL_STAGE_CHANGED" };
+        await emitAutomationEvent(tenant.tenantId, "DEAL_STAGE_CHANGED", dealCtx);
+        if (newStage === "CLOSED WON") await emitAutomationEvent(tenant.tenantId, "DEAL_WON", { ...dealCtx, trigger: "DEAL_WON" });
+        if (newStage === "CLOSED LOST") await emitAutomationEvent(tenant.tenantId, "DEAL_LOST", { ...dealCtx, trigger: "DEAL_LOST" });
       }
     }
     return Response.json({ opportunity: updatedOpportunity });

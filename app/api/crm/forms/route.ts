@@ -1,3 +1,4 @@
+import { emitAutomationEvent } from "@/lib/automations/engine";
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 
@@ -52,6 +53,12 @@ export async function PATCH(request: Request) {
       await coreDb().prepare("INSERT INTO crm_form_submissions (id,form_id,contact_id,respondent_name,respondent_email,answers_json,signature_name,consent_text,signer_ip,status,submitted_at) VALUES (?,?,?,?,?,?,?,?,?,'SUBMITTED',?)")
         .bind(id,form.id,contact?.id||null,name,email,JSON.stringify(b.answers||{}),signature||null,signature?"I adopt my typed name as my electronic signature and confirm these responses are accurate.":null,ip,now).run();
       if (contact) await coreDb().prepare("INSERT INTO crm_activities (id,contact_id,activity_type,title,details,status,created_by,created_at,updated_at) VALUES (?,?, 'FORM','Questionnaire submitted',?,'COMPLETED',?,?,?)").bind(crypto.randomUUID(),contact.id,String(form.title),email,now,now).run();
+      if (!contact) {
+        const cid=crypto.randomUUID();
+        await coreDb().prepare("INSERT INTO crm_contacts (id,full_name,email,lifecycle,source,tenant_id,created_at,updated_at) VALUES (?,?,?,'LEAD','FORM',?,?,?)").bind(cid,name,email,form.tenant_id,now,now).run();
+        contact={id:cid};
+      }
+      await emitAutomationEvent(String(form.tenant_id), "FORM_SUBMITTED", { contactId: contact.id, formId: String(form.id), formTitle: String(form.title||""), submissionId: id, trigger: "FORM_SUBMITTED" });
       return Response.json({ submitted:true, submissionId:id });
     }
     const tenant = await requireTenantAction(request, "edit");

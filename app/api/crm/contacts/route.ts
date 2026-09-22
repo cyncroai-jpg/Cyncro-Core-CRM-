@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail, normalizePhone } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { emitAutomationEvent } from "@/lib/automations/engine";
 import { runAutomations } from "@/lib/core/automations";
 
 export async function GET(request: Request) {
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
     }
     const contact = await db.prepare("SELECT * FROM crm_contacts WHERE id = ? AND tenant_id = ?").bind(id, tenant.tenantId).first();
     await runAutomations(request, "CONTACT_CREATED", { contactId: id, accountId, opportunityId, source: cleanText(body.source, 80) || "MANUAL" });
+    await emitAutomationEvent(tenant.tenantId, "CONTACT_CREATED", { contactId: id, accountId, opportunityId, source: cleanText(body.source, 80) || "MANUAL", trigger: "CONTACT_CREATED" });
     return Response.json({ contact, accountId, opportunityId }, { status: 201 });
   } catch (error) {
     console.error("crm.contacts.create_failed", error);

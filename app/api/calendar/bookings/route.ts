@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { emitAutomationEvent } from "@/lib/automations/engine";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
 import { dispatchWebhookEvent } from "@/lib/core/webhooks";
@@ -181,6 +182,7 @@ export async function POST(request: Request) {
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
     if (createdBooking) await syncGoogleBooking(tenant.email, createdBooking);
     // Automation webhooks — fire-and-forget
+    await emitAutomationEvent(tenant.tenantId, "BOOKING_CREATED", { contactId, bookingId, customerName, customerEmail, customerPhone: cleanText(body.customerPhone, 40), startsAt: starts.toISOString(), eventName: String(eventType.name || ""), eventTypeId, assignedTo, trigger: "BOOKING_CREATED" });
     void dispatchWebhookEvent("appointment.created", {
       bookingId, eventTypeId, customerName, customerEmail,
       startsAt: starts.toISOString(), endsAt: ends.toISOString(),
@@ -235,6 +237,7 @@ export async function PATCH(request: Request) {
     if (action === "CANCEL") {
       await db.prepare("UPDATE calendar_bookings SET status = 'CANCELLED', updated_at = ? WHERE id = ?")
         .bind(now, id).run();
+      await emitAutomationEvent(tenant.tenantId, "BOOKING_CANCELLED", { contactId: String(booking.contact_id || ""), bookingId: id, customerName: String(booking.customer_name || ""), startsAt: String(booking.starts_at || ""), trigger: "BOOKING_CANCELLED" });
     } else if (action === "RESCHEDULE") {
       const starts = new Date(String(body.startsAt || ""));
       if (Number.isNaN(starts.valueOf())) return Response.json({ error: "A valid new start time is required." }, { status: 400 });
@@ -268,6 +271,7 @@ export async function PATCH(request: Request) {
         const newStatus = String(updated?.status || "");
         if (newStatus === "COMPLETED") void dispatchWebhookEvent("appointment.completed", webhookData);
         else if (newStatus === "NO_SHOW") void dispatchWebhookEvent("appointment.no_show", webhookData);
+        if (newStatus === "NO_SHOW" || newStatus === "COMPLETED") await emitAutomationEvent(tenant.tenantId, newStatus === "NO_SHOW" ? "BOOKING_NO_SHOW" : "BOOKING_COMPLETED", { contactId: String(booking.contact_id || ""), bookingId: id, customerName: String(booking.customer_name || ""), startsAt: String(booking.starts_at || ""), trigger: newStatus === "NO_SHOW" ? "BOOKING_NO_SHOW" : "BOOKING_COMPLETED" });
       }
     }
     // Audit log — fire-and-forget

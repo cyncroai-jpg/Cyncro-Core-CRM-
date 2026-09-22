@@ -24926,3 +24926,59 @@ button.crmUser i {
 .readable .cvHub :is(.cvThread small,.cvMsg small,.cvChannels li span,.cvWarn){font-size:10px!important;font-weight:600!important}
 .readable .cvHub :is(button){font-size:10.5px!important}.readable .cvHub .cvMsg p{font-size:11.5px!important}
 @media (max-width:1100px){.cvHub{grid-template-columns:1fr}.cvList{max-height:320px}}
+
+/* ─── CRM: automations (workflows) ─── */
+.auHub{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(340px,.8fr);gap:14px;align-content:start}
+.auHub .dxCCTop,.auBuilder,.auRecipes,.auLog,.auKpis{grid-column:1/-1}
+.auList{grid-column:1;align-self:start;gap:10px}
+.auCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.auCards article{display:grid;gap:10px;border:1px solid #ffffff12;border-radius:12px;background:linear-gradient(180deg,#141114,#0d0b0d);padding:12px;cursor:pointer;box-shadow:0 6px 14px #0006;transition:border-color .12s;min-width:0}
+.auCards article:hover{border-color:#ff2f4f66}.auCards article.sel{border-color:#ff2f4fb3;box-shadow:0 0 24px #ff2f4f40}.auCards article.off{opacity:.55}
+.auCardHead{display:flex;align-items:flex-start;gap:8px;padding:0;margin:0}.auCardHead>div{flex:1;min-width:0}.auCardHead b{display:block;color:#fff;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.auCardHead small{display:block;color:#8f858b;font-size:9.5px;margin-top:3px}
+.auChain{display:flex;gap:4px;flex-wrap:wrap}.auChain i{width:24px;height:24px;border-radius:7px;border:1px solid #3d353a;background:#0d0b0d;display:grid;place-items:center;font-style:normal;font-size:11px;color:#ff8fa3}.auChain i.wait{color:#f3b23a;border-color:#f3b23a66}
+.auCardFoot{display:flex;gap:10px;flex-wrap:wrap;font-size:9.5px;color:#8f858b}.auCardFoot .bad{color:#f3b23a}
+.auDetail{grid-column:2;align-self:start;gap:12px}
+.auTest{display:grid;grid-template-columns:1fr auto;gap:8px}.auTest select{border:1px solid #3d353a;border-radius:9px;background:#141114;color:#fff;padding:9px 11px;font-size:12px;min-width:0}
+.auTest button,.auRecipeGrid article button{border:1px solid #ff6f86;background:linear-gradient(180deg,#d1304a,#8f1a2e);color:#fff;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 22px #ff2f4f88}.auTest button:disabled{opacity:.5;box-shadow:none;cursor:not-allowed}
+.auHint{color:#8f858b;font-size:10px;line-height:1.4}
+.auEnroll{display:grid;gap:6px}.auEnroll>small{color:#8f858b;font-size:8.5px;letter-spacing:.14em;font-weight:700}
+.auEnroll ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.auEnroll>ul>li{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;border:1px solid #ffffff0a;border-radius:9px;background:#0d0b0d;padding:7px 9px;font-size:11px;color:#efe9ec}.auEnroll>ul>li b{color:#fff}.auEnroll>ul>li small{grid-column:2;color:#8f858b;font-size:9.5px}.auEnroll>ul>li.dim{grid-template-columns:1fr;color:#5f565b;font-style:italic;border-style:dashed}
+.auEvents{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.auEvents li{display:grid;grid-template-columns:24px auto 1fr auto;gap:8px;align-items:center;border:1px solid #ffffff0a;border-radius:9px;background:#0d0b0d;padding:7px 9px;font-size:11px;color:#efe9ec;min-width:0}
+.auEvents.compact li{grid-template-columns:24px 1fr auto}
+.auEvents li i{width:24px;height:24px;border-radius:7px;border:1px solid #3d353a;display:grid;place-items:center;font-style:normal;font-size:11px;color:#ff8fa3}.auEvents li.failed i,.auEvents li.stopped i{color:#f3b23a;border-color:#f3b23a66}.auEvents li.done i{color:#3fd982;border-color:#3fd98266}
+.auEvents li b{color:#fff;white-space:nowrap}.auEvents li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9c0c5}.auEvents li small{color:#8f858b;font-size:9.5px;white-space:nowrap}
+.auEvents li.dim{grid-template-columns:1fr;color:#5f565b;font-style:italic;border-style:dashed}
+.auRecipeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.auRecipeGrid article{display:grid;gap:6px;border:1px solid #ffffff12;border-radius:12px;background:linear-gradient(180deg,#141114,#0d0b0d);padding:14px;box-shadow:0 6px 14px #0006;align-content:start}
+.auRecipeGrid article small{color:#ff5c78;font-size:8.5px;letter-spacing:.14em;font-weight:700;text-transform:uppercase}.auRecipeGrid article b{color:#fff;font-size:13px}.auRecipeGrid article p{margin:0;color:#8f858b;font-size:11px;line-height:1.45}
+.auRecipeGrid article div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}.auRecipeGrid article div span{color:#8f858b;font-size:10px}
+.auBuilder{gap:12px}
+.auBuilderGrid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px}
+.auBuilderLeft{display:grid;gap:10px;align-content:start}
+.auPalette{display:grid;gap:6px;border:1px solid #ffffff10;border-radius:12px;background:#0d0b0d;padding:10px}
+.auPalette>small{color:#8f858b;font-size:8.5px;letter-spacing:.14em;font-weight:700}
+.auPalette>div{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.auPalette button{display:flex;align-items:center;gap:7px;border:1px solid #3d353a;background:#141114;color:#efe9ec;border-radius:8px;padding:7px 9px;font-size:10px;font-weight:700;cursor:pointer;text-align:left}.auPalette button:hover{border-color:#ff2f4f}
+.auPalette button i{width:18px;height:18px;border-radius:5px;border:1px solid #3d353a;display:grid;place-items:center;font-style:normal;font-size:10px;color:#ff8fa3;flex:none}
+.auSteps{display:grid;gap:0;align-content:start;position:relative;padding-left:14px}
+.auSteps::before{content:"";position:absolute;left:29px;top:20px;bottom:20px;width:2px;background:linear-gradient(#ff2f4f,#3d353a);opacity:.6}
+.auStep{position:relative;border:1px solid #ffffff12;border-radius:12px;background:linear-gradient(180deg,#141114,#0d0b0d);margin-bottom:10px;box-shadow:0 6px 14px #0006}
+.auStep.open{border-color:#ff2f4fb3;box-shadow:0 0 22px #ff2f4f40}.auStep.wait{border-style:dashed}
+.auStep.trigger{display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;padding:10px 12px;border-color:#ff6f86;background:linear-gradient(90deg,#a71f3566,#0d0b0d)}
+.auStep>i,.auStepHead>i{width:32px;height:32px;border-radius:9px;border:1px solid #ff2f4f80;background:#0d0b0d;display:grid;place-items:center;font-style:normal;color:#ff8fa3;font-size:13px;flex:none;position:relative;z-index:1}
+.auStep b{display:block;color:#fff;font-size:12px;font-weight:700}.auStep small{display:block;color:#8f858b;font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.auStepHead{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;background:transparent;border:0;padding:10px 12px;cursor:pointer;color:#efe9ec}.auStepHead>div{min-width:0}.auStepHead>span{color:#5f565b;font-size:10px;font-weight:700}
+.auStepBody{display:grid;gap:8px;padding:0 12px 12px 54px}
+.auStepBody input,.auStepBody select,.auStepBody textarea{border:1px solid #3d353a;border-radius:9px;background:#141114;color:#fff;padding:9px 11px;font-size:12px;width:100%;min-width:0;font-family:inherit;resize:vertical}
+.auStepBody input:focus,.auStepBody select:focus,.auStepBody textarea:focus{outline:none;border-color:#ff2f4f;box-shadow:0 0 0 2px #ff2f4f33}
+.auStepBody em{color:#f3b23a;font-size:10px;font-style:normal}
+.auRow{display:grid;grid-template-columns:120px 1fr;gap:8px}.auRow.three{grid-template-columns:1fr 1fr 1fr}
+.auVars{display:flex;gap:5px;flex-wrap:wrap}.auVars button{border:1px solid #3d353a;background:#0d0b0d;color:#ff8fa3;border-radius:6px;padding:3px 7px;font-size:9.5px;cursor:pointer;font-family:ui-monospace,monospace}.auVars button:hover{border-color:#ff2f4f}
+.auStepTools{display:flex;gap:6px;justify-content:flex-end}
+.readable .auHub :is(small){font-size:10px!important;font-weight:700!important;line-height:1.35!important}
+.readable .auHub :is(.fxCCKpis small,.fxCCHead small,.auPalette>small,.auEnroll>small,.dxSchField,.auRecipeGrid article small){font-size:9px!important}
+.readable .auHub :is(.auStep small,.auEvents li small,.auEnroll>ul>li small,.auCards header small,.auHint){font-size:10px!important;font-weight:600!important}
+.readable .auHub :is(button){font-size:10.5px!important}.readable .auHub .auVars button{font-size:9.5px!important}.readable .auHub .auRecipeGrid article p{font-size:11px!important}
+@media (max-width:1100px){.auHub{grid-template-columns:1fr}.auList,.auDetail{grid-column:1}.auBuilderGrid{grid-template-columns:1fr}}
