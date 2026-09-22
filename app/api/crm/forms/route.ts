@@ -2,6 +2,7 @@ import { emitAutomationEvent } from "@/lib/automations/engine";
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { applyAfterSubmit, nextUrl, parseAfterSubmit } from "@/lib/forms/afterSubmit";
+import { formStats } from "@/lib/insights/stats";
 
 const safeFields = (value: unknown) => Array.isArray(value) ? value.slice(0, 60).map((raw) => {
   const x = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     }
     const tenant = await requireTenant(request);
     if (tenant instanceof Response) return tenant;
+    if (url.searchParams.get("stats")) return Response.json(await formStats(tenant.tenantId, Math.min(90, Math.max(7, Number(url.searchParams.get("days") || 30)))));
     if (id) {
       const form = await coreDb().prepare("SELECT * FROM crm_forms WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
       const submissions = await coreDb().prepare("SELECT s.*, (SELECT COUNT(*) FROM crm_form_files f WHERE f.submission_id=s.id) file_count FROM crm_form_submissions s WHERE form_id=? ORDER BY submitted_at DESC").bind(id).all();

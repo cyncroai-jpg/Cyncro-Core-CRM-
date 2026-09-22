@@ -11,6 +11,7 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { emailTransportStatus } from "@/lib/core/email";
+import { automationStats } from "@/lib/insights/stats";
 import { RECIPES, STEP_TYPES, TRIGGERS, enroll, processDueEnrollments, runEnrollment, type Step, type Trigger } from "@/lib/automations/engine";
 import { smsConfigured } from "@/lib/automations/sms";
 
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     const db = coreDb();
     const url = new URL(request.url);
     const id = cleanText(url.searchParams.get("id"), 80);
+    if (url.searchParams.get("stats")) return Response.json(await automationStats(tenant.tenantId, Math.min(90, Math.max(7, Number(url.searchParams.get("days") || 30)))));
     if (id) {
       const workflow = await db.prepare("SELECT * FROM automation_workflows WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first();
       if (!workflow) return Response.json({ error: "Workflow not found." }, { status: 404 });

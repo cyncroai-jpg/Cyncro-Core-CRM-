@@ -11,6 +11,8 @@ import { DispatchTimeClock } from "@/app/components/DispatchTimeClock";
 import { CRMConversations } from "@/app/components/CRMConversations";
 import { TeamDatalist } from "@/app/components/TeamDatalist";
 import { CRMAutomations } from "@/app/components/CRMAutomations";
+import { FormsDashboard } from "@/app/components/FormsDashboard";
+import { StudioDashboard } from "@/app/components/StudioDashboard";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -501,6 +503,7 @@ function CRMForms({onFlash}:{onFlash:(message:string)=>void}){
   const [forms,setForms]=useState<CyncroFormRow[]>([]),[selected,setSelected]=useState(""),[editId,setEditId]=useState(""),[editing,setEditing]=useState(false),[draft,setDraft]=useState(empty),[submissions,setSubmissions]=useState<Record<string,unknown>[]>([]);
   const [aiPrompt,setAiPrompt]=useState(""),[generating,setGenerating]=useState(false);
   const [eventTypes,setEventTypes]=useState<{id:string;name:string;slug:string}[]>([]);
+  const [mode,setMode]=useState<"dashboard"|"build">("dashboard");
   useEffect(()=>{void fetch("/api/calendar/event-types").then(r=>r.ok?r.json():null).then((d:{eventTypes?:{id:string;name:string;slug:string}[]}|null)=>setEventTypes(d?.eventTypes||[])).catch(()=>undefined)},[]);
   const generateWithAi=async()=>{
     if(!aiPrompt.trim()){onFlash("Describe the form you want first");return}
@@ -522,9 +525,12 @@ function CRMForms({onFlash}:{onFlash:(message:string)=>void}){
   const addField=(type:string)=>setDraft({...draft,fields:[...draft.fields,{id:crypto.randomUUID(),label:type==="FILE"?"Upload supporting files":type==="CHECKBOX"?"Select all that apply":"New question",type,required:false,options:type==="SELECT"||type==="CHECKBOX"?["Option 1","Option 2"]:[]}]});
   return <section className="formsOS">
     <div className="formsHero"><div><small>CYNCRO FORMS + INTAKE</small><h2>Questionnaires, signatures, and files—connected to the client.</h2><p>Build branded intake forms, collect documents and images, record electronic consent, and keep every response inside Cyncro.</p></div><button onClick={()=>{setSelected("");openEdit()}}>＋ New form</button></div>
+    <div className="fxLendChips inTabs">{(["dashboard","build"] as const).map(m=><button key={m} className={mode===m?"on":""} onClick={()=>setMode(m)}>{m==="dashboard"?"Dashboard":"Forms"}</button>)}</div>
+    {mode==="dashboard"?<FormsDashboard onOpen={id=>{setSelected(id);setEditing(false);setMode("build")}}/>:<>
     <div className="formsMetrics">{[[forms.length,"FORMS"],[forms.reduce((n,f)=>n+Number(f.submission_count||0),0),"SUBMISSIONS"],[forms.filter(f=>f.status==="PUBLISHED").length,"LIVE LINKS"],["20MB","PER FILE"]].map(x=><article key={x[1]}><b>{x[0]}</b><span>{x[1]}</span></article>)}</div>
     <div className="formsLayout"><aside className="formsList"><header><b>Form library</b><button onClick={()=>void load()}>↻</button></header>{forms.map(row=><button className={selected===row.id?"active":""} key={row.id} onClick={()=>setSelected(row.id)}><span><b>{row.title}</b><small>{row.status} · {row.submission_count||0} responses</small></span><em>→</em></button>)}{!forms.length&&<p>Create your first questionnaire.</p>}</aside>
       <main className="formsStage">{editing?<><header><div><small>FORM BUILDER</small><h3>Edit every question and requirement</h3></div><button onClick={()=>setEditing(false)}>Close</button></header><div className="formSettings"><input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} placeholder="Form title"/><textarea value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})} placeholder="Client instructions"/><div className="fieldTools">{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><button key={t} onClick={()=>addField(t)}>＋ {t.toLowerCase()}</button>)}</div><div className="disputeInlineForm"><input placeholder="Describe this form (e.g. 'intake for a personal injury law firm') and AI will draft the questions" value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)}/><button type="button" disabled={generating} onClick={()=>void generateWithAi()}>{generating?"Generating…":"✦ Generate with AI"}</button></div>{draft.fields.map((field,index)=><article className="fieldEditor" key={field.id}><i>{index+1}</i><input value={field.label} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,label:e.target.value};setDraft({...draft,fields})}}/><select value={field.type} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,type:e.target.value};setDraft({...draft,fields})}}>{["SHORT","LONG","EMAIL","PHONE","NUMBER","DATE","SELECT","CHECKBOX","FILE"].map(t=><option key={t}>{t}</option>)}</select><label><input type="checkbox" checked={field.required} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,required:e.target.checked};setDraft({...draft,fields})}}/> Required</label><button className="dangerText" onClick={()=>setDraft({...draft,fields:draft.fields.filter(x=>x.id!==field.id)})}>Delete</button>{["SELECT","CHECKBOX"].includes(field.type)&&<input className="fieldOptions" value={field.options.join(", ")} onChange={e=>{const fields=[...draft.fields];fields[index]={...field,options:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)};setDraft({...draft,fields})}} placeholder="Options separated by commas"/>}</article>)}<div className="formAfter"><small>AFTER SUBMIT · CONNECT TO CALENDAR + AUTOMATIONS</small><div className="formAfterGrid"><label>Then<select value={draft.settings.afterSubmit} onChange={e=>setDraft({...draft,settings:{...draft.settings,afterSubmit:e.target.value as "message"|"book"}})}><option value="message">Show a thank-you message</option><option value="book">Send them to book an appointment</option></select></label>{draft.settings.afterSubmit==="book"?<label>Appointment type<select value={draft.settings.bookingEvent} onChange={e=>setDraft({...draft,settings:{...draft.settings,bookingEvent:e.target.value}})}><option value="">Pick an event type…</option>{eventTypes.map(t=><option key={t.id} value={t.slug}>{t.name}</option>)}</select></label>:<label>Thank-you message<input value={draft.settings.successMessage} onChange={e=>setDraft({...draft,settings:{...draft.settings,successMessage:e.target.value}})} placeholder="Everything is safely with our team."/></label>}<label>Tag the contact<input value={draft.settings.tags} onChange={e=>setDraft({...draft,settings:{...draft.settings,tags:e.target.value}})} placeholder="e.g. intake, hot-lead"/></label><label>Assign to<input list="cyncro-team" value={draft.settings.assignTo} onChange={e=>setDraft({...draft,settings:{...draft.settings,assignTo:e.target.value}})} placeholder="teammate email"/></label></div><p>Every submission creates or updates the contact and fires the "Form submitted" automation trigger. Tags here can start a "Tag added" workflow too.</p></div><div className="formPublish"><label><input type="checkbox" checked={draft.requiresSignature} onChange={e=>setDraft({...draft,requiresSignature:e.target.checked})}/> Require electronic signature</label><select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>DRAFT</option><option>PUBLISHED</option><option>ARCHIVED</option></select><button onClick={()=>void save()}>Save form</button></div></div></>:active?<><header><div><small>{active.status}</small><h3>{active.title}</h3></div><div><button onClick={()=>openEdit(active)}>Edit form</button><button onClick={()=>void share(active)}>Copy client link</button><button className="dangerText" onClick={async()=>{if(!confirm("Delete this form and its responses?"))return;await fetch(`/api/crm/forms?id=${active.id}`,{method:"DELETE"});setSelected("");await load();onFlash("Form deleted")}}>Delete</button></div></header><div className="formSummary"><p>{active.description}</p><div>{(JSON.parse(active.fields_json||"[]") as CyncroFormField[]).map((f,i)=><span key={f.id}><i>{i+1}</i><b>{f.label}</b><small>{f.type}{f.required?" · REQUIRED":""}</small></span>)}</div></div><section className="submissionLedger"><header><b>Client responses</b><span>{submissions.length} received</span></header>{submissions.map(s=><article key={String(s.id)}><div><b>{String(s.respondent_name)}</b><small>{String(s.respondent_email)}</small></div><span>{new Date(String(s.submitted_at)).toLocaleString()}</span><em>{Number(s.file_count||0)} files</em><strong>{s.signature_name?"SIGNED":"SUBMITTED"}</strong></article>)}{!submissions.length&&<p>No responses yet. Publish and share the client link.</p>}</section></>:<div className="formEmpty"><i>▤</i><h3>Build your first client intake</h3><p>Add questions, uploads, and a signature, then send one clean link.</p><button onClick={()=>openEdit()}>Create form</button></div>}</main></div>
+  </>}
   </section>
 }
 
@@ -540,6 +546,7 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
   const [addingType, setAddingType] = useState(false);
   const [slugDraft, setSlugDraft] = useState("");
   const [aiRewritingId, setAiRewritingId] = useState("");
+  const [mode, setMode] = useState<"dashboard" | "build">("dashboard");
 
   const load = async () => {
     const r = await fetch("/api/studio/pages", { cache: "no-store" });
@@ -658,6 +665,8 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
           <div><small>CYNCRO STUDIO</small><h2>Landing pages that feed straight into your CRM.</h2><p>Every submission becomes a real contact, account, and pipeline opportunity — no separate funnel tool to reconcile.</p></div>
           <button onClick={() => void createPage()}>＋ New page</button>
         </div>
+        <div className="fxLendChips inTabs">{(["dashboard", "build"] as const).map((m) => <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>{m === "dashboard" ? "Dashboard" : "Pages"}</button>)}</div>
+        {mode === "dashboard" ? <StudioDashboard onOpen={(id) => void openPage(id)} /> : <>
         <div className="formsMetrics">
           {[[pages.length, "PAGES"], [pages.filter((p) => p.status === "PUBLISHED").length, "LIVE"], [pages.reduce((n, p) => n + Number(p.submission_count || 0), 0), "SUBMISSIONS"]].map((x) => (
             <article key={String(x[1])}><b>{x[0]}</b><span>{x[1]}</span></article>
@@ -675,6 +684,7 @@ function CRMStudio({ onFlash }: { onFlash: (message: string) => void }) {
             {!pages.length && <p>Create your first landing page.</p>}
           </aside>
         </div>
+        </>}
       </section>
     );
   }

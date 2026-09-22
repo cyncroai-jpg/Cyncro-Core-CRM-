@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { AutomationsDashboard } from "./AutomationsDashboard";
 
 type Workflow = { id: string; name: string; description: string | null; trigger: string; trigger_filter: string; steps: string; active: number; enrolled_count: number; completed_count: number; last_run_at: string | null; active_enrollments: number; failed_enrollments: number; updated_at: string };
 type Recipe = { key: string; name: string; description: string; trigger: string; steps: number };
@@ -43,7 +44,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
   const [busy, setBusy] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [testContact, setTestContact] = useState("");
-  const [tab, setTab] = useState<"workflows" | "recipes" | "log">("workflows");
+  const [tab, setTab] = useState<"dashboard" | "workflows" | "recipes" | "log">("dashboard");
 
   const load = () => fetch("/api/crm/automations").then((r) => r.json()).then((d: Payload) => setData(d));
   const loadDetail = (id: string) => fetch(`/api/crm/automations?id=${id}`).then((r) => (r.ok ? r.json() : null)).then((d: { enrollments: Enrollment[]; events: Ev[] } | null) => setDetail(d));
@@ -108,7 +109,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
       <div className="dxCCTop">
         <div className="dxCCDate"><b>Automations</b><small>{kpis.active} running workflows · {kpis.running} people mid-workflow · email {data?.channels.email ? `on (${data.channels.emailTransport})` : "off"} · texting {data?.channels.sms ? "on" : "logs only until Twilio is added"}</small></div>
         <div className="fxLendChips">
-          {(["workflows", "recipes", "log"] as const).map((t) => <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t === "workflows" ? "Workflows" : t === "recipes" ? "Recipes" : "Activity log"}</button>)}
+          {(["dashboard", "workflows", "recipes", "log"] as const).map((t) => <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t === "dashboard" ? "Dashboard" : t === "workflows" ? "Workflows" : t === "recipes" ? "Recipes" : "Activity log"}</button>)}
         </div>
         <div className="fxCCActions"><button onClick={() => void runDue()} disabled={busy === "run"} title="The scheduler does this every 5 minutes">Resume waiting now</button><button className="fxCCPrimary" onClick={startNew}>+ New workflow</button></div>
       </div>
@@ -159,6 +160,8 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
           </div>
           <div className="fxInvSave"><button onClick={() => setEditing(null)}>Cancel</button><button className="fxCCPrimary" disabled={busy === "save"} onClick={() => void save()}>{busy === "save" ? "Saving…" : editing.id ? "Save workflow" : "Create and switch on"}</button></div>
         </section>
+      ) : tab === "dashboard" ? (
+        <div className="auDashWrap"><AutomationsDashboard triggerLabel={triggerLabel} onOpen={(id) => { setSelectedId(id); setTab("workflows"); }} /></div>
       ) : tab === "recipes" ? (
         <section className="fxCCPanel auRecipes">
           <div className="fxCCHead"><div><b>Recipes</b><small>One click adds the workflow switched on. Edit anything after.</small></div></div>
@@ -221,13 +224,13 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
         </>
       )}
 
-      <div className="fxCCKpis fxInvKpis auKpis">
+      {tab !== "dashboard" && <div className="fxCCKpis fxInvKpis auKpis">
         <article><i>⚡</i><div><small>WORKFLOWS</small><b>{kpis.total}</b><span>{kpis.active} switched on</span></div></article>
         <article><i>◎</i><div><small>PEOPLE MID-WORKFLOW</small><b>{kpis.running}</b><span>waiting on a step</span></div></article>
         <article><i>✓</i><div><small>COMPLETED</small><b>{kpis.completed}</b><span>all steps finished</span></div></article>
         <article><i>!</i><div><small>FAILED</small><b>{kpis.failed}</b><span>see the log for why</span></div></article>
         <article><i>✉</i><div><small>CHANNELS</small><b>{data ? `${data.channels.email ? "Email" : "—"}${data.channels.sms ? " + SMS" : ""}` : "—"}</b><span>{data?.channels.sms ? "email + texting live" : data?.channels.email ? "texting needs Twilio" : "connect email + Twilio"}</span></div></article>
-      </div>
+      </div>}
     </div>
   );
 }

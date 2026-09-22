@@ -18,10 +18,17 @@ export async function GET(request: Request) {
     const slug = cleanText(new URL(request.url).searchParams.get("slug"), 100);
     if (!slug) return Response.json({ error: "slug is required" }, { status: 400 });
     const page = await coreDb()
-      .prepare("SELECT id,slug,title,sections_json,seo_title,seo_description,status FROM studio_pages WHERE slug=? AND status='PUBLISHED'")
+      .prepare("SELECT id,slug,title,sections_json,seo_title,seo_description,status,tenant_id FROM studio_pages WHERE slug=? AND status='PUBLISHED'")
       .bind(slug)
       .first<Record<string, unknown>>();
     if (!page) return Response.json({ error: "This page is not available." }, { status: 404 });
+    // Count the visit (one row per page load) so the Studio dashboard can show real views and conversion.
+    if (new URL(request.url).searchParams.get("preview") !== "1") {
+      let referrer = "";
+      try { const ref = request.headers.get("referer") || ""; referrer = ref ? new URL(ref).hostname : ""; } catch { referrer = ""; }
+      await coreDb().prepare("INSERT INTO studio_page_views (id,tenant_id,page_id,referrer,user_agent,created_at) VALUES (?,?,?,?,?,?)")
+        .bind(crypto.randomUUID(), page.tenant_id ? String(page.tenant_id) : null, String(page.id), referrer, (request.headers.get("user-agent") || "").slice(0, 200), new Date().toISOString()).run().catch(() => undefined);
+    }
     return Response.json({
       page: {
         id: page.id,

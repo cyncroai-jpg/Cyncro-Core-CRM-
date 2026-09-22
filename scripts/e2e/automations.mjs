@@ -55,6 +55,8 @@ await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",dg=>dg.accept());
 await page.goto(`${BASE}/#crm/automations`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
 check("automations tab renders", await page.locator(".auHub").count()===1);
+check("dashboard is the default tab", await page.locator(".auHub .inDash").count()===1);
+await page.locator(".fxLendChips button",{hasText:"Workflows"}).click(); await page.waitForTimeout(600);
 check("3 workflow cards", await page.locator(".auCards article").count()===3);
 await page.locator(".auCards article",{hasText:"Chain test"}).click(); await page.waitForTimeout(700);
 check("detail shows people + steps", (await page.locator(".auDetail").textContent()).includes("Web Lead") && (await page.locator(".auDetail .auEvents li").count())>=5);

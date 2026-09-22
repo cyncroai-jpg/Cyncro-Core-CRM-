@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { studioStats } from "@/lib/insights/stats";
 
 function slugify(value: string): string {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || crypto.randomUUID().slice(0, 8);
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
     const db = coreDb();
     const url = new URL(request.url);
     const id = cleanText(url.searchParams.get("id"), 80);
+    if (url.searchParams.get("stats")) return Response.json(await studioStats(tenant.tenantId, Math.min(90, Math.max(7, Number(url.searchParams.get("days") || 30)))));
     if (id) {
       const page = await db.prepare("SELECT * FROM studio_pages WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<Record<string, unknown>>();
       if (!page) return Response.json({ error: "Page not found." }, { status: 404 });
