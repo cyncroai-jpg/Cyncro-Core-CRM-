@@ -232,7 +232,6 @@ export default function Home() {
                 {x[1]}
               </button>
             ))}
-          <span>● CORE BETA</span>
           <a className="productSwitcherBtn" href="/growth" title="Cyncro Intelligence">◐ Intelligence</a>
           <button className="productSwitcherBtn" onClick={() => { window.history.pushState(null, "", "#products"); setProduct("switcher"); }} title="All products">⬡ Products</button>
         </nav>
