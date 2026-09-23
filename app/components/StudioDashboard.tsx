@@ -11,10 +11,12 @@ type Stats = {
 };
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never");
 
-export function StudioDashboard({ onOpen }: { onOpen: (id: string) => void }) {
-  const [days, setDays] = useState(30);
+export type StudioDashboardStats = Stats;
+export function StudioDashboard({ onOpen, days: daysProp, onStats, hideRange }: { onOpen: (id: string) => void; days?: number; onStats?: (s: Stats) => void; hideRange?: boolean }) {
+  const [daysState, setDays] = useState(30);
+  const days = daysProp ?? daysState;
   const [s, setS] = useState<Stats | null>(null);
-  useEffect(() => { let live = true; fetch(`/api/studio/pages?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) setS(d); }).catch(() => undefined); return () => { live = false; }; }, [days]);
+  useEffect(() => { let live = true; fetch(`/api/studio/pages?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) { setS(d); onStats?.(d); } }).catch(() => undefined); return () => { live = false; }; }, [days]);
   if (!s) return <div className="fxCCEmpty inLoading">Loading dashboard…</div>;
   const t = s.totals;
   return (
@@ -28,7 +30,7 @@ export function StudioDashboard({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       <section className="fxCCPanel">
-        <div className="fxCCHead"><div><b>Views per day</b><small>each page load on a live page · last {s.days} days</small></div><RangeChips days={days} onChange={setDays} /></div>
+        <div className="fxCCHead"><div><b>Views per day</b><small>each page load on a live page · last {s.days} days</small></div>{!hideRange && <RangeChips days={days} onChange={setDays} />}</div>
         <DayBars points={s.perDay} series={[{ key: "views", label: "Views", color: INK.cool }]} height={130} />
       </section>
       <section className="fxCCPanel">

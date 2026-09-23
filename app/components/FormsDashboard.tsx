@@ -10,10 +10,12 @@ type Stats = {
 };
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never");
 
-export function FormsDashboard({ onOpen }: { onOpen: (id: string) => void }) {
-  const [days, setDays] = useState(30);
+export type FormsDashboardStats = Stats;
+export function FormsDashboard({ onOpen, days: daysProp, onStats, hideRange }: { onOpen: (id: string) => void; days?: number; onStats?: (s: Stats) => void; hideRange?: boolean }) {
+  const [daysState, setDays] = useState(30);
+  const days = daysProp ?? daysState;
   const [s, setS] = useState<Stats | null>(null);
-  useEffect(() => { let live = true; fetch(`/api/crm/forms?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) setS(d); }).catch(() => undefined); return () => { live = false; }; }, [days]);
+  useEffect(() => { let live = true; fetch(`/api/crm/forms?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) { setS(d); onStats?.(d); } }).catch(() => undefined); return () => { live = false; }; }, [days]);
   if (!s) return <div className="fxCCEmpty inLoading">Loading dashboard…</div>;
   const t = s.totals;
   const perDay = s.perDay.map((p) => ({ day: p.day, signed: p.signed, unsigned: Math.max(0, p.submissions - p.signed) }));
@@ -28,7 +30,7 @@ export function FormsDashboard({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       <section className="fxCCPanel inWide">
-        <div className="fxCCHead"><div><b>Responses per day</b><small>signed vs unsigned · last {s.days} days</small></div><RangeChips days={days} onChange={setDays} /></div>
+        <div className="fxCCHead"><div><b>Responses per day</b><small>signed vs unsigned · last {s.days} days</small></div>{!hideRange && <RangeChips days={days} onChange={setDays} />}</div>
         <DayBars points={perDay} series={[{ key: "signed", label: "Signed", color: INK.good }, { key: "unsigned", label: "Unsigned", color: INK.accent }]} />
       </section>
 

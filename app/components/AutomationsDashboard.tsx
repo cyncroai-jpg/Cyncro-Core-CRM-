@@ -13,10 +13,12 @@ type Stats = {
 const KIND_LABEL: Record<string, string> = { ENROLLED: "Enrolled", SEND_EMAIL: "Emails sent", SEND_SMS: "Texts sent", WAIT: "Waits scheduled", IF: "Conditions checked", ADD_TAG: "Tags added", REMOVE_TAG: "Tags removed", CREATE_TASK: "Tasks created", ADD_NOTE: "Notes written", ASSIGN_REP: "Reps assigned", MOVE_STAGE: "Deals moved", SET_LIFECYCLE: "Lifecycles set", NOTIFY_TEAM: "Team notified", WEBHOOK: "Webhooks fired", DONE: "Finished", FAILED: "Failed", STOPPED: "Stopped by condition" };
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never");
 
-export function AutomationsDashboard({ triggerLabel, onOpen }: { triggerLabel: (t: string) => string; onOpen: (id: string) => void }) {
-  const [days, setDays] = useState(30);
+export type AutomationsDashboardStats = Stats;
+export function AutomationsDashboard({ triggerLabel, onOpen, days: daysProp, onStats, hideRange }: { triggerLabel: (t: string) => string; onOpen: (id: string) => void; days?: number; onStats?: (s: Stats) => void; hideRange?: boolean }) {
+  const [daysState, setDays] = useState(30);
+  const days = daysProp ?? daysState;
   const [s, setS] = useState<Stats | null>(null);
-  useEffect(() => { let live = true; fetch(`/api/crm/automations?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) setS(d); }).catch(() => undefined); return () => { live = false; }; }, [days]);
+  useEffect(() => { let live = true; fetch(`/api/crm/automations?stats=1&days=${days}`).then((r) => r.json()).then((d) => { if (live) { setS(d); onStats?.(d); } }).catch(() => undefined); return () => { live = false; }; }, [days]);
   if (!s) return <div className="fxCCEmpty inLoading">Loading dashboard…</div>;
   const t = s.totals;
   const perDay = s.perDay.map((p) => ({ day: p.day, done: p.done, failed: p.failed, other: Math.max(0, p.enrolled - p.done - p.failed) }));
@@ -32,7 +34,7 @@ export function AutomationsDashboard({ triggerLabel, onOpen }: { triggerLabel: (
       </div>
 
       <section className="fxCCPanel inWide">
-        <div className="fxCCHead"><div><b>Enrollments per day</b><small>who entered a workflow, by how it ended · last {s.days} days</small></div><RangeChips days={days} onChange={setDays} /></div>
+        <div className="fxCCHead"><div><b>Enrollments per day</b><small>who entered a workflow, by how it ended · last {s.days} days</small></div>{!hideRange && <RangeChips days={days} onChange={setDays} />}</div>
         <DayBars points={perDay} series={[{ key: "done", label: "Finished", color: INK.good }, { key: "other", label: "Running or stopped", color: INK.accent }, { key: "failed", label: "Failed", color: INK.warn }]} />
       </section>
 

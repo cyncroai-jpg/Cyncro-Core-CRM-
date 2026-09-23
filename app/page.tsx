@@ -13,6 +13,7 @@ import { TeamDatalist } from "@/app/components/TeamDatalist";
 import { CRMAutomations } from "@/app/components/CRMAutomations";
 import { FormsDashboard } from "@/app/components/FormsDashboard";
 import { StudioDashboard } from "@/app/components/StudioDashboard";
+import { GrowthDashboard } from "@/app/components/GrowthDashboard";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -10740,6 +10741,7 @@ function CyncroProspecting({ onOpenCRM }: { onOpenCRM: () => void }) {
 
 type CRMView =
   | "Overview"
+  | "Growth"
   | "Pipeline"
   | "Sales Table"
   | "Accounts"
@@ -11032,7 +11034,7 @@ function UniversalCRM({
   onOpenProspecting: () => void;
   isOwner: boolean;
 }) {
-  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Compensation", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
+  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Growth", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Compensation", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
   const
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
@@ -11385,6 +11387,7 @@ function UniversalCRM({
     { name: "Conversations", icon: "◇" },
     { name: "Social Automations", icon: "" },
     { name: "Journeys", icon: "↝" },
+    { name: "Growth", icon: "◈", count: "Live" },
     { name: "Automations", icon: "⌁" },
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧" },
@@ -11402,7 +11405,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11637,6 +11640,7 @@ function UniversalCRM({
           )}
           {view === "Journeys" && <CRMJourneys onFlash={flash} />}
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
+          {view === "Growth" && <GrowthDashboard triggerLabel={(t) => t.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())} onGo={(v) => setView(v)} />}
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} onOpenCalendar={() => setView("Calendar")} />}

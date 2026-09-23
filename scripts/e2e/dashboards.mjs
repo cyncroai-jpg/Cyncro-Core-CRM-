@@ -1,6 +1,6 @@
 import { chromium } from "playwright-core";
 const BASE="http://127.0.0.1:5177"; const stamp=Date.now(); const OUT=process.env.OUT||".";
-let pass=0, fail=0; const check=(n,ok,x="")=>{(ok?pass++:fail++);console.log(`${ok?"PASS":"FAIL"} ${n}${x?" — "+x:""}`)};
+let pass=0, fail=0, location=""; const check=(n,ok,x="")=>{(ok?pass++:fail++);console.log(`${ok?"PASS":"FAIL"} ${n}${x?" — "+x:""}`)};
 async function api(p,init={},cookie="",extra={}){const r=await fetch(BASE+p,{...init,headers:{"Content-Type":"application/json",...(cookie?{Cookie:cookie}:{}),...extra}});let b=null;try{b=await r.json()}catch{}return{r,b,cookie:(r.headers.get("set-cookie")||"").split(";")[0]}}
 const mk=async(n)=>(await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({tenantName:`${n} ${stamp}`,displayName:n,email:`${n.toLowerCase()}+${stamp}@example.com`,password:"Password123!"})})).cookie;
 const A=await mk("Dash"), B=await mk("Peer");
@@ -65,6 +65,14 @@ check("studio referrers + two charts", (await page.locator(".inBreak").first().t
 await page.screenshot({path:`${OUT}/dash-studio.png`,fullPage:true});
 await page.locator(".inDash .inTable tbody tr").first().click(); await page.waitForTimeout(800);
 check("studio row click opens the builder", await page.locator(".studioBuilder").count()===1);
+await page.goto(`${BASE}/#crm/growth`,{waitUntil:"networkidle"}); await page.waitForTimeout(2500);
+check("growth view renders all three sections", await page.locator(".gwHub").count()===1 && await page.locator(".gwBlock .inDash").count()===3);
+check("growth combined KPIs from real data", (await page.locator(".gwKpis").textContent()).includes("5") && await page.locator(".gwWide .inChart svg rect").count()>3);
+await page.locator(".fxLendChips button",{hasText:"7 days"}).first().click(); await page.waitForTimeout(1500);
+check("range chip re-fetches every section", (await page.locator(".gwBlock .fxCCHead small").allTextContents()).filter(t=>t.includes("last 7 days")).length>=2);
+await page.screenshot({path:`${OUT}/dash-growth.png`,fullPage:true});
+await page.locator(".gwBlockHead button",{hasText:"Open Forms"}).click(); await page.waitForTimeout(800);
+check("open button navigates to Forms", location=await page.evaluate(()=>location.hash), location==="#crm/forms" && await page.locator(".formsOS").count()===1);
 check("no page errors", errors.length===0, errors.join(" | ").slice(0,300));
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);

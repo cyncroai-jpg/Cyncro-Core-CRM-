@@ -25002,3 +25002,7 @@ button.crmUser i {
 .inRange button{padding:5px 10px;font-size:9.5px}
 .inTabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px}
 @media(max-width:900px){.inDash{grid-template-columns:1fr}.fxCCKpis.inKpis{grid-template-columns:1fr 1fr}}
+/* Growth dashboard: pages + forms + automations together */
+.gwHub{display:grid;gap:14px;align-content:start}.gwHub .gwKpis{grid-column:1/-1}.gwHub .fxCCPanel.gwWide{min-width:0}
+.gwBlock{display:grid;gap:12px;border-top:1px solid #ffffff10;padding-top:14px;scroll-margin-top:90px}.gwBlockHead{display:flex;align-items:center;justify-content:space-between;gap:10px}.gwBlockHead small{display:block;color:#ff5c78;font-size:9px;font-weight:800;letter-spacing:.14em}.gwBlockHead b{display:block;color:#fff;font-size:16px;font-weight:600;margin-top:2px}
+.gwHub .inDash .inKpis{background:#0f0c0e}
