@@ -1091,7 +1091,7 @@ function NewExperimentDialog({ onCreate, onCancel }: { onCreate: (name: string, 
 // ============ INTEGRATIONS (honest connection status) ============
 function GiIntegrations({ onFlash }: { onFlash: (m: string) => void }) {
   const connectors = [
-    { name: "Anthropic (AI agents + optimizer)", connected: true, note: "Connected — powers Forms AI, Lead Qualification, Attribution Analyst, and the command bar." },
+    { name: "Cyncro AI (agents + optimizer)", connected: true, note: "Connected — powers Forms AI, Lead Qualification, Attribution Analyst, and the command bar." },
     { name: "Google Ads", connected: false, note: "Not connected — spend and offline conversions must be entered manually in Campaigns until this is wired up." },
     { name: "Meta Ads", connected: false, note: "Not connected." },
     { name: "TikTok Ads", connected: false, note: "Not connected." },

@@ -168,7 +168,7 @@ export function DispatchInventory({ onFlash }: { onFlash: (m: string) => void })
           {summary?.scanEnabled && <span className="fxCCLive"><i />AI READY</span>}
         </div>
         {summary && !summary.scanEnabled && (
-          <div className="dxInvNotice">Photo analysis needs an Anthropic API key on the deployment. Run <code>npx wrangler secret put ANTHROPIC_API_KEY</code> once and redeploy. Manual entry below works either way.</div>
+          <div className="dxInvNotice">Photo analysis needs the AI key on the deployment. Run <code>npx wrangler secret put ANTHROPIC_API_KEY</code> once and redeploy. Manual entry below works either way.</div>
         )}
         <div className="dxInvScanGrid">
           <div className="dxInvDrop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void pickFile(e.dataTransfer.files?.[0] || null); }}>

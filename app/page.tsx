@@ -15207,7 +15207,7 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
           <small>CRM AGENT TEAM</small>
           <h2>Real AI actions, grounded in your real contact data.</h2>
           <p>
-            Pick a contact, run an agent, and it calls Claude with that contact's actual activity and opportunities —
+            Pick a contact, run an agent, and Cyncro AI works from that contact's actual activity and opportunities —
             never a fabricated persona or invented number. If no AI key is configured, you'll get a clear error,
             not a fake result.
           </p>
