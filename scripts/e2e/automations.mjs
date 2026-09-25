@@ -62,12 +62,12 @@ await page.locator(".auCards article",{hasText:"Chain test"}).click(); await pag
 check("detail shows people + steps", (await page.locator(".auDetail").textContent()).includes("Web Lead") && (await page.locator(".auDetail .auEvents li").count())>=5);
 await page.screenshot({path:`${OUT}/automations.png`,fullPage:true});
 await page.locator(".fxLendChips button",{hasText:"Recipes"}).click(); await page.waitForTimeout(300);
-check("7 recipes shown", await page.locator(".auRecipeGrid article").count()===7);
+check("14 recipes shown", await page.locator(".auRecipeGrid article").count()===14);
 await page.locator(".auRecipeGrid article",{hasText:"No-show recovery"}).locator("button").click(); await page.waitForTimeout(1200);
 check("recipe added from UI → 4 workflows", await page.locator(".auCards article").count()===4);
 await page.locator(".fxCCActions button",{hasText:"New workflow"}).click(); await page.waitForTimeout(300);
 check("builder opens with trigger + a step", await page.locator(".auBuilder").count()===1 && await page.locator(".auStep").count()>=2);
-await page.locator(".auPalette button",{hasText:"Wait"}).click(); await page.locator(".auPalette button",{hasText:"Add tag"}).click(); await page.waitForTimeout(200);
+await page.locator(".auPalette button").nth(3).click(); await page.locator(".auPalette button",{hasText:"Add tag"}).click(); await page.waitForTimeout(200);
 check("steps added from palette", await page.locator(".auSteps .auStep").count()===4);
 await page.locator(".auStepBody input").first().fill("nurture");
 await page.locator(".auBuilderLeft input").first().fill(`Built in UI ${stamp}`);

@@ -119,8 +119,12 @@ export async function PATCH(request: Request) {
     const hasAccountChanges = updates.company !== undefined || updates.address !== undefined || updates.website !== undefined;
     if (!fields.length && !hasAccountChanges) return Response.json({ error: "No valid contact changes supplied." }, { status: 400 });
     if (fields.length) {
+      const before = await coreDb().prepare("SELECT lifecycle, assigned_rep, email, phone FROM crm_contacts WHERE id=?").bind(id).first<Record<string, unknown>>();
       add("updated_at", new Date().toISOString()); values.push(id, tenant.tenantId);
       await coreDb().prepare(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = ? AND tenant_id = ?`).bind(...values).run();
+      const after = await coreDb().prepare("SELECT lifecycle, assigned_rep, email, phone FROM crm_contacts WHERE id=?").bind(id).first<Record<string, unknown>>();
+      const changed = ["lifecycle", "assigned_rep", "email", "phone"].filter((k) => String(before?.[k] ?? "") !== String(after?.[k] ?? ""));
+      if (changed.length) await emitAutomationEvent(tenant.tenantId, "CONTACT_UPDATED", { contactId: id, changed: changed.join(","), field: changed[0], lifecycle: after?.lifecycle, assignedRep: after?.assigned_rep, by: tenant.email, trigger: "CONTACT_UPDATED" });
     }
     if (updates.company !== undefined || updates.address !== undefined || updates.website !== undefined) {
       const row = await coreDb().prepare("SELECT account_id FROM crm_contacts WHERE id=? AND tenant_id=?").bind(id, tenant.tenantId).first<{account_id?:string}>();

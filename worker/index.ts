@@ -3,7 +3,12 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runReminders } from "../app/api/cron/reminders/route";
 import { resumeGrowthAutomations } from "../lib/growth/automationEngine";
-import { processDueEnrollments } from "../lib/automations/engine";
+import { processDueEnrollments, runAutomationScans } from "../lib/automations/engine";
+import { ensureCoreSchema } from "../lib/core/db";
+import { isPlatformOwner } from "../lib/core/tenantAuth";
+
+// Visitor-facing growth endpoints (pixel, links, form posts) stay public; everything else in the legacy suite is platform-owner only.
+const GROWTH_PUBLIC = new Set(["/api/growth/track", "/api/growth/submit", "/api/growth/go", "/api/growth/experiments/track"]);
 
 interface Env {
   ASSETS: Fetcher;
@@ -42,10 +47,21 @@ const worker = {
     ctx.waitUntil(
       processDueEnrollments().then((r) => console.info("scheduled.automations.done", r)),
     );
+    ctx.waitUntil(
+      runAutomationScans().then((r) => console.info("scheduled.automation_scans.done", r)),
+    );
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if ((url.pathname === "/growth" || url.pathname.startsWith("/growth/") || url.pathname.startsWith("/api/growth")) && !GROWTH_PUBLIC.has(url.pathname)) {
+      await ensureCoreSchema();
+      if (!(await isPlatformOwner(request))) {
+        if (url.pathname.startsWith("/api/")) return Response.json({ error: "This area is limited to the platform owner." }, { status: 403 });
+        return Response.redirect(new URL("/#crm/growth", request.url).toString(), 302);
+      }
+    }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];

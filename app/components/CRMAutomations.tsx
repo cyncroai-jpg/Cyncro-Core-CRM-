@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { AutomationsDashboard } from "./AutomationsDashboard";
+import { StepList, defaultStep, stepIcon, summary, type Step as EditorStep } from "./AutomationSteps";
 
-type Workflow = { id: string; name: string; description: string | null; trigger: string; trigger_filter: string; steps: string; active: number; enrolled_count: number; completed_count: number; last_run_at: string | null; active_enrollments: number; failed_enrollments: number; updated_at: string };
-type Recipe = { key: string; name: string; description: string; trigger: string; steps: number };
+type Workflow = { id: string; name: string; description: string | null; trigger: string; trigger_filter: string; steps: string; active: number; exit_trigger?: string | null; settings_json?: string | null; enrolled_count: number; completed_count: number; last_run_at: string | null; active_enrollments: number; failed_enrollments: number; updated_at: string };
+type Recipe = { key: string; name: string; description: string; trigger: string; steps: number; exitTrigger?: string | null };
 type Ev = { id: string; workflow_id: string; workflow_name?: string; contact_name: string | null; step_index: number | null; kind: string; detail: string | null; created_at: string };
 type Enrollment = { id: string; contact_name: string | null; status: string; step_index: number; next_run_at: string | null; last_error: string | null; started_at: string };
 type Step = { type: string; [k: string]: unknown };
@@ -12,34 +13,15 @@ type Contact = { id: string; full_name?: string; name?: string; email?: string |
 
 const parse = <T,>(raw: unknown, fb: T): T => { try { return raw ? (JSON.parse(String(raw)) as T) : fb; } catch { return fb; } };
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
-const stepIcon = (t: string) => ({ SEND_EMAIL: "✉", SEND_SMS: "▭", WAIT: "◷", IF: "?", ADD_TAG: "#", REMOVE_TAG: "#", CREATE_TASK: "☐", ADD_NOTE: "≡", ASSIGN_REP: "◎", MOVE_STAGE: "→", SET_LIFECYCLE: "◆", NOTIFY_TEAM: "!", WEBHOOK: "⇄", END: "■" } as Record<string, string>)[t] || "•";
-const VARS = ["{{contact.first_name}}", "{{contact.name}}", "{{company.name}}", "{{rep}}", "{{booking.time}}", "{{booking.event}}", "{{deal.name}}", "{{job.service}}"];
 const STAGES = ["NEW LEAD", "QUALIFIED", "DISCOVERY", "PROPOSAL", "CLOSED WON", "CLOSED LOST"];
-
-function summary(step: Step) {
-  const s = (k: string) => String(step[k] ?? "");
-  switch (step.type) {
-    case "SEND_EMAIL": return s("subject") || "(no subject)";
-    case "SEND_SMS": return s("body").slice(0, 70) || "(empty text)";
-    case "WAIT": return `${s("amount") || 0} ${s("unit") || "hours"}`;
-    case "IF": return `${s("field")} ${s("op") || "equals"} ${s("value")}`;
-    case "ADD_TAG": case "REMOVE_TAG": return s("tag");
-    case "CREATE_TASK": return s("title") || "Follow up";
-    case "ADD_NOTE": return s("text").slice(0, 70);
-    case "ASSIGN_REP": return s("rep") || "(pick teammate)";
-    case "MOVE_STAGE": return s("stage");
-    case "SET_LIFECYCLE": return s("lifecycle");
-    case "NOTIFY_TEAM": return `${s("to") || "assigned rep"}: ${s("message").slice(0, 50)}`;
-    case "WEBHOOK": return s("url");
-    default: return "";
-  }
-}
 
 export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
   const [data, setData] = useState<Payload | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<{ enrollments: Enrollment[]; events: Ev[] } | null>(null);
-  const [editing, setEditing] = useState<{ id?: string; name: string; description: string; trigger: string; filter: Record<string, string>; steps: Step[] } | null>(null);
+  const [editing, setEditing] = useState<{ id?: string; name: string; description: string; trigger: string; filter: Record<string, string>; steps: Step[]; exitTrigger: string; settings: { reenroll: "active" | "once" | "always"; businessHoursOnly: boolean } } | null>(null);
+  const [eventTypes, setEventTypes] = useState<{ slug: string; name: string }[]>([]);
+  const [bulk, setBulk] = useState({ source: "", lifecycle: "", tag: "" });
   const [openStep, setOpenStep] = useState(-1);
   const [busy, setBusy] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -48,14 +30,26 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
 
   const load = () => fetch("/api/crm/automations").then((r) => r.json()).then((d: Payload) => setData(d));
   const loadDetail = (id: string) => fetch(`/api/crm/automations?id=${id}`).then((r) => (r.ok ? r.json() : null)).then((d: { enrollments: Enrollment[]; events: Ev[] } | null) => setDetail(d));
+  useEffect(() => { void fetch("/api/calendar/event-types").then((r) => (r.ok ? r.json() : null)).then((d: { eventTypes?: { slug: string; name: string }[] } | null) => setEventTypes(d?.eventTypes || [])).catch(() => undefined); }, []);
   useEffect(() => { void load(); void fetch("/api/crm/contacts").then((r) => r.json()).then((d: { contacts?: Contact[] }) => setContacts(d.contacts || [])).catch(() => undefined); }, []);
   useEffect(() => { if (selectedId) void loadDetail(selectedId); else setDetail(null); }, [selectedId]);
   const selected = useMemo(() => data?.workflows.find((w) => w.id === selectedId) || null, [data, selectedId]);
   const triggerLabel = (t: string) => data?.triggers.find((x) => x[0] === t)?.[1] || t;
   const kpis = useMemo(() => ({ total: data?.workflows.length || 0, active: data?.workflows.filter((w) => w.active).length || 0, running: data?.workflows.reduce((s, w) => s + Number(w.active_enrollments || 0), 0) || 0, completed: data?.workflows.reduce((s, w) => s + Number(w.completed_count || 0), 0) || 0, failed: data?.workflows.reduce((s, w) => s + Number(w.failed_enrollments || 0), 0) || 0 }), [data]);
 
-  const startNew = () => { setEditing({ name: "", description: "", trigger: "CONTACT_CREATED", filter: {}, steps: [{ type: "SEND_EMAIL", subject: "Thanks, {{contact.first_name}}", body: "Hi {{contact.first_name}},\n\nThanks for reaching out to {{company.name}}." }] }); setOpenStep(0); };
-  const startEdit = (w: Workflow) => { setEditing({ id: w.id, name: w.name, description: w.description || "", trigger: w.trigger, filter: parse<Record<string, string>>(w.trigger_filter, {}), steps: parse<Step[]>(w.steps, []) }); setOpenStep(-1); };
+  const startNew = () => { setEditing({ name: "", description: "", trigger: "CONTACT_CREATED", filter: {}, exitTrigger: "", settings: { reenroll: "active", businessHoursOnly: false }, steps: [{ type: "SEND_EMAIL", subject: "Thanks, {{contact.first_name}}", body: "Hi {{contact.first_name}},\n\nThanks for reaching out to {{company.name}}." }] }); setOpenStep(0); };
+  const startEdit = (w: Workflow) => { const st = parse<{ reenroll?: string; businessHoursOnly?: boolean }>(w.settings_json, {}); setEditing({ id: w.id, name: w.name, description: w.description || "", trigger: w.trigger, filter: parse<Record<string, string>>(w.trigger_filter, {}), exitTrigger: w.exit_trigger || "", settings: { reenroll: st.reenroll === "once" || st.reenroll === "always" ? st.reenroll : "active", businessHoursOnly: Boolean(st.businessHoursOnly) }, steps: parse<Step[]>(w.steps, []) }); setOpenStep(-1); };
+  const bulkEnroll = async () => {
+    if (!selected) return;
+    const desc = [bulk.source && `source ${bulk.source}`, bulk.lifecycle && `lifecycle ${bulk.lifecycle}`, bulk.tag && `tag ${bulk.tag}`].filter(Boolean).join(", ") || "every contact";
+    if (!window.confirm(`Enroll ${desc} in "${selected.name}" now? Emails and texts in it will really send.`)) return;
+    setBusy("bulk");
+    const r = await fetch("/api/crm/automations?action=enroll_many", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workflowId: selected.id, filter: bulk }) });
+    const b = await r.json().catch(() => ({}));
+    setBusy("");
+    if (!r.ok) { onFlash(b.error || "Could not bulk enroll"); return; }
+    onFlash(`Enrolled ${b.enrolled} of ${b.matched} matching contacts${b.skipped ? ` · ${b.skipped} skipped by the re-enroll rule` : ""}`); await load(); await loadDetail(selected.id);
+  };
   const useRecipe = async (key: string) => {
     setBusy(key);
     const r = await fetch("/api/crm/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipe: key }) });
@@ -69,7 +63,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
     if (!editing.name.trim()) { onFlash("Give the workflow a name"); return; }
     if (!editing.steps.length) { onFlash("Add at least one step"); return; }
     setBusy("save");
-    const body = { id: editing.id, name: editing.name, description: editing.description, trigger: editing.trigger, triggerFilter: editing.filter, steps: editing.steps };
+    const body = { id: editing.id, name: editing.name, description: editing.description, trigger: editing.trigger, triggerFilter: editing.filter, steps: editing.steps, exitTrigger: editing.exitTrigger || null, settings: editing.settings };
     const r = await fetch("/api/crm/automations", { method: editing.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const b = await r.json().catch(() => ({}));
     setBusy("");
@@ -98,11 +92,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
   };
   const runDue = async () => { setBusy("run"); const r = await fetch("/api/crm/automations?action=run", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); const b = await r.json().catch(() => ({})); setBusy(""); onFlash(`Resumed ${b.resumed ?? 0} waiting`); await load(); if (selectedId) void loadDetail(selectedId); };
 
-  const setStep = (i: number, patch: Partial<Step>) => setEditing((e) => e ? { ...e, steps: e.steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)) } : e);
-  const addStep = (type: string) => setEditing((e) => { if (!e) return e; const defaults: Record<string, Step> = { SEND_EMAIL: { type, subject: "", body: "" }, SEND_SMS: { type, body: "" }, WAIT: { type, amount: 1, unit: "days" }, IF: { type, field: "lifecycle", op: "equals", value: "LEAD" }, ADD_TAG: { type, tag: "" }, REMOVE_TAG: { type, tag: "" }, CREATE_TASK: { type, title: "Follow up with {{contact.name}}", dueInDays: 1, priority: "MEDIUM" }, ADD_NOTE: { type, text: "" }, ASSIGN_REP: { type, rep: "" }, MOVE_STAGE: { type, stage: "QUALIFIED" }, SET_LIFECYCLE: { type, lifecycle: "CUSTOMER" }, NOTIFY_TEAM: { type, to: "", message: "{{contact.name}} needs attention" }, WEBHOOK: { type, url: "" }, END: { type } }; const steps = [...e.steps, defaults[type] || { type }]; setOpenStep(steps.length - 1); return { ...e, steps }; });
-  const move = (i: number, d: number) => setEditing((e) => { if (!e) return e; const j = i + d; if (j < 0 || j >= e.steps.length) return e; const steps = [...e.steps]; [steps[i], steps[j]] = [steps[j], steps[i]]; setOpenStep(j); return { ...e, steps }; });
-  const del = (i: number) => setEditing((e) => (e ? { ...e, steps: e.steps.filter((_, idx) => idx !== i) } : e));
-  const insertVar = (i: number, key: "body" | "subject" | "text" | "message" | "title", v: string) => setStep(i, { [key]: `${String(editing?.steps[i]?.[key] || "")}${v}` });
+  const addStep = (type: string) => setEditing((e) => { if (!e) return e; const steps = [...e.steps, defaultStep(type) as Step]; setOpenStep(steps.length - 1); return { ...e, steps }; });
 
   return (
     <div className="auHub">
@@ -125,6 +115,17 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
               {editing.trigger === "DEAL_STAGE_CHANGED" && <label className="dxSchField">Only for stage<select value={editing.filter.stage || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, stage: e.target.value } })}><option value="">Any stage</option>{STAGES.map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</select></label>}
               {editing.trigger === "CONTACT_CREATED" && <label className="dxSchField">Only from source<input value={editing.filter.source || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, source: e.target.value } })} placeholder="any · e.g. WEBSITE, CSV_IMPORT, PROSPECTING" /></label>}
               {editing.trigger === "TAG_ADDED" && <label className="dxSchField">Only for tag<input value={editing.filter.tag || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, tag: e.target.value } })} placeholder="any" /></label>}
+              {editing.trigger === "BOOKING_UPCOMING" && <div className="auRow"><label className="dxSchField">Hours before<select value={editing.filter.hoursBefore || "24"} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, hoursBefore: e.target.value } })}>{["1", "2", "4", "24", "48", "72"].map((h) => <option key={h} value={h}>{h}h</option>)}</select></label><label className="dxSchField">Appointment type<select value={editing.filter.eventSlug || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, eventSlug: e.target.value } })}><option value="">any</option>{eventTypes.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}</select></label></div>}
+              {editing.trigger === "DEAL_STALE" && <div className="auRow"><label className="dxSchField">Untouched for (days)<input type="number" min={1} value={editing.filter.days || "7"} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, days: e.target.value } })} /></label><label className="dxSchField">Only in stage<select value={editing.filter.stage || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, stage: e.target.value } })}><option value="">any open stage</option>{STAGES.filter((x) => !x.startsWith("CLOSED")).map((x) => <option key={x} value={x}>{x.toLowerCase()}</option>)}</select></label></div>}
+              {editing.trigger === "INVOICE_OVERDUE" && <label className="dxSchField">Days after due date<input type="number" min={0} value={editing.filter.daysAfter || "1"} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, daysAfter: e.target.value } })} /></label>}
+              {editing.trigger === "CONTACT_UPDATED" && <label className="dxSchField">Only when this changes<select value={editing.filter.field || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, field: e.target.value } })}><option value="">any of lifecycle, rep, email, phone</option><option value="lifecycle">lifecycle</option><option value="assigned_rep">assigned rep</option><option value="email">email</option><option value="phone">phone</option></select></label>}
+              {(editing.trigger === "FORM_SUBMITTED" || editing.trigger === "BOOKING_CREATED" || editing.trigger === "BOOKING_NO_SHOW" || editing.trigger === "BOOKING_CANCELLED") && <label className="dxSchField">Only from source<input value={editing.filter.source || ""} onChange={(e) => setEditing({ ...editing, filter: { ...editing.filter, source: e.target.value } })} placeholder="any (e.g. STUDIO, FORM)" /></label>}
+              <div className="auGoal">
+                <small>GOAL · EXIT EARLY</small>
+                <select value={editing.exitTrigger} onChange={(e) => setEditing({ ...editing, exitTrigger: e.target.value })}><option value="">No goal (run every step)</option>{(data?.triggers || []).filter((t) => !["MANUAL", "BOOKING_UPCOMING", "DEAL_STALE", "INVOICE_OVERDUE", editing.trigger].includes(t[0])).map(([k, l]) => <option key={k} value={k}>Stop when: {l}</option>)}</select>
+                <label className="auCheck"><input type="checkbox" checked={editing.settings.businessHoursOnly} onChange={(e) => setEditing({ ...editing, settings: { ...editing.settings, businessHoursOnly: e.target.checked } })} /> Only send emails and texts during business hours</label>
+                <label className="dxSchField">Re-enrollment<select value={editing.settings.reenroll} onChange={(e) => setEditing({ ...editing, settings: { ...editing.settings, reenroll: e.target.value as "active" | "once" | "always" } })}><option value="active">Not while they're already in it</option><option value="once">Only ever once per contact</option><option value="always">Every time the trigger fires</option></select></label>
+              </div>
               <div className="auPalette">
                 <small>ADD A STEP</small>
                 <div>{(data?.stepTypes || []).map(([k, l]) => <button key={k} onClick={() => addStep(k)}><i>{stepIcon(k)}</i>{l}</button>)}</div>
@@ -132,30 +133,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
             </div>
             <div className="auSteps">
               <div className="auStep trigger"><i>⚡</i><div><b>{triggerLabel(editing.trigger)}</b><small>{Object.entries(editing.filter).filter(([, v]) => v).map(([k, v]) => `${k} = ${v}`).join(" · ") || "no filter"}</small></div></div>
-              {editing.steps.map((st, i) => (
-                <div key={i} className={`auStep ${openStep === i ? "open" : ""} ${st.type === "WAIT" ? "wait" : ""}`}>
-                  <button className="auStepHead" onClick={() => setOpenStep(openStep === i ? -1 : i)}><i>{stepIcon(st.type)}</i><div><b>{data?.stepTypes.find((x) => x[0] === st.type)?.[1] || st.type}</b><small>{summary(st) || "click to set up"}</small></div><span>{i + 1}</span></button>
-                  {openStep === i && (
-                    <div className="auStepBody">
-                      {st.type === "SEND_EMAIL" && <><input value={String(st.subject || "")} onChange={(e) => setStep(i, { subject: e.target.value })} placeholder="Subject" /><textarea rows={5} value={String(st.body || "")} onChange={(e) => setStep(i, { body: e.target.value })} placeholder="Email body" /><div className="auVars">{VARS.map((v) => <button key={v} onClick={() => insertVar(i, "body", v)}>{v}</button>)}</div>{!data?.channels.email && <em>No email sender connected yet. This step will fail until Resend or Google is connected.</em>}</>}
-                      {st.type === "SEND_SMS" && <><textarea rows={3} value={String(st.body || "")} onChange={(e) => setStep(i, { body: e.target.value })} placeholder="Text message (160 chars is one segment)" /><div className="auVars">{VARS.map((v) => <button key={v} onClick={() => insertVar(i, "body", v)}>{v}</button>)}</div>{!data?.channels.sms && <em>No texting provider yet. The text is logged on the contact, not sent, until Twilio is added.</em>}</>}
-                      {st.type === "WAIT" && <div className="auRow"><input type="number" min={0} value={Number(st.amount || 0)} onChange={(e) => setStep(i, { amount: Number(e.target.value) })} /><select value={String(st.unit || "hours")} onChange={(e) => setStep(i, { unit: e.target.value })}><option value="minutes">minutes</option><option value="hours">hours</option><option value="days">days</option></select></div>}
-                      {st.type === "IF" && <div className="auRow three"><select value={String(st.field || "lifecycle")} onChange={(e) => setStep(i, { field: e.target.value })}><option value="lifecycle">lifecycle</option><option value="source">source</option><option value="assigned_rep">assigned rep</option><option value="tags">tags</option><option value="email">email</option><option value="phone">phone</option><option value="ctx.stage">deal stage (event)</option></select><select value={String(st.op || "equals")} onChange={(e) => setStep(i, { op: e.target.value })}><option value="equals">equals</option><option value="not_equals">does not equal</option><option value="contains">contains</option><option value="empty">is empty</option><option value="not_empty">is not empty</option></select><input value={String(st.value || "")} onChange={(e) => setStep(i, { value: e.target.value })} placeholder="value" /></div>}
-                      {(st.type === "ADD_TAG" || st.type === "REMOVE_TAG") && <input value={String(st.tag || "")} onChange={(e) => setStep(i, { tag: e.target.value })} placeholder="tag, e.g. hot-lead" />}
-                      {st.type === "CREATE_TASK" && <><input value={String(st.title || "")} onChange={(e) => setStep(i, { title: e.target.value })} placeholder="Task title" /><div className="auRow three"><input list="cyncro-team" value={String(st.assignee || "")} onChange={(e) => setStep(i, { assignee: e.target.value })} placeholder="assignee (blank = contact's rep)" /><input type="number" min={0} value={Number(st.dueInDays ?? 1)} onChange={(e) => setStep(i, { dueInDays: Number(e.target.value) })} title="Due in days" /><select value={String(st.priority || "MEDIUM")} onChange={(e) => setStep(i, { priority: e.target.value })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></div></>}
-                      {st.type === "ADD_NOTE" && <textarea rows={3} value={String(st.text || "")} onChange={(e) => setStep(i, { text: e.target.value })} placeholder="Note text" />}
-                      {st.type === "ASSIGN_REP" && <input list="cyncro-team" value={String(st.rep || "")} onChange={(e) => setStep(i, { rep: e.target.value })} placeholder="teammate email" />}
-                      {st.type === "MOVE_STAGE" && <select value={String(st.stage || "")} onChange={(e) => setStep(i, { stage: e.target.value })}>{STAGES.map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</select>}
-                      {st.type === "SET_LIFECYCLE" && <select value={String(st.lifecycle || "CUSTOMER")} onChange={(e) => setStep(i, { lifecycle: e.target.value })}>{["LEAD", "MQL", "SQL", "OPPORTUNITY", "CUSTOMER", "CHURNED"].map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</select>}
-                      {st.type === "NOTIFY_TEAM" && <><input list="cyncro-team" value={String(st.to || "")} onChange={(e) => setStep(i, { to: e.target.value })} placeholder="teammate email (blank = contact's rep)" /><input value={String(st.message || "")} onChange={(e) => setStep(i, { message: e.target.value })} placeholder="Message" /></>}
-                      {st.type === "WEBHOOK" && <input value={String(st.url || "")} onChange={(e) => setStep(i, { url: e.target.value })} placeholder="https://…" />}
-                      {st.type === "END" && <small>Stops the workflow here.</small>}
-                      <div className="auStepTools"><button className="fxCCMini" onClick={() => move(i, -1)} disabled={i === 0}>↑</button><button className="fxCCMini" onClick={() => move(i, 1)} disabled={i === editing.steps.length - 1}>↓</button><button className="fxCCMini danger" onClick={() => del(i)}>Remove</button></div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {!editing.steps.length && <div className="fxCCEmpty">Add a step from the left.</div>}
+              <StepList steps={editing.steps as EditorStep[]} onChange={(steps) => setEditing((e) => (e ? { ...e, steps: steps as Step[] } : e))} ctx={{ stepTypes: data?.stepTypes || [], triggers: data?.triggers || [], channels: { email: Boolean(data?.channels.email), sms: Boolean(data?.channels.sms) }, workflows: (data?.workflows || []).filter((w) => w.id !== editing.id).map((w) => ({ id: w.id, name: w.name })), eventTypes, stages: STAGES }} />
             </div>
           </div>
           <div className="fxInvSave"><button onClick={() => setEditing(null)}>Cancel</button><button className="fxCCPrimary" disabled={busy === "save"} onClick={() => void save()}>{busy === "save" ? "Saving…" : editing.id ? "Save workflow" : "Create and switch on"}</button></div>
@@ -167,7 +145,7 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
           <div className="fxCCHead"><div><b>Recipes</b><small>One click adds the workflow switched on. Edit anything after.</small></div></div>
           <div className="auRecipeGrid">
             {(data?.recipes || []).map((r) => (
-              <article key={r.key}><small>{triggerLabel(r.trigger)}</small><b>{r.name}</b><p>{r.description}</p><div><span>{r.steps} steps</span><button className="fxCCPrimary" disabled={busy === r.key} onClick={() => void useRecipe(r.key)}>{busy === r.key ? "Adding…" : "Use recipe"}</button></div></article>
+              <article key={r.key}><small>{triggerLabel(r.trigger)}{r.exitTrigger ? ` · exits on ${triggerLabel(r.exitTrigger)}` : ""}</small><b>{r.name}</b><p>{r.description}</p><div><span>{r.steps} steps</span><button className="fxCCPrimary" disabled={busy === r.key} onClick={() => void useRecipe(r.key)}>{busy === r.key ? "Adding…" : "Use recipe"}</button></div></article>
             ))}
           </div>
         </section>
@@ -203,6 +181,12 @@ export function CRMAutomations({ onFlash }: { onFlash: (m: string) => void }) {
                 <div className="fxCCHead"><div><b>{selected.name}</b><small>{selected.description || triggerLabel(selected.trigger)}</small></div><div className="cvPaneActions"><button className="fxCCMini" onClick={() => startEdit(selected)}>Edit</button><button className="fxCCMini danger" onClick={() => void remove(selected)}>Delete</button></div></div>
                 <div className="auTest"><select value={testContact} onChange={(e) => setTestContact(e.target.value)}><option value="">Test with a contact…</option>{contacts.slice(0, 200).map((c) => <option key={c.id} value={c.id}>{c.full_name || c.name}</option>)}</select><button className="fxCCPrimary" disabled={!testContact || busy === "test"} onClick={() => void testRun()}>Run now</button></div>
                 <small className="auHint">Runs every step for that one contact right now, including real emails. Waits still wait.</small>
+                {selected.exit_trigger && <div className="auGoalPill">◉ Goal: stops when "{triggerLabel(selected.exit_trigger)}"</div>}
+                <div className="auBulk">
+                  <small>BULK ENROLL · pick who, then run</small>
+                  <div className="auRow three"><input value={bulk.source} onChange={(e) => setBulk({ ...bulk, source: e.target.value })} placeholder="source (e.g. WEBSITE)" /><select value={bulk.lifecycle} onChange={(e) => setBulk({ ...bulk, lifecycle: e.target.value })}><option value="">any lifecycle</option>{["LEAD", "MQL", "SQL", "OPPORTUNITY", "CUSTOMER", "CHURNED"].map((l) => <option key={l} value={l}>{l.toLowerCase()}</option>)}</select><input value={bulk.tag} onChange={(e) => setBulk({ ...bulk, tag: e.target.value })} placeholder="tag" /></div>
+                  <button className="fxCCMini" disabled={busy === "bulk"} onClick={() => void bulkEnroll()}>{busy === "bulk" ? "Enrolling…" : "Enroll everyone matching"}</button>
+                </div>
                 <div className="auEnroll">
                   <small>PEOPLE IN THIS WORKFLOW · {detail?.enrollments.length ?? 0}</small>
                   <ul>

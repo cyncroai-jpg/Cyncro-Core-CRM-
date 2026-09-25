@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { emitAutomationEvent } from "@/lib/automations/engine";
 
 const statuses = new Set(["BACKLOG","TODO","IN_PROGRESS","WAITING","DONE"]), priorities = new Set(["LOW","MEDIUM","HIGH","URGENT"]);
 export async function GET(request: Request) {
@@ -47,7 +48,12 @@ export async function PATCH(request: Request) {
     if(body.status!==undefined){const s=cleanText(body.status,30).toUpperCase();if(statuses.has(s)){add("status",s);add("completed_at",s==="DONE"?now:null)}}
     if(body.priority!==undefined){const p=cleanText(body.priority,20).toUpperCase();if(priorities.has(p))add("priority",p)}
     if(body.assignee!==undefined)add("assignee",cleanText(body.assignee,160)||null); if(body.dueAt!==undefined)add("due_at",cleanText(body.dueAt,40)||null);
-    add("updated_at",now); values.push(id); await db.prepare(`UPDATE work_tasks SET ${fields.join(",")} WHERE id=?`).bind(...values).run(); return Response.json({saved:true});
+    add("updated_at",now); values.push(id); await db.prepare(`UPDATE work_tasks SET ${fields.join(",")} WHERE id=?`).bind(...values).run();
+    if (fields.includes("status=?") && String(values[fields.indexOf("status=?")]) === "DONE") {
+      const task = await db.prepare("SELECT title, contact_id, assignee FROM work_tasks WHERE id=?").bind(id).first<{ title: string; contact_id: string | null; assignee: string | null }>();
+      if (task?.contact_id) await emitAutomationEvent(tenant.tenantId, "TASK_COMPLETED", { contactId: task.contact_id, taskId: id, taskTitle: task.title, assignedTo: task.assignee, by: tenant.email, trigger: "TASK_COMPLETED" });
+    }
+    return Response.json({saved:true});
   } catch(error){console.error("tasks.update_failed",error);return Response.json({error:"Unable to update task."},{status:500})}
 }
 export async function DELETE(request: Request) {

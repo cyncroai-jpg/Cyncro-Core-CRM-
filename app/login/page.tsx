@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 
-type Mode = "login" | "setup" | "invite" | "signup";
+type Mode = "login" | "setup" | "invite" | "signup" | "forgot" | "reset";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
@@ -18,6 +18,8 @@ export default function LoginPage() {
 
   // Invite-specific
   const [inviteToken, setInviteToken] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
 
   useEffect(() => {
@@ -53,6 +55,14 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    const reset = params.get("reset");
+    if (reset) {
+      setResetToken(reset);
+      void fetch(`/api/auth/reset?token=${encodeURIComponent(reset)}`).then((r) => r.json()).then((d: { valid?: boolean; email?: string }) => {
+        if (d.valid) { setEmail(d.email || ""); setMode("reset"); } else { setError("This reset link has expired. Request a new one."); setMode("forgot"); }
+      }).catch(() => { setError("Unable to check the reset link."); setMode("forgot"); }).finally(() => setLoading(false));
+      return;
+    }
 
     // Check if first-run setup is needed
     void fetch("/api/auth/setup")
@@ -64,6 +74,26 @@ export default function LoginPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleForgot(e: FormEvent) {
+    e.preventDefault(); setError(""); setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) setError(data.error ?? "Could not send a reset link."); else setResetSent(true);
+    } catch { setError("Network error. Please try again."); } finally { setSubmitting(false); }
+  }
+  async function handleReset(e: FormEvent) {
+    e.preventDefault(); setError("");
+    if (password.length < 8) return setError("Use at least 8 characters.");
+    if (password !== confirmPassword) return setError("Passwords don't match.");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/reset", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: resetToken, password }) });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) setError(data.error ?? "Could not reset the password."); else window.location.href = "/#crm";
+    } catch { setError("Network error. Please try again."); } finally { setSubmitting(false); }
+  }
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
@@ -442,6 +472,49 @@ export default function LoginPage() {
               </button>
             </form>
           </>
+        ) : mode === "forgot" ? (
+          <>
+            <div className="loginHeading">
+              <p className="loginEyebrow">RESET PASSWORD</p>
+              <h1>{resetSent ? "Check your email" : "Forgot your password?"}</h1>
+            </div>
+            {resetSent ? (
+              <p className="loginToggle">If an account exists for {email.trim()}, a reset link is on its way. It works for one hour.</p>
+            ) : (
+              <form className="loginForm" onSubmit={(e) => void handleForgot(e)} noValidate>
+                <div className="loginField">
+                  <label htmlFor="email">Email</label>
+                  <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={submitting} />
+                </div>
+                {error && <p className="loginError" role="alert">{error}</p>}
+                <button type="submit" className="loginSubmit" disabled={submitting}>{submitting ? <span className="loginBtnSpinner" /> : "Email me a reset link"}</button>
+              </form>
+            )}
+            <p className="loginToggle"><button type="button" className="loginToggleLink" onClick={() => { setError(""); setResetSent(false); setMode("login"); }}>Back to sign in</button></p>
+          </>
+        ) : mode === "reset" ? (
+          <>
+            <div className="loginHeading">
+              <p className="loginEyebrow">RESET PASSWORD</p>
+              <h1>Choose a new password</h1>
+            </div>
+            <form className="loginForm" onSubmit={(e) => void handleReset(e)} noValidate>
+              <div className="loginField">
+                <label htmlFor="email">Account</label>
+                <input id="email" type="email" value={email} disabled />
+              </div>
+              <div className="loginField">
+                <label htmlFor="password">New password</label>
+                <input id="password" type="password" autoComplete="new-password" placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={submitting} />
+              </div>
+              <div className="loginField">
+                <label htmlFor="confirm">Confirm password</label>
+                <input id="confirm" type="password" autoComplete="new-password" placeholder="Same password again" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={submitting} />
+              </div>
+              {error && <p className="loginError" role="alert">{error}</p>}
+              <button type="submit" className="loginSubmit" disabled={submitting}>{submitting ? <span className="loginBtnSpinner" /> : "Save and sign in"}</button>
+            </form>
+          </>
         ) : (
           <>
             <div className="loginHeading">
@@ -483,6 +556,9 @@ export default function LoginPage() {
                 {submitting ? <span className="loginBtnSpinner" /> : "Sign in"}
               </button>
             </form>
+            <p className="loginToggle">
+              <button type="button" className="loginToggleLink" onClick={() => { setError(""); setMode("forgot"); }}>Forgot password?</button>
+            </p>
             <p className="loginToggle">
               New company?{" "}
               <button type="button" className="loginToggleLink" onClick={() => { setError(""); setMode("signup"); }}>Create a workspace</button>

@@ -56,3 +56,15 @@ export async function tenantForBooking(request: Request, lookup: { eventTypeId?:
   const owner = await db.prepare("SELECT email, user_id FROM tenant_members WHERE tenant_id=? AND active=1 ORDER BY CASE role WHEN 'OWNER' THEN 0 WHEN 'ADMIN' THEN 1 ELSE 2 END, created_at ASC LIMIT 1").bind(row.tenant_id).first<{ email: string; user_id: string }>();
   return { tenantId: row.tenant_id, userId: owner?.user_id || "", email: owner?.email || "booking", role: "VIEWER" as TenantContext["role"] };
 }
+
+/**
+ * Platform owner = an OWNER of the first company ever created on this
+ * deployment. Used to fence off legacy single-workspace areas (the Growth
+ * Intelligence suite) that are not yet company-scoped.
+ */
+export async function isPlatformOwner(request: Request): Promise<boolean> {
+  const tenant = await getTenantContext(request);
+  if (!tenant || tenant.role !== "OWNER") return false;
+  const first = await coreDb().prepare("SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1").first<{ id: string }>();
+  return Boolean(first && first.id === tenant.tenantId);
+}

@@ -3,13 +3,12 @@ import {
   cleanText,
   coreDb,
   ensureCoreSchema,
-  hasModuleAccess,
-  requestUser,
 } from "@/lib/core/db";
+import { requireTenantAction } from "@/lib/core/tenantAuth";
 export async function POST(request: Request) {
   await ensureCoreSchema();
-  if (!(await hasModuleAccess(request, "crm")))
-    return Response.json({ error: "CRM access required." }, { status: 403 });
+  const tenant = await requireTenantAction(request, "edit");
+  if (tenant instanceof Response) return tenant;
   const data = await request.formData(),
     file = data.get("file"),
     contractId = cleanText(data.get("contractId"), 80);
@@ -18,6 +17,8 @@ export async function POST(request: Request) {
       { error: "Contract and file are required." },
       { status: 400 },
     );
+  const owned = await coreDb().prepare("SELECT id FROM crm_contracts WHERE id=? AND tenant_id=?").bind(contractId, tenant.tenantId).first();
+  if (!owned) return Response.json({ error: "Contract not found." }, { status: 404 });
   if (file.size > 10_000_000)
     return Response.json(
       { error: "Attachments must be 10MB or smaller." },
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       file.type || "application/octet-stream",
       objectKey,
       file.size,
-      requestUser(request),
+      tenant.email,
       new Date().toISOString(),
     )
     .run();

@@ -12,23 +12,36 @@ import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { emailTransportStatus } from "@/lib/core/email";
 import { automationStats } from "@/lib/insights/stats";
-import { RECIPES, STEP_TYPES, TRIGGERS, enroll, processDueEnrollments, runEnrollment, type Step, type Trigger } from "@/lib/automations/engine";
+import { BRANCHING, RECIPES, STEP_TYPES, TRIGGERS, enroll, enrollMany, parseWorkflowSettings, processDueEnrollments, runAutomationScans, runEnrollment, type Step, type Trigger } from "@/lib/automations/engine";
 import { smsConfigured } from "@/lib/automations/sms";
 
 const TRIGGER_SET = new Set<string>(TRIGGERS.map((t) => t[0]));
 const STEP_SET = new Set<string>(STEP_TYPES.map((t) => t[0]));
 
-function cleanSteps(raw: unknown): Step[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.slice(0, 40).map((s) => {
+function cleanSteps(raw: unknown, depth = 0): Step[] {
+  if (!Array.isArray(raw) || depth > 4) return [];
+  return raw.slice(0, 60).map((s) => {
     const o = (s && typeof s === "object" ? s : {}) as Record<string, unknown>;
-    const type = cleanText(o.type, 20).toUpperCase();
+    const type = cleanText(o.type, 24).toUpperCase();
     if (!STEP_SET.has(type)) return null;
     const out: Step = { type: type as Step["type"] };
-    for (const [k, v] of Object.entries(o)) { if (k === "type") continue; if (typeof v === "string") out[k] = v.slice(0, 5000); else if (typeof v === "number" || typeof v === "boolean") out[k] = v; }
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "type") continue;
+      if (k === "then" || k === "else") { if (BRANCHING.has(type)) out[k] = cleanSteps(v, depth + 1); continue; }
+      if (typeof v === "string") out[k] = v.slice(0, 5000);
+      else if (typeof v === "number" || typeof v === "boolean") out[k] = v;
+      else if (Array.isArray(v) && v.every((x) => typeof x === "number")) out[k] = v.slice(0, 7);
+    }
+    if (BRANCHING.has(type)) { out.then = out.then || []; out.else = out.else || []; }
     return out;
   }).filter((s): s is Step => Boolean(s));
 }
+const cleanFilter = (raw: unknown) => {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) { if (typeof v === "string") out[k] = v.slice(0, 200); else if (typeof v === "number") out[k] = v; }
+  return out;
+};
 
 export async function GET(request: Request) {
   try {
@@ -54,8 +67,8 @@ export async function GET(request: Request) {
     const email = await emailTransportStatus(tenant.tenantId);
     return Response.json({
       workflows: results, events: recent.results,
-      recipes: RECIPES.map((r) => ({ key: r.key, name: r.name, description: r.description, trigger: r.trigger, steps: r.steps.length })),
-      triggers: TRIGGERS, stepTypes: STEP_TYPES,
+      recipes: RECIPES.map((r) => ({ key: r.key, name: r.name, description: r.description, trigger: r.trigger, steps: r.steps.length, exitTrigger: r.exitTrigger || null })),
+      triggers: TRIGGERS, stepTypes: STEP_TYPES, branching: [...BRANCHING],
       channels: { email: email.transport !== "none", emailTransport: email.transport, sms: smsConfigured() },
     });
   } catch (error) {
@@ -75,7 +88,17 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const now = new Date().toISOString();
 
-    if (action === "run") { const r = await processDueEnrollments(); return Response.json(r); }
+    if (action === "run") { const r = await processDueEnrollments(); const scans = await runAutomationScans(); return Response.json({ ...r, scans }); }
+    if (action === "scan") return Response.json(await runAutomationScans());
+    if (action === "enroll_many") {
+      const workflowId = cleanText(body.workflowId, 80);
+      const wf = await db.prepare("SELECT id FROM automation_workflows WHERE id=? AND tenant_id=?").bind(workflowId, tenant.tenantId).first();
+      if (!wf) return Response.json({ error: "Workflow not found." }, { status: 404 });
+      const f = (body.filter && typeof body.filter === "object" ? body.filter : {}) as Record<string, unknown>;
+      const filter = { tag: cleanText(f.tag, 60), lifecycle: cleanText(f.lifecycle, 40), source: cleanText(f.source, 60), assignedRep: cleanText(f.assignedRep, 160), q: cleanText(f.q, 120), contactIds: Array.isArray(f.contactIds) ? (f.contactIds as unknown[]).map((x) => cleanText(x, 80)).filter(Boolean).slice(0, 500) : [] };
+      const r = await enrollMany(tenant.tenantId, workflowId, filter, tenant.email);
+      return Response.json(r, { status: 201 });
+    }
     if (action === "enroll") {
       const workflowId = cleanText(body.workflowId, 80); const contactId = cleanText(body.contactId, 80);
       const wf = await db.prepare("SELECT id FROM automation_workflows WHERE id=? AND tenant_id=?").bind(workflowId, tenant.tenantId).first();
@@ -90,19 +113,22 @@ export async function POST(request: Request) {
 
     let name = cleanText(body.name, 160); let description = cleanText(body.description, 500) || null;
     let trigger = cleanText(body.trigger, 40).toUpperCase(); let steps = cleanSteps(body.steps);
-    const filter = body.triggerFilter && typeof body.triggerFilter === "object" ? (body.triggerFilter as Record<string, unknown>) : {};
+    let filter = cleanFilter(body.triggerFilter);
+    let exitTrigger = cleanText(body.exitTrigger, 40).toUpperCase() || null;
+    let settings = parseWorkflowSettings(body.settings);
     const recipeKey = cleanText(body.recipe, 40);
     if (recipeKey) {
       const recipe = RECIPES.find((r) => r.key === recipeKey);
       if (!recipe) return Response.json({ error: "Unknown recipe." }, { status: 400 });
-      name = name || recipe.name; description = description || recipe.description; trigger = recipe.trigger; steps = recipe.steps;
+      name = name || recipe.name; description = description || recipe.description; trigger = recipe.trigger; steps = recipe.steps; filter = recipe.filter || {}; exitTrigger = recipe.exitTrigger || null; settings = parseWorkflowSettings(recipe.settings || {});
     }
+    if (exitTrigger && !TRIGGER_SET.has(exitTrigger)) return Response.json({ error: "Unknown goal trigger." }, { status: 400 });
     if (!name) return Response.json({ error: "Give the workflow a name." }, { status: 400 });
     if (!TRIGGER_SET.has(trigger)) return Response.json({ error: "Pick a trigger." }, { status: 400 });
     if (!steps.length) return Response.json({ error: "Add at least one step." }, { status: 400 });
     const id = crypto.randomUUID();
-    await db.prepare("INSERT INTO automation_workflows (id,tenant_id,name,description,trigger,trigger_filter,steps,active,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,?,?,?)")
-      .bind(id, tenant.tenantId, name, description, trigger as Trigger, JSON.stringify(filter), JSON.stringify(steps), tenant.email, now, now).run();
+    await db.prepare("INSERT INTO automation_workflows (id,tenant_id,name,description,trigger,trigger_filter,steps,active,exit_trigger,settings_json,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,?,?,?,?,?)")
+      .bind(id, tenant.tenantId, name, description, trigger as Trigger, JSON.stringify(filter), JSON.stringify(steps), exitTrigger, JSON.stringify(settings), tenant.email, now, now).run();
     return Response.json({ id, name, trigger, steps }, { status: 201 });
   } catch (error) {
     console.error("automations.create_failed", error);
@@ -122,7 +148,9 @@ export async function PATCH(request: Request) {
     if (body.name !== undefined) { const n = cleanText(body.name, 160); if (n) { fields.push("name=?"); values.push(n); } }
     if (body.description !== undefined) { fields.push("description=?"); values.push(cleanText(body.description, 500) || null); }
     if (body.trigger !== undefined) { const t = cleanText(body.trigger, 40).toUpperCase(); if (!TRIGGER_SET.has(t)) return Response.json({ error: "Unknown trigger." }, { status: 400 }); fields.push("trigger=?"); values.push(t); }
-    if (body.triggerFilter !== undefined) { fields.push("trigger_filter=?"); values.push(JSON.stringify(body.triggerFilter && typeof body.triggerFilter === "object" ? body.triggerFilter : {})); }
+    if (body.triggerFilter !== undefined) { fields.push("trigger_filter=?"); values.push(JSON.stringify(cleanFilter(body.triggerFilter))); }
+    if (body.exitTrigger !== undefined) { const x = cleanText(body.exitTrigger, 40).toUpperCase(); if (x && !TRIGGER_SET.has(x)) return Response.json({ error: "Unknown goal trigger." }, { status: 400 }); fields.push("exit_trigger=?"); values.push(x || null); }
+    if (body.settings !== undefined) { fields.push("settings_json=?"); values.push(JSON.stringify(parseWorkflowSettings(body.settings))); }
     if (body.steps !== undefined) { const st = cleanSteps(body.steps); if (!st.length) return Response.json({ error: "Add at least one step." }, { status: 400 }); fields.push("steps=?"); values.push(JSON.stringify(st)); }
     if (body.active !== undefined) { fields.push("active=?"); values.push(body.active ? 1 : 0); }
     if (!fields.length) return Response.json({ updated: false });

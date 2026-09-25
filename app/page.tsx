@@ -14,6 +14,8 @@ import { CRMAutomations } from "@/app/components/CRMAutomations";
 import { FormsDashboard } from "@/app/components/FormsDashboard";
 import { StudioDashboard } from "@/app/components/StudioDashboard";
 import { GrowthDashboard } from "@/app/components/GrowthDashboard";
+import { CompanySettingsPanel } from "@/app/components/CompanySettingsPanel";
+import { OnboardingChecklist } from "@/app/components/OnboardingChecklist";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -10890,6 +10892,7 @@ function CRMOverviewCommand({
   const maxRep = Math.max(1, ...topReps.map((r) => r.revenue_cents));
   return (
     <div className="ccShell">
+      <OnboardingChecklist onView={(v) => onView(v as CRMView)} onOpenCalendar={onOpenCalendar} />
       <div className="ccTop" style={{ justifyContent: "flex-end" }}>
         <div className="ccTopActions">
           <button className="primary" onClick={() => onView("Pipeline")}>OPEN PIPELINE →</button>
@@ -17416,6 +17419,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     );
   return (
     <div className="teamAccess">
+      <CompanySettingsPanel onFlash={onFlash} />
       <section className="crmPanel">
         <div className="crmPanelHead">
           <div>
