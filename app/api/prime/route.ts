@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
-import { coreDb, ensureCoreSchema, requestUser } from "@/lib/core/db";
+import { coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { requireTenant } from "@/lib/core/tenantAuth";
 
 // Cyncro Prime — AI orchestrator that reads live CRM context and coordinates specialist agents
 
@@ -40,31 +41,20 @@ export async function POST(request: Request) {
     const query = String(body.query || "").slice(0, 2000).trim();
     if (!query) return Response.json({ error: "A command is required." }, { status: 400 });
 
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const apiKey = String((env as Record<string, unknown>).ANTHROPIC_API_KEY || "");
-    if (!apiKey) {
-      // Graceful demo response when no API key configured
-      return Response.json({
-        summary: "Cyncro Prime received your command and is ready to coordinate your specialist agents. Configure ANTHROPIC_API_KEY to enable live AI responses.",
-        agents: [
-          { name: "EON", action: "Analyzing business-wide signals for mission scope", impact: "Executive brief ready in 30s", priority: "HIGH", requires_approval: false },
-          { name: "TITAN", action: "Running revenue impact model for this scenario", impact: "Projected output pending live data", priority: "HIGH", requires_approval: false },
-        ],
-        timeline: "Actions begin once API key is configured",
-        projected_impact: "Live analysis available with ANTHROPIC_API_KEY",
-        risk: "LOW",
-        risk_note: "Add ANTHROPIC_API_KEY to your deployment environment to enable Cyncro Prime AI",
-      });
-    }
+    if (!apiKey) return Response.json({ error: "Cyncro Prime isn't switched on for this deployment yet (no AI key on the server)." }, { status: 503 });
 
-    // Pull live CRM context snapshot
+    // Pull this company's live CRM context snapshot
     const db = coreDb();
-    const user = requestUser(request);
+    const user = tenant.email;
 
     const [contactCount, openDeals, upcomingBookings, recentActivities] = await Promise.all([
-      db.prepare("SELECT COUNT(*) AS n FROM crm_contacts").first<{ n: number }>(),
-      db.prepare("SELECT COUNT(*) AS n, SUM(COALESCE(value,0)) AS v FROM crm_opportunities WHERE stage NOT IN ('WON','LOST')").first<{ n: number; v: number }>(),
-      db.prepare("SELECT COUNT(*) AS n FROM calendar_bookings WHERE starts_at >= ? AND status IN ('CONFIRMED','RESCHEDULED')").bind(new Date().toISOString()).first<{ n: number }>(),
-      db.prepare("SELECT title, activity_type, created_at FROM crm_activities ORDER BY created_at DESC LIMIT 5").all<Record<string, unknown>>(),
+      db.prepare("SELECT COUNT(*) AS n FROM crm_contacts WHERE tenant_id=?").bind(tenant.tenantId).first<{ n: number }>(),
+      db.prepare("SELECT COUNT(*) AS n, SUM(COALESCE(value_cents,0))/100.0 AS v FROM crm_opportunities WHERE tenant_id=? AND stage NOT LIKE 'CLOSED%'").bind(tenant.tenantId).first<{ n: number; v: number }>(),
+      db.prepare("SELECT COUNT(*) AS n FROM calendar_bookings WHERE tenant_id=? AND starts_at >= ? AND status IN ('CONFIRMED','RESCHEDULED')").bind(tenant.tenantId, new Date().toISOString()).first<{ n: number }>(),
+      db.prepare("SELECT title, activity_type, created_at FROM crm_activities WHERE tenant_id=? ORDER BY created_at DESC LIMIT 5").bind(tenant.tenantId).all<Record<string, unknown>>(),
     ]).catch(() => [null, null, null, null]);
 
     const context = [
@@ -115,8 +105,8 @@ export async function POST(request: Request) {
     // Store the mission in the DB for history
     try {
       const now = new Date().toISOString();
-      await db.prepare(`INSERT INTO prime_missions (id, created_by, query, plan, created_at) VALUES (?, ?, ?, ?, ?)`)
-        .bind(crypto.randomUUID(), user, query, JSON.stringify(plan), now).run();
+      await db.prepare(`INSERT INTO prime_missions (id, created_by, query, plan, tenant_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        .bind(crypto.randomUUID(), user, query, JSON.stringify(plan), tenant.tenantId, now).run();
     } catch { /* table may not exist yet — migrations run async */ }
 
     return Response.json({ plan });
@@ -129,10 +119,12 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
+    const tenant = await requireTenant(request);
+    if (tenant instanceof Response) return tenant;
     const db = coreDb();
     const { results } = await db.prepare(
-      "SELECT id, created_by, query, plan, created_at FROM prime_missions ORDER BY created_at DESC LIMIT 20"
-    ).all<Record<string, unknown>>().catch(() => ({ results: [] as Record<string, unknown>[] }));
+      "SELECT id, created_by, query, plan, created_at FROM prime_missions WHERE tenant_id=? ORDER BY created_at DESC LIMIT 20"
+    ).bind(tenant.tenantId).all<Record<string, unknown>>().catch(() => ({ results: [] as Record<string, unknown>[] }));
     return Response.json({ missions: results });
   } catch {
     return Response.json({ missions: [] });

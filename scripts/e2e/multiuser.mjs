@@ -47,7 +47,7 @@ check("onboarding checklist on overview", await page.locator(".obCard").count()=
 await page.screenshot({path:`${OUT}/mu-overview.png`});
 await page.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
 check("company settings panel loaded with saved values", await page.locator(".coSettings").count()===1 && (await page.locator(".coGrid select").first().inputValue())==="America/New_York" || (await page.locator(".coGrid input").first().inputValue()).startsWith("Alpha Co"));
-await page.locator(".coGrid input").nth(1).fill("(555) 999-0000"); await page.locator(".coSave").click(); await page.waitForTimeout(800);
+await page.locator(".coGrid input").nth(1).fill("(555) 999-0000"); await page.locator(".coSettings .coSave").click(); await page.waitForTimeout(800);
 check("company settings save from UI", (await api("/api/tenants/settings",{},A)).b.settings.phone==="(555) 999-0000");
 await page.screenshot({path:`${OUT}/mu-company.png`,fullPage:true});
 // builder with branches

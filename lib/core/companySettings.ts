@@ -4,11 +4,11 @@ import { coreDb } from "@/lib/core/db";
 export type BusinessHours = { days: number[]; start: string; end: string };
 export type CompanySettings = {
   timezone: string; businessHours: BusinessHours; logoUrl: string; phone: string; website: string; address: string;
-  senderName: string; replyTo: string; brandColor: string; bookingIntro: string;
+  senderName: string; replyTo: string; brandColor: string; bookingIntro: string; aiMonthlyCap: number;
 };
 export const DEFAULT_SETTINGS: CompanySettings = {
   timezone: "America/New_York", businessHours: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" }, logoUrl: "", phone: "", website: "", address: "",
-  senderName: "", replyTo: "", brandColor: "#a91f39", bookingIntro: "",
+  senderName: "", replyTo: "", brandColor: "#a91f39", bookingIntro: "", aiMonthlyCap: 1000,
 };
 const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const isTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -26,6 +26,7 @@ export function parseSettings(raw: unknown): CompanySettings {
     businessHours: { days: days.length ? days : DEFAULT_SETTINGS.businessHours.days, start: isTime(clean(bh.start, 5)) ? clean(bh.start, 5) : "09:00", end: isTime(clean(bh.end, 5)) ? clean(bh.end, 5) : "17:00" },
     logoUrl: /^https?:\/\//.test(clean(o.logoUrl, 500)) ? clean(o.logoUrl, 500) : "", phone: clean(o.phone, 40), website: clean(o.website, 200), address: clean(o.address, 300),
     senderName: clean(o.senderName, 120), replyTo: clean(o.replyTo, 160).toLowerCase(), brandColor: /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_SETTINGS.brandColor, bookingIntro: clean(o.bookingIntro, 400),
+    aiMonthlyCap: Math.min(100000, Math.max(0, Math.round(Number(o.aiMonthlyCap ?? DEFAULT_SETTINGS.aiMonthlyCap)) || 0)),
   };
 }
 

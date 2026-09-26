@@ -16,6 +16,8 @@ import { StudioDashboard } from "@/app/components/StudioDashboard";
 import { GrowthDashboard } from "@/app/components/GrowthDashboard";
 import { CompanySettingsPanel } from "@/app/components/CompanySettingsPanel";
 import { OnboardingChecklist } from "@/app/components/OnboardingChecklist";
+import { CyncroAssistant } from "@/app/components/CyncroAssistant";
+import { McpPanel } from "@/app/components/McpPanel";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -159,6 +161,7 @@ export default function Home() {
   if (product === "dispatch") {
     return (
       <div className="readable">
+        <CyncroAssistant screen="Dispatch" />
         <CyncroDispatch
           onNavigate={(destination) => {
             setProduct("core");
@@ -171,6 +174,7 @@ export default function Home() {
   if (product === "dispute") {
     return (
       <div className="readable">
+        <CyncroAssistant screen="Dispute" />
         <CyncroDispute
           onNavigate={(destination) => {
             setProduct("core");
@@ -183,6 +187,7 @@ export default function Home() {
   if (product === "apex") {
     return (
       <div className="readable">
+        <CyncroAssistant screen="Apex Funds" />
         <CyncroApexFunds
           onNavigate={(destination) => {
             setProduct("core");
@@ -195,6 +200,7 @@ export default function Home() {
   if (product === "automotive") {
     return (
       <div className="readable">
+        <CyncroAssistant screen="Finance" />
         <CyncroFinance
           onNavigate={(destination) => {
             setProduct("core");
@@ -454,6 +460,7 @@ export default function Home() {
           </div>
         </section>
       )}
+      {tab !== "book" && tab !== "crm" && tab !== "home" && <CyncroAssistant screen={tab} />}
     </main>
   );
 }
@@ -11045,9 +11052,6 @@ function UniversalCRM({
     [importRows, setImportRows] = useState<Record<string,string>[]>([]),
     [importFileName, setImportFileName] = useState(""),
     [aiOpen, setAiOpen] = useState(false),
-    [aiQuery, setAiQuery] = useState(""),
-    [aiMessages, setAiMessages] = useState<{role:"user"|"assistant";text:string}[]>([{role:"assistant",text:"Ask me anything about your contacts, pipeline, bookings, or tasks."}]),
-    [aiLoading, setAiLoading] = useState(false),
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
     [profileOpen, setProfileOpen] = useState(false),
@@ -11917,79 +11921,7 @@ function UniversalCRM({
           <button onClick={()=>{document.cookie="cyncro_session=;Max-Age=0;path=/";window.location.href="/login";}}>Sign out</button>
         </div>
       </div></div>}
-      {aiOpen && (
-        <div className="aiDrawer">
-          <div className="aiDrawerHead">
-            <div>
-              <span>✦</span>
-              <div>
-                <small>CYNCRO INTELLIGENCE</small>
-                <b>Business command</b>
-              </div>
-            </div>
-            <button onClick={() => setAiOpen(false)}>×</button>
-          </div>
-          <div className="aiConversation" id="aiConvoScroll">
-            {aiMessages.map((m, i) => m.role === "user" ? (
-              <div key={i} className="aiPrompt">{m.text}</div>
-            ) : (
-              <div key={i} className="aiAnswer">
-                <span>✦</span>
-                <p dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>") }} />
-              </div>
-            ))}
-            {aiLoading && <div className="aiAnswer"><span>✦</span><p style={{color:"#666"}}>Analyzing your workspace…</p></div>}
-          </div>
-          <div className="aiSuggestions">
-            {["Who should I call today?", "Show at-risk deals", "What’s overdue?"].map((item) => (
-              <button key={item} onClick={() => {
-                setAiQuery(item);
-                const msgs = [...aiMessages, {role:"user" as const,text:item}];
-                setAiMessages(msgs);
-                setAiLoading(true);
-                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:item})})
-                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer right now."}]);})
-                  .finally(()=>setAiLoading(false));
-                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
-              }}>
-                {item}
-              </button>
-            ))}
-          </div>
-          <div className="aiComposer">
-            <input
-              value={aiQuery}
-              onChange={e => setAiQuery(e.target.value)}
-              placeholder="Ask about any contact, deal, booking, or metric…"
-              onKeyDown={e => {
-                if (e.key !== "Enter" || !aiQuery.trim() || aiLoading) return;
-                const q = aiQuery.trim();
-                const msgs = [...aiMessages, {role:"user" as const,text:q}];
-                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
-                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
-                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
-                  .finally(()=>setAiLoading(false));
-                window.setTimeout(()=>{const el=document.getElementById("aiConvoScroll");if(el)el.scrollTop=el.scrollHeight;},100);
-              }}
-            />
-            <button
-              disabled={!aiQuery.trim() || aiLoading}
-              onClick={() => {
-                if (!aiQuery.trim() || aiLoading) return;
-                const q = aiQuery.trim();
-                const msgs = [...aiMessages, {role:"user" as const,text:q}];
-                setAiMessages(msgs); setAiQuery(""); setAiLoading(true);
-                void fetch("/api/prime",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q})})
-                  .then(async r=>{const d=await r.json() as {answer?:string;error?:string};setAiMessages([...msgs,{role:"assistant",text:d.answer||d.error||"I couldn’t get an answer."}]);})
-                  .finally(()=>setAiLoading(false));
-              }}
-            >↑</button>
-          </div>
-          <small className="aiPermission">
-            Cyncro reads your live pipeline data to answer.
-          </small>
-        </div>
-      )}
+      <CyncroAssistant screen={`CRM · ${view}`} open={aiOpen} onOpenChange={setAiOpen} />
     </section>
   );
 }
@@ -17420,6 +17352,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
   return (
     <div className="teamAccess">
       <CompanySettingsPanel onFlash={onFlash} />
+      <McpPanel onFlash={onFlash} />
       <section className="crmPanel">
         <div className="crmPanelHead">
           <div>
