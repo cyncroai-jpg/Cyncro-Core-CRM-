@@ -78,15 +78,15 @@ function randomToken(bytes = 32): string {
   return hexEncode(crypto.getRandomValues(new Uint8Array(bytes)).buffer);
 }
 
-export async function createSession(userId: string, email: string): Promise<string> {
+export async function createSession(userId: string, email: string, meta?: { device?: string; ip?: string }): Promise<string> {
   const token = randomToken(32);
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   await coreDb()
     .prepare(
-      "INSERT INTO auth_sessions (token, user_id, email, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO auth_sessions (token, user_id, email, expires_at, created_at, device, ip, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(token, userId, email.toLowerCase(), expiresAt, now)
+    .bind(token, userId, email.toLowerCase(), expiresAt, now, meta?.device || null, meta?.ip || null, now)
     .run();
   return token;
 }
@@ -99,15 +99,19 @@ export async function getSessionUser(token: string): Promise<AuthUser | null> {
   if (!token) return null;
   const session = await coreDb()
     .prepare(
-      "SELECT s.user_id, s.email, s.expires_at, u.display_name, u.role, u.active FROM auth_sessions s JOIN auth_users u ON u.id = s.user_id WHERE s.token=?",
+      "SELECT s.user_id, s.email, s.expires_at, s.last_seen_at, u.display_name, u.role, u.active FROM auth_sessions s JOIN auth_users u ON u.id = s.user_id WHERE s.token=?",
     )
     .bind(token)
-    .first<{ user_id: string; email: string; expires_at: string; display_name: string; role: string; active: number }>();
+    .first<{ user_id: string; email: string; expires_at: string; last_seen_at: string | null; display_name: string; role: string; active: number }>();
 
   if (!session) return null;
   if (new Date(session.expires_at) < new Date()) {
     await deleteSession(token);
     return null;
+  }
+  // Touch at most once an hour so the sessions list can show "last active".
+  if (!session.last_seen_at || Date.now() - new Date(session.last_seen_at).getTime() > 3_600_000) {
+    await coreDb().prepare("UPDATE auth_sessions SET last_seen_at=? WHERE token=?").bind(new Date().toISOString(), token).run().catch(() => undefined);
   }
   return {
     id: session.user_id,

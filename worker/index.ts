@@ -74,8 +74,23 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    const response = await handler.fetch(request, env, ctx);
+    return withSecurityHeaders(response, url);
   },
 };
+
+/** Baseline browser protections on every response. Public landing pages and forms may be embedded; the app itself may not. */
+function withSecurityHeaders(response: Response, url: URL): Response {
+  const headers = new Headers(response.headers);
+  const embeddable = url.pathname === "/s" || url.pathname === "/f" || url.pathname.startsWith("/api/growth/");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self), payment=()");
+  headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  if (!embeddable) headers.set("X-Frame-Options", "SAMEORIGIN");
+  if (url.pathname.startsWith("/api/")) headers.set("Cache-Control", headers.get("Cache-Control") || "no-store");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 export default worker;

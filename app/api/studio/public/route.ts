@@ -11,6 +11,7 @@
 import { emitAutomationEvent } from "@/lib/automations/engine";
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { applyAfterSubmit, nextUrl, parseAfterSubmit } from "@/lib/forms/afterSubmit";
+import { clientIp, rateLimit, rateLimitResponse } from "@/lib/core/security";
 
 export async function GET(request: Request) {
   try {
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    try { await rateLimit(`studio:ip:${clientIp(request)}`, 30, 60 * 60_000); } catch (e) { const r = rateLimitResponse(e); if (r) return r; throw e; }
     const body = (await request.json()) as Record<string, unknown>;
     const slug = cleanText(body.slug, 100);
     const answers = (body.answers && typeof body.answers === "object" ? body.answers : {}) as Record<string, unknown>;

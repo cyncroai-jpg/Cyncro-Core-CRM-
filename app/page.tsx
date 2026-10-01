@@ -18,6 +18,8 @@ import { CompanySettingsPanel } from "@/app/components/CompanySettingsPanel";
 import { OnboardingChecklist } from "@/app/components/OnboardingChecklist";
 import { CyncroAssistant } from "@/app/components/CyncroAssistant";
 import { McpPanel } from "@/app/components/McpPanel";
+import { SecurityPanel, SecurityGate } from "@/app/components/SecurityPanel";
+import { CompanySecurityPanel } from "@/app/components/CompanySecurityPanel";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -161,6 +163,7 @@ export default function Home() {
   if (product === "dispatch") {
     return (
       <div className="readable">
+        <SecurityGate onFlash={() => undefined} />
         <CyncroAssistant screen="Dispatch" />
         <CyncroDispatch
           onNavigate={(destination) => {
@@ -174,6 +177,7 @@ export default function Home() {
   if (product === "dispute") {
     return (
       <div className="readable">
+        <SecurityGate onFlash={() => undefined} />
         <CyncroAssistant screen="Dispute" />
         <CyncroDispute
           onNavigate={(destination) => {
@@ -187,6 +191,7 @@ export default function Home() {
   if (product === "apex") {
     return (
       <div className="readable">
+        <SecurityGate onFlash={() => undefined} />
         <CyncroAssistant screen="Apex Funds" />
         <CyncroApexFunds
           onNavigate={(destination) => {
@@ -200,6 +205,7 @@ export default function Home() {
   if (product === "automotive") {
     return (
       <div className="readable">
+        <SecurityGate onFlash={() => undefined} />
         <CyncroAssistant screen="Finance" />
         <CyncroFinance
           onNavigate={(destination) => {
@@ -461,6 +467,7 @@ export default function Home() {
         </section>
       )}
       {tab !== "book" && tab !== "crm" && tab !== "home" && <CyncroAssistant screen={tab} />}
+      {tab !== "book" && <SecurityGate onFlash={() => undefined} />}
     </main>
   );
 }
@@ -11910,6 +11917,9 @@ function UniversalCRM({
             Confirm new password
             <input type="password" value={profileForm.confirmPassword} onChange={e=>setProfileForm(f=>({...f,confirmPassword:e.target.value}))} placeholder="Re-enter new password" autoComplete="new-password" />
           </label>
+          <hr className="profileDivider"/>
+          <p className="profileSectionLabel">SECURITY</p>
+          <SecurityPanel onFlash={flash} />
         </div>
         <div className="crmModalActions">
           <button onClick={()=>setProfileOpen(false)}>Cancel</button>
@@ -17353,6 +17363,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
     <div className="teamAccess">
       <CompanySettingsPanel onFlash={onFlash} />
       <McpPanel onFlash={onFlash} />
+      <CompanySecurityPanel onFlash={onFlash} isOwner={currentMember?.role === "OWNER"} />
       <section className="crmPanel">
         <div className="crmPanelHead">
           <div>

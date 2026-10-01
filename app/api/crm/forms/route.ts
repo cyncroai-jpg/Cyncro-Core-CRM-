@@ -3,6 +3,7 @@ import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
 import { applyAfterSubmit, nextUrl, parseAfterSubmit } from "@/lib/forms/afterSubmit";
 import { formStats } from "@/lib/insights/stats";
+import { clientIp, rateLimit, rateLimitResponse } from "@/lib/core/security";
 
 const safeFields = (value: unknown) => Array.isArray(value) ? value.slice(0, 60).map((raw) => {
   const x = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -49,6 +50,7 @@ export async function PATCH(request: Request) {
   try {
     await ensureCoreSchema(); const b = await request.json() as Record<string, unknown>, token=cleanText(b.token,100);
     if (token && b.action === "SUBMIT") {
+      try { await rateLimit(`form:ip:${clientIp(request)}`, 30, 60 * 60_000); } catch (e) { const r = rateLimitResponse(e); if (r) return r; throw e; }
       const form = await coreDb().prepare("SELECT * FROM crm_forms WHERE public_token=? AND status='PUBLISHED'").bind(token).first<Record<string, unknown>>();
       if (!form) return Response.json({ error: "This form is unavailable." }, { status: 404 });
       const name=cleanText(b.respondentName,160), email=normalizeEmail(b.respondentEmail), signature=cleanText(b.signatureName,160);

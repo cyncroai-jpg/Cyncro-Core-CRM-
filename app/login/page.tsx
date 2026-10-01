@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 
-type Mode = "login" | "setup" | "invite" | "signup" | "forgot" | "reset";
+type Mode = "login" | "setup" | "invite" | "signup" | "forgot" | "reset" | "twofactor";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
@@ -19,6 +19,8 @@ export default function LoginPage() {
   // Invite-specific
   const [inviteToken, setInviteToken] = useState("");
   const [resetToken, setResetToken] = useState("");
+  const [challenge, setChallenge] = useState("");
+  const [otp, setOtp] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
 
@@ -105,9 +107,11 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; requires2fa?: boolean; challenge?: string; setup2fa?: boolean };
       if (!res.ok) {
         setError(data.error ?? "Login failed.");
+      } else if (data.requires2fa && data.challenge) {
+        setChallenge(data.challenge); setOtp(""); setMode("twofactor");
       } else {
         window.location.href = "/#crm";
       }
@@ -116,6 +120,15 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+  async function handleTwoFactor(e: FormEvent) {
+    e.preventDefault(); setError(""); setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge, code: otp.trim() }) });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) { setError(data.error ?? "That code isn't right."); if (res.status === 410) { setMode("login"); setChallenge(""); } }
+      else window.location.href = "/#crm";
+    } catch { setError("Network error. Please try again."); } finally { setSubmitting(false); }
   }
 
   async function handleSignup(e: FormEvent) {
@@ -471,6 +484,22 @@ export default function LoginPage() {
                 {submitting ? <span className="loginBtnSpinner" /> : "Create workspace"}
               </button>
             </form>
+          </>
+        ) : mode === "twofactor" ? (
+          <>
+            <div className="loginHeading">
+              <p className="loginEyebrow">ONE MORE STEP</p>
+              <h1>Enter your sign-in code</h1>
+            </div>
+            <form className="loginForm" onSubmit={(e) => void handleTwoFactor(e)} noValidate>
+              <div className="loginField">
+                <label htmlFor="otp">6-digit code from your authenticator app, or a backup code</label>
+                <input id="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} required disabled={submitting} autoFocus />
+              </div>
+              {error && <p className="loginError" role="alert">{error}</p>}
+              <button type="submit" className="loginSubmit" disabled={submitting || otp.trim().length < 6}>{submitting ? <span className="loginBtnSpinner" /> : "Verify and sign in"}</button>
+            </form>
+            <p className="loginToggle"><button type="button" className="loginToggleLink" onClick={() => { setError(""); setChallenge(""); setMode("login"); }}>Back to sign in</button></p>
           </>
         ) : mode === "forgot" ? (
           <>

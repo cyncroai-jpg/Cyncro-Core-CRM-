@@ -12,10 +12,12 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { hashPassword, createSession, sessionCookie } from "@/lib/core/auth";
 import crypto from "crypto";
+import { clientIp, deviceLabel, rateLimit, rateLimitResponse } from "@/lib/core/security";
 
 export async function POST(request: Request) {
   try {
     await ensureCoreSchema();
+    try { await rateLimit(`signup:ip:${clientIp(request)}`, 10, 60 * 60_000); } catch (e) { const r = rateLimitResponse(e); if (r) return r; throw e; }
     const body = (await request.json()) as Record<string, unknown>;
 
     const tenantName = cleanText(body.tenantName, 160);
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
         .bind(crypto.randomUUID(), tenantId, userId, email, displayName, now, now),
     ]);
 
-    const token = await createSession(userId, email);
+    const token = await createSession(userId, email, { device: deviceLabel(request), ip: clientIp(request) });
     const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
 
     return Response.json({

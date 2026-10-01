@@ -7,6 +7,7 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { createSession, hashPassword, sessionCookie } from "@/lib/core/auth";
 import { emailTransportStatus, sendEmail } from "@/lib/core/email";
+import { clientIp, rateLimit, rateLimitResponse } from "@/lib/core/security";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const email = normalizeEmail(body.email);
     if (!email) return Response.json({ error: "Enter the email you sign in with." }, { status: 400 });
+    try { await rateLimit(`reset:ip:${clientIp(request)}`, 10, 60 * 60_000); await rateLimit(`reset:email:${email}`, 3, 60 * 60_000); } catch (e) { const r = rateLimitResponse(e); if (r) return r; throw e; }
     const transport = await emailTransportStatus();
     if (transport.transport === "none") return Response.json({ error: "Email sending isn't connected on this deployment yet, so reset links can't go out. Ask your workspace owner to send you a new invite link from Team Access." }, { status: 503 });
     const db = coreDb();
