@@ -20,6 +20,7 @@ import { CyncroAssistant } from "@/app/components/CyncroAssistant";
 import { McpPanel } from "@/app/components/McpPanel";
 import { SecurityPanel, SecurityGate } from "@/app/components/SecurityPanel";
 import { CompanySecurityPanel } from "@/app/components/CompanySecurityPanel";
+import { BillingPanel } from "@/app/components/BillingPanel";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -17362,6 +17363,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
   return (
     <div className="teamAccess">
       <CompanySettingsPanel onFlash={onFlash} />
+      <BillingPanel onFlash={onFlash} isOwner={currentMember?.role === "OWNER"} />
       <McpPanel onFlash={onFlash} />
       <CompanySecurityPanel onFlash={onFlash} isOwner={currentMember?.role === "OWNER"} />
       <section className="crmPanel">

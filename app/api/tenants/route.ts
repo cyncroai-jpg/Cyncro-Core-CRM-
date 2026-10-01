@@ -1,3 +1,4 @@
+import { seatAvailable } from "@/lib/core/billing";
 /**
  * Tenant Management
  *
@@ -115,6 +116,10 @@ export async function POST(request: Request) {
 
       if (!["USER", "MANAGER", "ADMIN"].includes(inviteRole)) {
         return Response.json({ error: "Invalid role" }, { status: 400 });
+      }
+      const seat = await seatAvailable(tenantId);
+      if (!seat.ok) {
+        return Response.json({ error: `All ${seat.seats} seats on your plan are taken. Upgrade in Team Access → Billing to add more people.`, seats: seat.seats, used: seat.used }, { status: 402 });
       }
 
       // Check if already member

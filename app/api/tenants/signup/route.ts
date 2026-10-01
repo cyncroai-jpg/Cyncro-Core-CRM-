@@ -9,6 +9,7 @@
  * so the new owner is immediately signed in — the caller doesn't need to
  * separately log in with the sessionToken this also returns.
  */
+import { TRIAL_DAYS } from "@/lib/core/billing";
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { hashPassword, createSession, sessionCookie } from "@/lib/core/auth";
 import crypto from "crypto";
@@ -48,8 +49,8 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     await db.batch([
-      db.prepare(`INSERT INTO tenants (id, name, slug, plan, seats, active, created_at, updated_at) VALUES (?, ?, ?, 'starter', 3, 1, ?, ?)`)
-        .bind(tenantId, tenantName, tenantSlug, now, now),
+      db.prepare(`INSERT INTO tenants (id, name, slug, plan, seats, active, trial_ends_at, created_at, updated_at) VALUES (?, ?, ?, 'starter', 3, 1, ?, ?, ?)`)
+        .bind(tenantId, tenantName, tenantSlug, new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString(), now, now),
       db.prepare(`INSERT INTO auth_users (id, email, password_hash, display_name, role, active, default_tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'MEMBER', 1, ?, ?, ?)`)
         .bind(userId, email, passwordHash, displayName, tenantId, now, now),
       db.prepare(`INSERT INTO tenant_members (id, tenant_id, user_id, email, display_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'OWNER', 1, ?, ?)`)

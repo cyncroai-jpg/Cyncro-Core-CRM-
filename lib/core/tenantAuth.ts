@@ -8,6 +8,7 @@
  * makes after that must be scoped to tenant.tenantId.
  */
 import { coreDb, getTenantContext, type TenantContext } from "@/lib/core/db";
+import { billingState } from "@/lib/core/billing";
 
 export type TenantAction = "view" | "create" | "edit" | "delete" | "export";
 
@@ -32,6 +33,11 @@ export async function requireTenantAction(request: Request, action: TenantAction
   const result = await requireTenant(request);
   if (result instanceof Response) return result;
   if (!canTenantAct(result, action)) return Response.json({ error: "Your role in this workspace doesn't allow that." }, { status: 403 });
+  if (action !== "view") {
+    // Trial over or subscription ended: reading stays open, changes wait for a plan (only enforced once Stripe is connected).
+    const billing = await billingState(result.tenantId);
+    if (!billing.writable) return Response.json({ error: billing.status === "EXPIRED" ? "Your free trial has ended. An owner can pick a plan in Team Access → Billing to keep working." : "This company's subscription has ended. An owner can restart it in Team Access → Billing.", billing: billing.status }, { status: 402 });
+  }
   return result;
 }
 
