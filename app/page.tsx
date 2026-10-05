@@ -12475,8 +12475,8 @@ function CRMPipeline({
                       <td className="pipelineTableNum"><b>{money(deal.value_cents)}</b></td>
                       <td className="pipelineTableNum">{deal.cost_cents ? money(deal.cost_cents) : "—"}</td>
                       <td>
-                        <div className="pipelineTableProb">
-                          <div style={{width:`${deal.probability}%`,background:stageSetting?.color||"#a30e18"}}/>
+                        <div className={`pipelineTableProb ${Number(deal.probability)>=100?"sure":""}`}>
+                          <div style={{width:`${deal.probability}%`,background:Number(deal.probability)>=100?"#3fd982":stageSetting?.color||"#a30e18"}}/>
                           <span>{deal.probability}%</span>
                         </div>
                       </td>
@@ -12564,8 +12564,8 @@ function CRMPipeline({
                       )}
                     </div>
                     <strong>{money(deal.value_cents)}</strong>
-                    <div className="dealProbBar">
-                      <div style={{width:`${deal.probability}%`,background:stageSetting?.color||"#a30e18"}}/>
+                    <div className={`dealProbBar ${Number(deal.probability)>=100?"sure":""}`}>
+                      <div style={{width:`${deal.probability}%`,background:Number(deal.probability)>=100?"#3fd982":stageSetting?.color||"#a30e18"}}/>
                       <span>{deal.probability}%</span>
                     </div>
                     <footer>

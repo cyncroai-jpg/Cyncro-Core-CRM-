@@ -25069,3 +25069,6 @@ button.crmUser i {
 .cmEmpty{margin:0;padding:0 18px 18px;color:#8f858b;font-size:11px}
 @media(max-width:1100px){.cmKpis{grid-template-columns:repeat(2,1fr)}.cmPerson{grid-template-columns:1fr 1fr}.cmAddGrid{grid-template-columns:repeat(2,1fr)}.cmTable header{display:none}.cmTable .cmRow,.cmTable.deals .cmRow{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.cmHead{flex-direction:column}.cmKpis,.cmPerson,.cmAddGrid,.cmTable .cmRow,.cmTable.deals .cmRow{grid-template-columns:1fr}}
+/* 100% probability reads as a sure thing */
+.dealProbBar.sure > span,.pipelineTableProb.sure span{color:#3fd982;font-weight:800}
+.dealProbBar.sure > div,.pipelineTableProb.sure > div{box-shadow:0 0 10px #3fd98266}
