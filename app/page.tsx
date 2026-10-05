@@ -133,7 +133,11 @@ export default function Home() {
     void fetch("/api/access").then(async (response) => {
       if (response.status === 401) {
         // Shared booking links (/?event=slug#book) are public: customers book without an account.
-        if (window.location.hash.startsWith("#book") && new URLSearchParams(window.location.search).get("event")) return;
+        const q = new URLSearchParams(window.location.search); const h = window.location.hash;
+        if (h.startsWith("#book") && q.get("event")) return;
+        // Contract signing links (/?contract=token#sign) and shared forms are public too.
+        if (h.startsWith("#sign") && q.get("contract")) return;
+        if (h.startsWith("#form") && (q.get("form") || q.get("id"))) return;
         window.location.href = "/login";
         return;
       }
@@ -468,7 +472,7 @@ export default function Home() {
           </div>
         </section>
       )}
-      {tab !== "book" && tab !== "crm" && tab !== "home" && <CyncroAssistant screen={tab} />}
+      {!["book", "crm", "home", "sign", "form"].includes(tab) && <CyncroAssistant screen={tab} />}
       {tab !== "book" && <SecurityGate onFlash={() => undefined} />}
     </main>
   );
@@ -15889,6 +15893,7 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
     }),
     [ownerName, setOwnerName] = useState("Account Owner"),
     [file, setFile] = useState<File | null>(null);
+  const [emailTransport, setEmailTransport] = useState<{ transport: string; from: string } | null>(null);
   const load = async () => {
     const response = await fetch("/api/crm/contracts", { cache: "no-store" }),
       data = (await response.json()) as {
@@ -15900,6 +15905,7 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
       return;
     }
     setRows(data.contracts || []);
+    if ((data as { emailTransport?: { transport: string; from: string } }).emailTransport) setEmailTransport((data as { emailTransport?: { transport: string; from: string } }).emailTransport!);
   };
   const loadDetail = async (id: string) => {
     setSelected(id);
@@ -15985,17 +15991,23 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
           ...payload,
         }),
       }),
-      data = (await response.json()) as { error?: string; delivery?: string };
+      data = (await response.json()) as { error?: string; delivery?: string; sent?: number; failed?: number; links?: { name: string; email: string }[] };
     if (!response.ok) {
       onFlash(data.error || "Contract action failed");
       return;
     }
     await Promise.all([load(), loadDetail(detail.contract.id)]);
-    onFlash(
-      actionName === "SEND" && data.delivery === "CONNECTION_REQUIRED"
-        ? "Signing links ready; connect email for automatic delivery"
-        : `${actionName.toLowerCase()} completed`,
-    );
+    if (actionName === "SEND" || actionName === "REMIND") {
+      const who = (data.links || []).map((l) => l.email).join(", ");
+      onFlash(
+        data.delivery === "SENT" ? `${actionName === "REMIND" ? "Reminder" : "Contract"} emailed to ${who}`
+        : data.delivery === "PARTIAL" ? `Emailed ${data.sent} of ${(data.sent || 0) + (data.failed || 0)} signers; copy the link for the rest`
+        : data.delivery === "FAILED" ? "Email didn't go through. Copy the signing link and send it yourself."
+        : "Email isn't connected yet. Copy the signing link below and send it yourself, or connect email in Integrations.",
+      );
+      return;
+    }
+    onFlash(`${actionName.toLowerCase()} completed`);
   };
   const edit = () => {
     if (!detail) return;
@@ -16075,6 +16087,16 @@ function CRMContracts({ onFlash }: { onFlash: (message: string) => void }) {
           </button>
         </aside>
       </section>
+      {emailTransport && (
+        <section className={`crmPanel contractTransport ${emailTransport.transport === "none" ? "off" : "on"}`}>
+          <i>{emailTransport.transport === "none" ? "✉" : "✓"}</i>
+          <div>
+            <b>{emailTransport.transport === "none" ? "Email delivery isn't connected" : `Contracts email from ${emailTransport.from}`}</b>
+            <small>{emailTransport.transport === "none" ? "Send still works: each signer gets a private link you can copy and text or email yourself. Connect your Google account in Integrations, or add a Resend key, and Cyncro sends them automatically." : emailTransport.transport === "gmail" ? "Sending through the connected Google account. Signers get a branded email with their private signing link." : "Sending through Resend. Signers get a branded email with their private signing link."}</small>
+          </div>
+          {emailTransport.transport === "none" && <a className="cyAiMini" href="#crm/integrations">Connect email</a>}
+        </section>
+      )}
       <div className="contractStatusRail">
         {[
           ["DRAFT", "Prepare + edit"],

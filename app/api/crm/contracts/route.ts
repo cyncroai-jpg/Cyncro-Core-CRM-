@@ -5,6 +5,8 @@ import {
   normalizeEmail,
 } from "@/lib/core/db";
 import { requireTenant, requireTenantAction } from "@/lib/core/tenantAuth";
+import { emailTransportStatus, sendEmail } from "@/lib/core/email";
+import { companySettings } from "@/lib/core/companySettings";
 
 const requestIp = (request: Request) =>
   request.headers.get("cf-connecting-ip") || "recorded";
@@ -39,6 +41,50 @@ async function logEvent(
       new Date().toISOString(),
     )
     .run();
+}
+
+
+/**
+ * Emails every signer whose turn it is their private signing link. Returns what
+ * actually happened so the UI never claims a delivery that did not occur.
+ */
+async function deliverSigningLinks(request: Request, tenantId: string, contract: Record<string, unknown>, kind: "SEND" | "REMIND") {
+  const transport = await emailTransportStatus(tenantId);
+  const signers = (await coreDb().prepare("SELECT id, signer_name, signer_email, signing_order, signing_token, status FROM crm_contract_signers WHERE contract_id=? AND status<>'SIGNED' ORDER BY signing_order").bind(String(contract.id)).all<{ id: string; signer_name: string; signer_email: string; signing_order: number; signing_token: string; status: string }>()).results;
+  const nextOrder = signers.length ? signers[0].signing_order : null;
+  const due = signers.filter((s) => s.signing_order === nextOrder);
+  const origin = new URL(request.url).origin;
+  const links = due.map((s) => ({ name: s.signer_name, email: s.signer_email, url: `${origin}/?contract=${encodeURIComponent(s.signing_token)}#sign` }));
+  if (transport.transport === "none") return { delivery: "CONNECTION_REQUIRED" as const, sent: 0, failed: 0, links, from: "" };
+  const settings = await companySettings(tenantId);
+  const company = (await coreDb().prepare("SELECT name FROM tenants WHERE id=?").bind(tenantId).first<{ name: string }>())?.name || "Cyncro Core";
+  const sender = settings.senderName || company;
+  let sent = 0, failed = 0;
+  for (const l of links) {
+    const ok = await sendEmail({ tenantId, to: l.email, replyTo: settings.replyTo || undefined, subject: kind === "REMIND" ? `Reminder: ${String(contract.title)} is waiting for your signature` : `${sender} sent you a contract to sign: ${String(contract.title)}`,
+      html: contractEmail({ sender, company, title: String(contract.title), signerName: l.name, url: l.url, expiresAt: contract.expires_at ? String(contract.expires_at) : null, brand: settings.brandColor || "#ff2f4f", logoUrl: settings.logoUrl || "", reminder: kind === "REMIND" }) });
+    if (ok) { sent++; await logEvent(String(contract.id), kind === "REMIND" ? "REMINDER_SENT" : "EMAIL_SENT", l.email, `${kind === "REMIND" ? "Reminder" : "Signing link"} emailed to ${l.name} <${l.email}> via ${transport.transport}`, request); }
+    else { failed++; await logEvent(String(contract.id), "EMAIL_FAILED", l.email, `Could not email ${l.name} <${l.email}>; share the link manually`, request); }
+  }
+  return { delivery: sent > 0 && failed === 0 ? ("SENT" as const) : sent > 0 ? ("PARTIAL" as const) : ("FAILED" as const), sent, failed, links, from: transport.from };
+}
+
+function contractEmail(o: { sender: string; company: string; title: string; signerName: string; url: string; expiresAt: string | null; brand: string; logoUrl: string; reminder: boolean }) {
+  const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+  const expires = o.expiresAt ? `<p style="margin:0 0 18px;color:#6b6b6b;font-size:13px">This link expires on ${esc(new Date(o.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</p>` : "";
+  return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#111">
+  <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e5e5e7">
+    <div style="background:${esc(o.brand)};padding:18px 28px;color:#fff;font-weight:700;font-size:14px;letter-spacing:.04em">${o.logoUrl ? `<img src="${esc(o.logoUrl)}" alt="${esc(o.company)}" style="max-height:34px;vertical-align:middle">` : esc(o.company)}</div>
+    <div style="padding:28px">
+      <p style="margin:0 0 6px;font-size:12px;letter-spacing:.12em;color:#8a8a8a;text-transform:uppercase">${o.reminder ? "Reminder" : "Contract to sign"}</p>
+      <h1 style="margin:0 0 14px;font-size:22px;line-height:1.3">${esc(o.title)}</h1>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.6">Hi ${esc(o.signerName)},<br>${esc(o.sender)} ${o.reminder ? "is still waiting on your signature for" : "has sent you"} <b>${esc(o.title)}</b>. Review it and sign online in a couple of minutes. No account or printing needed.</p>
+      <p style="margin:0 0 22px"><a href="${esc(o.url)}" style="display:inline-block;background:${esc(o.brand)};color:#fff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:9px;font-size:15px">Review and sign</a></p>
+      ${expires}
+      <p style="margin:0;color:#6b6b6b;font-size:12px;line-height:1.6">If the button doesn't work, copy this link into your browser:<br><a href="${esc(o.url)}" style="color:#444;word-break:break-all">${esc(o.url)}</a></p>
+    </div>
+    <div style="padding:14px 28px;background:#fafafa;color:#9a9a9a;font-size:11px">This private link is meant only for ${esc(o.signerName)}. Please don't forward it. Sent through Cyncro Core on behalf of ${esc(o.company)}.</div>
+  </div></body></html>`;
 }
 
 export async function GET(request: Request) {
@@ -124,7 +170,9 @@ export async function GET(request: Request) {
         attachments: attachments.results,
       });
     }
+    const emailTransport = await emailTransportStatus(tenant.tenantId);
     return Response.json({
+      emailTransport,
       contracts: (
         await coreDb()
           .prepare(
@@ -379,17 +427,8 @@ export async function PATCH(request: Request) {
         )
         .bind(now, now, id)
         .run();
-      await logEvent(
-        id,
-        "REMINDER_QUEUED",
-        tenant.email,
-        "Signature reminder queued",
-        request,
-      );
-      return Response.json({
-        saved: true,
-        delivery: process.env.RESEND_API_KEY ? "READY" : "CONNECTION_REQUIRED",
-      });
+      const result = await deliverSigningLinks(request, tenant.tenantId, contract, "REMIND");
+      return Response.json({ saved: true, ...result });
     }
     if (action === "COUNTERSIGN") {
       const signerName = cleanText(body.signerName, 160);
@@ -428,17 +467,9 @@ export async function PATCH(request: Request) {
         )
         .bind(now, id)
         .run();
-      await logEvent(
-        id,
-        "SENT",
-        tenant.email,
-        "Secure signing links prepared",
-        request,
-      );
-      return Response.json({
-        saved: true,
-        delivery: process.env.RESEND_API_KEY ? "READY" : "CONNECTION_REQUIRED",
-      });
+      await logEvent(id, "SENT", tenant.email, "Contract marked sent", request);
+      const result = await deliverSigningLinks(request, tenant.tenantId, contract, "SEND");
+      return Response.json({ saved: true, ...result });
     }
     if (contract.locked_at)
       return Response.json(

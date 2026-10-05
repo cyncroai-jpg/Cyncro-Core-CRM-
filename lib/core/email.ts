@@ -36,7 +36,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
     return viaGmail;
   }
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch(`${((env as Record<string, string>).RESEND_API_BASE || "https://api.resend.com").replace(/\/$/, "")}/emails`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
