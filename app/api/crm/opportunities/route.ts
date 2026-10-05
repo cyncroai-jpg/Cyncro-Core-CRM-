@@ -96,6 +96,7 @@ export async function PATCH(request: Request) {
     if (updates.residualMonths !== undefined) add("residual_months", Math.max(0, Math.round(Number(updates.residualMonths))));
     if (updates.residualFlat !== undefined) add("residual_flat_cents", Math.max(0, Math.round(Number(updates.residualFlat) * 100)));
     if (updates.notes !== undefined) add("notes", cleanText(updates.notes, 5000) || null);
+    if (updates.serviceKind !== undefined) add("service_kind", cleanText(updates.serviceKind, 40).toUpperCase() || null);
     if (updates.commissionNotes !== undefined) add("commission_notes", cleanText(updates.commissionNotes, 2000) || null);
     if (!fields.length) return Response.json({ error: "No valid changes supplied." }, { status: 400 });
     add("updated_at", new Date().toISOString()); values.push(id, tenant.tenantId);

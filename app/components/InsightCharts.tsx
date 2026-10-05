@@ -25,7 +25,7 @@ export function DayBars({ points, series, height = 150, unit = "" }: { points: P
   const n = points.length || 1;
   const slot = innerW / n;
   const barW = Math.max(3, Math.min(18, slot - 2));
-  const ticks = [0, Math.ceil(max / 2), max];
+  const ticks = [...new Set([0, Math.ceil(max / 2), max])];
   const hp = hover >= 0 ? points[hover] : null;
   return (
     <div className="inChart">

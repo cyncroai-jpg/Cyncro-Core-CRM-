@@ -21,6 +21,7 @@ import { McpPanel } from "@/app/components/McpPanel";
 import { SecurityPanel, SecurityGate } from "@/app/components/SecurityPanel";
 import { CompanySecurityPanel } from "@/app/components/CompanySecurityPanel";
 import { BillingPanel } from "@/app/components/BillingPanel";
+import { CommissionsDesk } from "@/app/components/CommissionsDesk";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -10772,7 +10773,7 @@ type CRMView =
   | "Agent Team"
   | "Team Access"
   | "Integrations"
-  | "Compensation"
+  | "Commissions"
   | "Invoices"
   | "Contracts"
   | "Forms"
@@ -11051,7 +11052,7 @@ function UniversalCRM({
   onOpenProspecting: () => void;
   isOwner: boolean;
 }) {
-  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Growth", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Compensation", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
+  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Growth", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Commissions", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
   const
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
@@ -11406,7 +11407,7 @@ function UniversalCRM({
     { name: "Data Graph", icon: "⌘" },
     { name: "Agent Team", icon: "✧" },
     { name: "Team Access", icon: "♙", permission:"manage_users" },
-    { name: "Compensation", icon: "%", permission:"compensation_access" },
+    { name: "Commissions", icon: "%", permission:"compensation_access" },
     { name: "Invoices", icon: "$", permission:"invoice_access" },
     { name: "Contracts", icon: "✎", permission:"contract_access" },
     { name: "Forms", icon: "▤", count: "Build" },
@@ -11419,7 +11420,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution","Commissions","Invoices","Contracts"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11658,9 +11659,7 @@ function UniversalCRM({
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} onOpenCalendar={() => setView("Calendar")} />}
-          {view === "Compensation" && (
-            <CRMCompensation onFlash={flash} isOwner={isOwner} />
-          )}
+          {view === "Commissions" && <CommissionsDesk onFlash={flash} />}
           {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Forms" && <CRMForms onFlash={flash} />}
@@ -12006,6 +12005,8 @@ function CRMPipeline({
       return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
     });
   const toggleSort = (col:string) => setTableSort(prev => ({ col, dir: prev.col === col && prev.dir === "desc" ? "asc" : "desc" }));
+  const [teammates, setTeammates] = useState<{ email: string; display_name: string }[]>([]);
+  useEffect(() => { void fetch("/api/crm/commissions?members=1").then((r) => (r.ok ? r.json() : null)).then((d: { members?: { email: string; display_name: string }[] } | null) => setTeammates(d?.members || [])).catch(() => undefined); }, []);
   const [newDeal, setNewDeal] = useState({
     company: "",
     contactName: "",
@@ -12778,7 +12779,7 @@ function CRMPipeline({
                 </label>
                 <label>
                   Assigned rep
-                  <input list="cyncro-team" placeholder="Teammate email" value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })} />
+                  <select value={selectedDeal.assigned_rep || ""} onChange={(event) => setSelectedDeal({ ...selectedDeal, assigned_rep: event.target.value })}><option value="">Unassigned</option>{teammates.map((t) => <option key={t.email} value={t.email}>{t.display_name}</option>)}{selectedDeal.assigned_rep && !teammates.some((t) => t.email === selectedDeal.assigned_rep) && <option value={selectedDeal.assigned_rep}>{selectedDeal.assigned_rep}</option>}</select>
                 </label>
                 <label>
                   Notes
@@ -12809,7 +12810,7 @@ function CRMPipeline({
                   </div>
                 </div>
                 <label>
-                  Commission rate % (custom — any value)
+                  Commission rate % (any value)
                   <input
                     type="number"
                     min="0"
@@ -12989,23 +12990,20 @@ function CRMPipeline({
               </label>
               <label>
                 Assigned rep
-                <input
-                  list="cyncro-team"
-                  placeholder="Teammate email"
-                  value={newDeal.assignedRep}
-                  onChange={(event) =>
-                    setNewDeal({ ...newDeal, assignedRep: event.target.value })
-                  }
-                />
+                <select value={newDeal.assignedRep} onChange={(event) => setNewDeal({ ...newDeal, assignedRep: event.target.value })}>
+                  <option value="">Unassigned</option>
+                  {teammates.map((t) => <option key={t.email} value={t.email}>{t.display_name}</option>)}
+                </select>
               </label>
               {isOwner && (
                 <>
                   <label>
-                    Commission % (20–30)
+                    Commission %
                     <input
                       type="number"
-                      min="20"
-                      max="30"
+                      min="0"
+                      max="100"
+                      step="0.5"
                       value={newDeal.commissionRate}
                       onChange={(event) =>
                         setNewDeal({
@@ -13016,11 +13014,10 @@ function CRMPipeline({
                     />
                   </label>
                   <label>
-                    Monthly residual ($25–$50)
+                    Monthly residual ($)
                     <input
                       type="number"
-                      min="25"
-                      max="50"
+                      min="0"
                       value={newDeal.residualFlat}
                       onChange={(event) =>
                         setNewDeal({
@@ -15199,203 +15196,6 @@ function CRMAgentTeam({ onFlash }: { onFlash: (message: string) => void }) {
   );
 }
 
-function CRMCompensation({
-  onFlash,
-  isOwner,
-}: {
-  onFlash: (message: string) => void;
-  isOwner: boolean;
-}) {
-  type Deal = {
-    id: string;
-    name: string;
-    account_name: string;
-    assigned_rep?: string;
-    value_cents: number;
-    collected_cents?: number;
-    payment_status?: string;
-    source?: string;
-    notes?: string;
-    commission_rate_bps?: number;
-    commission_status?: string;
-  };
-  type CommissionRule = { id:string; service_name:string; applies_to:string; percentage_bps:number; active:number };
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [rules, setRules] = useState<CommissionRule[]>([]);
-  const [newRule, setNewRule] = useState({ serviceName:"", appliesTo:"", percentage:"" });
-  const [service, setService] = useState<Record<string, string>>({});
-  const load = async () => {
-    const [r, rr] = await Promise.all([fetch("/api/crm/opportunities?compensation=1", { cache: "no-store" }), fetch("/api/crm/commission-rules", { cache:"no-store" })]);
-    const d = (await r.json()) as { opportunities?: Deal[]; error?: string };
-    const rd = (await rr.json()) as { rules?: CommissionRule[]; error?: string };
-    if (!r.ok) return onFlash(d.error || "Commissions could not load");
-    setDeals(d.opportunities || []);
-    if (rr.ok) setRules(rd.rules || []);
-  };
-  useEffect(() => { void load(); }, [isOwner]);
-  const rate = (deal: Deal) => {
-    if (deal.commission_rate_bps) return deal.commission_rate_bps / 100;
-    const kind = service[deal.id] || "AUTOMATION";
-    if (kind === "WEBSITE" || kind === "LANDING_PAGE") return 50;
-    const value = deal.value_cents / 100;
-    return value >= 10000 ? 30 : value >= 5000 ? 25 : 20;
-  };
-  const payout = (deal: Deal) =>
-    Math.round(
-      (Number(deal.collected_cents || deal.value_cents) * rate(deal)) / 100,
-    );
-  const exportCsv = () => {
-    const rows = [
-      [
-        "Employee",
-        "Deal",
-        "Service",
-        "Deal Value",
-        "Collected",
-        "Rate",
-        "Payout",
-      ],
-      ...deals.map((d) => [
-        d.assigned_rep || "Unassigned",
-        d.name,
-        service[d.id] || "AUTOMATION",
-        (d.value_cents / 100).toFixed(2),
-        (Number(d.collected_cents || 0) / 100).toFixed(2),
-        `${rate(d)}%`,
-        (payout(d) / 100).toFixed(2),
-      ]),
-    ];
-    const blob = new Blob(
-      [
-        rows
-          .map((r) =>
-            r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","),
-          )
-          .join("\n"),
-      ],
-      { type: "text/csv" },
-    );
-    const url = URL.createObjectURL(blob),
-      a = document.createElement("a");
-    a.href = url;
-    a.download = `cyncro-payouts-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    onFlash("Payout report downloaded");
-  };
-  const updateDeal = async (deal: Deal, updates: Record<string, unknown>) => {
-    const response = await fetch("/api/crm/opportunities", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deal.id, updates }) });
-    const data = (await response.json()) as { error?: string };
-    if (!response.ok) return onFlash(data.error || "Payout could not be updated");
-    await load();
-    onFlash("Commission and payout saved");
-  };
-  const saveRule = async (rule: CommissionRule) => {
-    const response = await fetch("/api/crm/commission-rules", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:rule.id, serviceName:rule.service_name, appliesTo:rule.applies_to, percentage:rule.percentage_bps/100, active:Boolean(rule.active) }) });
-    const data = await response.json() as { error?:string };
-    if (!response.ok) return onFlash(data.error || "Rule could not be saved");
-    await load(); onFlash("Commission service updated");
-  };
-  const addRule = async () => {
-    const response = await fetch("/api/crm/commission-rules", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ ...newRule, percentage:Number(newRule.percentage) }) });
-    const data = await response.json() as { error?:string };
-    if (!response.ok) return onFlash(data.error || "Service could not be added");
-    setNewRule({ serviceName:"", appliesTo:"", percentage:"" }); await load(); onFlash("Commission service added");
-  };
-  const removeRule = async (id:string) => {
-    if (!window.confirm("Delete this commission service?")) return;
-    const response = await fetch(`/api/crm/commission-rules?id=${encodeURIComponent(id)}`, { method:"DELETE" });
-    if (!response.ok) return onFlash("Service could not be deleted");
-    await load(); onFlash("Commission service deleted");
-  };
-  return (
-    <div className="financeWorkspace">
-      <section className="financeHero crmPanel">
-        <div>
-          <small>{isOwner ? "OWNER COMPENSATION DESK" : "MY COMMISSION SHEET"}</small>
-          <h2>{isOwner ? "Calculate and approve every payout." : "Your assigned deals and payouts."}</h2>
-          <p>
-            Automations scale from 20–30% by deal size. Websites and landing
-            pages pay 50% for the first month only.
-          </p>
-        </div>
-        <button onClick={exportCsv}>↓ Download payout data</button>
-      </section>
-      <section className="crmPanel commissionRuleStudio">
-        <header><div><small>SERVICE PAYOUT RULES</small><h3>Edit every service, percentage, and purpose</h3></div><span>{rules.filter(r=>r.active).length} active rules</span></header>
-        <div className="commissionRuleList">
-          {rules.map((rule,index)=><article key={rule.id}>
-            <label><span>Service</span><input value={rule.service_name} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,service_name:e.target.value}:item))}/></label>
-            <label className="rulePurpose"><span>What this payout is for</span><input value={rule.applies_to} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,applies_to:e.target.value}:item))}/></label>
-            <label><span>Percentage</span><div className="percentageInput"><input type="number" min="0" max="100" step="0.25" value={rule.percentage_bps/100} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,percentage_bps:Math.round(Number(e.target.value)*100)}:item))}/><b>%</b></div></label>
-            <label className="ruleToggle"><input type="checkbox" checked={Boolean(rule.active)} onChange={e=>setRules(rules.map((item,i)=>i===index?{...item,active:e.target.checked?1:0}:item))}/><span>Active</span></label>
-            <div className="ruleActions"><button onClick={()=>void saveRule(rule)}>Save</button><button className="dangerText" onClick={()=>void removeRule(rule.id)}>Delete</button></div>
-          </article>)}
-        </div>
-        <div className="commissionRuleAdd">
-          <input placeholder="New service name" value={newRule.serviceName} onChange={e=>setNewRule({...newRule,serviceName:e.target.value})}/>
-          <input placeholder="What the commission is for" value={newRule.appliesTo} onChange={e=>setNewRule({...newRule,appliesTo:e.target.value})}/>
-          <input aria-label="New commission percentage" type="number" min="0" max="100" placeholder="%" value={newRule.percentage} onChange={e=>setNewRule({...newRule,percentage:e.target.value})}/>
-          <button onClick={()=>void addRule()}>＋ Add service</button>
-        </div>
-      </section>
-      <section className="crmPanel payoutLedger">
-        <header>
-          <span>DEAL / EMPLOYEE</span>
-          <span>SERVICE</span>
-          <span>COLLECTED</span>
-          <span>RATE</span>
-          <span>PAYOUT</span>
-        </header>
-        {deals.map((d) => (
-          <div key={d.id}>
-            <span>
-              <b>{d.name}</b>
-              <small>
-                {d.assigned_rep || "Unassigned"} · {d.account_name}
-              </small>
-              {isOwner && (
-                <span className="payoutAssignmentFields">
-                  <input aria-label="Account manager" defaultValue={d.assigned_rep || ""} placeholder="Account manager" onBlur={(e) => void updateDeal(d, { assignedRep: e.target.value })} />
-                  <input aria-label="Lead source" defaultValue={d.source || ""} placeholder="Source" onBlur={(e) => void updateDeal(d, { source: e.target.value })} />
-                </span>
-              )}
-            </span>
-            <select
-              disabled={!isOwner}
-              value={service[d.id] || "AUTOMATION"}
-              onChange={(e) => {
-                const kind = e.target.value;
-                setService({ ...service, [d.id]: kind });
-                const automaticRate = kind === "AUTOMATION" ? (d.value_cents >= 1000000 ? 30 : d.value_cents >= 500000 ? 25 : 20) : 50;
-                void updateDeal(d, { commissionRate: automaticRate });
-              }}
-            >
-              <option value="AUTOMATION">Automation / recurring</option>
-              <option value="WEBSITE">Website · first month</option>
-              <option value="LANDING_PAGE">Landing page · first month</option>
-            </select>
-            {isOwner ? <input aria-label="Amount paid" type="number" min="0" defaultValue={Number(d.collected_cents || 0) / 100} onBlur={(e) => void updateDeal(d, { collected: Number(e.target.value) })} /> : <strong>
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(Number(d.collected_cents || 0) / 100)}
-            </strong>}
-            {isOwner ? <input aria-label="Commission percentage" type="number" min="20" max="50" defaultValue={rate(d)} onBlur={(e) => void updateDeal(d, { commissionRate: Number(e.target.value) })} /> : <em>{rate(d)}%</em>}
-            <b>
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(payout(d) / 100)}
-            </b>
-          </div>
-        ))}
-        {!deals.length && <div className="emptyState">No commissions are assigned to this user yet.</div>}
-      </section>
-    </div>
-  );
-}
-
 function CRMInvoices({ onFlash, onOpenIntegrations }: { onFlash: (message: string) => void; onOpenIntegrations: () => void }) {
   type Invoice = {
     id: string;
@@ -17439,7 +17239,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
           ))}
         </div>
         <div className="permissionMatrix"><div><b>Action controls</b><small>Choose exactly what this person can do inside records.</small></div>{[["canCreate","Create records"],["canEdit","Edit records"],["canDelete","Delete records"],["canExport","Export data"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
-        <div className="permissionMatrix"><div><b>Sensitive workspaces</b><small>Keep financial and executive data owner-only unless granted.</small></div>{[["compensationAccess","Compensation"],["invoiceAccess","Invoices"],["contractAccess","Contracts"],["attributionAccess","Attribution"],["workAccess","Cyncro Work"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
+        <div className="permissionMatrix"><div><b>Sensitive workspaces</b><small>Keep financial and executive data owner-only unless granted.</small></div>{[["compensationAccess","Commissions"],["invoiceAccess","Invoices"],["contractAccess","Contracts"],["attributionAccess","Attribution"],["workAccess","Cyncro Work"]].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(form[key as keyof typeof form])} onChange={e=>setForm({...form,[key]:e.target.checked})}/><span>{label}</span></label>)}</div>
         <button className="crmCreate" onClick={() => void save()}>
           {editingEmail ? "Update team access" : "Save &amp; generate invite link"}
         </button>
@@ -17466,7 +17266,7 @@ function CRMTeamAccess({ onFlash, onOpenCalendar }: { onFlash: (message: string)
           <article className="memberAccessRow" key={member.email}>
             <header><span><b>{member.display_name}</b><small>{member.email}</small></span><em>{member.role.replaceAll("_", " ")}</em></header>
             <div className="memberPermissionBadges">
-              {member.crm_access ? <span>CRM</span> : null}{member.calendar_access ? <span>Calendar</span> : null}{member.prospecting_access ? <span>Prospecting</span> : null}{member.compensation_access ? <span>Compensation</span> : null}{member.manage_users ? <span>Team admin</span> : null}
+              {member.crm_access ? <span>CRM</span> : null}{member.calendar_access ? <span>Calendar</span> : null}{member.prospecting_access ? <span>Prospecting</span> : null}{member.compensation_access ? <span>Commissions</span> : null}{member.manage_users ? <span>Team admin</span> : null}
             </div>
             <div className="memberCalendarStatus"><small>CALENDAR CONNECTION</small><b>{member.google_calendar_email || "Not connected"}</b><p>{member.email === currentMember?.email ? "Connect or refresh your calendar now." : "This teammate connects their own Google account after signing in."}</p></div>
             <div className="memberAccessActions">
