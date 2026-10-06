@@ -10,12 +10,13 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --experimental-loader tests/cf-loader.mjs --test-concurrency=1 --test tests/api-routes.test.mjs && node --experimental-loader tests/cf-loader.mjs --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --experimental-loader ./tests/cf-loader.mjs --test-concurrency=1 --test tests/api-routes.test.mjs && node --experimental-loader ./tests/cf-loader.mjs --test tests/rendered-html.test.mjs && node --experimental-loader ./tests/cf-loader.mjs --test tests/smart-money.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@fontsource/montserrat": "^5.2.8",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",

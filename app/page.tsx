@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import SmartMoney from "./smart-money";
 
 const times = [
   "9:00 AM",
@@ -17,6 +18,7 @@ type Tab =
   | "crm"
   | "messages"
   | "prospecting"
+  | "smartmoney"
   | "dispatch"
   | "dispute"
   | "finance"
@@ -47,7 +49,7 @@ export default function Home() {
     (destination === "crm" && Boolean(permissions.crm_access)) ||
     (["book", "admin", "studio"].includes(destination) &&
       Boolean(permissions.calendar_access)) ||
-    (destination === "prospecting" && Boolean(permissions.prospecting_access));
+    ((destination === "prospecting" || destination === "smartmoney") && Boolean(permissions.prospecting_access));
   const navigate = (destination: Tab) => {
     if (!canAccess(destination)) {
       setTab("crm");
@@ -71,6 +73,7 @@ export default function Home() {
       "crm",
       "messages",
       "prospecting",
+      "smartmoney",
       "dispatch",
       "dispute",
       "finance",
@@ -122,6 +125,7 @@ export default function Home() {
             ["crm", "Cyncro CRM"],
             ["admin", "Calendar"],
             ["prospecting", "Prospecting"],
+            ["smartmoney", "Smart Money"],
           ]
             .filter((x) => canAccess(x[0] as Tab))
             .map((x) => (
@@ -157,6 +161,8 @@ export default function Home() {
         <CyncroComingSoonGate product="Cyncro Messages + Social Automation" />
       ) : tab === "prospecting" ? (
         <CyncroProspecting onOpenCRM={() => navigate("crm")} />
+      ) : tab === "smartmoney" ? (
+        <SmartMoney />
       ) : tab === "dispatch" ? (
         <CyncroComingSoonGate product="Cyncro Dispatch" />
       ) : tab === "dispute" ? (
@@ -1326,6 +1332,7 @@ function LiveHomeDashboard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
     { tab: "crm", icon: "◎", label: "CRM", desc: "Contacts, pipeline, activities" },
     { tab: "admin", icon: "◷", label: "Calendar", desc: "Appointments & availability" },
     { tab: "prospecting", icon: "◫", label: "Prospecting", desc: "AI lead discovery" },
+    { tab: "smartmoney", icon: "♛", label: "Smart Money", desc: "What billionaires are buying" },
     { tab: "chat", icon: "◌", label: "Team Chat", desc: "Internal messaging" },
     { tab: "messages", icon: "⌁", label: "Messages", desc: "Social & email flows" },
     { tab: "dispatch", icon: "▦", label: "Dispatch", desc: "Jobs & field operations" },
