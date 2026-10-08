@@ -45,6 +45,16 @@
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { logAuditAction } from "@/lib/core/audit";
 import { createCreditRepairClient } from "@/lib/core/credit-repair";
+import { emitAutomationEvent } from "@/lib/automations/engine";
+import { linkContact } from "@/lib/automations/link";
+
+async function roundEvent(tenantId: string, clientId: string, roundId: string, roundNumber: number, bureau: string, trigger: "DISPUTE_ROUND_OPENED" | "DISPUTE_ROUND_CLOSED", status = "") {
+  const c = await coreDb().prepare("SELECT first_name, last_name, email, contact_id FROM credit_repair_clients WHERE id=? AND tenant_id=?").bind(clientId, tenantId).first<{ first_name: string; last_name: string; email: string; contact_id: string | null }>();
+  if (!c) return;
+  const name = `${c.first_name} ${c.last_name}`.trim();
+  const contactId = c.contact_id || (await linkContact(tenantId, { name, email: c.email, source: "DISPUTE" }));
+  await emitAutomationEvent(tenantId, trigger, { contactId, roundId, roundNumber, bureau, status, customerName: name, customerEmail: c.email, trigger }).catch(() => 0);
+}
 
 function id() {
   return crypto.randomUUID();
@@ -195,6 +205,7 @@ export async function POST(request: Request) {
       await db.prepare(`INSERT INTO dispute_rounds (id,tenant_id,client_id,round_number,credit_bureau,status,opened_at,created_at,updated_at)
         VALUES (?,?,?,?,?,?,?,?,?)`).bind(rid, tenant.tenantId, clientId, roundNumber, bureau, "OPEN", now, now, now).run();
       await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "CREATE", "dispute", rid, { resourceName: `Round ${roundNumber} · ${bureau}` });
+      await roundEvent(tenant.tenantId, clientId, rid, roundNumber, bureau, "DISPUTE_ROUND_OPENED");
       return Response.json({ id: rid, roundNumber }, { status: 201 });
     }
 
@@ -397,6 +408,7 @@ export async function PATCH(request: Request) {
       if (!status) return Response.json({ error: "status is required." }, { status: 400 });
       await db.prepare("UPDATE dispute_rounds SET status=?, closed_at=?, updated_at=? WHERE tenant_id=? AND id=?")
         .bind(status, status === "CLOSED" ? now : null, now, tenant.tenantId, recordId).run();
+      if (status === "CLOSED") { const r = await db.prepare("SELECT client_id, round_number, credit_bureau FROM dispute_rounds WHERE id=? AND tenant_id=?").bind(recordId, tenant.tenantId).first<{ client_id: string; round_number: number; credit_bureau: string }>(); if (r) await roundEvent(tenant.tenantId, r.client_id, recordId, r.round_number, r.credit_bureau, "DISPUTE_ROUND_CLOSED", status); }
       return Response.json({ updated: true });
     }
 

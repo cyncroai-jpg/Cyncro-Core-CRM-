@@ -12,6 +12,7 @@ import { clientsOf, createClient, effectiveBranding, grantSupportAccess, isAgenc
 import { companySettings, parseSettings } from "@/lib/core/companySettings";
 import { logAuditAction } from "@/lib/core/audit";
 import { syncAgencyQuantity } from "@/lib/core/billing";
+import { KITS, installKit } from "@/lib/snapshots/kits";
 
 const canManage = (role: string) => role === "OWNER" || role === "ADMIN";
 
@@ -44,15 +45,17 @@ export async function POST(request: Request) {
     if (body.action === "create") {
       const rows = Array.isArray(body.clients) ? (body.clients as Record<string, unknown>[]) : [];
       if (!rows.length || rows.length > 500) return Response.json({ error: "Send between 1 and 500 clients." }, { status: 400 });
-      const snapshotFrom = cleanText(body.snapshotFrom, 80);
+      const snapshotFrom = cleanText(body.snapshotFrom, 80); const kit = cleanText(body.kit, 40);
+      if (kit && !KITS.some((k) => k.key === kit)) return Response.json({ error: "Unknown starter kit." }, { status: 400 });
       const snap = snapshotFrom ? await snapshotExport(snapshotFrom === "self" ? tenant.tenantId : snapshotFrom) : null;
       if (snapshotFrom && snapshotFrom !== "self") { const ok = await db.prepare("SELECT id FROM tenants WHERE id=? AND (id=? OR parent_tenant_id=?)").bind(snapshotFrom, tenant.tenantId, tenant.tenantId).first(); if (!ok) return Response.json({ error: "Snapshot source must be this agency or one of its clients." }, { status: 403 }); }
-      const created: { name: string; tenantId: string; ownerEmail: string; inviteUrl: string | null; snapshot?: Record<string, number> }[] = []; const failed: { name: string; error: string }[] = [];
+      const created: { name: string; tenantId: string; ownerEmail: string; inviteUrl: string | null; snapshot?: Record<string, number>; kit?: Record<string, number> }[] = []; const failed: { name: string; error: string }[] = [];
       for (const r of rows) {
         try {
           const c = await createClient(tenant.tenantId, { name: String(r.name || ""), ownerEmail: String(r.ownerEmail || r.email || ""), ownerName: String(r.ownerName || r.owner || "") }, me, origin);
           const out: (typeof created)[number] = { name: String(r.name), ...c };
           if (snap) out.snapshot = await snapshotApply(c.tenantId, snap, tenant.email);
+          if (kit) out.kit = await installKit(c.tenantId, kit, tenant.email);
           created.push(out);
         } catch (e) { failed.push({ name: String(r.name || "?"), error: e instanceof Error ? e.message : "failed" }); }
       }

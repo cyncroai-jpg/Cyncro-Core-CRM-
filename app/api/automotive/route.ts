@@ -44,6 +44,16 @@
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { postJournalEntry } from "@/lib/core/accounting";
 import { logAuditAction } from "@/lib/core/audit";
+import { emitAutomationEvent } from "@/lib/automations/engine";
+import { linkContact } from "@/lib/automations/link";
+
+async function dealEvent(tenantId: string, dealId: string, trigger: "VEHICLE_DEAL_CREATED" | "VEHICLE_DEAL_SUBMITTED" | "VEHICLE_CONTRACT_SENT") {
+  const d = await coreDb().prepare("SELECT c.first_name, c.last_name, c.email, c.phone, i.year, i.make, i.model, d.sale_price_cents FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id LEFT JOIN auto_inventory i ON i.id=d.vehicle_id WHERE d.id=? AND d.tenant_id=?").bind(dealId, tenantId).first<{ first_name: string; last_name: string; email: string | null; phone: string | null; year: number | null; make: string | null; model: string | null; sale_price_cents: number }>();
+  if (!d) return;
+  const name = `${d.first_name} ${d.last_name}`.trim();
+  const contactId = await linkContact(tenantId, { name, email: d.email, phone: d.phone, source: "DEALERSHIP" });
+  await emitAutomationEvent(tenantId, trigger, { contactId, dealId, customerName: name, customerEmail: d.email || "", customerPhone: d.phone || "", vehicle: [d.year, d.make, d.model].filter(Boolean).join(" "), amountCents: Number(d.sale_price_cents || 0), trigger }).catch(() => 0);
+}
 
 function uid() {
   return crypto.randomUUID();
@@ -473,6 +483,7 @@ export async function POST(request: Request) {
           taxCents, feesCents, amountFinancedCents, termMonths, interestRate, monthlyPaymentCents, frontGrossCents, 0,
           "WORKING", "NOT_STARTED", "NOT_SUBMITTED", now, now,
         ).run();
+      await dealEvent(tenant.tenantId, id, "VEHICLE_DEAL_CREATED");
       await db.batch(DEAL_JACKET_CHECKLIST.map((doc) =>
         db.prepare("INSERT INTO auto_documents (id,tenant_id,deal_id,doc_type,checked,created_at,updated_at) VALUES (?,?,?,?,0,?,?)")
           .bind(uid(), tenant.tenantId, id, doc, now, now)));
@@ -548,6 +559,7 @@ export async function POST(request: Request) {
         created.push(id);
       }
       await db.prepare("UPDATE auto_deals SET status='SUBMITTED', updated_at=? WHERE tenant_id=? AND id=?").bind(now, tenant.tenantId, dealId).run();
+      await dealEvent(tenant.tenantId, dealId, "VEHICLE_DEAL_SUBMITTED");
       await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "SUBMIT", "loan_application", dealId, { resourceName: `Submitted to ${lenderIds.length} lender(s)` });
       return Response.json({ ids: created }, { status: 201 });
     }
@@ -604,6 +616,7 @@ export async function POST(request: Request) {
       const contractText = buildContractText(deal, customerName, vehicleDesc);
       await db.prepare("UPDATE auto_deals SET contract_status='SENT', contract_sent_at=?, updated_at=? WHERE tenant_id=? AND id=?")
         .bind(now, now, tenant.tenantId, dealId).run();
+      await dealEvent(tenant.tenantId, dealId, "VEHICLE_CONTRACT_SENT");
       return Response.json({ sent: true, contractText }, { status: 201 });
     }
 

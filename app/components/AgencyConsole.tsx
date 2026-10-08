@@ -11,20 +11,22 @@ export function AgencyConsole({ onFlash }: { onFlash: (m: string) => void }) {
   const [busy, setBusy] = useState("");
   const [csv, setCsv] = useState("");
   const [withSnapshot, setWithSnapshot] = useState(true);
+  const [kit, setKit] = useState("");
+  const [kits, setKits] = useState<{ key: string; name: string; for: string }[]>([]);
   const [created, setCreated] = useState<Created[]>([]);
   const [failed, setFailed] = useState<{ name: string; error: string }[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [brand, setBrand] = useState({ brandName: "", whiteLabel: false });
   const [q, setQ] = useState("");
   const load = async () => { const r = await fetch("/api/agency", { cache: "no-store" }); if (r.ok) { const j: Data = await r.json(); setD(j); setBrand({ brandName: j.branding.brandName, whiteLabel: j.branding.whiteLabel }); } };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); void fetch("/api/crm/kits").then((r) => (r.ok ? r.json() : null)).then((j) => j && setKits(j.kits)).catch(() => undefined); }, []);
   const post = async (body: Record<string, unknown>) => { const r = await fetch("/api/agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) { onFlash(j.error || "That didn't work"); return null; } return j; };
   if (!d) return null;
   const rows = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => { const [name, ownerEmail, ownerName] = l.split(/\s*[,\t]\s*/); return { name: name || "", ownerEmail: ownerEmail || "", ownerName: ownerName || "" }; }).filter((r) => r.name && r.ownerEmail);
   const enable = async () => { setBusy("enable"); const j = await post({ action: "enable", brandName: brand.brandName, whiteLabel: brand.whiteLabel }); setBusy(""); if (j) { await load(); onFlash("Agency mode is on"); } };
   const create = async () => {
     if (!rows.length) return onFlash("Add at least one client line: Company name, owner@email.com, Owner name");
-    setBusy("create"); const j = await post({ action: "create", clients: rows, snapshotFrom: withSnapshot ? "self" : "" }); setBusy("");
+    setBusy("create"); const j = await post({ action: "create", clients: rows, snapshotFrom: withSnapshot ? "self" : "", kit }); setBusy("");
     if (j) { setCreated(j.created || []); setFailed(j.failed || []); setCsv(""); await load(); onFlash(`${(j.created || []).length} client compan${(j.created || []).length === 1 ? "y" : "ies"} created`); }
   };
   const enter = async (c: Client) => { setBusy(c.id); const j = await post({ action: "enter", tenantId: c.id }); setBusy(""); if (j) { window.location.hash = "#crm"; window.location.reload(); } };
@@ -66,6 +68,7 @@ export function AgencyConsole({ onFlash }: { onFlash: (m: string) => void }) {
           <textarea value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"Acme Plumbing, dana@acmeplumbing.com, Dana Ortiz\nBright Dental, lee@brightdental.com, Lee Park"} rows={5} />
           <div className="agCreateSide">
             <label className="agCheck"><input type="checkbox" checked={withSnapshot} onChange={(e) => setWithSnapshot(e.target.checked)} /> Install this agency's setup (pipelines, calendars, forms, pages, automations) into each new client</label>
+            <label>Starter kit<select value={kit} onChange={(e) => setKit(e.target.value)}><option value="">None</option>{kits.map((k) => <option key={k.key} value={k.key}>{k.name} · {k.for}</option>)}</select></label>
             <b>{rows.length} ready</b>
             <button className="coSave" disabled={busy === "create" || !rows.length} onClick={() => void create()}>{busy === "create" ? "Creating…" : `Create ${rows.length || ""} client${rows.length === 1 ? "" : "s"}`}</button>
           </div>

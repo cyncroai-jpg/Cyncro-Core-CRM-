@@ -3,6 +3,7 @@ import { geocodeAddress } from "@/lib/core/geocode";
 import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
 import { syncGoogleJob } from "@/lib/dispatch/google";
 import { emitAutomationEvent } from "@/lib/automations/engine";
+import { linkContact } from "@/lib/automations/link";
 
 
 const STATUSES = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"];
@@ -92,6 +93,11 @@ export async function POST(request: Request) {
     const point = await geocodeAddress(address);
     if (point) await coreDb().prepare("UPDATE dispatch_jobs SET lat=?, lng=? WHERE id=?").bind(point.lat, point.lng, id).run();
     const google = await syncGoogleJob(t.email, t.tenantId, id);
+    const cust = await coreDb().prepare("SELECT name, email, phone FROM dispatch_customers WHERE id=?").bind(customerId).first<{ name: string; email: string | null; phone: string | null }>();
+    if (cust) {
+      const contactId = await linkContact(t.tenantId, { name: cust.name, email: cust.email, phone: cust.phone, source: "DISPATCH" });
+      await emitAutomationEvent(t.tenantId, "JOB_CREATED", { contactId, jobId: id, serviceType, scheduledAt: scheduledAt || "", address, customerName: cust.name, customerEmail: cust.email || "", customerPhone: cust.phone || "", trigger: "JOB_CREATED" }).catch(() => 0);
+    }
     return Response.json({ id, google }, { status: 201 });
   } catch (error) {
     console.error("dispatch.jobs.create_failed", error);

@@ -12,6 +12,9 @@ export function WelcomeModal({ onView, onOpenCalendar, onFlash }: { onView: (v: 
   const [state, setState] = useState<{ tenantId: string; name: string; timezone: string; phone: string; website: string } | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [busy, setBusy] = useState(false);
+  const [kits, setKits] = useState<{ key: string; name: string; for: string; blurb: string }[]>([]);
+  const [kit, setKit] = useState("");
+  const [installed, setInstalled] = useState<string>("");
   useEffect(() => {
     void (async () => {
       const a = await fetch("/api/access").then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -20,6 +23,7 @@ export function WelcomeModal({ onView, onOpenCalendar, onFlash }: { onView: (v: 
       const ob = await fetch("/api/crm/onboarding").then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (!ob || ob.done > 1) return; // they've already started; the checklist takes over
       const s = await fetch("/api/tenants/settings").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      fetch("/api/crm/kits").then((r) => (r.ok ? r.json() : null)).then((j) => j && setKits(j.kits)).catch(() => undefined);
       const row = s?.tenant || s?.company || s || {}; const st = s?.settings || {};
       setState({ tenantId: id, name: String(row.name || ""), timezone: String(st.timezone || "America/New_York"), phone: String(st.phone || ""), website: String(st.website || "") });
     })();
@@ -55,6 +59,16 @@ export function WelcomeModal({ onView, onOpenCalendar, onFlash }: { onView: (v: 
             <small>YOU'RE IN</small>
             <h2>What do you want to do first?</h2>
             <p>Each of these takes a couple of minutes. The checklist on your overview keeps track of what's done.</p>
+            {kits.length > 0 && (
+              <div className="wlKit">
+                <small>START WITH A KIT</small>
+                <div className="wlKitRow">
+                  <select value={kit} onChange={(e) => setKit(e.target.value)}><option value="">Pick your industry…</option>{kits.map((k) => <option key={k.key} value={k.key}>{k.name} · {k.for}</option>)}</select>
+                  <button className="coSave" disabled={!kit || busy} onClick={async () => { setBusy(true); const r = await fetch("/api/crm/kits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: kit }) }); const j = await r.json().catch(() => ({})); setBusy(false); if (!r.ok) return onFlash(j.error || "Could not install"); const c = j.installed; setInstalled(`${c.stages} pipeline stages, ${c.eventTypes} appointment types, ${c.forms} form, ${c.workflows} automations installed`); onFlash("Starter kit installed"); }}>{busy ? "Installing…" : "Install"}</button>
+                </div>
+                <span>{installed || (kit ? kits.find((k) => k.key === kit)?.blurb : "A pipeline, appointment types, an intake form and ready-to-run automations for your industry. Edit anything after.")}</span>
+              </div>
+            )}
             <div className="wlSteps">
               <button onClick={() => go("Contacts")}><i>◎</i><b>Add or import contacts</b><span>Paste a CSV or add one by hand.</span></button>
               <button onClick={() => go("Calendar")}><i>□</i><b>Create a booking link</b><span>Customers pick a time; it lands on your calendar.</span></button>
