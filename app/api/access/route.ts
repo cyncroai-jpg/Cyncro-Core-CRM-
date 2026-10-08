@@ -42,6 +42,19 @@ async function currentMember(request: Request) {
   return member;
 }
 
+
+const PERM_KEYS = ["crm_access","calendar_access","prospecting_access","manage_users","active","can_create","can_edit","can_delete","can_export","compensation_access","invoice_access","contract_access","attribution_access","work_access"] as const;
+/** Flags saved for this company override the global row, so one person can hold different access in different companies. */
+function overlay(row: Record<string, unknown>, json: unknown): Record<string, unknown> {
+  let p: Record<string, unknown> = {};
+  try { p = typeof json === "string" ? JSON.parse(json || "{}") : ((json as Record<string, unknown>) || {}); } catch { p = {}; }
+  if (!p || typeof p !== "object" || !Object.keys(p).length) return row;
+  const out = { ...row };
+  for (const k of PERM_KEYS) if (p[k] !== undefined) out[k] = p[k] ? 1 : 0;
+  if (p.role) out.role = p.role;
+  return out;
+}
+
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
@@ -49,17 +62,24 @@ export async function GET(request: Request) {
     if (email === null) {
       return Response.json({ error: "Authentication required." }, { status: 401 });
     }
-    const member = await currentMember(request);
+    let member = await currentMember(request);
     if (!member || !member.active) return Response.json({ error: "You do not have access to this workspace." }, { status: 403 });
     // Only list teammates who belong to the caller's company.
     const tenant = await getTenantContext(request);
+    if (tenant && member.role !== "OWNER") {
+      const mine = await coreDb().prepare("SELECT permissions, role FROM tenant_members WHERE tenant_id=? AND lower(email)=lower(?)").bind(tenant.tenantId, String(member.email)).first<{ permissions: string | null; role: string }>();
+      if (mine) member = overlay(member, mine.permissions);
+      if (mine?.role === "OWNER") { member = { ...member, role: "OWNER" }; for (const k of PERM_KEYS) member[k] = 1; }
+      else if (mine?.role === "ADMIN") { member.manage_users = 1; member.active = 1; }
+    }
     const members = member.manage_users
       ? tenant
-        ? (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email, tm.role AS company_role, au.active AS account_active FROM workspace_members wm JOIN tenant_members tm ON lower(tm.email)=lower(wm.email) AND tm.tenant_id=? LEFT JOIN auth_users au ON lower(au.email)=lower(wm.email) LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").bind(tenant.tenantId).all()).results
+        ? (await coreDb().prepare("SELECT wm.*, tm.permissions AS company_permissions, coc.account_email AS google_calendar_email, tm.role AS company_role, au.active AS account_active FROM workspace_members wm JOIN tenant_members tm ON lower(tm.email)=lower(wm.email) AND tm.tenant_id=? LEFT JOIN auth_users au ON lower(au.email)=lower(wm.email) LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").bind(tenant.tenantId).all()).results
         : (await coreDb().prepare("SELECT wm.*, coc.account_email AS google_calendar_email FROM workspace_members wm LEFT JOIN calendar_oauth_connections coc ON lower(coc.owner)=lower(wm.email) AND coc.provider='GOOGLE' ORDER BY wm.role,wm.display_name").all()).results
       : [];
     const emailTransport = await emailTransportStatus(tenant?.tenantId);
-    return Response.json({ member, members, company: tenant ? { id: tenant.tenantId, role: tenant.role } : null, emailTransport });
+    const scoped = (members as Record<string, unknown>[]).map((m) => { const o = overlay(m, m.company_permissions); delete o.company_permissions; return o; });
+    return Response.json({ member, members: scoped, company: tenant ? { id: tenant.tenantId, role: tenant.role } : null, emailTransport });
   } catch (error) {
     console.error("access.get_failed", error);
     return Response.json({ error: "Unable to load permissions." }, { status: 500 });
@@ -90,6 +110,9 @@ export async function POST(request: Request) {
     if (tenant) {
       const saved = await coreDb().prepare("SELECT role, manage_users, can_delete, can_create, can_edit FROM workspace_members WHERE lower(email)=lower(?)").bind(email).first<Record<string, unknown>>();
       await syncTenantMembership(tenant.tenantId, email, name, tenantRoleFromWorkspace((saved || {}) as never), body.active !== false);
+      // Keep this company's copy of the flags, so the same person can have different access elsewhere.
+      const flags = { crm_access: body.crmAccess ? 1 : 0, calendar_access: body.calendarAccess ? 1 : 0, prospecting_access: body.prospectingAccess ? 1 : 0, manage_users: body.manageUsers ? 1 : 0, active: body.active === false ? 0 : 1, can_create: body.canCreate ? 1 : 0, can_edit: body.canEdit ? 1 : 0, can_delete: body.canDelete ? 1 : 0, can_export: body.canExport ? 1 : 0, compensation_access: body.compensationAccess ? 1 : 0, invoice_access: body.invoiceAccess ? 1 : 0, contract_access: body.contractAccess ? 1 : 0, attribution_access: body.attributionAccess ? 1 : 0, work_access: body.workAccess ? 1 : 0 };
+      await coreDb().prepare("UPDATE tenant_members SET permissions=?, updated_at=? WHERE tenant_id=? AND lower(email)=lower(?)").bind(JSON.stringify(flags), now, tenant.tenantId, email).run();
     }
     return Response.json({ saved: true, invite: { email, status: "READY", signInMethod: "Verified email" } });
   } catch (error) {

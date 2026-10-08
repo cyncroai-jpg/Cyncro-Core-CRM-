@@ -260,6 +260,7 @@ export default function LoginPage() {
             <div className="loginHeading">
               <p className="loginEyebrow">START YOUR WORKSPACE</p>
               <h1>Create your company's workspace</h1>
+              <p className="loginSub">CRM, calendar, contracts, forms, automations and your own AI assistant. Your team, your data, walled off from everyone else.</p>
               <p className="loginSubtext">
                 Your own isolated Cyncro account — contacts, pipeline, prospecting, and calendar, private to your team.
               </p>
@@ -337,6 +338,7 @@ export default function LoginPage() {
               <button type="submit" className="loginSubmit" disabled={submitting}>
                 {submitting ? <span className="loginBtnSpinner" /> : "Create workspace"}
               </button>
+              <p className="loginLegal">Free for 14 days, no card needed. By creating a workspace you agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</p>
             </form>
             <p className="loginToggle">
               Already have a workspace?{" "}

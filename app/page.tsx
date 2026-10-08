@@ -22,6 +22,8 @@ import { SecurityPanel, SecurityGate } from "@/app/components/SecurityPanel";
 import { CompanySecurityPanel } from "@/app/components/CompanySecurityPanel";
 import { BillingPanel } from "@/app/components/BillingPanel";
 import { CommissionsDesk } from "@/app/components/CommissionsDesk";
+import { CompanySwitcher } from "@/app/components/CompanySwitcher";
+import { WelcomeModal } from "@/app/components/WelcomeModal";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -10913,6 +10915,7 @@ function CRMOverviewCommand({
   return (
     <div className="ccShell">
       <OnboardingChecklist onView={(v) => onView(v as CRMView)} onOpenCalendar={onOpenCalendar} />
+      <WelcomeModal onView={(v) => onView(v as CRMView)} onOpenCalendar={onOpenCalendar} onFlash={() => undefined} />
       <div className="ccTop" style={{ justifyContent: "flex-end" }}>
         <div className="ccTopActions">
           <button className="primary" onClick={() => onView("Pipeline")}>OPEN PIPELINE →</button>
@@ -11430,14 +11433,7 @@ function UniversalCRM({
     <section className="crmShell">
       {notice && <div className="crmToast">✓ {notice}</div>}
       <aside className="crmSidebar">
-        <div className="crmWorkspace">
-          <span>CM</span>
-          <div>
-            <b>Cyncro Media</b>
-            <small>Universal workspace</small>
-          </div>
-          <i>⌄</i>
-        </div>
+        <CompanySwitcher onFlash={flash} />
         <nav className="crmNav" aria-label="CRM navigation">
           <small>CYNCRO CRM · REVENUE OS</small>
           {views.map((item) => (

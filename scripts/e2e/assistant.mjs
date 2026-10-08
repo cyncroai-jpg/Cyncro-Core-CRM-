@@ -91,7 +91,7 @@ check("revoked key stops working", rv.b.revoked===true && (await rpc("tools/list
 const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
-await page.goto(`${BASE}/#crm/contacts`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
+await page.goto(`${BASE}/#crm/contacts`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);
 check("floating Ask Cyncro on CRM", await page.locator(".cyAiFab").count()===1);
 await page.locator(".cyAiFab").click(); await page.waitForTimeout(800);
 check("drawer opens with memory", await page.locator(".aiDrawer.cyAi").count()===1 && await page.locator(".aiDrawer .aiPrompt").count()>=2);
@@ -102,7 +102,7 @@ check("approve from UI → Done message", (await page.locator(".aiDrawer .aiAnsw
 await page.screenshot({path:`${OUT}/assistant-drawer.png`});
 await page.goto(`${BASE}/#admin`,{waitUntil:"networkidle"}); await page.waitForTimeout(1200);
 check("floating button on the Calendar screen too", await page.locator(".cyAiFab").count()===1);
-await page.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
+await page.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);
 await page.locator(".mcpPanel .mcpRow button").click(); await page.waitForTimeout(800);
 check("MCP panel mints a key and shows config", await page.locator(".mcpFresh").count()===1 && (await page.locator(".mcpFresh pre").textContent()).includes("mcpServers"));
 await page.screenshot({path:`${OUT}/mcp-panel.png`,fullPage:true});

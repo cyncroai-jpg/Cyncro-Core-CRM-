@@ -69,7 +69,7 @@ await page.screenshot({path:`${OUT}/forms-landing-book.png`});
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const ed2=await ctx.newPage(); ed2.on("pageerror",e=>errors.push(e.message));
-await ed2.goto(`${BASE}/#crm/studio`,{waitUntil:"networkidle"}); await ed2.waitForTimeout(1500);
+await ed2.goto(`${BASE}/#crm/studio`,{waitUntil:"networkidle"}); await ed2.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await ed2.waitForTimeout(1500);
 await ed2.locator(".inTabs button",{hasText:"Pages"}).click(); await ed2.waitForTimeout(400);
 await ed2.locator("text=Roof Special "+stamp).first().click(); await ed2.waitForTimeout(1500);
 check("builder shows after-submit panel", await ed2.locator(".studioAfter").count()===1);
@@ -77,7 +77,7 @@ check("builder booking select shows event type", (await ed2.locator(".studioAfte
 check("hero link picker shows booking option selected", (await ed2.locator(".studioHero .studioLinkPick select").inputValue())===`book:intro-${stamp}`);
 await ed2.screenshot({path:`${OUT}/forms-landing-builder.png`,fullPage:true});
 // CRM form editor
-await ed2.goto(`${BASE}/#crm/forms`,{waitUntil:"networkidle"}); await ed2.waitForTimeout(1200);
+await ed2.goto(`${BASE}/#crm/forms`,{waitUntil:"networkidle"}); await ed2.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await ed2.waitForTimeout(1200);
 await ed2.locator(".inTabs button",{hasText:"Forms"}).click(); await ed2.waitForTimeout(400);
 await ed2.locator(".formsList>button",{hasText:`Intake ${stamp}`}).click(); await ed2.waitForTimeout(500);
 await ed2.locator("button",{hasText:"Edit form"}).click(); await ed2.waitForTimeout(600);

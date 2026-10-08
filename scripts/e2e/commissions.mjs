@@ -53,7 +53,7 @@ check("delete entry", (await api(`/api/crm/commissions?id=${e3.b.id}`,{method:"D
 const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
-await page.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
+await page.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);
 check("Commissions is its own nav item", await page.locator(".crmNav button",{hasText:"Commissions"}).count()===1 && await page.locator(".crmNav button",{hasText:"Compensation"}).count()===0);
 await page.locator(".crmNav button",{hasText:"Commissions"}).click(); await page.waitForTimeout(1800);
 check("desk renders: KPIs, 3 people, entries, deals", page.url().includes("#crm/commissions") && await page.locator(".cmKpis article").count()===4 && await page.locator(".cmPerson").count()===3 && await page.locator(".cmLedger .cmRow").count()===3 && await page.locator(".cmDeals .cmRow").count()===1, page.url());

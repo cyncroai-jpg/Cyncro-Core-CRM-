@@ -94,7 +94,7 @@ check("login UI shows code step", (await lp.locator("h1").textContent()).include
 await lp.screenshot({path:`${OUT}/sec-2fa-login.png`});
 await lp.fill("#otp","123456"); await lp.locator("button[type=submit]").click(); await lp.waitForTimeout(900);
 check("wrong code shows error", (await lp.locator(".loginError").textContent()).includes("isn't right"));
-await lp.fill("#otp",totp(setupB.secret)); await lp.locator("button[type=submit]").click(); await lp.waitForURL(/#crm/,{timeout:10000}).catch(()=>{}); await lp.waitForTimeout(1500);
+await lp.fill("#otp",totp(setupB.secret)); await lp.locator("button[type=submit]").click(); await lp.waitForURL(/#crm/,{timeout:10000}).catch(()=>{}); await lp.waitForTimeout(1500); await lp.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});
 check("right code lands in CRM", lp.url().includes("#crm"), lp.url());
 // profile security section
 await lp.locator(".crmUser").first().click();
@@ -103,7 +103,7 @@ const hasPanel=await lp.locator(".secPanel").count();
 check("profile modal has Security section", hasPanel===1 && (await lp.locator(".secPanel").textContent()).includes("PROTECTED"), String(hasPanel));
 if(hasPanel) await lp.screenshot({path:`${OUT}/sec-profile.png`});
 await lp.keyboard.press("Escape");
-await lp.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await lp.waitForTimeout(1500);
+await lp.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await lp.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await lp.waitForTimeout(1500);
 check("company security panel renders", await lp.locator(".coSecurity").count()===1 && (await lp.locator(".coSecurity h2").textContent()).includes("1 of 1 teammates") && await lp.locator(".secList li").count()===5);
 check("export link visible to owner", await lp.locator(".coSecurity a[href='/api/tenants/export']").count()===1);
 await lp.screenshot({path:`${OUT}/sec-company.png`,fullPage:true});
@@ -111,7 +111,7 @@ await lp.screenshot({path:`${OUT}/sec-company.png`,fullPage:true});
 const Ac=await api("/api/tenants/security",{method:"PATCH",body:JSON.stringify({require2fa:true})},cookieA);
 check("A owner requires 2fa", Ac.b.require2fa===true);
 const g=await browser.newContext({viewport:{width:1300,height:900}}); await g.addCookies([{name:"cyncro_session",value:cookieA.split("=")[1],domain:"127.0.0.1",path:"/"}]);
-const gp=await g.newPage(); gp.on("pageerror",e=>errors.push(e.message)); await gp.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await gp.waitForTimeout(1800);
+const gp=await g.newPage(); gp.on("pageerror",e=>errors.push(e.message)); await gp.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await gp.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await gp.waitForTimeout(1800);
 check("gate blocks user without 2fa", await gp.locator(".secGate").count()===1 && (await gp.locator(".secGateCard h2").textContent()).includes("Turn on two-factor"));
 await gp.screenshot({path:`${OUT}/sec-gate.png`});
 await gp.locator(".secGate button",{hasText:"Turn on two-factor"}).click(); await gp.waitForTimeout(900);

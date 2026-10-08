@@ -53,7 +53,7 @@ const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",dg=>dg.accept());
-await page.goto(`${BASE}/#crm/automations`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
+await page.goto(`${BASE}/#crm/automations`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);
 check("automations tab renders", await page.locator(".auHub").count()===1);
 check("dashboard is the default tab", await page.locator(".auHub .inDash").count()===1);
 await page.locator(".fxLendChips button",{hasText:"Workflows"}).click(); await page.waitForTimeout(600);

@@ -49,7 +49,7 @@ check("signs from the browser", await sp.locator(".signatureSuccess").count()>=1
 await sp.screenshot({path:`${OUT}/contract-sign.png`});
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
-await page.goto(`${BASE}/#crm/contracts`,{waitUntil:"networkidle"}); await page.waitForTimeout(1800);
+await page.goto(`${BASE}/#crm/contracts`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1800);
 check("contracts page shows transport banner", await page.locator(".contractTransport.on").count()===1 && (await page.locator(".contractTransport b").textContent()).includes("Contracts email from"));
 await page.screenshot({path:`${OUT}/contracts-page.png`,fullPage:true});
 check("no page errors", errors.length===0, errors.join(" | "));

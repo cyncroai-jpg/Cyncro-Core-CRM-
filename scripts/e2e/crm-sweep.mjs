@@ -14,7 +14,7 @@ let cur="boot"; const note=(k,v)=>{(report[cur] ||= {pageErrors:[],failed:[],con
 page.on("pageerror",e=>note("pageErrors",e.message));
 page.on("console",m=>{ if(m.type()==="error") note("console",m.text().slice(0,200)); });
 page.on("response",r=>{ const u=r.url(); if(u.includes("/api/") && r.status()>=400) note("failed",`${r.request().method()} ${u.replace(BASE,"")} → ${r.status()}`); });
-await page.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await page.waitForTimeout(1500);
+await page.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);
 const names=await page.locator(".crmNav button span").allTextContents();
 console.log("TABS:", names.join(" | "));
 for(const n of names){

@@ -77,11 +77,11 @@ check("other company still trialing and writable", (await api("/api/billing",{},
 const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message));
-await page.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await page.waitForTimeout(1800);
+await page.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1800);
 check("billing panel shows expired state + 3 plans", await page.locator(".billingPanel").count()===1 && (await page.locator(".billingPanel h2").first().textContent()).includes("has ended") && await page.locator(".billPlan").count()===3 && await page.locator(".billNote.danger").count()===1);
 await page.screenshot({path:`${OUT}/bill-expired.png`,fullPage:true});
 const ctx2=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx2.addCookies([{name:"cyncro_session",value:su2.cookie.split("=")[1],domain:"127.0.0.1",path:"/"}]);
-const p2=await ctx2.newPage(); p2.on("pageerror",e=>errors.push(e.message)); await p2.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await p2.waitForTimeout(1800);
+const p2=await ctx2.newPage(); p2.on("pageerror",e=>errors.push(e.message)); await p2.goto(`${BASE}/#crm/team-access`,{waitUntil:"networkidle"}); await p2.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await p2.waitForTimeout(1800);
 check("fresh company sees trial countdown and Choose buttons", (await p2.locator(".billingPanel h2").first().textContent()).includes("14 days left") && await p2.locator(".billPlan .coSave").count()===3);
 await p2.screenshot({path:`${OUT}/bill-trial.png`});
 check("no page errors", errors.length===0, errors.join(" | "));
