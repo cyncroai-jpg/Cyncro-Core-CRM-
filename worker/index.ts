@@ -5,6 +5,7 @@ import { runReminders } from "../app/api/cron/reminders/route";
 import { resumeGrowthAutomations } from "../lib/growth/automationEngine";
 import { processDueEnrollments, runAutomationScans } from "../lib/automations/engine";
 import { runBackgroundAgents } from "../lib/agents/background";
+import { linkUnlinkedCustomers } from "../lib/customers/unify";
 import { ensureCoreSchema } from "../lib/core/db";
 import { isPlatformOwner } from "../lib/core/tenantAuth";
 
@@ -53,6 +54,9 @@ const worker = {
     );
     ctx.waitUntil(
       runBackgroundAgents().then((r) => console.info("scheduled.background_agents.done", r)),
+    );
+    ctx.waitUntil(
+      linkUnlinkedCustomers().then((r) => console.info("scheduled.customer_links.done", r)),
     );
   },
 

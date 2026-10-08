@@ -46,6 +46,7 @@ import { postJournalEntry } from "@/lib/core/accounting";
 import { logAuditAction } from "@/lib/core/audit";
 import { emitAutomationEvent } from "@/lib/automations/engine";
 import { linkContact } from "@/lib/automations/link";
+import { linkAutoCustomer } from "@/lib/customers/unify";
 
 async function dealEvent(tenantId: string, dealId: string, trigger: "VEHICLE_DEAL_CREATED" | "VEHICLE_DEAL_SUBMITTED" | "VEHICLE_CONTRACT_SENT") {
   const d = await coreDb().prepare("SELECT c.first_name, c.last_name, c.email, c.phone, i.year, i.make, i.model, d.sale_price_cents FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id LEFT JOIN auto_inventory i ON i.id=d.vehicle_id WHERE d.id=? AND d.tenant_id=?").bind(dealId, tenantId).first<{ first_name: string; last_name: string; email: string | null; phone: string | null; year: number | null; make: string | null; model: string | null; sale_price_cents: number }>();
@@ -397,7 +398,8 @@ export async function POST(request: Request) {
         .bind(id, tenant.tenantId, firstName, lastName, cleanText(body.email, 254) || null, cleanText(body.phone, 40) || null,
           cleanText(body.address, 300) || null, cleanText(body.dateOfBirth, 20) || null, cleanText(body.ssnLast4, 4) || null,
           body.creditScorePulled !== undefined ? Number(body.creditScorePulled) : null, now, now).run();
-      return Response.json({ id }, { status: 201 });
+      const contactId = await linkAutoCustomer(tenant.tenantId, id).catch(() => "");
+      return Response.json({ id, contactId }, { status: 201 });
     }
 
     if (resource === "inventory") {

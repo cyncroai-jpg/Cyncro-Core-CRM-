@@ -48,6 +48,7 @@ import {
   type DisputeStatus,
 } from "@/lib/core/credit-repair";
 import { logAuditAction } from "@/lib/core/audit";
+import { linkCreditClient } from "@/lib/customers/unify";
 import crypto from "crypto";
 
 export async function GET(request: Request) {
@@ -212,7 +213,8 @@ export async function POST(request: Request) {
         }
       );
 
-      return Response.json({ client }, { status: 201 });
+      const contactId = await linkCreditClient(tenant.tenantId, client.id).catch(() => "");
+      return Response.json({ client, contactId }, { status: 201 });
     }
 
     if (action === "disputes" && !disputeId) {

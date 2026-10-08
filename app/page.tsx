@@ -26,6 +26,7 @@ import { CompanySwitcher } from "@/app/components/CompanySwitcher";
 import { WelcomeModal } from "@/app/components/WelcomeModal";
 import { AgencyConsole } from "@/app/components/AgencyConsole";
 import { BackgroundAgents } from "@/app/components/BackgroundAgents";
+import { AcrossCyncro } from "@/app/components/AcrossCyncro";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -13263,6 +13264,7 @@ function CRMContactDetail({
           Delete
         </button>
       </div>
+      {contact.id && <AcrossCyncro contactId={String(contact.id)} />}
       {editing && (
         <div className="crmForm">
           <label>

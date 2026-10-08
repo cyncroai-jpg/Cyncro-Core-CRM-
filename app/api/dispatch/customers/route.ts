@@ -1,4 +1,5 @@
 import { cleanText, coreDb, ensureCoreSchema } from "@/lib/core/db";
+import { linkDispatchCustomer } from "@/lib/customers/unify";
 import { DISPATCH_DENIED, requireDispatch } from "@/lib/dispatch/access";
 
 export async function GET(request: Request) {
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
       );
     }
     await db.batch(statements);
-    return Response.json({ id, propertyId }, { status: 201 });
+    const contactId = await linkDispatchCustomer(t.tenantId, id).catch(() => "");
+    return Response.json({ id, propertyId, contactId }, { status: 201 });
   } catch (error) {
     console.error("dispatch.customers.create_failed", error);
     return Response.json({ error: "Unable to create customer." }, { status: 500 });
