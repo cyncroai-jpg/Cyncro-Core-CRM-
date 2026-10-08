@@ -4,6 +4,7 @@ import handler from "vinext/server/app-router-entry";
 import { runReminders } from "../app/api/cron/reminders/route";
 import { resumeGrowthAutomations } from "../lib/growth/automationEngine";
 import { processDueEnrollments, runAutomationScans } from "../lib/automations/engine";
+import { runBackgroundAgents } from "../lib/agents/background";
 import { ensureCoreSchema } from "../lib/core/db";
 import { isPlatformOwner } from "../lib/core/tenantAuth";
 
@@ -49,6 +50,9 @@ const worker = {
     );
     ctx.waitUntil(
       runAutomationScans().then((r) => console.info("scheduled.automation_scans.done", r)),
+    );
+    ctx.waitUntil(
+      runBackgroundAgents().then((r) => console.info("scheduled.background_agents.done", r)),
     );
   },
 

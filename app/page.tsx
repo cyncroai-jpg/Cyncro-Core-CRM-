@@ -25,6 +25,7 @@ import { CommissionsDesk } from "@/app/components/CommissionsDesk";
 import { CompanySwitcher } from "@/app/components/CompanySwitcher";
 import { WelcomeModal } from "@/app/components/WelcomeModal";
 import { AgencyConsole } from "@/app/components/AgencyConsole";
+import { BackgroundAgents } from "@/app/components/BackgroundAgents";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -11663,7 +11664,7 @@ function UniversalCRM({
           {view === "Automations" && <CRMAutomations onFlash={flash} />}
           {view === "Growth" && <GrowthDashboard triggerLabel={(t) => t.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())} onGo={(v) => setView(v)} />}
           {view === "Data Graph" && <CRMDataGraph onFlash={flash} />}
-          {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
+          {view === "Agent Team" && <><BackgroundAgents onFlash={flash} /><CRMAgentTeam onFlash={flash} /></>}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} onOpenCalendar={() => setView("Calendar")} />}
           {view === "Commissions" && <CommissionsDesk onFlash={flash} />}
           {view === "Agency" && <AgencyConsole onFlash={flash} />}
