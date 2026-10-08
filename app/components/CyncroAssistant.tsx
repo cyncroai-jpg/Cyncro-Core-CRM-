@@ -34,10 +34,10 @@ export function CyncroAssistant({ screen, open, onOpenChange, onNavigate }: { sc
     const t = text.trim(); if (!t || busy) return;
     setQ(""); setMsgs((m) => [...m, { role: "user", text: t }]); setBusy("ask");
     const r = await fetch("/api/ai/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: t, screen }) });
-    const d = await r.json().catch(() => ({})) as { reply?: string; pending?: Pending[]; usage?: Usage; error?: string };
+    const d = await r.json().catch(() => ({})) as { reply?: string; pending?: Pending[]; acted?: { summary: string; ok: boolean }[]; usage?: Usage; error?: string };
     setBusy("");
     if (!r.ok) { setMsgs((m) => [...m, { role: "assistant", text: d.error || "Something went wrong." }]); return; }
-    setMsgs((m) => [...m, { role: "assistant", text: d.reply || "" }]); if (d.pending?.length) setPending((p) => [...p, ...d.pending!]); if (d.usage) setUsage(d.usage);
+    setMsgs((m) => [...m, { role: "assistant", text: d.reply || "" }, ...(d.acted || []).map((a) => ({ role: "assistant" as const, text: `${a.ok ? "✓ Done" : "✗ Couldn't do"}: ${a.summary}` }))]); if (d.pending?.length) setPending((p) => [...p, ...d.pending!]); if (d.usage) setUsage(d.usage);
   };
   const decide = async (p: Pending, approve: boolean) => {
     setBusy(p.id);

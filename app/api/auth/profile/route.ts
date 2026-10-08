@@ -18,11 +18,14 @@ export async function PATCH(request: Request) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 160) : null;
+    const phone = typeof body.phone === "string" ? body.phone.replace(/[^0-9+]/g, "").slice(0, 20) : null;
     const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
     const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
 
     const db = coreDb();
     const now = new Date().toISOString();
+    // Mobile number for texting Cyncro AI (saved on its own, before any password logic).
+    if (phone !== null) await db.prepare("UPDATE auth_users SET phone=?, updated_at=? WHERE id=?").bind(phone || null, now, userId).run();
 
     // If changing password, verify current password first
     if (newPassword) {
@@ -60,6 +63,7 @@ export async function PATCH(request: Request) {
       return Response.json({ ok: true, message: "Profile updated." });
     }
 
+    if (phone !== null) return Response.json({ ok: true, message: "Profile updated." });
     return Response.json({ error: "Nothing to update." }, { status: 400 });
   } catch (error) {
     console.error("auth.profile.update_failed", error);
@@ -75,11 +79,11 @@ export async function GET(request: Request) {
     const userId = authResult.user.id;
 
     const db = coreDb();
-    const user = await db.prepare("SELECT email, display_name, role, created_at FROM auth_users WHERE id=?")
-      .bind(userId).first<{ email: string; display_name: string; role: string; created_at: string }>();
+    const user = await db.prepare("SELECT email, display_name, role, created_at, phone FROM auth_users WHERE id=?")
+      .bind(userId).first<{ email: string; display_name: string; role: string; created_at: string; phone: string | null }>();
     if (!user) return Response.json({ error: "User not found." }, { status: 404 });
 
-    return Response.json({ email: user.email, displayName: user.display_name, role: user.role, createdAt: user.created_at });
+    return Response.json({ email: user.email, displayName: user.display_name, role: user.role, createdAt: user.created_at, phone: user.phone || "" });
   } catch (error) {
     console.error("auth.profile.get_failed", error);
     return Response.json({ error: "Unable to load profile." }, { status: 500 });

@@ -23,7 +23,7 @@ const month = () => now().slice(0, 7);
 type Block = Record<string, unknown> & { type: string };
 type Msg = { role: "user" | "assistant"; content: string | Block[] };
 export type PendingAction = { id: string; tool: string; input: Record<string, unknown>; summary: string; created_at: string };
-export type AssistantReply = { reply: string; pending: PendingAction[]; usage: { calls: number; cap: number }; toolCalls: string[] };
+export type AssistantReply = { reply: string; pending: PendingAction[]; acted: { id: string; summary: string; ok: boolean }[]; usage: { calls: number; cap: number }; toolCalls: string[] };
 
 export async function aiConfigured(): Promise<boolean> { return Boolean(apiKey()); }
 
@@ -73,7 +73,9 @@ async function systemPrompt(tenant: TenantContext, screen: string) {
     `Now: ${localNow} (${settings.timezone}). Business hours ${settings.businessHours.start}-${settings.businessHours.end} on days ${settings.businessHours.days.join(",")} (0=Sunday).${settings.phone ? ` Company phone ${settings.phone}.` : ""}`,
     screen ? `They are looking at: ${screen}.` : "",
     "Answer only from the tools. Never invent a contact, number, or date. If a tool returns nothing, say so plainly. Keep answers short: lead with the answer, then the two or three most useful specifics. Use plain sentences, no headers. When you list records, include names and one identifying detail each.",
-    "Writes (creating, updating, booking, tagging, enrolling) are proposals: call the tool once with complete arguments and the app will ask the teammate to approve before anything changes. Do not claim a write happened. Prefer a read tool first when you need an id.",
+    settings.aiAutoAct
+      ? "Low-risk writes (new contacts, notes, tags, tasks, deals, bookings) run immediately when you call the tool; the result tells you what happened, so confirm it plainly. Other writes (editing a contact, moving a deal, enrolling in a workflow) are proposals the teammate must approve. Prefer a read tool first when you need an id."
+      : "Writes (creating, updating, booking, tagging, enrolling) are proposals: call the tool once with complete arguments and the app will ask the teammate to approve before anything changes. Do not claim a write happened. Prefer a read tool first when you need an id.",
     "Refer to people by their display name. Money is in US dollars. Dates in the company timezone.",
   ].filter(Boolean).join("\n");
 }
@@ -89,12 +91,13 @@ async function callModel(body: Record<string, unknown>, beta?: string) {
 }
 
 /** One conversational turn. Reads run inline; the first write stops the turn as a pending action. */
-export async function ask(tenant: TenantContext, message: string, screen = ""): Promise<AssistantReply> {
+export async function ask(tenant: TenantContext, message: string, screen = "", via: "assistant" | "sms" = "assistant"): Promise<AssistantReply> {
   const text = message.trim().slice(0, 4000);
   if (!text) throw new Error("Say something first.");
   const usage = await usageFor(tenant.tenantId);
   if (usage.cap && usage.calls >= usage.cap) throw new Error(`This company has used its ${usage.cap} Cyncro AI requests for ${usage.month}. An owner can raise the cap in Team Access → Company profile.`);
   const ctx: ToolCtx = { ...tenant, via: "assistant" };
+  const autoAct = (await companySettings(tenant.tenantId)).aiAutoAct;
   const past = await history(tenant, 24);
   const messages: Msg[] = [];
   for (const h of past) { if (h.role === "user" || h.role === "assistant") { const last = messages[messages.length - 1]; if (last && last.role === h.role && typeof last.content === "string") last.content += `\n\n${h.content}`; else messages.push({ role: h.role, content: h.content }); } }
@@ -109,7 +112,7 @@ export async function ask(tenant: TenantContext, message: string, screen = ""): 
   if (servers.length) base.mcp_servers = servers;
   const beta = servers.length ? "mcp-client-2025-11-20" : undefined;
 
-  const toolCalls: string[] = []; const pending: PendingAction[] = []; let reply = ""; let inTok = 0, outTok = 0;
+  const toolCalls: string[] = []; const pending: PendingAction[] = []; const acted: AssistantReply["acted"] = []; let reply = ""; let inTok = 0, outTok = 0;
   for (let round = 0; round < 8; round++) {
     const res = await callModel({ ...base, messages }, beta);
     inTok += Number(res.usage?.input_tokens || 0); outTok += Number(res.usage?.output_tokens || 0);
@@ -122,10 +125,19 @@ export async function ask(tenant: TenantContext, message: string, screen = ""): 
     let stop = false;
     for (const u of uses) {
       const tool = toolByName(u.name);
-      if (tool?.kind === "write") {
+      if (tool?.kind === "write" && autoAct && tool.risk === "low") {
+        // The company lets Cyncro act on low-risk writes: do it now, log it, tell the model what happened.
+        const summary = describeAction(u.name, u.input || {}); const id = crypto.randomUUID();
+        toolCalls.push(u.name);
+        let out: unknown; let ok = true;
+        try { out = await runTool(ctx, u.name, u.input || {}); ok = !(out && typeof out === "object" && "error" in (out as Record<string, unknown>)); } catch (e) { out = { error: e instanceof Error ? e.message : "failed" }; ok = false; }
+        await coreDb().prepare("INSERT INTO ai_pending_actions (id, tenant_id, user_email, tool, input, summary, status, result, auto, via, created_at, resolved_at) VALUES (?,?,?,?,?,?,?,?,1,?,?,?)").bind(id, tenant.tenantId, tenant.email, u.name, JSON.stringify(u.input || {}), summary, ok ? "DONE" : "FAILED", JSON.stringify(out).slice(0, 4000), via, now(), now()).run();
+        acted.push({ id, summary, ok });
+        results.push({ type: "tool_result", tool_use_id: u.id, content: `${ok ? "Done" : "Failed"}: ${summary}. Result: ${JSON.stringify(out).slice(0, 4000)}` });
+      } else if (tool?.kind === "write") {
         const summary = describeAction(u.name, u.input || {});
         const id = crypto.randomUUID();
-        await coreDb().prepare("INSERT INTO ai_pending_actions (id, tenant_id, user_email, tool, input, summary, status, created_at) VALUES (?,?,?,?,?,?,'PENDING',?)").bind(id, tenant.tenantId, tenant.email, u.name, JSON.stringify(u.input || {}), summary, now()).run();
+        await coreDb().prepare("INSERT INTO ai_pending_actions (id, tenant_id, user_email, tool, input, summary, status, via, created_at) VALUES (?,?,?,?,?,?,'PENDING',?,?)").bind(id, tenant.tenantId, tenant.email, u.name, JSON.stringify(u.input || {}), summary, via, now()).run();
         pending.push({ id, tool: u.name, input: u.input || {}, summary, created_at: now() });
         results.push({ type: "tool_result", tool_use_id: u.id, content: `Proposed to the teammate for approval: ${summary}. Tell them it is waiting for their approval; do not say it is done.` });
         stop = true;
@@ -144,11 +156,11 @@ export async function ask(tenant: TenantContext, message: string, screen = ""): 
       break;
     }
   }
-  if (!reply) reply = pending.length ? "I've queued that for your approval below." : "I couldn't find anything for that.";
+  if (!reply) reply = pending.length ? "I've queued that for your approval below." : acted.length ? acted.map((a) => `${a.ok ? "Done" : "Couldn't do"}: ${a.summary}`).join("\n") : "I couldn't find anything for that.";
   await bump(tenant.tenantId, inTok, outTok);
-  await remember(tenant, "assistant", reply + (pending.length ? `\n\n(Proposed: ${pending.map((p) => p.summary).join("; ")})` : ""));
+  await remember(tenant, "assistant", reply + (pending.length ? `\n\n(Proposed: ${pending.map((p) => p.summary).join("; ")})` : "") + (acted.length ? `\n\n(Did: ${acted.map((a) => a.summary).join("; ")})` : ""));
   const after = await usageFor(tenant.tenantId);
-  return { reply, pending, usage: { calls: after.calls, cap: after.cap }, toolCalls };
+  return { reply, pending, acted, usage: { calls: after.calls, cap: after.cap }, toolCalls };
 }
 
 /** Teammate approved a pending write: run it now with their identity, no model in the loop. */

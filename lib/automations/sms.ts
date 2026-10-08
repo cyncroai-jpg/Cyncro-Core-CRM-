@@ -15,7 +15,7 @@ export async function sendSms(to: string, body: string): Promise<{ sent: boolean
   const digits = to.replace(/[^0-9+]/g, "");
   const e164 = digits.startsWith("+") ? digits : digits.length === 10 ? `+1${digits}` : `+${digits}`;
   try {
-    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${v.TWILIO_ACCOUNT_SID}/Messages.json`, {
+    const response = await fetch(`${(v.TWILIO_API_BASE || "https://api.twilio.com").replace(/\/$/, "")}/2010-04-01/Accounts/${v.TWILIO_ACCOUNT_SID}/Messages.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${btoa(`${v.TWILIO_ACCOUNT_SID}:${v.TWILIO_AUTH_TOKEN}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ To: e164, From: String(v.TWILIO_PHONE_NUMBER), Body: body.slice(0, 1600) }),

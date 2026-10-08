@@ -14,7 +14,7 @@ import { companySettings } from "@/lib/core/companySettings";
 export type ToolKind = "read" | "write";
 export type ToolCtx = TenantContext & { via: "assistant" | "mcp" };
 export type JsonSchema = { type: "object"; properties: Record<string, unknown>; required?: string[]; additionalProperties?: boolean };
-export type Tool = { name: string; description: string; kind: ToolKind; action?: TenantAction; input_schema: JsonSchema; run: (ctx: ToolCtx, input: Record<string, unknown>) => Promise<unknown> };
+export type Tool = { name: string; description: string; kind: ToolKind; action?: TenantAction; /** low-risk writes may run without approval when the company allows it */ risk?: "low" | "high"; input_schema: JsonSchema; run: (ctx: ToolCtx, input: Record<string, unknown>) => Promise<unknown> };
 
 const str = (v: unknown, max = 400) => cleanText(v, max);
 const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -172,7 +172,7 @@ export const TOOLS: Tool[] = [
   },
   // ── writes ──────────────────────────────────────────────────────────────
   {
-    name: "create_contact", kind: "write", action: "create", description: "Create a new contact (and a company record if a company is named). Needs a name and an email or phone.",
+    name: "create_contact", kind: "write", risk: "low", action: "create", description: "Create a new contact (and a company record if a company is named). Needs a name and an email or phone.",
     input_schema: { type: "object", properties: { name: { type: "string" }, email: { type: "string" }, phone: { type: "string" }, company: { type: "string" }, title: { type: "string" }, source: { type: "string" }, notes: { type: "string" }, assigned_rep: { type: "string" } }, required: ["name"], additionalProperties: false },
     run: async (ctx, i) => {
       const db = coreDb(); const name = str(i.name, 160); const email = normalizeEmail(i.email); const phone = str(i.phone, 40) || null;
@@ -211,7 +211,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "add_tag", kind: "write", action: "edit", description: "Add a tag to a contact. Fires any 'Tag added' automations.",
+    name: "add_tag", kind: "write", risk: "low", action: "edit", description: "Add a tag to a contact. Fires any 'Tag added' automations.",
     input_schema: { type: "object", properties: { contact: { type: "string" }, tag: { type: "string" } }, required: ["contact", "tag"], additionalProperties: false },
     run: async (ctx, i) => {
       const c = await findContact(ctx.tenantId, String(i.contact || "")); if (!c) return { error: "No contact matched." };
@@ -223,7 +223,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "add_note", kind: "write", action: "create", description: "Add a note to a contact's timeline.",
+    name: "add_note", kind: "write", risk: "low", action: "create", description: "Add a note to a contact's timeline.",
     input_schema: { type: "object", properties: { contact: { type: "string" }, text: { type: "string" } }, required: ["contact", "text"], additionalProperties: false },
     run: async (ctx, i) => {
       const c = await findContact(ctx.tenantId, String(i.contact || "")); if (!c) return { error: "No contact matched." };
@@ -234,7 +234,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "create_task", kind: "write", action: "create", description: "Create a task, optionally for a teammate and tied to a contact. due_in_days defaults to 1.",
+    name: "create_task", kind: "write", risk: "low", action: "create", description: "Create a task, optionally for a teammate and tied to a contact. due_in_days defaults to 1.",
     input_schema: { type: "object", properties: { title: { type: "string" }, assignee: { type: "string", description: "teammate email; defaults to the current teammate" }, contact: { type: "string" }, due_in_days: { type: "integer" }, priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "URGENT"] }, details: { type: "string" } }, required: ["title"], additionalProperties: false },
     run: async (ctx, i) => {
       const title = str(i.title, 200); if (!title) return { error: "Title is required." };
@@ -248,7 +248,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "complete_task", kind: "write", action: "edit", description: "Mark a task done by id or exact title.",
+    name: "complete_task", kind: "write", risk: "low", action: "edit", description: "Mark a task done by id or exact title.",
     input_schema: { type: "object", properties: { task: { type: "string", description: "task id or title" } }, required: ["task"], additionalProperties: false },
     run: async (ctx, i) => {
       const db = coreDb(); const q = str(i.task, 200);
@@ -261,7 +261,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "create_deal", kind: "write", action: "create", description: "Open a deal for a contact in the default pipeline. value is in dollars.",
+    name: "create_deal", kind: "write", risk: "low", action: "create", description: "Open a deal for a contact in the default pipeline. value is in dollars.",
     input_schema: { type: "object", properties: { contact: { type: "string" }, name: { type: "string" }, value: { type: "number" }, stage: { type: "string" } }, required: ["contact", "name"], additionalProperties: false },
     run: async (ctx, i) => {
       const db = coreDb(); const c = await findContact(ctx.tenantId, String(i.contact || "")); if (!c) return { error: "No contact matched." };
@@ -292,7 +292,7 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "book_appointment", kind: "write", action: "create", description: "Book an appointment for a contact at a specific time (ISO 8601 with timezone offset, or 'YYYY-MM-DD HH:MM' in the company timezone). Picks the event type by name. Checks capacity; confirmation emails and reminders are handled by the company's automations.",
+    name: "book_appointment", kind: "write", risk: "low", action: "create", description: "Book an appointment for a contact at a specific time (ISO 8601 with timezone offset, or 'YYYY-MM-DD HH:MM' in the company timezone). Picks the event type by name. Checks capacity; confirmation emails and reminders are handled by the company's automations.",
     input_schema: { type: "object", properties: { contact: { type: "string" }, event_type: { type: "string", description: "appointment type name or slug" }, starts_at: { type: "string" }, location_mode: { type: "string", enum: ["VIDEO", "PHONE", "IN_PERSON"] }, notes: { type: "string" } }, required: ["contact", "event_type", "starts_at"], additionalProperties: false },
     run: async (ctx, i) => {
       const db = coreDb(); const c = await findContact(ctx.tenantId, String(i.contact || "")); if (!c) return { error: "No contact matched." };

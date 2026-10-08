@@ -11075,7 +11075,7 @@ function UniversalCRM({
     [notice, setNotice] = useState(""),
     [crmUserName, setCrmUserName] = useState("Account Owner"),
     [profileOpen, setProfileOpen] = useState(false),
-    [profileForm, setProfileForm] = useState({ displayName: "", currentPassword: "", newPassword: "", confirmPassword: "" }),
+    [profileForm, setProfileForm] = useState({ displayName: "", currentPassword: "", newPassword: "", confirmPassword: "", phone: "" }),
     [profileSaving, setProfileSaving] = useState(false),
     [currentAccess,setCurrentAccess]=useState<Record<string,unknown>>({role:"OWNER",manage_users:1,can_create:1,can_edit:1,can_delete:1,can_export:1,compensation_access:1,invoice_access:1,contract_access:1,attribution_access:1,work_access:1}),
     [liveContacts, setLiveContacts] = useState<CRMContactCard[]>([]),
@@ -11136,6 +11136,7 @@ function UniversalCRM({
         setCurrentAccess(data.member);
         // Pre-fill profile form with real name from the server
         setProfileForm(f=>({...f,displayName:String(data.member.display_name||"")}));
+        void fetch("/api/auth/profile").then(r=>r.ok?r.json():null).then((p: { phone?: string } | null)=>{ if(p) setProfileForm(f=>({...f,phone:String(p.phone||"")})); }).catch(()=>undefined);
         setCrmUserName(String(data.member.display_name||"Account Owner"));
       }
     });
@@ -11162,7 +11163,7 @@ function UniversalCRM({
     if (newPassword && !currentPassword) { flash("Enter your current password to set a new one"); return; }
     setProfileSaving(true);
     try {
-      const body: Record<string,string> = { displayName: displayName.trim() };
+      const body: Record<string,string> = { displayName: displayName.trim(), phone: profileForm.phone.trim() };
       if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
@@ -11922,6 +11923,11 @@ function UniversalCRM({
           <label className="profileField">
             Confirm new password
             <input type="password" value={profileForm.confirmPassword} onChange={e=>setProfileForm(f=>({...f,confirmPassword:e.target.value}))} placeholder="Re-enter new password" autoComplete="new-password" />
+          </label>
+          <label className="profileField">
+            Mobile for texting Cyncro
+            <input type="tel" value={profileForm.phone} onChange={e=>setProfileForm(f=>({...f,phone:e.target.value}))} placeholder="+1 555 010 2000" autoComplete="tel" />
+            <small className="profileHint">Text your company's Twilio number from this phone and Cyncro AI answers and acts for you, e.g. "book Mark Thursday 3pm". Only this number is trusted.</small>
           </label>
           <hr className="profileDivider"/>
           <p className="profileSectionLabel">SECURITY</p>
