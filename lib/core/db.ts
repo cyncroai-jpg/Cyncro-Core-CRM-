@@ -3716,6 +3716,8 @@ export async function ensureCoreSchema() {
     "CREATE INDEX IF NOT EXISTS crm_contracts_tenant_idx ON crm_contracts(tenant_id)",
     "ALTER TABLE crm_forms ADD COLUMN tenant_id TEXT",
     "ALTER TABLE crm_forms ADD COLUMN settings_json TEXT",
+    "ALTER TABLE tenants ADD COLUMN parent_tenant_id TEXT",
+    "CREATE INDEX IF NOT EXISTS tenants_parent_idx ON tenants(parent_tenant_id)",
     "ALTER TABLE crm_opportunities ADD COLUMN service_kind TEXT",
     "CREATE TABLE IF NOT EXISTS crm_commission_plans (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, member_email TEXT NOT NULL, default_rate_bps INTEGER NOT NULL DEFAULT 2000, basis TEXT NOT NULL DEFAULT 'PROFIT', residual_flat_cents INTEGER NOT NULL DEFAULT 0, notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
     "CREATE UNIQUE INDEX IF NOT EXISTS crm_commission_plans_member_idx ON crm_commission_plans(tenant_id, member_email)",

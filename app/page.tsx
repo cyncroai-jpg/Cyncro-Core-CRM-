@@ -24,6 +24,7 @@ import { BillingPanel } from "@/app/components/BillingPanel";
 import { CommissionsDesk } from "@/app/components/CommissionsDesk";
 import { CompanySwitcher } from "@/app/components/CompanySwitcher";
 import { WelcomeModal } from "@/app/components/WelcomeModal";
+import { AgencyConsole } from "@/app/components/AgencyConsole";
 import { StudioSections } from "@/lib/studio/StudioRenderer";
 import { SECTION_LABELS, defaultPropsFor, type StudioSection, type StudioSectionType } from "@/lib/studio/sections";
 
@@ -131,6 +132,8 @@ export default function Home() {
       window.removeEventListener("popstate", syncRoute);
     };
   }, []);
+  const [branding, setBranding] = useState<{ brandName: string; logoUrl: string; whiteLabel: boolean } | null>(null);
+  useEffect(() => { void fetch("/api/tenants/settings").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.branding && (d.branding.logoUrl || d.branding.whiteLabel)) setBranding(d.branding); }).catch(() => undefined); }, []);
   useEffect(() => {
     void fetch("/api/access").then(async (response) => {
       if (response.status === 401) {
@@ -235,7 +238,7 @@ export default function Home() {
     >
       <header className={tab === "home" ? "frontHeader" : ""}>
         <button className="logo logoButton" onClick={() => navigate("home")}>
-          <img src="/brand/cyncro-core-logo.png" alt="Cyncro Core" className="logoImg" />
+          {branding?.logoUrl ? <img src={branding.logoUrl} alt={branding.brandName || "Home"} className="logoImg brandLogo" /> : branding?.whiteLabel && branding.brandName ? <span className="brandWord">{branding.brandName}</span> : <img src="/brand/cyncro-core-logo.png" alt="Cyncro Core" className="logoImg" />}
         </button>
         <nav>
           {[
@@ -10780,6 +10783,7 @@ type CRMView =
   | "Team Access"
   | "Integrations"
   | "Commissions"
+  | "Agency"
   | "Invoices"
   | "Contracts"
   | "Forms"
@@ -11059,7 +11063,7 @@ function UniversalCRM({
   onOpenProspecting: () => void;
   isOwner: boolean;
 }) {
-  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Growth", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Commissions", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
+  const [view, setView] = useHashView<CRMView>("crm", "Overview", ["Overview", "Growth", "Pipeline", "Sales Table", "Accounts", "Contacts", "Calendar", "Team Chat", "Conversations", "Social Automations", "Journeys", "Automations", "Data Graph", "Agent Team", "Team Access", "Integrations", "Commissions", "Agency", "Invoices", "Contracts", "Forms", "Studio", "Sales Playbooks", "Attribution", "Cyncro Work", "Intelligence", "Analytics", "Payments"]);
   const
     [query, setQuery] = useState(""),
     [selected, setSelected] = useState(0),
@@ -11415,6 +11419,7 @@ function UniversalCRM({
     { name: "Agent Team", icon: "✧" },
     { name: "Team Access", icon: "♙", permission:"manage_users" },
     { name: "Commissions", icon: "%", permission:"compensation_access" },
+    { name: "Agency", icon: "◫", permission:"manage_users" },
     { name: "Invoices", icon: "$", permission:"invoice_access" },
     { name: "Contracts", icon: "✎", permission:"contract_access" },
     { name: "Forms", icon: "▤", count: "Build" },
@@ -11427,7 +11432,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution","Commissions","Invoices","Contracts"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution","Commissions","Invoices","Contracts","Agency"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">
@@ -11660,6 +11665,7 @@ function UniversalCRM({
           {view === "Agent Team" && <CRMAgentTeam onFlash={flash} />}
           {view === "Team Access" && <CRMTeamAccess onFlash={flash} onOpenCalendar={() => setView("Calendar")} />}
           {view === "Commissions" && <CommissionsDesk onFlash={flash} />}
+          {view === "Agency" && <AgencyConsole onFlash={flash} />}
           {view === "Invoices" && <CRMInvoices onFlash={flash} onOpenIntegrations={() => setView("Integrations")} />}
           {view === "Contracts" && <CRMContracts onFlash={flash} />}
           {view === "Forms" && <CRMForms onFlash={flash} />}

@@ -1,6 +1,7 @@
 /** Company settings (timezone, business hours, branding, sender). GET for any member, PATCH for OWNER/ADMIN. */
 import { coreDb, ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant } from "@/lib/core/tenantAuth";
+import { effectiveBranding } from "@/lib/core/agency";
 import { companySettings, parseSettings } from "@/lib/core/companySettings";
 
 export async function GET(request: Request) {
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
     const tenant = await requireTenant(request);
     if (tenant instanceof Response) return tenant;
     const row = await coreDb().prepare("SELECT id, name, slug, plan, seats, created_at FROM tenants WHERE id=?").bind(tenant.tenantId).first<Record<string, unknown>>();
-    return Response.json({ company: row, settings: await companySettings(tenant.tenantId), role: tenant.role, canEdit: tenant.role === "OWNER" || tenant.role === "ADMIN" });
+    return Response.json({ company: row, settings: await companySettings(tenant.tenantId), branding: await effectiveBranding(tenant.tenantId), role: tenant.role, canEdit: tenant.role === "OWNER" || tenant.role === "ADMIN" });
   } catch (error) {
     console.error("tenant.settings.get_failed", error);
     return Response.json({ error: "Unable to load company settings." }, { status: 500 });

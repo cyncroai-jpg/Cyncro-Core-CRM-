@@ -9,12 +9,14 @@ import { ensureCoreSchema } from "@/lib/core/db";
 import { requireTenant } from "@/lib/core/tenantAuth";
 import { PLANS, billingState, createCheckout, createPortal, normalizePlan, type Plan } from "@/lib/core/billing";
 import { logAuditAction } from "@/lib/core/audit";
+import { isAgency } from "@/lib/core/agency";
 
 export async function GET(request: Request) {
   try {
     await ensureCoreSchema();
     const tenant = await requireTenant(request); if (tenant instanceof Response) return tenant;
-    return Response.json({ state: await billingState(tenant.tenantId), plans: Object.values(PLANS) });
+    const agency = await isAgency(tenant.tenantId);
+    return Response.json({ state: await billingState(tenant.tenantId), plans: Object.values(PLANS).filter((p) => (p.id === "agency") === agency) });
   } catch (error) { console.error("billing.get_failed", error); return Response.json({ error: "Unable to load billing." }, { status: 500 }); }
 }
 
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
       if (body.action === "checkout") {
         const plan: Plan = normalizePlan(body.plan);
         if (!body.plan || !(plan in PLANS) || normalizePlan(body.plan) !== String(body.plan).toLowerCase()) return Response.json({ error: "Pick a plan." }, { status: 400 });
+        if (plan === "agency" && !(await isAgency(tenant.tenantId))) return Response.json({ error: "Turn on agency mode first." }, { status: 409 });
         const url = await createCheckout(tenant.tenantId, tenant.email, plan, origin);
         await logAuditAction(tenant.tenantId, tenant.userId, tenant.email, "UPDATE", "subscription", tenant.tenantId, { resourceName: `Billing checkout started: ${plan}` }).catch(() => undefined);
         return Response.json({ url });

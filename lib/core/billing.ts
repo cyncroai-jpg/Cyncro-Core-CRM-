@@ -13,14 +13,15 @@ type CfEnv = Record<string, string | undefined>;
 const cf = () => env as unknown as CfEnv;
 const now = () => new Date().toISOString();
 
-export type Plan = "starter" | "growth" | "scale";
-export type BillingStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED" | "COMPLIMENTARY";
+export type Plan = "starter" | "growth" | "scale" | "agency";
+export type BillingStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED" | "COMPLIMENTARY" | "AGENCY";
 export const TRIAL_DAYS = 14;
 
 export const PLANS: Record<Plan, { id: Plan; name: string; priceCents: number; seats: number; aiCalls: number; blurb: string; perks: string[] }> = {
   starter: { id: "starter", name: "Starter", priceCents: 4900, seats: 3, aiCalls: 300, blurb: "One team getting organized.", perks: ["CRM, calendar, booking links", "Forms and landing pages", "Automations", "Cyncro AI, 300 actions a month", "3 seats"] },
   growth: { id: "growth", name: "Growth", priceCents: 14900, seats: 10, aiCalls: 1500, blurb: "A sales or service team that lives in it.", perks: ["Everything in Starter", "Team chat and dispatch", "Connected apps for Cyncro AI", "Cyncro AI, 1,500 actions a month", "10 seats"] },
   scale: { id: "scale", name: "Scale", priceCents: 39900, seats: 25, aiCalls: 5000, blurb: "Several teams, serious volume.", perks: ["Everything in Growth", "Priority support", "Data export any time", "Cyncro AI, 5,000 actions a month", "25 seats"] },
+  agency: { id: "agency", name: "Agency", priceCents: 9700, seats: 10, aiCalls: 1000, blurb: "Per client company, billed to the agency.", perks: ["Everything in Growth for each client", "Agency console: health, bulk setup, support access", "Snapshots pushed to every client", "Your brand on every client workspace", "One invoice for all clients"] },
 };
 const LEGACY: Record<string, Plan> = { pro: "growth", enterprise: "scale" };
 export function normalizePlan(p: string | null | undefined): Plan { const k = String(p || "starter").toLowerCase(); return (PLANS as Record<string, unknown>)[k] ? (k as Plan) : LEGACY[k] || "starter"; }
@@ -28,8 +29,8 @@ export function normalizePlan(p: string | null | undefined): Plan { const k = St
 export function stripeConfig() {
   const e = cf(); const pe = typeof process !== "undefined" ? process.env : ({} as Record<string, string | undefined>);
   const get = (k: string) => e[k] || pe[k] || "";
-  const prices: Record<Plan, string> = { starter: get("STRIPE_PRICE_STARTER"), growth: get("STRIPE_PRICE_GROWTH"), scale: get("STRIPE_PRICE_SCALE") };
-  return { secret: get("STRIPE_SECRET_KEY"), webhookSecret: get("STRIPE_WEBHOOK_SECRET"), apiBase: (get("STRIPE_API_BASE") || "https://api.stripe.com").replace(/\/$/, ""), prices, configured: Boolean(get("STRIPE_SECRET_KEY")), pricesConfigured: Object.values(prices).every(Boolean) };
+  const prices: Record<Plan, string> = { starter: get("STRIPE_PRICE_STARTER"), growth: get("STRIPE_PRICE_GROWTH"), scale: get("STRIPE_PRICE_SCALE"), agency: get("STRIPE_PRICE_AGENCY") };
+  return { secret: get("STRIPE_SECRET_KEY"), webhookSecret: get("STRIPE_WEBHOOK_SECRET"), apiBase: (get("STRIPE_API_BASE") || "https://api.stripe.com").replace(/\/$/, ""), prices, configured: Boolean(get("STRIPE_SECRET_KEY")), pricesConfigured: [prices.starter, prices.growth, prices.scale].every(Boolean) };
 }
 export function planForPrice(priceId: string | undefined, nickname?: string | null, metaPlan?: string | null): Plan {
   const { prices } = stripeConfig();
@@ -53,7 +54,13 @@ export type BillingState = {
 /** Everything the app needs to know about a company's subscription, computed from D1 (webhook-fed). */
 export async function billingState(tenantId: string): Promise<BillingState> {
   const db = coreDb(); const cfg = stripeConfig();
-  const t = await db.prepare("SELECT plan, seats, stripe_customer_id, trial_ends_at, created_at FROM tenants WHERE id=?").bind(tenantId).first<{ plan: string; seats: number; stripe_customer_id: string | null; trial_ends_at: string | null; created_at: string }>();
+  const t = await db.prepare("SELECT plan, seats, stripe_customer_id, trial_ends_at, created_at, parent_tenant_id FROM tenants WHERE id=?").bind(tenantId).first<{ plan: string; seats: number; stripe_customer_id: string | null; trial_ends_at: string | null; created_at: string; parent_tenant_id: string | null }>();
+  if (t?.parent_tenant_id) {
+    // A client of an agency: the agency's subscription covers it.
+    const parent = await billingState(t.parent_tenant_id);
+    const used = await db.prepare("SELECT COUNT(*) AS n FROM tenant_members WHERE tenant_id=? AND active=1").bind(tenantId).first<{ n: number }>();
+    return { configured: cfg.configured, pricesConfigured: cfg.pricesConfigured, plan: "agency", status: "AGENCY", seats: Number(t.seats || PLANS.agency.seats), seatsUsed: Number(used?.n || 0), trialEndsAt: null, periodEnd: parent.periodEnd, cancelAtPeriodEnd: parent.cancelAtPeriodEnd, hasCustomer: false, daysLeft: null, writable: parent.writable };
+  }
   const sub = await db.prepare("SELECT plan, status, current_period_end, cancel_at_period_end FROM tenant_subscriptions WHERE tenant_id=? ORDER BY updated_at DESC LIMIT 1").bind(tenantId).first<{ plan: string; status: string; current_period_end: string | null; cancel_at_period_end: number | null }>();
   const used = await db.prepare("SELECT COUNT(*) AS n FROM tenant_members WHERE tenant_id=? AND active=1").bind(tenantId).first<{ n: number }>();
   const first = await db.prepare("SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1").first<{ id: string }>();
@@ -93,7 +100,8 @@ export async function createCheckout(tenantId: string, email: string, plan: Plan
   if (!cfg.configured) throw new Error("Stripe isn't connected on this deployment yet.");
   if (!cfg.prices[plan]) throw new Error(`No Stripe price is set for the ${PLANS[plan].name} plan (STRIPE_PRICE_${plan.toUpperCase()}).`);
   const customer = await ensureCustomer(tenantId, email);
-  const form = new URLSearchParams({ mode: "subscription", customer, "line_items[0][price]": cfg.prices[plan], "line_items[0][quantity]": "1", success_url: `${origin}/#crm/team-access?billing=success`, cancel_url: `${origin}/#crm/team-access?billing=cancelled`, "subscription_data[metadata][tenant_id]": tenantId, "subscription_data[metadata][plan]": plan, "metadata[tenant_id]": tenantId, allow_promotion_codes: "true" });
+  const quantity = plan === "agency" ? Math.max(1, Number((await coreDb().prepare("SELECT COUNT(*) AS n FROM tenants WHERE parent_tenant_id=?").bind(tenantId).first<{ n: number }>())?.n || 0)) : 1;
+  const form = new URLSearchParams({ mode: "subscription", customer, "line_items[0][price]": cfg.prices[plan], "line_items[0][quantity]": String(quantity), success_url: `${origin}/#crm/team-access?billing=success`, cancel_url: `${origin}/#crm/team-access?billing=cancelled`, "subscription_data[metadata][tenant_id]": tenantId, "subscription_data[metadata][plan]": plan, "metadata[tenant_id]": tenantId, allow_promotion_codes: "true" });
   const s = await stripe<{ url: string }>("checkout/sessions", form);
   return s.url;
 }
@@ -182,4 +190,18 @@ export async function handleStripeEvent(event: { id: string; type: string; data:
 export async function hasFeatureAccess(tenantId: string, _feature: "sequences" | "workflows" | "forms" | "api" | "callRecording" | "websiteTracking" | "customDomain"): Promise<boolean> {
   const s = await billingState(tenantId);
   return s.writable;
+}
+
+/** Agency plans bill per client company: keep the Stripe quantity equal to the number of clients. */
+export async function syncAgencyQuantity(agencyId: string): Promise<{ synced: boolean; quantity: number }> {
+  const cfg = stripeConfig(); const db = coreDb();
+  const n = Math.max(1, Number((await db.prepare("SELECT COUNT(*) AS n FROM tenants WHERE parent_tenant_id=?").bind(agencyId).first<{ n: number }>())?.n || 0));
+  if (!cfg.configured || !cfg.prices.agency) return { synced: false, quantity: n };
+  const sub = await db.prepare("SELECT stripe_subscription_id FROM tenant_subscriptions WHERE tenant_id=? AND status IN ('ACTIVE','TRIALING','PAST_DUE') ORDER BY updated_at DESC LIMIT 1").bind(agencyId).first<{ stripe_subscription_id: string }>();
+  if (!sub?.stripe_subscription_id) return { synced: false, quantity: n };
+  const s = await stripe<{ items: { data: { id: string; price: { id: string }; quantity?: number }[] } }>(`subscriptions/${sub.stripe_subscription_id}`, undefined, "GET");
+  const item = s.items?.data?.find((i) => i.price?.id === cfg.prices.agency);
+  if (!item || item.quantity === n) return { synced: Boolean(item), quantity: n };
+  await stripe(`subscription_items/${item.id}`, new URLSearchParams({ quantity: String(n), proration_behavior: "create_prorations" }));
+  return { synced: true, quantity: n };
 }
