@@ -106,7 +106,8 @@ export async function ask(tenant: TenantContext, message: string, screen = "", v
   await remember(tenant, "user", text);
 
   const servers = await mcpServers(tenant.tenantId);
-  const tools: unknown[] = [...toolDefs(), ...servers.map((s) => ({ type: "mcp_toolset", mcp_server_name: s.name }))];
+  const apps = (await companySettings(tenant.tenantId)).apps;
+  const tools: unknown[] = [...toolDefs().filter((t) => !((t as { name: string }).name === "list_jobs" && !apps.includes("dispatch"))), ...servers.map((s) => ({ type: "mcp_toolset", mcp_server_name: s.name }))];
   const system = await systemPrompt(tenant, screen);
   const base: Record<string, unknown> = { model: MODEL(), max_tokens: 2000, system, tools, output_config: { effort: "low" } };
   if (servers.length) base.mcp_servers = servers;

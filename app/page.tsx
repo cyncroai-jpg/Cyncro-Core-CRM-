@@ -56,7 +56,8 @@ type CyncroProduct = "switcher" | "core" | "dispatch" | "dispute" | "automotive"
 
 export default function Home() {
   // ACTIVE products — Core and Dispatch are real, working products
-  const activeProducts: CyncroProduct[] = ["core", "dispatch", "dispute", "apex", "automotive", "growth"];
+  const [apps, setApps] = useState<string[] | null>(null);
+  const activeProducts: CyncroProduct[] = ["core", ...((apps || ["dispatch", "dispute", "apex", "automotive", "growth"]).filter((a) => ["dispatch", "dispute", "apex", "automotive", "growth"].includes(a)) as CyncroProduct[])];
   // Land directly in Core by default; the switcher is one click away via "Products"
   const [product, setProduct] = useState<CyncroProduct>("core");
   const [tab, setTab] = useState<Tab>("home"),
@@ -134,7 +135,7 @@ export default function Home() {
     };
   }, []);
   const [branding, setBranding] = useState<{ brandName: string; logoUrl: string; whiteLabel: boolean } | null>(null);
-  useEffect(() => { void fetch("/api/tenants/settings").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.branding && (d.branding.logoUrl || d.branding.whiteLabel)) setBranding(d.branding); }).catch(() => undefined); }, []);
+  useEffect(() => { const load = () => void fetch("/api/tenants/settings").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.branding && (d.branding.logoUrl || d.branding.whiteLabel)) setBranding(d.branding); if (Array.isArray(d?.settings?.apps)) setApps(d.settings.apps); }).catch(() => undefined); load(); window.addEventListener("cyncro-settings-changed", load); return () => window.removeEventListener("cyncro-settings-changed", load); }, []);
   useEffect(() => {
     void fetch("/api/access").then(async (response) => {
       if (response.status === 401) {
@@ -172,7 +173,7 @@ export default function Home() {
   // actual apps. "readable" carries the app-wide font-size legibility
   // boost (see ".readable ..." rules in globals.css); without it their
   // base styles (many 5-9px labels) are unreadably small.
-  if (product === "dispatch") {
+  if (product === "dispatch" && activeProducts.includes("dispatch")) {
     return (
       <div className="readable">
         <SecurityGate onFlash={() => undefined} />
@@ -186,7 +187,7 @@ export default function Home() {
       </div>
     );
   }
-  if (product === "dispute") {
+  if (product === "dispute" && activeProducts.includes("dispute")) {
     return (
       <div className="readable">
         <SecurityGate onFlash={() => undefined} />
@@ -200,7 +201,7 @@ export default function Home() {
       </div>
     );
   }
-  if (product === "apex") {
+  if (product === "apex" && activeProducts.includes("apex")) {
     return (
       <div className="readable">
         <SecurityGate onFlash={() => undefined} />
@@ -214,7 +215,7 @@ export default function Home() {
       </div>
     );
   }
-  if (product === "automotive") {
+  if (product === "automotive" && activeProducts.includes("automotive")) {
     return (
       <div className="readable">
         <SecurityGate onFlash={() => undefined} />
@@ -21716,8 +21717,8 @@ function CyncroProductGate({ product, onBack }: { product: CyncroProduct; onBack
         <div className="productGateLock">
           <span className="productGateLockIcon">🔒</span>
           <div>
-            <b>Access Required</b>
-            <p>This product requires a separate subscription. Contact your Cyncro administrator or account owner to enable access.</p>
+            <b>Switched off for this company</b>
+            <p>An owner can turn it on in Cyncro CRM → Team Access → Apps. Nothing extra to install; it shares your contacts, calendar and team.</p>
           </div>
         </div>
         <div className="productGateFeatures">

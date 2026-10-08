@@ -6,10 +6,13 @@ export type CompanySettings = {
   timezone: string; businessHours: BusinessHours; logoUrl: string; phone: string; website: string; address: string;
   senderName: string; replyTo: string; brandColor: string; bookingIntro: string; aiMonthlyCap: number; require2fa: boolean;
   agency: boolean; brandName: string; whiteLabel: boolean; aiAutoAct: boolean;
+  /** Products switched on for this company. Core CRM is always on. */
+  apps: string[];
 };
+export const ALL_APPS = ["dispatch", "dispute", "automotive", "apex", "prime", "messages", "growth"] as const;
 export const DEFAULT_SETTINGS: CompanySettings = {
   timezone: "America/New_York", businessHours: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" }, logoUrl: "", phone: "", website: "", address: "",
-  senderName: "", replyTo: "", brandColor: "#a91f39", bookingIntro: "", aiMonthlyCap: 1000, require2fa: false, agency: false, brandName: "", whiteLabel: false, aiAutoAct: false };
+  senderName: "", replyTo: "", brandColor: "#a91f39", bookingIntro: "", aiMonthlyCap: 1000, require2fa: false, agency: false, brandName: "", whiteLabel: false, aiAutoAct: false, apps: [...ALL_APPS] };
 const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const isTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 
@@ -29,6 +32,7 @@ export function parseSettings(raw: unknown): CompanySettings {
     aiMonthlyCap: Math.min(100000, Math.max(0, Math.round(Number(o.aiMonthlyCap ?? DEFAULT_SETTINGS.aiMonthlyCap)) || 0)),
     require2fa: Boolean(o.require2fa),
     agency: Boolean(o.agency), brandName: clean(o.brandName, 80), whiteLabel: Boolean(o.whiteLabel), aiAutoAct: Boolean(o.aiAutoAct),
+    apps: Array.isArray(o.apps) ? (ALL_APPS as readonly string[]).filter((a) => (o.apps as unknown[]).includes(a)) : [...ALL_APPS],
   };
 }
 

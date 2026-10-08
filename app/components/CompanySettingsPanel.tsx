@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 
 type BH = { days: number[]; start: string; end: string };
-type Settings = { timezone: string; businessHours: BH; logoUrl: string; phone: string; website: string; address: string; senderName: string; replyTo: string; brandColor: string; bookingIntro: string; aiMonthlyCap: number; aiAutoAct: boolean };
+type Settings = { timezone: string; businessHours: BH; logoUrl: string; phone: string; website: string; address: string; senderName: string; replyTo: string; brandColor: string; bookingIntro: string; aiMonthlyCap: number; aiAutoAct: boolean; apps: string[] };
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ZONES = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu", "America/Toronto", "America/Vancouver", "America/Mexico_City", "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Madrid", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore", "Asia/Tokyo", "Australia/Sydney"];
 
@@ -22,7 +22,7 @@ export function CompanySettingsPanel({ onFlash }: { onFlash: (m: string) => void
     const d = await r.json().catch(() => ({}));
     setSaving(false);
     if (!r.ok) { onFlash(d.error || "Could not save company settings"); return; }
-    setS(d.settings); setDirty(false); onFlash("Company settings saved");
+    setS(d.settings); setDirty(false); onFlash("Company settings saved"); window.dispatchEvent(new Event("cyncro-settings-changed"));
   };
   const local = (() => { try { return new Date().toLocaleTimeString([], { timeZone: s.timezone, hour: "numeric", minute: "2-digit" }); } catch { return ""; } })();
   return (
@@ -40,6 +40,10 @@ export function CompanySettingsPanel({ onFlash }: { onFlash: (m: string) => void
         <label>Reply-to email<input value={s.replyTo} disabled={!canEdit} onChange={(e) => set({ replyTo: e.target.value })} placeholder="hello@yourcompany.com" /></label>
         <label>Cyncro AI requests per month<input type="number" min={0} value={s.aiMonthlyCap} disabled={!canEdit} onChange={(e) => set({ aiMonthlyCap: Number(e.target.value) })} /></label>
         <label className="coToggle"><input type="checkbox" checked={Boolean(s.aiAutoAct)} disabled={!canEdit} onChange={(e) => set({ aiAutoAct: e.target.checked })} /><span><b>Let Cyncro act without asking</b><small>Bookings, tasks, notes, tags, new contacts and deals happen immediately when a teammate asks. Edits, deal moves and workflow enrollments still wait for approval. Everything is logged.</small></span></label>
+        <div className="wide coApps">
+          <small>APPS · what this company sees in Products and the assistant</small>
+          <div className="coAppGrid">{[["dispatch", "Dispatch", "Field service: jobs, techs, map"], ["automotive", "Automotive", "Dealership deals and finance"], ["dispute", "Dispute", "Credit repair rounds and letters"], ["apex", "Funds", "Lending broker submissions"], ["prime", "Prime", "Missions and agents"], ["messages", "Messages", "Unified inbox"], ["growth", "Growth", "Landing pages, forms, automations dashboards"]].map(([key, label, hint]) => <label key={key} className={`coApp ${(s.apps || []).includes(key) ? "on" : ""}`}><input type="checkbox" checked={(s.apps || []).includes(key)} disabled={!canEdit} onChange={(e) => set({ apps: e.target.checked ? [...(s.apps || []), key] : (s.apps || []).filter((a) => a !== key) })} /><span><b>{label}</b><small>{hint}</small></span></label>)}</div>
+        </div>
         <label className="wide">Booking page intro<input value={s.bookingIntro} disabled={!canEdit} onChange={(e) => set({ bookingIntro: e.target.value })} placeholder="Pick a time and we'll confirm right away." /></label>
         <div className="wide coHours">
           <small>BUSINESS HOURS · automations can hold messages until you're open</small>
