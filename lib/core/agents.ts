@@ -22,10 +22,12 @@ function anthropicApiKey(): string | undefined {
 async function callClaude(prompt: string, maxTokens = 600): Promise<string> {
   const apiKey = anthropicApiKey();
   if (!apiKey) throw new Error("AI agents aren't configured yet — no ANTHROPIC_API_KEY is set.");
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const cfEnv = env as CfEnv;
+  const base = (cfEnv.ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, "");
+  const response = await fetch(`${base}/v1/messages`, {
     method: "POST",
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: cfEnv.CYNCRO_AI_MODEL || "claude-haiku-4-5-20251001", max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");

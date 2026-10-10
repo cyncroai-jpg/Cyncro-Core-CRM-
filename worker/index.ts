@@ -6,6 +6,7 @@ import { resumeGrowthAutomations } from "../lib/growth/automationEngine";
 import { processDueEnrollments, runAutomationScans } from "../lib/automations/engine";
 import { runBackgroundAgents } from "../lib/agents/background";
 import { linkUnlinkedCustomers } from "../lib/customers/unify";
+import { runScheduledAgents } from "../lib/ai/agents";
 import { ensureCoreSchema } from "../lib/core/db";
 import { isPlatformOwner } from "../lib/core/tenantAuth";
 
@@ -57,6 +58,9 @@ const worker = {
     );
     ctx.waitUntil(
       linkUnlinkedCustomers().then((r) => console.info("scheduled.customer_links.done", r)),
+    );
+    ctx.waitUntil(
+      runScheduledAgents().then((r) => console.info("scheduled.cyncro_agents.done", r)),
     );
   },
 

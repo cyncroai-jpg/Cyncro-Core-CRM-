@@ -54,7 +54,7 @@ export const STEP_TYPES = [
   ["CREATE_TASK", "Create task"], ["ADD_NOTE", "Add note"], ["CREATE_DEAL", "Create deal"], ["MOVE_STAGE", "Move deal to stage"], ["SET_LIFECYCLE", "Set lifecycle"],
   ["ASSIGN_REP", "Assign to teammate"], ["ROUND_ROBIN", "Assign round-robin"], ["NOTIFY_TEAM", "Notify teammate"], ["POST_TO_CHAT", "Post to Team Chat"],
   ["ENROLL_WORKFLOW", "Start another workflow"], ["REMOVE_FROM_WORKFLOW", "Stop other workflows"], ["WEBHOOK", "Send webhook"], ["END", "End workflow"],
-  ["CREATE_INVOICE", "Create invoice"], ["CREATE_JOB", "Create dispatch job"],
+  ["CREATE_INVOICE", "Create invoice"], ["CREATE_JOB", "Create dispatch job"], ["RUN_AGENT", "Run a Cyncro Agent"],
 ] as const;
 export type StepType = (typeof STEP_TYPES)[number][0];
 export const STEP_SET = new Set<string>(STEP_TYPES.map((s) => s[0]));
@@ -452,6 +452,12 @@ async function execute(step: Step, s: State): Promise<string> {
       await db.prepare(`INSERT INTO work_tasks (id,title,details,status,priority,assignee,reporter,contact_id,due_at,estimated_minutes,tenant_id,created_at,updated_at) VALUES (?,?,?,'TODO',?,?,'automation',?,?,30,?,?,?)`)
         .bind(uid(), title, render(str(step.details || "Created by automation"), s.vars), str(step.priority || "MEDIUM").toUpperCase(), assignee, s.contactId, due, s.tenantId, t, t).run();
       return `Task "${title}" for ${assignee || "unassigned"}`;
+    }
+    case "RUN_AGENT": {
+      const { runCustomAgent, findAgent } = await import("@/lib/ai/agents");
+      const agent = await findAgent(s.tenantId, str(step.agent)); if (!agent) throw new Error(`no Cyncro Agent named "${str(step.agent)}"`);
+      const r = await runCustomAgent(s.tenantId, agent.id, { trigger: "automation", contactId: s.contactId || undefined, message: render(str(step.message || ""), s.vars) || undefined });
+      return `Agent "${agent.name}": ${r.reply.slice(0, 160)}${r.pending.length ? ` (${r.pending.length} waiting for approval)` : ""}`;
     }
     case "CREATE_INVOICE": {
       const c = needContact(); const email = str(c.email); if (!email) throw new Error("contact has no email; invoices need one");

@@ -91,30 +91,32 @@ async function callModel(body: Record<string, unknown>, beta?: string) {
 }
 
 /** One conversational turn. Reads run inline; the first write stops the turn as a pending action. */
-export async function ask(tenant: TenantContext, message: string, screen = "", via: "assistant" | "sms" = "assistant"): Promise<AssistantReply> {
+export type AskOptions = { systemExtra?: string; allowedTools?: string[]; autoAct?: boolean; remember?: boolean; maxRounds?: number };
+export async function ask(tenant: TenantContext, message: string, screen = "", via: "assistant" | "sms" | "agent" = "assistant", opts: AskOptions = {}): Promise<AssistantReply> {
   const text = message.trim().slice(0, 4000);
   if (!text) throw new Error("Say something first.");
   const usage = await usageFor(tenant.tenantId);
   if (usage.cap && usage.calls >= usage.cap) throw new Error(`This company has used its ${usage.cap} Cyncro AI requests for ${usage.month}. An owner can raise the cap in Team Access → Company profile.`);
   const ctx: ToolCtx = { ...tenant, via: "assistant" };
-  const autoAct = (await companySettings(tenant.tenantId)).aiAutoAct;
-  const past = await history(tenant, 24);
+  const autoAct = opts.autoAct ?? (await companySettings(tenant.tenantId)).aiAutoAct;
+  const keep = opts.remember !== false;
+  const past = keep ? await history(tenant, 24) : [];
   const messages: Msg[] = [];
   for (const h of past) { if (h.role === "user" || h.role === "assistant") { const last = messages[messages.length - 1]; if (last && last.role === h.role && typeof last.content === "string") last.content += `\n\n${h.content}`; else messages.push({ role: h.role, content: h.content }); } }
   if (messages.length && messages[0].role !== "user") messages.shift();
   messages.push({ role: "user", content: text });
-  await remember(tenant, "user", text);
+  if (keep) await remember(tenant, "user", text);
 
   const servers = await mcpServers(tenant.tenantId);
   const apps = (await companySettings(tenant.tenantId)).apps;
-  const tools: unknown[] = [...toolDefs().filter((t) => !(["list_jobs", "create_job"].includes((t as { name: string }).name) && !apps.includes("dispatch"))), ...servers.map((s) => ({ type: "mcp_toolset", mcp_server_name: s.name }))];
-  const system = await systemPrompt(tenant, screen);
+  const tools: unknown[] = [...toolDefs().filter((t) => !(["list_jobs", "create_job"].includes((t as { name: string }).name) && !apps.includes("dispatch"))).filter((t) => !opts.allowedTools || opts.allowedTools.includes((t as { name: string }).name)), ...servers.map((s) => ({ type: "mcp_toolset", mcp_server_name: s.name }))];
+  const system = (await systemPrompt(tenant, screen)) + (opts.systemExtra ? `\n\n${opts.systemExtra}` : "");
   const base: Record<string, unknown> = { model: MODEL(), max_tokens: 2000, system, tools, output_config: { effort: "low" } };
   if (servers.length) base.mcp_servers = servers;
   const beta = servers.length ? "mcp-client-2025-11-20" : undefined;
 
   const toolCalls: string[] = []; const pending: PendingAction[] = []; const acted: AssistantReply["acted"] = []; let reply = ""; let inTok = 0, outTok = 0;
-  for (let round = 0; round < 8; round++) {
+  for (let round = 0; round < (opts.maxRounds || 8); round++) {
     const res = await callModel({ ...base, messages }, beta);
     inTok += Number(res.usage?.input_tokens || 0); outTok += Number(res.usage?.output_tokens || 0);
     const texts = res.content.filter((b) => b.type === "text").map((b) => String(b.text || "")).join("\n").trim();
@@ -159,7 +161,7 @@ export async function ask(tenant: TenantContext, message: string, screen = "", v
   }
   if (!reply) reply = pending.length ? "I've queued that for your approval below." : acted.length ? acted.map((a) => `${a.ok ? "Done" : "Couldn't do"}: ${a.summary}`).join("\n") : "I couldn't find anything for that.";
   await bump(tenant.tenantId, inTok, outTok);
-  await remember(tenant, "assistant", reply + (pending.length ? `\n\n(Proposed: ${pending.map((p) => p.summary).join("; ")})` : "") + (acted.length ? `\n\n(Did: ${acted.map((a) => a.summary).join("; ")})` : ""));
+  if (keep) await remember(tenant, "assistant", reply + (pending.length ? `\n\n(Proposed: ${pending.map((p) => p.summary).join("; ")})` : "") + (acted.length ? `\n\n(Did: ${acted.map((a) => a.summary).join("; ")})` : ""));
   const after = await usageFor(tenant.tenantId);
   return { reply, pending, acted, usage: { calls: after.calls, cap: after.cap }, toolCalls };
 }
