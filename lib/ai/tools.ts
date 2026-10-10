@@ -332,6 +332,24 @@ export const TOOLS: Tool[] = [
       return { enrolled: true, workflow: wf.name, status: en?.status, error: en?.last_error || undefined };
     },
   },
+  {
+    name: "create_job", kind: "write", risk: "low", action: "create", description: "Book a Dispatch field job for a contact: service type, address (defaults to the contact's), when (ISO 8601 or 'YYYY-MM-DD HH:MM' in the company timezone; defaults to tomorrow 9am), optional revenue in dollars. Only when the company uses Dispatch.",
+    input_schema: { type: "object", properties: { contact: { type: "string" }, service_type: { type: "string" }, address: { type: "string" }, scheduled_at: { type: "string" }, revenue: { type: "number" }, notes: { type: "string" } }, required: ["contact", "service_type"], additionalProperties: false },
+    run: async (ctx, i) => {
+      const db = coreDb(); const c = await findContact(ctx.tenantId, String(i.contact || "")); if (!c) return { error: "No contact matched." };
+      let cust = await db.prepare("SELECT id FROM dispatch_customers WHERE tenant_id=? AND (contact_id=? OR (email IS NOT NULL AND lower(email)=lower(?))) LIMIT 1").bind(ctx.tenantId, String(c.id), str(c.email)).first<{ id: string }>();
+      const t = iso();
+      if (!cust) { const cid = crypto.randomUUID(); await db.prepare("INSERT INTO dispatch_customers (id,tenant_id,name,phone,email,contact_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(cid, ctx.tenantId, str(c.full_name), str(c.phone) || null, str(c.email) || null, String(c.id), t, t).run(); cust = { id: cid }; }
+      const s = await companySettings(ctx.tenantId); let when: Date;
+      if (i.scheduled_at) { const raw = str(i.scheduled_at, 40); when = new Date(raw); if (Number.isNaN(when.getTime())) return { error: "Could not read scheduled_at." }; if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) { const guess = new Date(raw.replace(" ", "T")); const offsetMin = (new Date(guess.toLocaleString("en-US", { timeZone: s.timezone })).getTime() - guess.getTime()) / 60000; when = new Date(guess.getTime() - offsetMin * 60000); } }
+      else { when = new Date(Date.now() + 86_400_000); when.setHours(9, 0, 0, 0); }
+      const id = crypto.randomUUID(); const address = str(i.address, 300) || str(c.address, 300) || "";
+      await db.prepare("INSERT INTO dispatch_jobs (id,tenant_id,customer_id,service_type,description,address,scheduled_at,status,revenue_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'BOOKED',?,?,?)")
+        .bind(id, ctx.tenantId, cust.id, str(i.service_type, 120), str(i.notes, 2000) || `Booked by Cyncro AI for ${ctx.email}`, address, when.toISOString(), Math.max(0, Math.round(num(i.revenue, 0) * 100)), t, t).run();
+      await audit(ctx, "CREATE", "booking", id, { contactId: c.id });
+      return { created: true, jobId: id, customer: c.full_name, service: str(i.service_type, 120), scheduled_at: when.toISOString(), address };
+    },
+  },
 ];
 
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);
@@ -358,6 +376,7 @@ export function describeAction(name: string, input: Record<string, unknown>): st
     case "move_deal": return `Move deal "${s("deal")}" to ${s("stage")}`;
     case "book_appointment": return `Book ${s("event_type")} for ${s("contact")} at ${s("starts_at")}`;
     case "enroll_in_workflow": return `Start workflow "${s("workflow")}" for ${s("contact")}`;
+    case "create_job": return `Book a ${s("service_type")} job for ${s("contact")}${s("scheduled_at") ? ` at ${s("scheduled_at")}` : " tomorrow 9am"}`;
     default: return `${name} ${JSON.stringify(input)}`;
   }
 }

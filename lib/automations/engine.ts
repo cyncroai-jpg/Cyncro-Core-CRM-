@@ -361,6 +361,13 @@ function evaluate(step: Step, s: State): boolean {
   }
 }
 
+/** Wraps an automation email in the company's look: logo or name on a brand-colored bar, clean body, quiet footer. */
+const branded = (body: string, st: CompanySettings, company: string) => {
+  const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+  const head = st.logoUrl ? `<img src="${esc(st.logoUrl)}" alt="${esc(company)}" style="max-height:34px;vertical-align:middle">` : esc(st.senderName || company);
+  const foot = [st.phone, st.website, st.address].filter(Boolean).map(esc).join(" · ");
+  return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#111"><div style="max-width:560px;margin:28px auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e5e5e7"><div style="background:${esc(st.brandColor || "#a91f39")};padding:16px 26px;color:#fff;font-weight:700;font-size:14px;letter-spacing:.04em">${head}</div><div style="padding:26px">${body}</div>${foot ? `<div style="padding:12px 26px;background:#fafafa;color:#8a8a8a;font-size:11px">${foot}</div>` : ""}</div></body></html>`;
+};
 const htmlOf = (text: string) => `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#111">${text.split("\n").map((l) => `<p style="margin:0 0 12px">${l.replace(/[<>&]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[ch] || ch)}</p>`).join("")}</div>`;
 
 async function execute(step: Step, s: State): Promise<string> {
@@ -369,7 +376,7 @@ async function execute(step: Step, s: State): Promise<string> {
   const sendMail = async (to: string, subject: string, text: string) => {
     const status = await emailTransportStatus(s.tenantId);
     if (status.transport === "none") throw new Error("no email sender connected (Resend key or Google)");
-    const ok = await sendEmail({ to, subject, html: htmlOf(text), tenantId: s.tenantId, replyTo: s.settings.replyTo || undefined });
+    const ok = await sendEmail({ to, subject, html: branded(htmlOf(text), s.settings, s.vars["company.name"] || "our team"), tenantId: s.tenantId, replyTo: s.settings.replyTo || undefined });
     if (!ok) throw new Error("email send failed");
     await db.prepare("INSERT INTO crm_activities (id,contact_id,activity_type,title,details,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,'EMAIL',?,?,'COMPLETED','automation',?,?,?)").bind(uid(), s.contactId, subject, text, s.tenantId, t, t).run();
   };
