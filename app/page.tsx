@@ -11436,7 +11436,7 @@ function UniversalCRM({
     { name: "Integrations", icon: "＋", count: "Connect" },
     { name: "Intelligence", icon: "✦" },
   ];
-  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution","Commissions","Invoices","Contracts","Agency"]);
+  const launchCRMViews = new Set<CRMView>(["Overview","Growth","Pipeline","Sales Table","Accounts","Contacts","Calendar","Team Chat","Team Access","Forms","Studio","Sales Playbooks","Integrations","Analytics","Payments","Automations","Agent Team","Attribution","Commissions","Invoices","Contracts","Agency","Cyncro Work","Conversations","Social Automations","Journeys","Data Graph"]);
   const views=allViews.filter(item=>launchCRMViews.has(item.name)&&(!item.permission||currentAccess.role==="OWNER"||Boolean(currentAccess[item.permission])));
   return (
     <section className="crmShell">

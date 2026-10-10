@@ -54,6 +54,7 @@ export const STEP_TYPES = [
   ["CREATE_TASK", "Create task"], ["ADD_NOTE", "Add note"], ["CREATE_DEAL", "Create deal"], ["MOVE_STAGE", "Move deal to stage"], ["SET_LIFECYCLE", "Set lifecycle"],
   ["ASSIGN_REP", "Assign to teammate"], ["ROUND_ROBIN", "Assign round-robin"], ["NOTIFY_TEAM", "Notify teammate"], ["POST_TO_CHAT", "Post to Team Chat"],
   ["ENROLL_WORKFLOW", "Start another workflow"], ["REMOVE_FROM_WORKFLOW", "Stop other workflows"], ["WEBHOOK", "Send webhook"], ["END", "End workflow"],
+  ["CREATE_INVOICE", "Create invoice"], ["CREATE_JOB", "Create dispatch job"],
 ] as const;
 export type StepType = (typeof STEP_TYPES)[number][0];
 export const STEP_SET = new Set<string>(STEP_TYPES.map((s) => s[0]));
@@ -113,8 +114,11 @@ async function buildVars(tenantId: string, ctx: Ctx) {
   vars["deal.stage"] = str(ctx.stage || "");
   vars["deal.value"] = ctx.valueCents !== undefined ? `$${(Number(ctx.valueCents) / 100).toLocaleString()}` : "";
   vars["job.service"] = str(ctx.serviceType || "");
-  vars["invoice.amount"] = ctx.amountCents !== undefined ? `$${(Number(ctx.amountCents) / 100).toLocaleString()}` : "";
+  vars["job.address"] = str(ctx.address || "");
+  vars["vehicle"] = str(ctx.vehicle || "");
+  vars["amount"] = ctx.amountCents !== undefined ? `$${(Number(ctx.amountCents) / 100).toLocaleString()}` : "";
   vars["invoice.number"] = str(ctx.invoiceNumber || "");
+  vars["invoice.amount"] = ctx.amountCents !== undefined ? `$${(Number(ctx.amountCents) / 100).toLocaleString()}` : "";
   vars["task.title"] = str(ctx.taskTitle || "");
   vars["sms.body"] = str(ctx.body || "");
   vars["tag"] = str(ctx.tag || "");
@@ -441,6 +445,28 @@ async function execute(step: Step, s: State): Promise<string> {
       await db.prepare(`INSERT INTO work_tasks (id,title,details,status,priority,assignee,reporter,contact_id,due_at,estimated_minutes,tenant_id,created_at,updated_at) VALUES (?,?,?,'TODO',?,?,'automation',?,?,30,?,?,?)`)
         .bind(uid(), title, render(str(step.details || "Created by automation"), s.vars), str(step.priority || "MEDIUM").toUpperCase(), assignee, s.contactId, due, s.tenantId, t, t).run();
       return `Task "${title}" for ${assignee || "unassigned"}`;
+    }
+    case "CREATE_INVOICE": {
+      const c = needContact(); const email = str(c.email); if (!email) throw new Error("contact has no email; invoices need one");
+      let cents = Number(s.ctx.amountCents || s.ctx.valueCents || 0);
+      if (!cents && s.ctx.opportunityId) cents = Number((await db.prepare("SELECT value_cents FROM crm_opportunities WHERE id=? AND tenant_id=?").bind(str(s.ctx.opportunityId), s.tenantId).first<{ value_cents: number }>())?.value_cents || 0);
+      const dollars = step.amountDollars !== undefined && step.amountDollars !== "" ? Number(step.amountDollars) : cents / 100;
+      const amount = Math.max(50, Math.round(dollars * 100)); const desc = render(str(step.description || "{{deal.name}}") , s.vars) || "Services";
+      const dueDays = Math.max(0, Number(step.dueInDays ?? 7)); const id = uid(); const number = `CYN-${Date.now().toString().slice(-8)}`;
+      await db.prepare("INSERT INTO crm_invoices (id,invoice_number,client_name,client_email,description,amount_cents,due_date,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'DRAFT','automation',?,?,?)")
+        .bind(id, number, str(c.full_name), email, desc.slice(0, 1000), amount, new Date(Date.now() + dueDays * 86_400_000).toISOString().slice(0, 10), s.tenantId, t, t).run();
+      return `Invoice ${number} for $${(amount / 100).toLocaleString()} (draft)`;
+    }
+    case "CREATE_JOB": {
+      const c = needContact();
+      let cust = await db.prepare("SELECT id FROM dispatch_customers WHERE tenant_id=? AND (contact_id=? OR (email IS NOT NULL AND lower(email)=lower(?))) LIMIT 1").bind(s.tenantId, s.contactId, str(c.email)).first<{ id: string }>();
+      if (!cust) { const cid = uid(); await db.prepare("INSERT INTO dispatch_customers (id,tenant_id,name,phone,email,contact_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(cid, s.tenantId, str(c.full_name), str(c.phone) || null, str(c.email) || null, s.contactId, t, t).run(); cust = { id: cid }; }
+      const service = render(str(step.serviceType || "{{job.service}}"), s.vars) || "Service"; const address = render(str(step.address || "{{job.address}}"), s.vars) || str(c.address) || "";
+      const inDays = Math.max(0, Number(step.inDays ?? 1)); const when = new Date(Date.now() + inDays * 86_400_000); when.setHours(9, 0, 0, 0);
+      const id = uid();
+      await db.prepare("INSERT INTO dispatch_jobs (id,tenant_id,customer_id,service_type,description,address,scheduled_at,status,revenue_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'BOOKED',?,?,?)")
+        .bind(id, s.tenantId, cust.id, service.slice(0, 120), render(str(step.description || "Created by automation"), s.vars).slice(0, 2000), address.slice(0, 300), when.toISOString(), Math.max(0, Math.round(Number(step.revenueDollars || 0) * 100)), t, t).run();
+      return `Dispatch job "${service}" booked for ${when.toLocaleDateString()}`;
     }
     case "ADD_NOTE": {
       needContact(); const text = render(str(step.text || ""), s.vars);
