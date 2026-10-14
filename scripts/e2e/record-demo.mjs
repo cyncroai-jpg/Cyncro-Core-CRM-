@@ -1,0 +1,33 @@
+import { chromium } from "playwright-core";
+import { readFileSync } from "node:fs";
+const BASE="http://127.0.0.1:5177"; const S=process.argv[2]; const cookie=readFileSync(`${S}/demo-cookie.txt`,"utf8").trim().split("=")[1];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox","--force-device-scale-factor=2"]});
+const ctx=await browser.newContext({viewport:{width:1280,height:800},deviceScaleFactor:2,recordVideo:{dir:`${S}/video`,size:{width:1280,height:800}}});
+await ctx.addCookies([{name:"cyncro_session",value:cookie,domain:"127.0.0.1",path:"/"}]);
+const page=await ctx.newPage(); page.on("dialog",d=>d.accept());
+await page.addInitScript(()=>{ try{ localStorage.setItem("cyncro.welcome.seen","1"); }catch{} });
+const marks=[]; const mark=(label)=>marks.push([Date.now(),label]);
+const settle=(ms)=>page.waitForTimeout(ms);
+const glide=async(loc)=>{ const b=await loc.boundingBox(); if(!b) return; await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:28}); await settle(350); };
+const click=async(loc)=>{ await glide(loc); await loc.click(); };
+const nav=async(name)=>{ await click(page.locator(".crmNav button",{has:page.locator("span",{hasText:new RegExp(`^${name}$`)})}).first()); };
+const t0=Date.now();
+await page.goto(`${BASE}/#crm`,{waitUntil:"load"}); await settle(2500);
+await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.locator(".obHide").click({timeout:1000}).catch(()=>{});
+await settle(600); mark("overview"); await settle(3200);
+await nav("Pipeline"); await settle(2200); mark("pipeline");
+const card=page.locator(".dealCard, .pipelineCard, .kanbanCard").first(); if(await card.count()) await glide(card); await settle(2600);
+await nav("Calendar"); await settle(2600); mark("calendar"); await settle(2800);
+await nav("Automations"); await settle(2200); mark("automations");
+const recipes=page.locator(".fxLendChips button",{hasText:"Recipes"}); if(await recipes.count()) { await click(recipes); await settle(1600); }
+const first=page.locator(".auRecipeGrid article").first(); if(await first.count()) await glide(first); await settle(2400);
+await nav("Agent Team"); await settle(2400); mark("agents");
+const run=page.locator(".cyAgent").first().locator("footer .coSave"); if(await run.count()) { await glide(run); } await settle(2600);
+const fab=page.locator(".cyAiFab"); if(await fab.count()){ await click(fab); await settle(900); mark("ask"); const inp=page.locator(".aiComposer input"); await inp.click(); await inp.type("Book Marcus Bell an estimate Thursday at 3pm",{delay:55}); await settle(1800); await page.locator(".aiDrawerHead button").last().click(); await settle(500); }
+await click(page.locator(".productSwitcherBtn").first()); await settle(2200); mark("products"); await settle(2200);
+await page.goto(`${BASE}/#dispatch`,{waitUntil:"load"}); await settle(3200); mark("dispatch"); await settle(1600);
+await page.goto(`${BASE}/#crm/agency`,{waitUntil:"load"}); await settle(2600); mark("agency"); await settle(2000);
+await page.goto(`${BASE}/#crm`,{waitUntil:"load"}); await settle(2200); mark("end"); await settle(2600);
+const video=page.video(); await ctx.close(); const path=await video.path();
+console.log(JSON.stringify({path, marks: marks.map(([t,l])=>[(t-t0)/1000,l])}));
+await browser.close();

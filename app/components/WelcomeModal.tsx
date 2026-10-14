@@ -75,7 +75,7 @@ export function WelcomeModal({ onView, onOpenCalendar, onFlash }: { onView: (v: 
               <button onClick={() => go("Team Access")}><i>♙</i><b>Invite your team</b><span>Roles, permissions and a secure invite link.</span></button>
               <button onClick={() => go("Contracts")}><i>✎</i><b>Send a contract</b><span>Private signing links, e-signature, audit trail.</span></button>
             </div>
-            <div className="wlActions"><button className="cyAiMini" onClick={dismiss}>Just show me the workspace</button></div>
+            <div className="wlActions"><button className="cyAiMini" onClick={dismiss}>Just show me the workspace</button><button className="cyAiMini" disabled={busy} onClick={async () => { if (!window.confirm("Fill this empty company with a sample HVAC business (12 contacts, deals, bookings, jobs, invoices, automations, two agents)? Everything can be deleted later.")) return; setBusy(true); const r = await fetch("/api/crm/demo", { method: "POST" }); const j = await r.json().catch(() => ({})); setBusy(false); if (!r.ok) return onFlash(j.error || "Could not load the demo"); dismiss(); onFlash("Demo company loaded"); window.location.reload(); }}>{busy ? "Loading…" : "Load a demo company instead"}</button></div>
           </>
         )}
       </div>
