@@ -6,14 +6,14 @@ type Conn = { id: string; name: string; url: string; has_token: number; active: 
 
 /**
  * Team Access → "Cyncro AI everywhere": a teammate's personal keys for using
- * Cyncro from Claude / ChatGPT / Cursor (Cyncro as an MCP server), and the
+ * Cyncro from any outside AI assistant (Cyncro as an MCP server), and the
  * outside apps Cyncro AI itself may call (connected MCP servers).
  */
 export function McpPanel({ onFlash }: { onFlash: (m: string) => void }) {
   const [keys, setKeys] = useState<Key[]>([]);
   const [url, setUrl] = useState("");
   const [fresh, setFresh] = useState<{ key: string; name: string } | null>(null);
-  const [keyName, setKeyName] = useState("Claude");
+  const [keyName, setKeyName] = useState("My assistant");
   const [conns, setConns] = useState<Conn[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [conn, setConn] = useState({ name: "", url: "", token: "" });
@@ -43,18 +43,18 @@ export function McpPanel({ onFlash }: { onFlash: (m: string) => void }) {
   const config = fresh ? JSON.stringify({ mcpServers: { cyncro: { type: "http", url, headers: { Authorization: `Bearer ${fresh.key}` } } } }, null, 2) : "";
   return (
     <section className="crmPanel mcpPanel">
-      <div className="crmPanelHead"><div><small>CYNCRO AI EVERYWHERE</small><h2>Use Cyncro from Claude, ChatGPT or Cursor</h2><p>Cyncro speaks MCP (Model Context Protocol). A personal key lets an outside assistant read and act on this company exactly as you can, under your name.</p></div></div>
+      <div className="crmPanelHead"><div><small>CYNCRO AI EVERYWHERE</small><h2>Use Cyncro from your own AI assistant</h2><p>Cyncro speaks MCP (Model Context Protocol). A personal key lets an outside assistant read and act on this company exactly as you can, under your name.</p></div></div>
       <div className="mcpGrid">
         <div className="mcpBlock">
           <small>YOUR PERSONAL KEYS</small>
-          <div className="mcpRow"><input value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="Where you'll use it (e.g. Claude)" /><button className="coSave" disabled={busy === "mint"} onClick={() => void mint()}>{busy === "mint" ? "Creating…" : "Create key"}</button></div>
+          <div className="mcpRow"><input value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="Where you'll use it (e.g. my desktop assistant)" /><button className="coSave" disabled={busy === "mint"} onClick={() => void mint()}>{busy === "mint" ? "Creating…" : "Create key"}</button></div>
           {fresh && (
             <div className="mcpFresh">
               <b>Copy this now. It won't be shown again.</b>
               <code>{fresh.key}</code>
               <small>Server URL</small><code>{url}</code>
-              <small>Claude Desktop / Claude Code config</small><pre>{config}</pre>
-              <small>In Claude.ai: Settings → Connectors → Add custom connector → URL above, then paste the key as the bearer token.</small>
+              <small>Config for assistants that read an mcpServers file</small><pre>{config}</pre>
+              <small>In a web assistant: open its connectors or integrations settings, add a custom MCP connector with the URL above, and paste the key as the bearer token.</small>
             </div>
           )}
           <ul className="mcpList">

@@ -1,6 +1,6 @@
 /**
  * The one tool registry behind Cyncro AI. Both the in-app assistant and the
- * MCP server (/api/mcp) call these, so an outside assistant like Claude can do
+ * MCP server (/api/mcp) call these, so an outside AI assistant can do
  * exactly what the in-app one can, no more. Every tool runs inside one
  * company (tenantId) as one teammate (email + role), and every write is
  * gated by that teammate's role and written to the audit log.
