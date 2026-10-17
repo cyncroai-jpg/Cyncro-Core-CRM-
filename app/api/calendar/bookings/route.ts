@@ -1,5 +1,6 @@
 import { cleanText, coreDb, ensureCoreSchema, normalizeEmail } from "@/lib/core/db";
 import { requireTenant, requireTenantAction, tenantForBooking } from "@/lib/core/tenantAuth";
+import { companySettings } from "@/lib/core/companySettings";
 import { emitAutomationEvent } from "@/lib/automations/engine";
 import { syncGoogleBooking } from "@/lib/core/google-calendar";
 import { sendEmail, bookingConfirmationEmail, bookingCancellationEmail, bookingRescheduleEmail } from "@/lib/core/email";
@@ -183,6 +184,15 @@ export async function POST(request: Request) {
     const createdBooking = await db.prepare(`SELECT b.*,e.name AS event_name FROM calendar_bookings b JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.id=?`).bind(bookingId).first<Record<string,unknown>>();
     if (createdBooking) await syncGoogleBooking(tenant.email, createdBooking);
     // Automation webhooks — fire-and-forget
+    // In-person visits become Dispatch jobs when the company uses Dispatch, so the board and the calendar agree.
+    if (locationMode === "IN_PERSON" && (await companySettings(tenant.tenantId)).apps.includes("dispatch")) {
+      try {
+        let cust = await db.prepare("SELECT id FROM dispatch_customers WHERE tenant_id=? AND ((contact_id IS NOT NULL AND contact_id=?) OR (email IS NOT NULL AND lower(email)=lower(?))) LIMIT 1").bind(tenant.tenantId, contactId || "", customerEmail).first<{ id: string }>();
+        if (!cust) { const cid = crypto.randomUUID(); await db.prepare("INSERT INTO dispatch_customers (id,tenant_id,name,phone,email,contact_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(cid, tenant.tenantId, customerName, cleanText(body.customerPhone, 40) || null, customerEmail, contactId || null, now, now).run(); cust = { id: cid }; }
+        await db.prepare("INSERT INTO dispatch_jobs (id,tenant_id,customer_id,service_type,description,address,scheduled_at,status,revenue_cents,estimated_minutes,booking_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'BOOKED',0,?,?,?,?)")
+          .bind(crypto.randomUUID(), tenant.tenantId, cust.id, String(eventType.name || "Visit"), "Booked online through the booking page.", meetingAddress, starts.toISOString(), Number(eventType.duration_minutes || 60), bookingId, now, now).run();
+      } catch (e) { console.error("booking.dispatch_job_failed", e); }
+    }
     await emitAutomationEvent(tenant.tenantId, "BOOKING_CREATED", { contactId, bookingId, customerName, customerEmail, customerPhone: cleanText(body.customerPhone, 40), startsAt: starts.toISOString(), eventName: String(eventType.name || ""), eventTypeId, assignedTo, trigger: "BOOKING_CREATED" });
     void dispatchWebhookEvent("appointment.created", {
       bookingId, eventTypeId, customerName, customerEmail,

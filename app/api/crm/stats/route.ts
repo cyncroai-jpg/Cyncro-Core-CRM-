@@ -19,7 +19,9 @@ export async function GET(request: Request) {
         COALESCE(SUM(CASE WHEN stage = 'CLOSED WON' THEN CAST(value_cents * commission_rate_bps AS INTEGER) / 10000 ELSE 0 END),0) AS commission_cents
         FROM crm_opportunities WHERE tenant_id = ? GROUP BY assigned_rep ORDER BY revenue_cents DESC`).bind(tenant.tenantId).all(),
     ]);
-    return Response.json({ summary, reps: reps.results });
+    const today = new Date().toISOString().slice(0, 10);
+    const field = await db.prepare("SELECT COUNT(*) AS jobs_today, SUM(CASE WHEN status IN ('EN_ROUTE','IN PROGRESS') THEN 1 ELSE 0 END) AS techs_out, SUM(CASE WHEN status='COMPLETE' THEN revenue_cents ELSE 0 END) AS done_cents FROM dispatch_jobs WHERE tenant_id=? AND substr(scheduled_at,1,10)=?").bind(tenant.tenantId, today).first<{ jobs_today: number; techs_out: number; done_cents: number }>();
+    return Response.json({ summary: { ...(summary as Record<string, unknown>), jobs_today: Number(field?.jobs_today || 0), techs_out: Number(field?.techs_out || 0), field_done_cents: Number(field?.done_cents || 0) }, reps: reps.results });
   } catch (error) {
     console.error("crm.stats.failed", error);
     return Response.json({ error: "Unable to load CRM statistics." }, { status: 500 });

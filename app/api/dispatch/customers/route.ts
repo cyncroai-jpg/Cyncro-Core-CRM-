@@ -36,6 +36,16 @@ export async function POST(request: Request) {
     const name = cleanText(body.name, 160);
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
     const address = cleanText(body.address, 300);
+    // Same person again (by email or phone)? Reuse the existing dispatch customer instead of making a twin.
+    const emailIn = cleanText(body.email, 254).toLowerCase(); const phoneIn = cleanText(body.phone, 40).replace(/\D/g, "").slice(-10);
+    if (emailIn || phoneIn) {
+      const dup = await coreDb().prepare("SELECT id, contact_id FROM dispatch_customers WHERE tenant_id=? AND ((? <> '' AND lower(email)=?) OR (? <> '' AND substr(replace(replace(replace(replace(COALESCE(phone,''),'-',''),' ',''),'(',''),')',''), -10)=?)) LIMIT 1").bind(t.tenantId, emailIn, emailIn, phoneIn, phoneIn).first<{ id: string; contact_id: string | null }>();
+      if (dup) {
+        let propertyId: string | null = null;
+        if (address && !(await coreDb().prepare("SELECT id FROM dispatch_properties WHERE customer_id=? AND address=?").bind(dup.id, address).first())) { propertyId = crypto.randomUUID(); const n2 = new Date().toISOString(); await coreDb().prepare("INSERT INTO dispatch_properties (id,tenant_id,customer_id,address,city,state,zip,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(propertyId, t.tenantId, dup.id, address, cleanText(body.city, 100) || null, cleanText(body.state, 40) || null, cleanText(body.zip, 20) || null, n2, n2).run(); }
+        return Response.json({ id: dup.id, propertyId, contactId: dup.contact_id || (await linkDispatchCustomer(t.tenantId, dup.id).catch(() => "")), existing: true }, { status: 200 });
+      }
+    }
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const db = coreDb();

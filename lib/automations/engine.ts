@@ -33,6 +33,9 @@ export const TRIGGERS = [
   ["TAG_ADDED", "Tag added to contact"],
   ["TASK_COMPLETED", "Task completed"],
   ["JOB_CREATED", "Dispatch job booked"],
+  ["JOB_ASSIGNED", "Dispatch job assigned to a tech"],
+  ["JOB_EN_ROUTE", "Tech on the way"],
+  ["JOB_RESCHEDULED", "Dispatch job rescheduled"],
   ["JOB_COMPLETED", "Dispatch job completed"],
   ["VEHICLE_DEAL_CREATED", "Dealership: deal started"],
   ["VEHICLE_DEAL_SUBMITTED", "Dealership: deal sent to lenders"],
@@ -115,6 +118,8 @@ async function buildVars(tenantId: string, ctx: Ctx) {
   vars["deal.value"] = ctx.valueCents !== undefined ? `$${(Number(ctx.valueCents) / 100).toLocaleString()}` : "";
   vars["job.service"] = str(ctx.serviceType || "");
   vars["job.address"] = str(ctx.address || "");
+  vars["job.tech"] = str(ctx.techName || "");
+  vars["job.time"] = ctx.scheduledAt ? new Date(str(ctx.scheduledAt)).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: settings.timezone }) : "";
   vars["vehicle"] = str(ctx.vehicle || "");
   vars["amount"] = ctx.amountCents !== undefined ? `$${(Number(ctx.amountCents) / 100).toLocaleString()}` : "";
   vars["invoice.number"] = str(ctx.invoiceNumber || "");

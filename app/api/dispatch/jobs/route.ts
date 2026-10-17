@@ -6,7 +6,7 @@ import { emitAutomationEvent } from "@/lib/automations/engine";
 import { linkContact } from "@/lib/automations/link";
 
 
-const STATUSES = ["BOOKED", "ASSIGNED", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"];
+const STATUSES = ["BOOKED", "ASSIGNED", "EN_ROUTE", "IN PROGRESS", "COMPLETE", "INVOICED", "CANCELLED"];
 
 export async function GET(request: Request) {
   try {
@@ -126,7 +126,30 @@ export async function PATCH(request: Request) {
     if (!updates.length) return Response.json({ updated: false });
     updates.push("updated_at=?"); vals.push(new Date().toISOString());
     vals.push(t.tenantId, id);
+    const before = await coreDb().prepare("SELECT status, assigned_tech_id, scheduled_at FROM dispatch_jobs WHERE tenant_id=? AND id=?").bind(t.tenantId, id).first<{ status: string; assigned_tech_id: string | null; scheduled_at: string | null }>();
     await coreDb().prepare(`UPDATE dispatch_jobs SET ${updates.join(",")} WHERE tenant_id=? AND id=?`).bind(...vals).run();
+    // Cross-product events: every meaningful change reaches the CRM contact and the automations.
+    {
+      const j = await coreDb().prepare("SELECT j.service_type, j.address, j.scheduled_at, j.status, j.assigned_tech_id, j.revenue_cents, c.name customer_name, c.email customer_email, c.phone customer_phone, c.contact_id, tech.name tech_name FROM dispatch_jobs j LEFT JOIN dispatch_customers c ON c.id=j.customer_id LEFT JOIN dispatch_technicians tech ON tech.id=j.assigned_tech_id WHERE j.id=? AND j.tenant_id=?").bind(id, t.tenantId).first<Record<string, unknown>>();
+      if (j && before) {
+        const contactId = String(j.contact_id || "") || await linkContact(t.tenantId, { name: String(j.customer_name || ""), email: j.customer_email as string | null, phone: j.customer_phone as string | null, source: "DISPATCH" });
+        const base = { contactId, jobId: id, serviceType: String(j.service_type || ""), address: String(j.address || ""), scheduledAt: String(j.scheduled_at || ""), techName: String(j.tech_name || ""), customerName: String(j.customer_name || ""), customerEmail: String(j.customer_email || ""), customerPhone: String(j.customer_phone || "") };
+        const newStatus = String(j.status || "");
+        if (body.assignedTechId !== undefined && j.assigned_tech_id && j.assigned_tech_id !== before.assigned_tech_id) await emitAutomationEvent(t.tenantId, "JOB_ASSIGNED", { ...base, trigger: "JOB_ASSIGNED" }).catch(() => 0);
+        if (newStatus === "EN_ROUTE" && before.status !== "EN_ROUTE") await emitAutomationEvent(t.tenantId, "JOB_EN_ROUTE", { ...base, trigger: "JOB_EN_ROUTE" }).catch(() => 0);
+        if (body.scheduledAt !== undefined && String(j.scheduled_at || "") !== String(before.scheduled_at || "")) await emitAutomationEvent(t.tenantId, "JOB_RESCHEDULED", { ...base, trigger: "JOB_RESCHEDULED" }).catch(() => 0);
+        if (newStatus === "COMPLETE" && before.status !== "COMPLETE" && Number(j.revenue_cents || 0) > 0 && j.customer_email) {
+          // Draft the invoice from the job's revenue so nobody retypes it.
+          const existing = await coreDb().prepare("SELECT invoice_id FROM dispatch_jobs WHERE id=?").bind(id).first<{ invoice_id: string | null }>();
+          if (!existing?.invoice_id) {
+            const invId = crypto.randomUUID(); const nowI = new Date().toISOString(); const number = `JOB-${Date.now().toString().slice(-8)}`;
+            await coreDb().prepare("INSERT INTO crm_invoices (id,invoice_number,client_name,client_email,description,amount_cents,due_date,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'DRAFT',?,?,?,?)")
+              .bind(invId, number, String(j.customer_name || ""), String(j.customer_email), `${String(j.service_type)} at ${String(j.address || "your address")}`.slice(0, 1000), Number(j.revenue_cents), new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10), t.email, t.tenantId, nowI, nowI).run();
+            await coreDb().prepare("UPDATE dispatch_jobs SET invoice_id=? WHERE id=?").bind(invId, id).run();
+          }
+        }
+      }
+    }
     const google = body.scheduledAt !== undefined || body.status !== undefined || body.assignedTechId !== undefined ? await syncGoogleJob(t.email, t.tenantId, id) : "skipped";
     if (String(body.status || "").toUpperCase() === "COMPLETE") {
       const done = await coreDb().prepare("SELECT j.service_type, j.customer_id, c.name customer_name, c.email customer_email, c.phone customer_phone FROM dispatch_jobs j LEFT JOIN dispatch_customers c ON c.id=j.customer_id WHERE j.id=?").bind(id).first<{ service_type: string; customer_id: string; customer_name: string | null; customer_email: string | null; customer_phone: string | null }>();
