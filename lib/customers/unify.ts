@@ -42,13 +42,14 @@ export async function linkUnlinkedCustomers(limit = 150): Promise<{ dispatch: nu
 /** Everything this person has across every product, for the contact page. */
 export async function customerTimeline(tenantId: string, contactId: string) {
   const db = coreDb();
-  const [jobs, vehicleDeals, disputeRounds, bookings, invoices, contracts] = await Promise.all([
+  const [jobs, vehicleDeals, disputeRounds, bookings, invoices, contracts, repairOrders] = await Promise.all([
     db.prepare("SELECT j.id, j.service_type, j.status, j.scheduled_at, j.address, j.revenue_cents, t.name AS tech FROM dispatch_jobs j JOIN dispatch_customers c ON c.id=j.customer_id LEFT JOIN dispatch_technicians t ON t.id=j.assigned_tech_id WHERE j.tenant_id=? AND c.contact_id=? ORDER BY COALESCE(j.scheduled_at, j.created_at) DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
     db.prepare("SELECT d.id, d.status, d.contract_status, d.sale_price_cents, d.monthly_payment_cents, d.created_at, i.year, i.make, i.model FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id LEFT JOIN auto_inventory i ON i.id=d.vehicle_id WHERE d.tenant_id=? AND c.contact_id=? ORDER BY d.created_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
     db.prepare("SELECT r.id, r.round_number, r.credit_bureau, r.status, r.opened_at, r.closed_at FROM dispute_rounds r JOIN credit_repair_clients c ON c.id=r.client_id WHERE r.tenant_id=? AND c.contact_id=? ORDER BY r.opened_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
     db.prepare("SELECT b.id, b.starts_at, b.status, b.location_mode, e.name AS event_name FROM calendar_bookings b LEFT JOIN calendar_event_types e ON e.id=b.event_type_id WHERE b.tenant_id=? AND b.contact_id=? ORDER BY b.starts_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
     db.prepare("SELECT i.id, i.invoice_number, i.amount_cents, i.status, i.due_date, i.paid_at FROM crm_invoices i JOIN crm_contacts c ON lower(c.email)=lower(i.client_email) WHERE i.tenant_id=? AND c.id=? ORDER BY i.created_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
     db.prepare("SELECT k.id, k.title, k.status, k.signed_at, k.created_at FROM crm_contracts k JOIN crm_contacts c ON lower(c.email)=lower(k.client_email) WHERE k.tenant_id=? AND c.id=? ORDER BY k.created_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>(),
+    db.prepare("SELECT id, ro_number, status, complaint, year, make, model, total_cents, opened_at, closed_at FROM service_repair_orders WHERE tenant_id=? AND contact_id=? ORDER BY opened_at DESC LIMIT 25").bind(tenantId, contactId).all<Record<string, unknown>>().catch(() => ({ results: [] as Record<string, unknown>[] })),
   ]);
-  return { jobs: jobs.results, vehicleDeals: vehicleDeals.results, disputeRounds: disputeRounds.results, bookings: bookings.results, invoices: invoices.results, contracts: contracts.results };
+  return { jobs: jobs.results, vehicleDeals: vehicleDeals.results, disputeRounds: disputeRounds.results, bookings: bookings.results, invoices: invoices.results, contracts: contracts.results, repairOrders: repairOrders.results };
 }

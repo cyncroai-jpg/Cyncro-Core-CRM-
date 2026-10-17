@@ -10937,6 +10937,7 @@ function CRMOverviewCommand({
         <article><small>CLOSED WON</small><b>{usd(Number(crmSummary.won_cents || 0))}</b><span>{won.length} deals won</span></article>
         <article><small>WIN RATE</small><b>{winRate == null ? "—" : `${winRate}%`}</b><span>{won.length + lost.length ? `of ${won.length + lost.length} closed` : "no closed deals yet"}</span></article>
         <article><small>CONTACTS · ACCOUNTS</small><b>{crmSummary.contacts || 0} · {crmSummary.accounts || 0}</b><span>in your workspace</span></article>
+        {(Number(crmSummary.deals_open || 0) > 0 || Number(crmSummary.ros_open || 0) > 0 || Number(crmSummary.funded_today || 0) > 0) && <article><small>DEALERSHIP · TODAY</small><b>{crmSummary.funded_today || 0} funded</b><span>{usd(Number(crmSummary.funded_cents || 0))} today · {crmSummary.deals_open || 0} deal{Number(crmSummary.deals_open) === 1 ? "" : "s"} working · {crmSummary.ros_open || 0} RO{Number(crmSummary.ros_open) === 1 ? "" : "s"} open</span></article>}
         {Number(crmSummary.jobs_today || 0) > 0 && <article><small>FIELD · TODAY</small><b>{crmSummary.jobs_today} job{Number(crmSummary.jobs_today) === 1 ? "" : "s"}</b><span>{crmSummary.techs_out || 0} tech{Number(crmSummary.techs_out) === 1 ? "" : "s"} out · {usd(Number(crmSummary.field_done_cents || 0))} done</span></article>}
       </div>
       <div className="ccGrid3">
@@ -13086,8 +13087,21 @@ function CRMContactDetail({
     created_at: string;
   };
   const [editing, setEditing] = useState(false);
-  const [composer, setComposer] = useState<"NOTE" | "TASK" | "JOB" | null>(null);
+  const [composer, setComposer] = useState<"NOTE" | "TASK" | "JOB" | "VISIT" | null>(null);
   const [jobDraft, setJobDraft] = useState({ service: "", address: "", when: "", revenue: "" });
+  const [visitDraft, setVisitDraft] = useState({ complaint: "", vehicle: "", when: "" });
+  const createVisit = async () => {
+    if (!visitDraft.complaint.trim()) return onFlash("Say what the vehicle needs");
+    const [firstName, ...rest] = contact.name.trim().split(/\s+/); const lastName = rest.join(" ") || "Customer";
+    let r = await fetch("/api/automotive?resource=customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firstName, lastName, email: contact.email === "No email" ? "" : contact.email || "", phone: contact.phone === "No phone" ? "" : contact.phone || "" }) });
+    const cust = (await r.json().catch(() => ({}))) as { id?: string; error?: string };
+    if (!r.ok || !cust.id) return onFlash(cust.error || "Could not create the dealership customer");
+    const m = visitDraft.vehicle.trim().match(/^(\d{4})?\s*(\S+)?\s*(.*)$/);
+    r = await fetch("/api/automotive-service?resource=repair-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: cust.id, customerName: contact.name, customerPhone: contact.phone === "No phone" ? "" : contact.phone || "", complaint: visitDraft.complaint, year: m?.[1] ? Number(m[1]) : undefined, make: m?.[2] || "", model: m?.[3] || "", promisedAt: visitDraft.when ? new Date(visitDraft.when).toISOString() : "" }) });
+    const ro = (await r.json().catch(() => ({}))) as { error?: string; roNumber?: string };
+    if (!r.ok) return onFlash(ro.error || "Could not open the repair order");
+    setComposer(null); setVisitDraft({ complaint: "", vehicle: "", when: "" }); void logActivity("NOTE", `Service visit opened: ${ro.roNumber || ""} ${visitDraft.complaint}`.trim()); onFlash(`Repair order ${ro.roNumber || ""} is open in Dealership service`);
+  };
   const createJob = async () => {
     if (!jobDraft.service.trim()) return onFlash("Say what the job is");
     let r = await fetch("/api/dispatch/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: contact.name, email: contact.email === "No email" ? "" : contact.email || "", address: jobDraft.address }) });
@@ -13377,7 +13391,16 @@ function CRMContactDetail({
           Book appointment
         </button>
         <button onClick={() => setComposer(composer === "JOB" ? null : "JOB")}>Create job</button>
+        <button onClick={() => setComposer(composer === "VISIT" ? null : "VISIT")}>Service visit</button>
       </div>
+      {composer === "VISIT" && (
+        <div className="contactComposer">
+          <b>NEW SERVICE VISIT (DEALERSHIP)</b>
+          <input value={visitDraft.complaint} onChange={(e) => setVisitDraft({ ...visitDraft, complaint: e.target.value })} placeholder="What does the vehicle need? (e.g. 60k service, brake noise)" />
+          <div className="contactComposerRow"><input value={visitDraft.vehicle} onChange={(e) => setVisitDraft({ ...visitDraft, vehicle: e.target.value })} placeholder="Vehicle (e.g. 2021 Honda Accord)" /><input type="datetime-local" value={visitDraft.when} onChange={(e) => setVisitDraft({ ...visitDraft, when: e.target.value })} /></div>
+          <div className="contactComposerActions"><button onClick={() => void createVisit()}>Open repair order</button><a className="cyAiMini" href="#finance">Open Dealership</a><button onClick={() => setComposer(null)}>Cancel</button></div>
+        </div>
+      )}
       {composer === "JOB" && (
         <div className="contactComposer">
           <b>NEW DISPATCH JOB</b>
@@ -13387,7 +13410,7 @@ function CRMContactDetail({
           <div className="contactComposerActions"><button onClick={() => void createJob()}>Book the job</button><button onClick={() => setComposer(null)}>Cancel</button></div>
         </div>
       )}
-      {composer && composer !== "JOB" && (
+      {composer && composer !== "JOB" && composer !== "VISIT" && (
         <div className="contactComposer">
           <b>{composer === "TASK" ? "ADD TASK" : "ADD NOTE"}</b>
           {composer === "TASK" && (

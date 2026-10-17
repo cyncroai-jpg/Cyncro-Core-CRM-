@@ -22,6 +22,26 @@
  */
 import { cleanText, ensureCoreSchema, getTenantContext, coreDb } from "@/lib/core/db";
 import { postJournalEntry } from "@/lib/core/accounting";
+import { emitAutomationEvent } from "@/lib/automations/engine";
+import { linkContact } from "@/lib/automations/link";
+
+/** One CRM contact per service customer; fires the repair-order trigger with the RO's facts. */
+async function roEvent(tenantId: string, roId: string, trigger: "SERVICE_RO_OPENED" | "SERVICE_RO_COMPLETED", by: string) {
+  const db = coreDb();
+  const r = await db.prepare("SELECT r.ro_number, r.customer_name, r.customer_phone, r.contact_id, r.invoice_id, r.year, r.make, r.model, r.complaint, r.total_cents, r.promised_at, c.email, t.name AS tech FROM service_repair_orders r LEFT JOIN auto_customers c ON c.id=r.customer_id LEFT JOIN service_technicians t ON t.id=r.technician_id WHERE r.id=? AND r.tenant_id=?").bind(roId, tenantId)
+    .first<{ ro_number: string; customer_name: string; customer_phone: string | null; contact_id: string | null; invoice_id: string | null; year: number | null; make: string | null; model: string | null; complaint: string | null; total_cents: number; promised_at: string | null; email: string | null; tech: string | null }>();
+  if (!r) return;
+  const contactId = r.contact_id || await linkContact(tenantId, { name: r.customer_name, email: r.email, phone: r.customer_phone, source: "DEALERSHIP" });
+  if (contactId && contactId !== r.contact_id) await db.prepare("UPDATE service_repair_orders SET contact_id=? WHERE id=?").bind(contactId, roId).run();
+  const vehicle = [r.year, r.make, r.model].filter(Boolean).join(" ");
+  if (trigger === "SERVICE_RO_COMPLETED" && !r.invoice_id && r.total_cents > 0 && r.email) {
+    const invId = crypto.randomUUID(); const t = new Date().toISOString(); const number = `${r.ro_number}-${Date.now().toString().slice(-5)}`;
+    await db.prepare("INSERT INTO crm_invoices (id,invoice_number,client_name,client_email,description,amount_cents,due_date,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'DRAFT',?,?,?,?)")
+      .bind(invId, number, r.customer_name, r.email, `Repair order ${r.ro_number}${vehicle ? ` — ${vehicle}` : ""}${r.complaint ? `: ${r.complaint}` : ""}`.slice(0, 1000), r.total_cents, t.slice(0, 10), by, tenantId, t, t).run();
+    await db.prepare("UPDATE service_repair_orders SET invoice_id=? WHERE id=?").bind(invId, roId).run();
+  }
+  await emitAutomationEvent(tenantId, trigger, { contactId, roId, roNumber: r.ro_number, serviceType: r.complaint || "Service visit", vehicle, techName: r.tech || "", scheduledAt: r.promised_at || "", customerName: r.customer_name, customerEmail: r.email || "", customerPhone: r.customer_phone || "", amountCents: Number(r.total_cents || 0), trigger }).catch((err) => console.error("service.ro_event_failed", err));
+}
 
 function uid() {
   return crypto.randomUUID();
@@ -170,6 +190,7 @@ export async function POST(request: Request) {
           cleanText(body.technicianId, 80) || null, cleanText(body.complaint, 1000) || null, "OPEN",
           cleanText(body.promisedAt, 40) || null, now, now, now,
         ).run();
+      await roEvent(tenant.tenantId, id, "SERVICE_RO_OPENED", tenant.email);
       return Response.json({ id, roNumber }, { status: 201 });
     }
 
@@ -267,6 +288,7 @@ export async function PATCH(request: Request) {
           }
         }
       }
+      if (body.status === "INVOICED" || body.status === "CLOSED") await roEvent(tenant.tenantId, id, "SERVICE_RO_COMPLETED", tenant.email);
       return Response.json({ updated: true });
     }
 

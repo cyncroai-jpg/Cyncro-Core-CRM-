@@ -48,7 +48,7 @@ import { emitAutomationEvent } from "@/lib/automations/engine";
 import { linkContact } from "@/lib/automations/link";
 import { linkAutoCustomer } from "@/lib/customers/unify";
 
-async function dealEvent(tenantId: string, dealId: string, trigger: "VEHICLE_DEAL_CREATED" | "VEHICLE_DEAL_SUBMITTED" | "VEHICLE_CONTRACT_SENT") {
+async function dealEvent(tenantId: string, dealId: string, trigger: "VEHICLE_DEAL_CREATED" | "VEHICLE_DEAL_SUBMITTED" | "VEHICLE_CONTRACT_SENT" | "VEHICLE_CONTRACT_SIGNED" | "VEHICLE_DEAL_FUNDED") {
   const d = await coreDb().prepare("SELECT c.first_name, c.last_name, c.email, c.phone, i.year, i.make, i.model, d.sale_price_cents FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id LEFT JOIN auto_inventory i ON i.id=d.vehicle_id WHERE d.id=? AND d.tenant_id=?").bind(dealId, tenantId).first<{ first_name: string; last_name: string; email: string | null; phone: string | null; year: number | null; make: string | null; model: string | null; sale_price_cents: number }>();
   if (!d) return;
   const name = `${d.first_name} ${d.last_name}`.trim();
@@ -392,6 +392,11 @@ export async function POST(request: Request) {
       const firstName = cleanText(body.firstName, 100);
       const lastName = cleanText(body.lastName, 100);
       if (!firstName || !lastName) return Response.json({ error: "firstName and lastName are required." }, { status: 400 });
+      const emailKey = cleanText(body.email, 254).toLowerCase(); const phoneKey = cleanText(body.phone, 40).replace(/\D/g, "");
+      if (emailKey || phoneKey) {
+        const dup = await db.prepare("SELECT id FROM auto_customers WHERE tenant_id=? AND ((?<>'' AND lower(email)=?) OR (?<>'' AND replace(replace(replace(replace(COALESCE(phone,''),'-',''),' ',''),'(',''),')','')=?)) ORDER BY created_at LIMIT 1").bind(tenant.tenantId, emailKey, emailKey, phoneKey, phoneKey).first<{ id: string }>();
+        if (dup) { const contactId = await linkAutoCustomer(tenant.tenantId, dup.id).catch(() => ""); return Response.json({ id: dup.id, contactId, existing: true }, { status: 200 }); }
+      }
       const id = uid();
       await db.prepare(`INSERT INTO auto_customers (id,tenant_id,first_name,last_name,email,phone,address,date_of_birth,ssn_last4,credit_score_pulled,created_at,updated_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
@@ -838,6 +843,7 @@ export async function PATCH(request: Request) {
       if (deal.contract_status !== "SENT") return Response.json({ error: "The contract must be sent to the buyer before it can be signed." }, { status: 400 });
       await db.prepare(`UPDATE auto_deals SET contract_status='SIGNED', contract_signed_at=?, signer_name=?, signature_data=?, updated_at=?
         WHERE tenant_id=? AND id=?`).bind(now, signerName, signatureData, now, tenant.tenantId, dealId).run();
+      await dealEvent(tenant.tenantId, dealId, "VEHICLE_CONTRACT_SIGNED").catch((err) => console.error("automotive.signed_event_failed", err));
       return Response.json({ signed: true });
     }
 
@@ -914,6 +920,18 @@ export async function PATCH(request: Request) {
         } catch (err) {
           console.error("automotive.journal_post_failed", err);
         }
+        // CRM side: the buyer's invoice is drafted once from the deal, and the funded trigger fires for automations.
+        if (!current.invoice_id) {
+          const buyer = await db.prepare("SELECT c.first_name, c.last_name, c.email, i.year, i.make, i.model FROM auto_deals d JOIN auto_customers c ON c.id=d.customer_id LEFT JOIN auto_inventory i ON i.id=d.vehicle_id WHERE d.id=?").bind(id).first<{ first_name: string; last_name: string; email: string | null; year: number | null; make: string | null; model: string | null }>();
+          if (buyer?.email) {
+            const invId = uid(); const number = `DEAL-${Date.now().toString().slice(-8)}`;
+            const vehicle = [buyer.year, buyer.make, buyer.model].filter(Boolean).join(" ") || "vehicle";
+            await db.prepare("INSERT INTO crm_invoices (id,invoice_number,client_name,client_email,description,amount_cents,due_date,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'DRAFT',?,?,?,?)")
+              .bind(invId, number, `${buyer.first_name} ${buyer.last_name}`.trim(), buyer.email, `Buyer's order — ${vehicle}`.slice(0, 1000), next.sale_price_cents + productPriceCents, now.slice(0, 10), tenant.email, tenant.tenantId, now, now).run();
+            await db.prepare("UPDATE auto_deals SET invoice_id=? WHERE id=?").bind(invId, id).run();
+          }
+        }
+        await dealEvent(tenant.tenantId, id, "VEHICLE_DEAL_FUNDED").catch((err) => console.error("automotive.funded_event_failed", err));
       }
       return Response.json({ updated: true, amountFinancedCents, monthlyPaymentCents });
     }

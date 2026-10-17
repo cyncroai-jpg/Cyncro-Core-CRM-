@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 
 type Row = Record<string, unknown>;
-type Data = { jobs: Row[]; vehicleDeals: Row[]; disputeRounds: Row[]; bookings: Row[]; invoices: Row[]; contracts: Row[]; apps: string[] };
+type Data = { jobs: Row[]; vehicleDeals: Row[]; disputeRounds: Row[]; bookings: Row[]; invoices: Row[]; contracts: Row[]; repairOrders?: Row[]; apps: string[] };
 const usd = (c: unknown) => (Number(c || 0) / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const when = (v: unknown) => (v ? new Date(String(v)).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "");
 
@@ -16,6 +16,7 @@ export function AcrossCyncro({ contactId }: { contactId: string }) {
     { key: "bookings", label: "Appointments", rows: d.bookings, line: (r: Row) => [String(r.event_name || "Appointment"), when(r.starts_at), String(r.status || "")] },
     { key: "jobs", label: "Dispatch jobs", rows: d.jobs, line: (r: Row) => [String(r.service_type), `${when(r.scheduled_at)}${r.tech ? ` · ${r.tech}` : ""}`, `${String(r.status || "")}${r.revenue_cents ? ` · ${usd(r.revenue_cents)}` : ""}`] },
     { key: "vehicleDeals", label: "Vehicle deals", rows: d.vehicleDeals, line: (r: Row) => [[r.year, r.make, r.model].filter(Boolean).join(" ") || "Vehicle deal", when(r.created_at), `${String(r.status || "")} · ${usd(r.sale_price_cents)}`] },
+    { key: "repairOrders", label: "Service visits", rows: d.repairOrders || [], line: (r: Row) => [`${String(r.ro_number)}${[r.year, r.make, r.model].filter(Boolean).length ? ` · ${[r.year, r.make, r.model].filter(Boolean).join(" ")}` : ""}`, r.closed_at ? `closed ${when(r.closed_at)}` : when(r.opened_at), `${String(r.status || "")}${r.total_cents ? ` · ${usd(r.total_cents)}` : ""}`] },
     { key: "disputeRounds", label: "Dispute rounds", rows: d.disputeRounds, line: (r: Row) => [`Round ${r.round_number} · ${r.credit_bureau}`, when(r.opened_at), String(r.status || "")] },
     { key: "invoices", label: "Invoices", rows: d.invoices, line: (r: Row) => [String(r.invoice_number), r.paid_at ? `paid ${when(r.paid_at)}` : r.due_date ? `due ${when(r.due_date)}` : "", `${String(r.status || "")} · ${usd(r.amount_cents)}`] },
     { key: "contracts", label: "Contracts", rows: d.contracts, line: (r: Row) => [String(r.title), r.signed_at ? `signed ${when(r.signed_at)}` : when(r.created_at), String(r.status || "")] },

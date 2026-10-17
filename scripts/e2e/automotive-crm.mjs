@@ -1,0 +1,83 @@
+// Dealership ↔ CRM: signed + funded deals fire automations and draft the buyer's invoice; service repair orders link the customer, fire triggers and draft the invoice on close; contact page opens a service visit; overview shows dealership KPIs.
+import { chromium } from "playwright-core";
+const BASE="http://127.0.0.1:5177"; const stamp=Date.now(); const OUT=process.env.OUT||".";
+let pass=0, fail=0; const check=(n,ok,x="")=>{(ok?pass++:fail++);console.log(`${ok?"PASS":"FAIL"} ${n}${x?" — "+x:""}`)};
+async function api(p,init={},cookie=""){const r=await fetch(BASE+p,{...init,headers:{"Content-Type":"application/json",...(cookie?{Cookie:cookie}:{})}});let b=null;try{b=await r.json()}catch{}return{r,b,cookie:(r.headers.get("set-cookie")||"").split(";")[0]}}
+const su=await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({tenantName:`Motors ${stamp}`,displayName:"Dee",email:`dee+${stamp}@example.com`,password:"Password123!"})}); const A=su.cookie;
+await api("/api/tenants/settings",{method:"PATCH",body:JSON.stringify({settings:{apps:["automotive","growth"]}})},A);
+const kit=await api("/api/crm/kits",{method:"POST",body:JSON.stringify({key:"dealership"})},A);
+check("dealership kit installs", kit.r.ok, JSON.stringify(kit.b).slice(0,120));
+const meta=(await api("/api/crm/automations",{},A)).b;
+for (const t of ["VEHICLE_CONTRACT_SIGNED","VEHICLE_DEAL_FUNDED","SERVICE_RO_OPENED","SERVICE_RO_COMPLETED"]) check(`trigger ${t} in the builder`, (meta.triggers||[]).some(x=>x[0]===t));
+const wfs=(meta.automations||meta.workflows||[]);
+check("kit added funded / signed / service recipes", wfs.some(w=>w.trigger==="VEHICLE_DEAL_FUNDED") && wfs.some(w=>w.trigger==="VEHICLE_CONTRACT_SIGNED") && wfs.some(w=>w.trigger==="SERVICE_RO_COMPLETED"), wfs.map(w=>w.trigger).join(","));
+// note-writing automations so we can see them land on the contact
+for (const [trig,body] of [["VEHICLE_CONTRACT_SIGNED","Signed for the {{vehicle}}"],["VEHICLE_DEAL_FUNDED","Funded {{amount}} on the {{vehicle}}"],["SERVICE_RO_OPENED","RO opened: {{job.service}}"],["SERVICE_RO_COMPLETED","RO closed {{amount}}"]]) await api("/api/crm/automations",{method:"POST",body:JSON.stringify({name:`${trig} ${stamp}`,trigger:trig,steps:[{type:"ADD_NOTE",text:body}]})},A);
+// 1) deal: customer + vehicle
+const cust=await api("/api/automotive?resource=customers",{method:"POST",body:JSON.stringify({firstName:"Marisol",lastName:`Vega${stamp}`,email:`marisol+${stamp}@example.com`,phone:"5550109999"})},A);
+check("auto customer created and linked to a CRM contact", cust.r.status===201 && cust.b.contactId, JSON.stringify(cust.b));
+const dup=await api("/api/automotive?resource=customers",{method:"POST",body:JSON.stringify({firstName:"Marisol",lastName:"Vega",email:`MARISOL+${stamp}@example.com`})},A);
+check("same email reuses the customer instead of duplicating", dup.r.ok && dup.b.id===cust.b.id && dup.b.existing===true, JSON.stringify(dup.b));
+const veh=await api("/api/automotive?resource=inventory",{method:"POST",body:JSON.stringify({stockNumber:`S${stamp}`,vin:`1HG${stamp}`.slice(0,17),year:2022,make:"Honda",model:"Accord",askingPrice:27500,acquisitionCost:22000})},A);
+check("vehicle in inventory", veh.r.status===201, JSON.stringify(veh.b).slice(0,100));
+const deal=await api("/api/automotive?resource=deals",{method:"POST",body:JSON.stringify({customerId:cust.b.id,vehicleId:veh.b.id,salePrice:27500,downPayment:2500,termMonths:60,interestRate:6.9})},A);
+check("deal created", deal.r.status===201, JSON.stringify(deal.b).slice(0,100));
+const dealId=deal.b.id;
+// check every jacket doc, screen compliance, send + sign contract
+const docs=(await api(`/api/automotive?resource=documents&dealId=${dealId}`,{},A)).b; const docList=docs.documents||docs||[];
+for (const d of docList) await api(`/api/automotive?resource=documents&id=${d.id}`,{method:"PATCH",body:JSON.stringify({checked:true})},A);
+const cc=await api("/api/automotive?resource=compliance-check",{method:"POST",body:JSON.stringify({dealId,screenedName:"Marisol Vega"})},A);
+check("compliance screen clean", cc.r.status===201 && cc.b.matchFound===false);
+check("contract sent", (await api("/api/automotive?resource=contract",{method:"POST",body:JSON.stringify({dealId})},A)).r.ok);
+const signed=await api(`/api/automotive?resource=contract&id=${dealId}`,{method:"PATCH",body:JSON.stringify({signerName:"Marisol Vega",signatureData:"data:image/png;base64,AAAA"})},A);
+check("contract signed", signed.r.ok && signed.b.signed===true, JSON.stringify(signed.b));
+const funded=await api(`/api/automotive?resource=deals&id=${dealId}`,{method:"PATCH",body:JSON.stringify({fundingStatus:"FUNDED"})},A);
+check("deal funded", funded.r.ok, JSON.stringify(funded.b).slice(0,120));
+await new Promise(r=>setTimeout(r,1500));
+const contact=(await api(`/api/crm/contacts?q=marisol%2B${stamp}`,{},A)).b.contacts[0];
+check("buyer is one CRM contact", contact && contact.id===cust.b.contactId, JSON.stringify(contact||null).slice(0,100));
+const acts=JSON.stringify((await api(`/api/crm/activities?contactId=${contact.id}`,{},A)).b)+JSON.stringify((await api(`/api/crm/contacts?id=${contact.id}`,{},A)).b);
+check("signed and funded automations wrote notes with vehicle + amount", /Signed for the 2022 Honda Accord/.test(acts) && /Funded \$27,500 on the 2022 Honda Accord/.test(acts), acts.slice(0,200));
+let invs=(await api("/api/crm/invoices",{},A)).b.invoices.filter(i=>i.client_email===`marisol+${stamp}@example.com`);
+check("funding drafted the buyer's order invoice for $27,500", invs.length===1 && invs[0].amount_cents===2750000 && invs[0].status==="DRAFT" && /Honda Accord/.test(invs[0].description), JSON.stringify(invs).slice(0,160));
+await api(`/api/automotive?resource=deals&id=${dealId}`,{method:"PATCH",body:JSON.stringify({fundingStatus:"FUNDED"})},A);
+check("funding again does not duplicate the invoice", (await api("/api/crm/invoices",{},A)).b.invoices.filter(i=>i.client_email===`marisol+${stamp}@example.com`).length===1);
+// 2) service: repair order opened → linked; lines; closed → invoice + trigger
+const ro=await api("/api/automotive-service?resource=repair-orders",{method:"POST",body:JSON.stringify({customerId:cust.b.id,customerName:`Marisol Vega${stamp}`,customerPhone:"5550109999",year:2022,make:"Honda",model:"Accord",complaint:"Brake noise"})},A);
+check("repair order opened", ro.r.status===201 && /^RO-/.test(ro.b.roNumber), JSON.stringify(ro.b));
+await api("/api/automotive-service?resource=lines",{method:"POST",body:JSON.stringify({roId:ro.b.id,lineType:"LABOR",description:"Brake inspection + pads",quantity:2,unitPrice:120})},A);
+await api("/api/automotive-service?resource=lines",{method:"POST",body:JSON.stringify({roId:ro.b.id,lineType:"PART",description:"Front pads",quantity:1,unitPrice:89.5})},A);
+check("RO closed", (await api(`/api/automotive-service?resource=repair-orders&id=${ro.b.id}`,{method:"PATCH",body:JSON.stringify({status:"INVOICED"})},A)).r.ok);
+await new Promise(r=>setTimeout(r,1200));
+const acts2=JSON.stringify((await api(`/api/crm/activities?contactId=${contact.id}`,{},A)).b);
+check("RO opened/closed automations landed on the same contact", /RO opened: Brake noise/.test(acts2) && /RO closed \$329\.5/.test(acts2), acts2.slice(0,200));
+invs=(await api("/api/crm/invoices",{},A)).b.invoices.filter(i=>i.client_email===`marisol+${stamp}@example.com`);
+const roInv=invs.find(i=>i.invoice_number.startsWith(ro.b.roNumber));
+check("closing the RO drafted a $329.50 invoice", roInv && roInv.amount_cents===32950 && /Brake noise/.test(roInv.description), JSON.stringify(invs.map(i=>[i.invoice_number,i.amount_cents])));
+await api(`/api/automotive-service?resource=repair-orders&id=${ro.b.id}`,{method:"PATCH",body:JSON.stringify({status:"CLOSED"})},A);
+check("closing again does not duplicate", (await api("/api/crm/invoices",{},A)).b.invoices.filter(i=>i.client_email===`marisol+${stamp}@example.com`).length===2);
+const across=(await api(`/api/crm/contacts/across?id=${contact.id}`,{},A)).b;
+check("across cyncro shows the deal, the service visit and both invoices", across.vehicleDeals.length===1 && across.repairOrders.length===1 && across.invoices.length===2, JSON.stringify({d:across.vehicleDeals.length,r:(across.repairOrders||[]).length,i:across.invoices.length}));
+const stats=(await api("/api/crm/stats",{},A)).b.summary;
+check("overview stats carry dealership numbers", stats.funded_today===1 && stats.funded_cents===2750000 && stats.ros_open===0, JSON.stringify(stats).slice(0,200));
+// 3) UI: contact page → Service visit; overview KPI
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
+const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",dd=>dd.accept());
+await page.goto(`${BASE}/#crm/contacts`,{waitUntil:"load"}); await page.waitForTimeout(2200); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});
+await page.locator(".contactRow",{hasText:"Marisol"}).first().locator(".contactRowActions button",{hasText:"Open"}).click(); await page.waitForTimeout(1500);
+await page.locator("button",{hasText:"Service visit"}).first().click(); await page.waitForTimeout(400);
+await page.locator(".contactComposer input").nth(0).fill("60k mile service"); await page.locator(".contactComposer input").nth(1).fill("2022 Honda Accord");
+await page.locator("button",{hasText:"Open repair order"}).click(); await page.waitForTimeout(1800);
+const ros=(await api("/api/automotive-service?resource=repair-orders",{},A)).b; const roList=ros.repairOrders||ros.orders||ros||[];
+const mine=roList.find(r=>r.complaint==="60k mile service");
+check("Service visit from the contact page opened a repair order on the same customer", mine && mine.customer_id===cust.b.id && mine.make==="Honda" && mine.year===2022, JSON.stringify(mine||roList.length).slice(0,200));
+check("across shows 2 service visits now", (await api(`/api/crm/contacts/across?id=${contact.id}`,{},A)).b.repairOrders.length===2);
+await page.screenshot({path:`${OUT}/automotive-crm-contact.png`});
+await page.goto(`${BASE}/#crm`,{waitUntil:"load"}); await page.waitForTimeout(2500);
+const kpi=await page.locator("article",{hasText:"DEALERSHIP · TODAY"}).first().textContent().catch(()=>"");
+check("overview shows DEALERSHIP · TODAY with funded + RO counts", /1 funded/.test(kpi) && /\$27,500/.test(kpi) && /1 RO open/.test(kpi), kpi);
+await page.screenshot({path:`${OUT}/automotive-crm-overview.png`});
+check("no page errors", errors.length===0, errors.join(" | ").slice(0,200));
+await browser.close();
+console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);
