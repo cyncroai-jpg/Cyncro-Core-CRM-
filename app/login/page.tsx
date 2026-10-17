@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 type Mode = "login" | "setup" | "invite" | "signup" | "forgot" | "reset" | "twofactor";
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(() => { try { const q = new URLSearchParams(window.location.search); if (q.get("mode") === "signup") return "signup"; } catch { /* ssr */ } return "login"; });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -338,7 +338,7 @@ export default function LoginPage() {
               <button type="submit" className="loginSubmit" disabled={submitting}>
                 {submitting ? <span className="loginBtnSpinner" /> : "Create workspace"}
               </button>
-              <p className="loginLegal">Free for 14 days, no card needed. By creating a workspace you agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</p>
+              <p className="loginLegal">Free for 14 days, no card needed. <a href="/pricing" target="_blank" rel="noreferrer">See pricing</a>. By creating a workspace you agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</p>
             </form>
             <p className="loginToggle">
               Already have a workspace?{" "}
