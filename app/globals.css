@@ -25123,7 +25123,7 @@ button.crmUser i {
 
 /* ── Cyncro Messages inbox ── */
 .mxShell{min-height:calc(100vh - 44px);background:#080808;color:#f1ebe6;padding:22px 24px 40px;font-family:inherit}
-.mxTop{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+.mxTop{position:static;height:auto;min-height:0;width:auto;padding:0;background:none;border:0;box-shadow:none;display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:0 0 16px}
 .mxTop small{display:block;font-size:10px;letter-spacing:.16em;color:#9a8d90;margin-bottom:6px}
 .mxTop h1{margin:0 0 6px;font-size:26px;letter-spacing:-.01em}
 .mxTop p{margin:0;color:#9a8d90;font-size:13px;max-width:62ch}
@@ -25165,7 +25165,7 @@ button.crmUser i {
 .mxEmpty{display:block!important;padding:28px 18px!important;cursor:default!important}
 .mxEmpty b{font-size:14px!important}.mxEmpty p{-webkit-line-clamp:unset!important;margin-top:6px!important}
 .mxThread{background:#0e0c0d;border:1px solid #221c1e;border-radius:14px;display:flex;flex-direction:column;min-height:60vh}
-.mxThread>header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #221c1e}
+.mxThread>header{position:static;height:auto;min-height:0;width:auto;background:none;box-shadow:none;display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #221c1e}
 .mxThread>header b{display:block;font-size:15px}.mxThread>header small{color:#9a8d90;font-size:12px}
 .mxHeadActions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mxPick{margin:auto;text-align:center;color:#9a8d90;padding:40px}.mxPick b{display:block;color:#f1ebe6;font-size:16px;margin-bottom:6px}
