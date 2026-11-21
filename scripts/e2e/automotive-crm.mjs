@@ -61,7 +61,7 @@ check("across cyncro shows the deal, the service visit and both invoices", acros
 const stats=(await api("/api/crm/stats",{},A)).b.summary;
 check("overview stats carry dealership numbers", stats.funded_today===1 && stats.funded_cents===2750000 && stats.ros_open===0, JSON.stringify(stats).slice(0,200));
 // 3) UI: contact page → Service visit; overview KPI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",dd=>dd.accept());
 await page.goto(`${BASE}/#crm/contacts`,{waitUntil:"load"}); await page.waitForTimeout(2200); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});

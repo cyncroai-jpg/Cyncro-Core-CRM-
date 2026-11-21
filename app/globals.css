@@ -25120,3 +25120,93 @@ button.crmUser i {
 /* Pricing */
 .priceGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 8px}.priceGrid article{display:grid;gap:8px;align-content:start;border:1px solid #ffffff14;border-radius:14px;background:#0d0b0d;padding:18px}.priceGrid article.hot{border-color:#ff2f4f;box-shadow:0 0 0 1px #ff2f4f40 inset}.priceGrid small{color:#ef6e86;font-size:9px;font-weight:900;letter-spacing:.15em}.priceGrid b{color:#fff;font-size:30px;letter-spacing:-.02em}.priceGrid b i{color:#8f858b;font-style:normal;font-size:12px;margin-left:3px}.priceGrid p{margin:0;font-size:12px;color:#9d8d91}.priceGrid ul{margin:0;padding:0;list-style:none;display:grid;gap:5px}.priceGrid li{font-size:12px;color:#d9ced2;padding-left:16px;position:relative}.priceGrid li::before{content:"✓";position:absolute;left:0;color:#3fd982}.priceCta{display:block;text-align:center;margin-top:6px;border-radius:9px;background:#a91f39;color:#fff;text-decoration:none;font-weight:700;padding:11px}
 @media(max-width:800px){.priceGrid{grid-template-columns:1fr}}
+
+/* ── Cyncro Messages inbox ── */
+.mxShell{min-height:calc(100vh - 44px);background:#080808;color:#f1ebe6;padding:22px 24px 40px;font-family:inherit}
+.mxTop{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+.mxTop small{display:block;font-size:10px;letter-spacing:.16em;color:#9a8d90;margin-bottom:6px}
+.mxTop h1{margin:0 0 6px;font-size:26px;letter-spacing:-.01em}
+.mxTop p{margin:0;color:#9a8d90;font-size:13px;max-width:62ch}
+.mxTop nav{display:flex;gap:6px}
+.mxTop nav button{position:relative;background:#121011;border:1px solid #262022;color:#cfc5c0;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
+.mxTop nav button.on{background:#c1283e;border-color:#c1283e;color:#fff}
+.mxTop nav button i,.mxFilters button i{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f5b400;color:#111;font-size:10px;font-style:normal;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.mxFlash{background:#1b1416;border:1px solid #3a2a2e;color:#f1ebe6;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:12px}
+.mxIcon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-size:13px;font-weight:800;flex-shrink:0;background:#1d1a1b;color:#e8dfda}
+.mxIcon.big{width:40px;height:40px;font-size:17px}
+.mxIcon[data-kind=INSTAGRAM]{background:linear-gradient(135deg,#f58529,#dd2a7b 55%,#8134af);color:#fff}
+.mxIcon[data-kind=FACEBOOK]{background:#1877f2;color:#fff}
+.mxIcon[data-kind=WHATSAPP]{background:#25d366;color:#07301a}
+.mxIcon[data-kind=SMS]{background:#0369a1;color:#fff}
+.mxIcon[data-kind=EMAIL]{background:#4b5563;color:#fff}
+.mxIcon[data-kind=TIKTOK]{background:#111;color:#69f0e4;border:1px solid #2a2a2a}
+.mxIcon[data-kind=LINKEDIN]{background:#0a66c2;color:#fff;font-size:11px}
+.mxInbox{display:grid;grid-template-columns:340px 1fr;gap:14px;min-height:60vh}
+.mxList{background:#0e0c0d;border:1px solid #221c1e;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.mxFilters{display:flex;gap:6px;padding:10px;border-bottom:1px solid #221c1e;flex-wrap:wrap}
+.mxFilters button{position:relative;background:transparent;border:1px solid #262022;border-radius:9px;padding:4px 8px;color:#cfc5c0;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.mxFilters button.on{border-color:#c1283e;background:#1c1113}
+.mxStatus{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid #221c1e}
+.mxStatus button{background:transparent;border:0;color:#9a8d90;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:7px;cursor:pointer}
+.mxStatus button.on{color:#fff;background:#1d1a1b}
+.mxList ul{list-style:none;margin:0;padding:0;overflow:auto;flex:1;max-height:70vh}
+.mxList li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;padding:12px;border-bottom:1px solid #1a1516;cursor:pointer;align-items:start}
+.mxList li:hover{background:#121011}
+.mxList li.sel{background:#1a1113}
+.mxList li b{display:block;font-size:13px;color:#f1ebe6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mxList li b small{color:#9a8d90;font-weight:500;margin-left:4px}
+.mxList li.unread b{color:#fff}
+.mxList li.unread p{color:#e8dfda}
+.mxList li p{margin:2px 0 0;font-size:12px;color:#9a8d90;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.mxList li time{font-size:11px;color:#6f6366}
+.mxTags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.mxIntent{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:#1d1a1b;color:#cfc5c0}
+.mxIntent.price{background:#1b2a1d;color:#8fe3a1}.mxIntent.booking{background:#15233a;color:#8ec5ff}.mxIntent.complaint{background:#3a1518;color:#ff9aa5}.mxIntent.compliment{background:#2b2440;color:#d3c3ff}.mxIntent.support{background:#2d2614;color:#f3d27a}.mxIntent.draft{background:#3a2f12;color:#ffd166}.mxIntent.closed{background:#2a2325;color:#b3a6a9}
+.mxEmpty{display:block!important;padding:28px 18px!important;cursor:default!important}
+.mxEmpty b{font-size:14px!important}.mxEmpty p{-webkit-line-clamp:unset!important;margin-top:6px!important}
+.mxThread{background:#0e0c0d;border:1px solid #221c1e;border-radius:14px;display:flex;flex-direction:column;min-height:60vh}
+.mxThread>header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #221c1e}
+.mxThread>header b{display:block;font-size:15px}.mxThread>header small{color:#9a8d90;font-size:12px}
+.mxHeadActions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mxPick{margin:auto;text-align:center;color:#9a8d90;padding:40px}.mxPick b{display:block;color:#f1ebe6;font-size:16px;margin-bottom:6px}
+.mxMessages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;max-height:52vh}
+.mxMsg{max-width:72%;padding:10px 13px;border-radius:14px;background:#1a1617;align-self:flex-start}
+.mxMsg.out{background:#5a1420;align-self:flex-end}
+.mxMsg.failed{border:1px solid #c1283e;background:#2a1216}
+.mxMsg small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#b3a6a9;margin-bottom:4px}
+.mxMsg p{margin:0;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.mxMsg time{display:block;font-size:10px;color:#9a8d90;margin-top:6px}
+.mxNeeds{margin:0 16px;padding:10px 12px;border-radius:10px;background:#3a1518;color:#ffb3bb;font-size:13px}
+.mxDraft{margin:10px 16px 0;padding:12px 14px;border-radius:12px;border:1px dashed #6b5a1c;background:#1b170c}
+.mxDraft small{display:block;font-size:10px;letter-spacing:.12em;color:#ffd166;margin-bottom:6px}
+.mxDraft p{margin:0 0 10px;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.mxDraft textarea{width:100%;box-sizing:border-box;background:#0e0c0d;border:1px solid #3a2f12;color:#f1ebe6;border-radius:8px;padding:8px;font:inherit;font-size:14px;margin-bottom:8px}
+.mxDraft>div{display:flex;gap:8px;flex-wrap:wrap}
+.mxCompose{padding:12px 16px 16px;border-top:1px solid #221c1e;margin-top:10px}
+.mxCompose textarea{width:100%;box-sizing:border-box;background:#121011;border:1px solid #262022;color:#f1ebe6;border-radius:10px;padding:10px;font:inherit;font-size:14px;resize:vertical}
+.mxCompose textarea:disabled{opacity:.6}
+.mxCompose>div{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+.mxChannels{display:grid;grid-template-columns:1fr 360px;gap:14px}
+.mxChannelGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-content:start}
+.mxChannel{background:#0e0c0d;border:1px solid #221c1e;border-radius:14px;padding:14px}
+.mxChannel.connected{border-color:#1f4d2b}.mxChannel.not_available{opacity:.75}
+.mxChannel header{display:flex;align-items:center;gap:10px;margin-bottom:8px;position:static;height:auto;padding:0;background:none;border:0;box-shadow:none}
+.mxChannel header div{flex:1;min-width:0}.mxChannel header b{display:block;font-size:14px}.mxChannel header small{color:#9a8d90;font-size:11px;white-space:normal}
+.mxChannel p{margin:0;font-size:12.5px;line-height:1.5;color:#cfc5c0}
+.mxChannel ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mxChannel li{display:flex;justify-content:space-between;align-items:center;font-size:12px;background:#151213;border-radius:8px;padding:6px 10px}
+.mxChannel li button,.mxChannel .cyAiMini{background:transparent;border:1px solid #3a2f32;color:#cfc5c0;border-radius:7px;padding:3px 8px;font-size:11px;cursor:pointer}
+.mxChannel .coSave{margin-top:10px}
+.mxWaForm{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.mxWaForm input{background:#121011;border:1px solid #262022;color:#f1ebe6;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px}
+.mxWaForm small{color:#9a8d90;font-size:11px;line-height:1.4}.mxWaForm code{color:#e8dfda;word-break:break-all}
+.mxRules{background:#0e0c0d;border:1px solid #221c1e;border-radius:14px;padding:14px;align-self:start}
+.mxRules header{display:flex;align-items:center;gap:10px;margin-bottom:12px;position:static;height:auto;padding:0;background:none;border:0;box-shadow:none}
+.mxRules header div{flex:1}.mxRules header b{display:block;font-size:14px}.mxRules header small{color:#9a8d90;font-size:11.5px;white-space:normal;line-height:1.4}
+.mxRuleRow{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid #1a1516;font-size:12.5px}
+.mxRuleRow>span{color:#9a8d90;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.mxRuleRow select,.mxRuleRow input{background:#121011;border:1px solid #262022;color:#f1ebe6;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px}
+.mxIntents{display:flex;flex-wrap:wrap;gap:8px}
+.mxIntents label{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;background:#151213;border-radius:8px;padding:5px 9px}
+.mxAlways{margin:12px 0 0;padding:0 0 0 16px;color:#b3a6a9;font-size:12px;line-height:1.55}
+@media (max-width:900px){.mxInbox,.mxChannels{grid-template-columns:1fr}.mxList ul{max-height:36vh}.mxMsg{max-width:90%}.mxShell{padding:16px}}

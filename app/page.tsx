@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CyncroMap, type MapPin, type MapRoute } from "@/app/components/CyncroMap";
 import { LuxCar } from "@/app/components/LuxCar";
+import { MessagesInbox } from "@/app/components/MessagesInbox";
 import { AutoInventoryDesk } from "@/app/components/AutoInventoryDesk";
 import { AutoLenderDirectory } from "@/app/components/AutoLenderDirectory";
 import { DispatchInventory, type StockSummary } from "@/app/components/DispatchInventory";
@@ -21578,7 +21579,7 @@ function CRMFormsStandalone() {
 
 /** Messages hub — internal team chat + external customer messaging in one view */
 function CyncroMessagesHub() {
-  const [mode, setMode] = useState<"team" | "customers">("team");
+  const [mode, setMode] = useState<"team" | "customers">("customers");
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#080808" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 0, borderBottom: "1px solid #201a1c", background: "#0c0a0b", padding: "0 20px" }}>
@@ -21593,7 +21594,7 @@ function CyncroMessagesHub() {
         ))}
       </div>
       <div style={{ flex: 1 }}>
-        {mode === "team" ? <TeamChat /> : <CyncroMessagesComingSoon />}
+        {mode === "team" ? <TeamChat /> : <MessagesInbox />}
       </div>
     </div>
   );
@@ -21673,8 +21674,8 @@ const CYNCRO_PRODUCTS: {
     tagline: "Unified communication platform",
     color: "#0369A1",
     icon: "◎",
-    badge: "Coming Soon",
-    features: ["SMS / MMS / RCS", "Shared inboxes", "AI response drafts", "Bulk campaigns", "Consent records", "CRM sync", "Usage reporting"],
+    badge: "Live beta",
+    features: ["Instagram + Facebook DMs and comments", "WhatsApp", "Text (SMS)", "Email", "AI drafts with human approval", "Comment → private reply", "One CRM contact per person"],
   },
 ];
 

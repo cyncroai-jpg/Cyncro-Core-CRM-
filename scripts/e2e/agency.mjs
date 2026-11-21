@@ -60,7 +60,7 @@ check("adding a client updates Stripe quantity to 3", upd && upd.form.quantity==
 const ps=await api("/api/agency",{method:"POST",body:JSON.stringify({action:"snapshot",to:[acme.tenantId]})},A);
 check("push snapshot to a client again adds copies", ps.r.ok && ps.b.applied[acme.tenantId]?.calendar_event_types===1 && ps.b.items.crm_forms===1, JSON.stringify(ps.b).slice(0,160));
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
 await page.goto(`${BASE}/#crm`,{waitUntil:"load"}); await page.waitForTimeout(2000); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});

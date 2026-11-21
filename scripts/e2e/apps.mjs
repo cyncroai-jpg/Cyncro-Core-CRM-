@@ -7,7 +7,7 @@ const su=await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({ten
 check("all apps on by default", (await api("/api/tenants/settings",{},A)).b.settings.apps.length===7);
 const st=await api("/api/tenants/settings",{method:"PATCH",body:JSON.stringify({settings:{apps:["dispatch","growth","bogus"]}})},A);
 check("owner limits apps; unknown ids dropped", JSON.stringify(st.b.settings.apps)===JSON.stringify(["dispatch","growth"]), JSON.stringify(st.b.settings.apps));
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
 await page.goto(`${BASE}/#products`,{waitUntil:"load"}); await page.waitForTimeout(1800);

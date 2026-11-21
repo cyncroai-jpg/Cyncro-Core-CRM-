@@ -22,7 +22,7 @@ const em=await api("/api/crm/conversations",{method:"POST",body:JSON.stringify({
 check("email without sender gives clear 409 (or sends if configured)", em.r.status===409 || em.r.status===201, String(em.r.status)+" "+JSON.stringify(em.b));
 check("B cannot log on A's contact", (await api("/api/crm/conversations",{method:"POST",body:JSON.stringify({contactId:one.id,kind:"NOTE",body:"x"})},B)).r.status===404);
 
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message));

@@ -31,7 +31,7 @@ db.close();
 const dc2=await api("/api/dispatch/customers",{method:"POST",body:JSON.stringify({name:`Sam Customer ${stamp}`,email})},A);
 check("a duplicate product customer still maps to the one contact", dc2.b.contactId===contactId);
 // UI: contact page shows Across Cyncro
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
 await page.goto(`${BASE}/#crm/contacts`,{waitUntil:"load"}); await page.waitForTimeout(2200); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});

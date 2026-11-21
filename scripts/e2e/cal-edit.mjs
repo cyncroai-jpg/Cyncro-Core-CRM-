@@ -6,7 +6,7 @@ const c=s.cookie; const et=await api("/api/calendar/event-types",{method:"POST",
 const st=new Date();st.setHours(10,0,0,0);
 const bk=await api("/api/calendar/bookings",{method:"POST",body:JSON.stringify({eventTypeId:et.b?.id,customerName:"Drag Me",customerEmail:`dm+${stamp}@example.com`,startsAt:st.toISOString(),timezone:"America/Chicago",locationMode:"VIDEO",videoPlatform:"GOOGLE_MEET"})},c);
 const bookingId=bk.b?.booking?.id; console.log("seed booking",bk.r.status,bookingId);
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:950}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());

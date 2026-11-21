@@ -12,7 +12,7 @@ check("job created",job.r.status===201,JSON.stringify(job.b));
 const sum=(await api("/api/dispatch/jobs?summary=1",{},c)).b.jobs.find(j=>j.id===job.b.id);
 check("summary row has counts", sum && sum.notes_count===0 && sum.materials_count===0 && Number(sum.labor_minutes)===0 && sum.invoice_status===null, JSON.stringify(sum&&{n:sum.notes_count,m:sum.materials_count,l:sum.labor_minutes}));
 
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());

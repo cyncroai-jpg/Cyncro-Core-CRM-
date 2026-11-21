@@ -23,7 +23,7 @@ const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><re
 <rect x="800" y="240" width="320" height="140" fill="#f2c200"/><text x="820" y="300" font-size="34">DEWALT 20V</text><text x="820" y="350" font-size="28">CORDLESS DRILL</text></g></svg>`;
 const jpg=await sharp(Buffer.from(svg)).jpeg({quality:88}).toBuffer(); const photoPath=`${OUT}/shelf.jpg`; await (await import("node:fs")).default.promises.writeFile(photoPath,jpg);
 
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());

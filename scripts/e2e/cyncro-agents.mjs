@@ -53,7 +53,7 @@ check("automation ran the agent with the contact in context", auto && auto.statu
 check("contact line in the agent prompt", /This run is about one contact: Newbie Nix/.test(seen[seen.length-1].system) || seen.some(s=>/This run is about one contact: Newbie Nix/.test(s.system)));
 check("other company sees no agents", (await api("/api/agents/custom",{},(await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({tenantName:`Other ${stamp}`,displayName:"O",email:`o+${stamp}@example.com`,password:"Password123!"})})).cookie)).b.agents.length===0);
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1100}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
 await page.goto(`${BASE}/#crm/agent-team`,{waitUntil:"load"}); await page.waitForTimeout(2200); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{});

@@ -1,7 +1,7 @@
 import { chromium } from "playwright-core";
 import { readFileSync } from "node:fs";
 const BASE="http://127.0.0.1:5177"; const S=process.argv[2]; const cookie=readFileSync(`${S}/demo-cookie.txt`,"utf8").trim().split("=")[1];
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox","--force-device-scale-factor=2"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox","--force-device-scale-factor=2"]});
 const ctx=await browser.newContext({viewport:{width:1280,height:800},deviceScaleFactor:2,recordVideo:{dir:`${S}/video`,size:{width:1280,height:800}}});
 await ctx.addCookies([{name:"cyncro_session",value:cookie,domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("dialog",d=>d.accept());

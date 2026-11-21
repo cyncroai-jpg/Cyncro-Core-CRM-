@@ -6,7 +6,7 @@ const su=await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({ten
 const acct=await api("/api/crm/accounts",{method:"POST",body:JSON.stringify({name:`Acme ${stamp}`,category:"Client"})},A);
 await api("/api/crm/contacts",{method:"POST",body:JSON.stringify({fullName:"Dana Lead",email:`dana+${stamp}@example.com`,accountId:acct.b.account?.id})},A);
 await api("/api/crm/opportunities",{method:"POST",body:JSON.stringify({accountId:acct.b.account?.id,name:"Acme build",stage:"CLOSED WON",value:5000,collected:5000,commissionRate:25})},A);
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("dialog",d=>d.accept());
 const report={};

@@ -54,7 +54,7 @@ const subs=(await api(`/api/studio/pages?id=${pg.b.id}`,{},A)).b.submissions;
 check("submission stored with tenant", subs.length===1 && subs[0].tenant_id, JSON.stringify(subs[0]&&{t:subs[0].tenant_id}));
 
 // ---- Browser: public studio page redirects to prefilled booking; builder shows panels
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const anon=await browser.newContext({viewport:{width:1400,height:950}});
 const page=await anon.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message));
 await page.goto(`${BASE}/s?slug=roof-${stamp}`,{waitUntil:"networkidle"}); await page.waitForTimeout(800);

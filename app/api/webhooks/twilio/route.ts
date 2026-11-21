@@ -13,6 +13,7 @@ import { companySettings, withinBusinessHours } from "@/lib/core/companySettings
 import { ask, approve, pendingFor } from "@/lib/ai/assistant";
 import { sendSms } from "@/lib/automations/sms";
 import { ensureUserDefaultTenant, type TenantContext } from "@/lib/core/db";
+import { ingestInbound } from "@/lib/messages/inbox";
 
 const twiml = () => new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', { headers: { "Content-Type": "text/xml" } });
 
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       await db.prepare("INSERT INTO crm_activities (id,contact_id,activity_type,title,details,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,'SMS',?,?,'COMPLETED','inbound',?,?,?)").bind(crypto.randomUUID(), c.id, `Text from ${c.full_name}`, body, c.tenant_id, now, now).run();
       const open = withinBusinessHours(new Date(), await companySettings(c.tenant_id));
       await emitAutomationEvent(c.tenant_id, "INBOUND_SMS", { contactId: c.id, body, from, withinBusinessHours: open ? "true" : "false", trigger: "INBOUND_SMS" });
+      await ingestInbound({ tenantId: c.tenant_id, kind: "SMS", externalUserId: from, name: c.full_name, phone: from, body, messageKind: "MESSAGE", externalMessageId: params.get("MessageSid") ? `${c.tenant_id}:${params.get("MessageSid")}` : null }).catch((e) => console.error("messages.sms_ingest_failed", e));
     }
     return twiml();
   } catch (error) {

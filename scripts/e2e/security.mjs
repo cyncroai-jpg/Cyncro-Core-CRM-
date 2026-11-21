@@ -84,7 +84,7 @@ const ex=await fetch(BASE+"/api/tenants/export",{headers:{Cookie:l4.cookie}}); c
 check("owner export is JSON of tables", ex.ok && exb.company && exb.contacts && Object.keys(exb).length>=24 && ex.headers.get("content-disposition")?.includes("attachment"), Object.keys(exb).join());
 check("export without session denied", (await fetch(BASE+"/api/tenants/export")).status===401);
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const errors=[];
 // login flow with 2fa in browser (e2 has 2fa on, sessions revoked earlier except l4)
 const anon=await browser.newContext({viewport:{width:1300,height:900}}); const lp=await anon.newPage(); lp.on("pageerror",e=>errors.push(e.message));

@@ -21,6 +21,8 @@ export const TRIGGERS = [
   ["CONTACT_UPDATED", "Contact updated (lifecycle, rep, email, phone)"],
   ["FORM_SUBMITTED", "Form submitted"],
   ["INBOUND_SMS", "Customer texted in"],
+  ["INBOUND_MESSAGE", "Customer messaged in (Instagram, Facebook, WhatsApp, text or email)"],
+  ["SOCIAL_COMMENT", "Someone commented on your post"],
   ["BOOKING_CREATED", "Appointment booked"],
   ["BOOKING_UPCOMING", "Appointment coming up (reminder)"],
   ["BOOKING_CANCELLED", "Appointment cancelled"],
@@ -62,6 +64,7 @@ export const STEP_TYPES = [
   ["ASSIGN_REP", "Assign to teammate"], ["ROUND_ROBIN", "Assign round-robin"], ["NOTIFY_TEAM", "Notify teammate"], ["POST_TO_CHAT", "Post to Team Chat"],
   ["ENROLL_WORKFLOW", "Start another workflow"], ["REMOVE_FROM_WORKFLOW", "Stop other workflows"], ["WEBHOOK", "Send webhook"], ["END", "End workflow"],
   ["CREATE_INVOICE", "Create invoice"], ["CREATE_JOB", "Create dispatch job"], ["RUN_AGENT", "Run a Cyncro Agent"],
+  ["REPLY_IN_THREAD", "Reply in the same conversation"],
 ] as const;
 export type StepType = (typeof STEP_TYPES)[number][0];
 export const STEP_SET = new Set<string>(STEP_TYPES.map((s) => s[0]));
@@ -130,6 +133,8 @@ async function buildVars(tenantId: string, ctx: Ctx) {
   vars["invoice.amount"] = ctx.amountCents !== undefined ? `$${(Number(ctx.amountCents) / 100).toLocaleString()}` : "";
   vars["task.title"] = str(ctx.taskTitle || "");
   vars["sms.body"] = str(ctx.body || "");
+  vars["message.body"] = str(ctx.body || "");
+  vars["message.channel"] = str(ctx.channel || "");
   vars["tag"] = str(ctx.tag || "");
   return { vars, contact, settings };
 }
@@ -401,6 +406,14 @@ async function execute(step: Step, s: State): Promise<string> {
       const subject = render(str(step.subject || "Message from {{company.name}}"), s.vars); const text = render(str(step.body || ""), s.vars);
       await sendMail(to, subject, text);
       return `Email sent to ${to} · "${subject}"`;
+    }
+    case "REPLY_IN_THREAD": {
+      const threadId = str(s.ctx.threadId); if (!threadId) throw new Error("no conversation on this event (use the 'Customer messaged in' or 'commented' trigger)");
+      const { sendOutbound } = await import("@/lib/messages/inbox");
+      const text = render(str(step.body || ""), s.vars);
+      const r = await sendOutbound(s.tenantId, threadId, text, "automation", { auto: true, replyToCommentId: step.publicReply && s.ctx.messageKind === "COMMENT" ? str(s.ctx.externalRef || "") || null : null });
+      if (!r.ok) throw new Error(r.detail);
+      return `Replied on ${str(s.ctx.channel) || "the same channel"}`;
     }
     case "SEND_SMS": {
       const c = needContact(); const to = str(c.phone); if (!to) throw new Error("contact has no phone");

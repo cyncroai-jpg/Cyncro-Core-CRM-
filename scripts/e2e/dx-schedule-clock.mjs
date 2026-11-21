@@ -11,7 +11,7 @@ check("job created (google not connected)", job.r.status===201 && job.b.google==
 const g=await api("/api/dispatch/google-sync",{},c); check("google status: not connected + connect url", g.b.connected===false && g.b.connectUrl.includes("google-calendar/connect"));
 check("sync without connection is a clear 409", (await api("/api/dispatch/google-sync",{method:"POST",body:"{}"},c)).r.status===409);
 
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message));

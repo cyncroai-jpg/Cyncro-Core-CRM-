@@ -7,7 +7,7 @@ await api("/api/automotive?resource=inventory-bulk",{method:"POST",body:JSON.str
  {stockNumber:"A100",vin:"1HGCV1F34LA000001",year:"2020",make:"Honda",model:"Accord",trim:"Sport",mileage:"41200",color:"Black",askingPrice:"21995",acquisitionCost:"17800",reconCost:"650",kbbValue:"20450",jdpowerValue:"20100",acquiredAt:"2026-07-01"},
  {stockNumber:"B200",vin:"5YJ3E1EA7KF000002",year:"2019",make:"Tesla",model:"Model 3",trim:"Long Range",mileage:"38000",color:"White",askingPrice:"27500",acquisitionCost:"24900",jdpowerValue:"26800",acquiredAt:"2026-05-20"},
  {stockNumber:"C300",vin:"1FTEW1EP5KF000004",year:"2019",make:"Ford",model:"F-150",trim:"XLT",mileage:"52000",askingPrice:"31995",acquisitionCost:"27400",reconCost:"900",kbbValue:"31200",status:"IN_RECON"}]})},c);
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage();

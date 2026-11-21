@@ -19,7 +19,7 @@ check("bulk re-import updates by stock #", again.b.updated===1 && again.b.insert
 const inv0=(await api("/api/automotive?resource=inventory",{},c)).b.inventory;
 check("VIN-only row got stock # from VIN tail", inv0.some(v=>v.stock_number==="KAK00003"));
 
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1600,height:1000}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message));

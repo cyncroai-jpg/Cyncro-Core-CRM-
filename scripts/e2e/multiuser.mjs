@@ -32,7 +32,7 @@ check("B cannot see A's settings values", (await api("/api/tenants/settings",{},
 check("onboarding ticks company step", (await api("/api/crm/onboarding",{},A)).b.steps.find(s=>s.key==="company").done===true);
 
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const anon=await browser.newContext({viewport:{width:1300,height:900}}); const lp=await anon.newPage(); const errors=[]; lp.on("pageerror",e=>errors.push(e.message));
 await lp.goto(`${BASE}/login`,{waitUntil:"networkidle"}); await lp.waitForTimeout(800);
 await lp.locator("button",{hasText:"Forgot password?"}).click(); await lp.waitForTimeout(300);

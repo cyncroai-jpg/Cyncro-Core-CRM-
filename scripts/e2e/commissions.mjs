@@ -50,7 +50,7 @@ check("deal from another company rejected", (await api("/api/crm/commissions",{m
 check("other company sees none of it", (await api(`/api/crm/commissions?month=${month}`,{},other)).b.entries.length===0);
 check("delete entry", (await api(`/api/crm/commissions?id=${e3.b.id}`,{method:"DELETE"},A)).b.deleted===1);
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1500,height:1000}}); await ctx.addCookies([{name:"cyncro_session",value:A.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(e.message)); page.on("dialog",d=>d.accept());
 await page.goto(`${BASE}/#crm`,{waitUntil:"networkidle"}); await page.locator(".wlActions .cyAiMini").click({timeout:1500}).catch(()=>{}); await page.waitForTimeout(1500);

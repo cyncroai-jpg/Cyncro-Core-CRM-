@@ -26,7 +26,7 @@ check("Bo's team list shows Ava with Bo Co flags", bm && bm.compensation_access=
 // legal pages + signup copy
 const terms=await fetch(BASE+"/terms"), priv=await fetch(BASE+"/privacy");
 check("terms and privacy pages load", terms.ok && priv.ok);
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const anon=await browser.newContext({viewport:{width:1200,height:900}}); const lp=await anon.newPage(); lp.on("pageerror",e=>errors.push(e.message));
 await lp.goto(BASE+"/terms",{waitUntil:"load"}); await lp.waitForTimeout(800);
 check("terms page renders readable", (await lp.locator("h1").textContent())==="Terms of Service" && await lp.locator(".legalPage h2").count()>=8);

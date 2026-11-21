@@ -2,7 +2,7 @@ import { chromium } from "playwright-core";
 const BASE="http://127.0.0.1:5177"; const stamp=Date.now();
 async function api(p,init={}){const r=await fetch(BASE+p,{...init,headers:{"Content-Type":"application/json"}});return{r,cookie:(r.headers.get("set-cookie")||"").split(";")[0]}}
 const s=await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({tenantName:`Nav ${stamp}`,displayName:"Nav",email:`nav+${stamp}@example.com`,password:"Password123!"})});
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:950}});
 await ctx.addCookies([{name:"cyncro_session",value:s.cookie.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message));

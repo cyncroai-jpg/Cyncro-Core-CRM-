@@ -4,7 +4,7 @@ async function api(p,init={},cookie=""){const r=await fetch(BASE+p,{...init,head
 const withEt=process.env.NO_ET!=="1";
 const s=await api("/api/tenants/signup",{method:"POST",body:JSON.stringify({tenantName:`MB ${stamp}`,displayName:"MB",email:`mb+${stamp}@example.com`,password:"Password123!"})});
 const c=s.cookie; if(withEt) await api("/api/calendar/event-types",{method:"POST",body:JSON.stringify({name:"Consult",slug:`consult-${stamp}`,durationMinutes:30})},c);
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]});
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
 const ctx=await browser.newContext({viewport:{width:1500,height:950}});
 await ctx.addCookies([{name:"cyncro_session",value:c.split("=")[1],domain:"127.0.0.1",path:"/"}]);
 const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(e.message)); const net=[]; page.on("response",r=>{if(r.url().includes("/api/calendar/bookings")&&r.request().method()==="POST")net.push(r.status())});

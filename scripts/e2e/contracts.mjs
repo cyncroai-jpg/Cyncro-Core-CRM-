@@ -36,7 +36,7 @@ check("signer 2 signs → CLIENT_SIGNED", (await api("/api/crm/contracts",{metho
 check("owner countersigns → SIGNED and locked", (await api("/api/crm/contracts",{method:"PATCH",body:JSON.stringify({id,action:"COUNTERSIGN",signerName:"Sam Owner"})},A)).b.saved && (await api(`/api/crm/contracts?id=${id}`,{},A)).b.contract.locked_at);
 check("signed link can't be reused", (await api("/api/crm/contracts",{method:"PATCH",body:JSON.stringify({token:token1,signerName:"X",consentText:"y"})})).r.status===409);
 // UI
-const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",headless:true,args:["--no-sandbox"]}); const errors=[];
+const browser=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]}); const errors=[];
 const c2=await api("/api/crm/contracts",{method:"POST",body:JSON.stringify({title:"Retainer",clientName:"Lee Client",clientEmail:`lee+${stamp}@example.com`,body:"Monthly retainer $1,500."})},A);
 const d2=(await api(`/api/crm/contracts?id=${c2.b.contract.id}`,{},A)).b; const tok=d2.signers[0].signing_token;
 const anon=await browser.newContext({viewport:{width:1200,height:900}}); const sp=await anon.newPage(); sp.on("pageerror",e=>errors.push(e.message));

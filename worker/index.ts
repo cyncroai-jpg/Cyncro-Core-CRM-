@@ -9,6 +9,8 @@ import { linkUnlinkedCustomers } from "../lib/customers/unify";
 import { runScheduledAgents } from "../lib/ai/agents";
 import { ensureCoreSchema } from "../lib/core/db";
 import { isPlatformOwner } from "../lib/core/tenantAuth";
+import PostalMime from "postal-mime";
+import { ingestEmail } from "../app/api/messages/ingest/route";
 
 // Visitor-facing growth endpoints (pixel, links, form posts) stay public; everything else in the legacy suite is platform-owner only.
 const GROWTH_PUBLIC = new Set(["/api/growth/track", "/api/growth/submit", "/api/growth/go", "/api/growth/experiments/track"]);
@@ -62,6 +64,17 @@ const worker = {
     ctx.waitUntil(
       runScheduledAgents().then((r) => console.info("scheduled.cyncro_agents.done", r)),
     );
+  },
+
+  // Cloudflare Email Routing → Cyncro Messages. Route an address on your domain to this worker
+  // (Email → Email Routing → Routing rules → "Send to a Worker") and mail lands in the inbox.
+  async email(message: { from: string; to: string; raw: ReadableStream; headers: Headers }, _env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil((async () => {
+      await ensureCoreSchema();
+      const parsed = await new PostalMime().parse(message.raw);
+      const r = await ingestEmail({ to: message.to, from: message.from, name: parsed.from?.name, subject: parsed.subject, text: parsed.text || (parsed.html ? parsed.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ") : ""), messageId: parsed.messageId });
+      console.info("mail.received", r);
+    })());
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
