@@ -25210,3 +25210,17 @@ button.crmUser i {
 .mxIntents label{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;background:#151213;border-radius:8px;padding:5px 9px}
 .mxAlways{margin:12px 0 0;padding:0 0 0 16px;color:#b3a6a9;font-size:12px;line-height:1.55}
 @media (max-width:900px){.mxInbox,.mxChannels{grid-template-columns:1fr}.mxList ul{max-height:36vh}.mxMsg{max-width:90%}.mxShell{padding:16px}}
+
+.mxNew{margin-left:auto;background:#c1283e!important;color:#fff!important;border-radius:8px!important;padding:4px 10px!important;text-transform:none!important;letter-spacing:0!important;font-size:12px!important}
+.mxModalBack{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+.mxModal{width:min(560px,100%);background:#0e0c0d;border:1px solid #2a2325;border-radius:16px;padding:18px;color:#f1ebe6;display:flex;flex-direction:column;gap:10px}
+.mxModal small{font-size:10px;letter-spacing:.14em;color:#9a8d90}.mxModal h3{margin:0;font-size:18px}
+.mxModal input,.mxModal textarea{width:100%;box-sizing:border-box;background:#121011;border:1px solid #262022;color:#f1ebe6;border-radius:10px;padding:10px;font:inherit;font-size:14px}
+.mxSearch{position:relative}.mxSearch ul{list-style:none;margin:6px 0 0;padding:0;border:1px solid #262022;border-radius:10px;overflow:hidden;background:#121011}
+.mxSearch li button{width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #1a1516;color:#f1ebe6;padding:9px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.mxSearch li button:hover{background:#1a1113}.mxSearch li span{font-size:12px;color:#9a8d90}.mxSearch p{color:#9a8d90;font-size:12px;margin:6px 0 0}
+.mxKindPick{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mxKindPick button{background:#121011;border:1px solid #262022;color:#cfc5c0;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.mxKindPick button.on{border-color:#c1283e;background:#1c1113;color:#fff}.mxKindPick button:disabled{opacity:.45;cursor:not-allowed}
+.mxKindPick span{flex-basis:100%;font-size:11.5px;color:#9a8d90}
+.mxModalActions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}

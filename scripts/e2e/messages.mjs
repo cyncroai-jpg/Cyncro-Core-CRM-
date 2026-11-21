@@ -148,6 +148,13 @@ check("inbox renders with threads from several channels", (await page.locator(".
 await page.locator(".mxList li",{hasText:"Rosa Perez"}).first().click(); await page.waitForTimeout(900);
 check("WhatsApp thread shows bubbles, the auto reply labelled, and the complaint flag", (await page.locator(".mxMsg.out").count())>=1 && /Cyncro \(auto\)/.test(await page.locator(".mxThread").textContent()) && /OPTED OUT/.test(await page.locator(".mxHeadActions").textContent()));
 await page.screenshot({path:`${OUT}/messages-inbox.png`});
+await page.locator(".mxNew").click(); await page.waitForTimeout(300);
+await page.locator(".mxModal input").fill("Sam Texter"); await page.waitForTimeout(900);
+await page.locator(".mxSearch li button").first().click(); await page.waitForTimeout(300);
+await page.locator(".mxKindPick button",{hasText:"Text"}).click();
+await page.locator(".mxModal textarea").fill("Friday 2pm is open, want it?"); await page.locator(".mxModalActions .coSave").click(); await page.waitForTimeout(1500);
+check("New message from the inbox texts a contact via Twilio and opens the thread", texts.some(x=>x.To==="+15550107771" && /Friday 2pm/.test(x.Body)) && /Friday 2pm/.test(await page.locator(".mxThread").textContent()));
+check("thread header offers 'Also email' for a texter with an email", (await page.locator(".mxHeadActions button",{hasText:"Also email"}).count())===1);
 await page.locator(".mxTop nav button",{hasText:"Channels"}).click(); await page.waitForTimeout(700);
 const cards=await page.locator(".mxChannel").count(); const tiktok=await page.locator(".mxChannel",{hasText:"TikTok"}).textContent();
 check("channels page shows 7 cards; TikTok says NOT OFFERED", cards===7 && /NOT OFFERED/.test(tiktok));

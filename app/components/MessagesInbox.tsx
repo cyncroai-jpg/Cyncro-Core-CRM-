@@ -28,6 +28,17 @@ export function MessagesInbox() {
   const [wa, setWa] = useState({ phoneNumberId: "", token: "", displayName: "" });
   const [busy, setBusy] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  type Hit = { id: string; full_name: string; email: string | null; phone: string | null };
+  const [compose, setCompose] = useState<{ contact: Hit | null; kind: "EMAIL" | "SMS"; subject: string; body: string; q: string; hits: Hit[] } | null>(null);
+  const openCompose = (contact: Hit | null, kind: "EMAIL" | "SMS" = "EMAIL") => setCompose({ contact, kind, subject: "", body: "", q: "", hits: [] });
+  const searchContacts = async (q: string) => { setCompose((c) => (c ? { ...c, q } : c)); if (q.trim().length < 2) return; const r = await fetch(`/api/crm/contacts?q=${encodeURIComponent(q.trim())}`); if (!r.ok) return; const d = (await r.json()) as { contacts: Hit[] }; setCompose((c) => (c && c.q === q ? { ...c, hits: (d.contacts || []).slice(0, 8) } : c)); };
+  const startNew = async () => {
+    if (!compose?.contact) return say("Pick a contact first");
+    if (!compose.body.trim()) return say("Write the message first");
+    setBusy("start"); const { ok, d } = await post({ action: "start", contactId: compose.contact.id, kind: compose.kind, subject: compose.subject, body: compose.body }); setBusy("");
+    if (!ok) return say(String(d.detail || d.error || "Could not send"));
+    setCompose(null); setView("inbox"); setStatus("OPEN"); setKind(""); await loadThreads(); if (d.threadId) setSel(String(d.threadId)); say(String(d.detail || "Sent"));
+  };
   const say = (m: string) => { setFlash(m); window.setTimeout(() => setFlash(""), 3500); };
 
   const loadThreads = useCallback(async () => { const r = await fetch(`/api/messages?view=threads&kind=${kind}&status=${status}`); if (r.ok) { const d = await r.json(); setThreads(d.threads || []); setCounts(d.counts || []); } }, [kind, status]);
@@ -115,7 +126,7 @@ export function MessagesInbox() {
               <button className={kind === "" ? "on" : ""} onClick={() => setKind("")}>All</button>
               {["INSTAGRAM", "FACEBOOK", "WHATSAPP", "SMS", "EMAIL"].map((k) => { const c = counts.find((x) => x.kind === k); return <button key={k} className={kind === k ? "on" : ""} onClick={() => setKind(k)} title={k}><span className="mxIcon" data-kind={k}>{ICON[k]}</span>{c?.unread ? <i>{c.unread}</i> : null}</button>; })}
             </div>
-            <div className="mxStatus">{[["OPEN", "Open"], ["NEEDS_HUMAN", "Needs a person"], ["CLOSED", "Closed"]].map(([v, l]) => <button key={v} className={status === v ? "on" : ""} onClick={() => setStatus(v)}>{l}</button>)}</div>
+            <div className="mxStatus">{[["OPEN", "Open"], ["NEEDS_HUMAN", "Needs a person"], ["CLOSED", "Closed"]].map(([v, l]) => <button key={v} className={status === v ? "on" : ""} onClick={() => setStatus(v)}>{l}</button>)}<button className="mxNew" onClick={() => openCompose(null)}>+ New message</button></div>
             <ul>
               {threads.map((th) => (
                 <li key={th.id} className={`${sel === th.id ? "sel" : ""} ${th.unread ? "unread" : ""}`} onClick={() => setSel(th.id)}>
@@ -138,6 +149,8 @@ export function MessagesInbox() {
                     {!t.window_open && <em className="fxPill amber">24H WINDOW CLOSED{t.window_ends_at ? "" : ""}</em>}
                     {t.window_open && t.window_ends_at && <em className="fxPill green">REPLY WINDOW {Math.max(0, Math.round((new Date(String(t.window_ends_at)).getTime() - Date.now()) / 3600000))}H LEFT</em>}
                     {Boolean(t.opted_out) && <em className="fxPill">OPTED OUT</em>}
+                    {t.contact_id && t.contact_email && t.kind !== "EMAIL" && <button className="cyAiMini" onClick={() => openCompose({ id: String(t.contact_id), full_name: t.display_name, email: String(t.contact_email), phone: t.contact_phone ? String(t.contact_phone) : null }, "EMAIL")}>Also email</button>}
+                    {t.contact_id && t.contact_phone && t.kind !== "SMS" && <button className="cyAiMini" onClick={() => openCompose({ id: String(t.contact_id), full_name: t.display_name, email: t.contact_email ? String(t.contact_email) : null, phone: String(t.contact_phone) }, "SMS")}>Also text</button>}
                     {t.status === "OPEN" ? <button className="cyAiMini" onClick={() => void act("close")}>Close</button> : <button className="cyAiMini" onClick={() => void act("reopen")}>Reopen</button>}
                   </div>
                 </header>
@@ -179,6 +192,37 @@ export function MessagesInbox() {
             )}
           </main>
         </section>
+      )}
+      {compose && (
+        <div className="mxModalBack" onClick={() => setCompose(null)}>
+          <div className="mxModal" onClick={(e) => e.stopPropagation()}>
+            <small>NEW MESSAGE</small>
+            <h3>{compose.contact ? compose.contact.full_name : "Who is it for?"}</h3>
+            {!compose.contact && (
+              <div className="mxSearch">
+                <input autoFocus value={compose.q} onChange={(e) => void searchContacts(e.target.value)} placeholder="Search contacts by name, email or phone" />
+                {compose.hits.length > 0 && <ul>{compose.hits.map((h) => <li key={h.id}><button onClick={() => setCompose({ ...compose, contact: h, kind: h.email ? compose.kind : "SMS", hits: [] })}><b>{h.full_name}</b><span>{[h.email, h.phone].filter(Boolean).join(" · ") || "no email or phone"}</span></button></li>)}</ul>}
+                {compose.q.trim().length >= 2 && !compose.hits.length && <p>No contact matches. Add them in the CRM first.</p>}
+              </div>
+            )}
+            {compose.contact && (
+              <>
+                <div className="mxKindPick">
+                  <button className={compose.kind === "EMAIL" ? "on" : ""} disabled={!compose.contact.email} onClick={() => setCompose({ ...compose, kind: "EMAIL" })}>✉ Email{compose.contact.email ? "" : " (none)"}</button>
+                  <button className={compose.kind === "SMS" ? "on" : ""} disabled={!compose.contact.phone} onClick={() => setCompose({ ...compose, kind: "SMS" })}>▭ Text{compose.contact.phone ? "" : " (none)"}</button>
+                  <span>Instagram, Facebook and WhatsApp conversations start when the customer messages you.</span>
+                </div>
+                {compose.kind === "EMAIL" && <input value={compose.subject} onChange={(e) => setCompose({ ...compose, subject: e.target.value })} placeholder="Subject" />}
+                <textarea rows={4} value={compose.body} onChange={(e) => setCompose({ ...compose, body: e.target.value })} placeholder={compose.kind === "EMAIL" ? "Write the email…" : "Write the text…"} />
+                <div className="mxModalActions">
+                  <button className="cyAiMini" onClick={() => setCompose({ ...compose, contact: null })}>Change person</button>
+                  <button className="cyAiMini" onClick={() => setCompose(null)}>Cancel</button>
+                  <button className="coSave" disabled={busy === "start" || !compose.body.trim()} onClick={() => void startNew()}>{busy === "start" ? "Sending…" : compose.kind === "EMAIL" ? "Send email" : "Send text"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
