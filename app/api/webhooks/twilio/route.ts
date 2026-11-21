@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       await sendSms(from, text.slice(0, 1500));
       return twiml();
     }
-    const { results: contacts } = await db.prepare("SELECT id, tenant_id, full_name FROM crm_contacts WHERE tenant_id IS NOT NULL AND replace(replace(replace(replace(COALESCE(phone,''),'-',''),' ',''),'(',''),')','') LIKE ? LIMIT 5").bind(`%${digits}`).all<{ id: string; tenant_id: string; full_name: string }>();
+    const { results: contacts } = await db.prepare("SELECT id, tenant_id, full_name FROM crm_contacts WHERE tenant_id IS NOT NULL AND replace(replace(replace(replace(COALESCE(phone,''),'-',''),' ',''),'(',''),')','') LIKE ? ORDER BY created_at DESC LIMIT 25").bind(`%${digits}`).all<{ id: string; tenant_id: string; full_name: string }>();
     for (const c of contacts) {
       await db.prepare("INSERT INTO crm_activities (id,contact_id,activity_type,title,details,status,created_by,tenant_id,created_at,updated_at) VALUES (?,?,'SMS',?,?,'COMPLETED','inbound',?,?,?)").bind(crypto.randomUUID(), c.id, `Text from ${c.full_name}`, body, c.tenant_id, now, now).run();
       const open = withinBusinessHours(new Date(), await companySettings(c.tenant_id));

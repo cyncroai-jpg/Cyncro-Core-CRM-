@@ -4,7 +4,7 @@
 import http from "node:http";
 import { createHmac } from "node:crypto";
 import { chromium } from "playwright-core";
-const BASE="http://127.0.0.1:5177"; const stamp=Date.now(); const OUT=process.env.OUT||".";
+const BASE="http://127.0.0.1:5177"; const stamp=Date.now(); const OUT=process.env.OUT||"."; const SMSNUM="555"+String(stamp).slice(-7);
 let pass=0, fail=0; const check=(n,ok,x="")=>{(ok?pass++:fail++);console.log(`${ok?"PASS":"FAIL"} ${n}${x?" — "+x:""}`)};
 async function api(p,init={},cookie=""){const r=await fetch(BASE+p,{...init,headers:{"Content-Type":"application/json",...(cookie?{Cookie:cookie}:{})}});let b=null;try{b=await r.json()}catch{}return{r,b,cookie:(r.headers.get("set-cookie")||"").split(";")[0]}}
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
@@ -115,12 +115,12 @@ check("email thread: BOOKING intent, auto-replied through Resend with Re: subjec
 check("email contact linked by address", (await api(`/api/crm/contacts?q=ted%2B${stamp}`,{},A)).b.contacts.length===1);
 check("unknown recipient is rejected, not guessed", (await fetch(BASE+"/api/messages/ingest",{method:"POST",headers:{"content-type":"application/json","x-ingest-token":"ingest-e2e"},body:JSON.stringify({to:"nobody-here@mail.example.com",from:"x@example.com",text:"hi"})})).status===400);
 // 7) SMS inbound through the Twilio webhook lands in the inbox for the matching contact
-await api("/api/crm/contacts",{method:"POST",body:JSON.stringify({fullName:`Sam Texter ${stamp}`,email:`sam+${stamp}@example.com`,phone:"5550107771"})},A);
+await api("/api/crm/contacts",{method:"POST",body:JSON.stringify({fullName:`Sam Texter ${stamp}`,email:`sam+${stamp}@example.com`,phone:SMSNUM})},A);
 const smsIn=async(from,body)=>{const params={From:from,To:"+15550100000",Body:body,MessageSid:"SMx"+Date.now()}; const base="https://127.0.0.1:5177/api/webhooks/twilio"+Object.keys(params).sort().map(k=>k+params[k]).join(""); const sig=createHmac("sha1","mocktoken").update(base).digest("base64"); return fetch(BASE+"/api/webhooks/twilio",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","x-twilio-signature":sig},body:new URLSearchParams(params)});};
-await smsIn("+15550107771","Are you available Friday?"); await sleep(800);
+await smsIn("+1"+SMSNUM,"Are you available Friday?"); await sleep(800);
 const smsT=(await api("/api/messages?view=threads&kind=SMS",{},A)).b.threads[0];
 check("customer text shows in the inbox on the existing contact", smsT && smsT.display_name===`Sam Texter ${stamp}` && smsT.intent==="BOOKING", JSON.stringify(smsT||null).slice(0,160));
-check("BOOKING auto-reply went out as a text via Twilio", texts.some(x=>x.To==="+15550107771" && /day works/.test(x.Body)));
+check("BOOKING auto-reply went out as a text via Twilio", texts.some(x=>x.To==="+1"+SMSNUM && /day works/.test(x.Body)));
 // 8) start a new email conversation from a contact
 const startT=await api("/api/messages",{method:"POST",body:JSON.stringify({action:"start",contactId:(await api(`/api/crm/contacts?q=sam%2B${stamp}`,{},A)).b.contacts[0].id,kind:"EMAIL",subject:"Your estimate",body:"Hi Sam, attaching the estimate we discussed."})},A);
 check("outbound email thread started from a contact", startT.r.ok && startT.b.threadId && mails.some(m=>m.subject==="Your estimate"), JSON.stringify(startT.b));
@@ -153,7 +153,7 @@ await page.locator(".mxModal input").fill("Sam Texter"); await page.waitForTimeo
 await page.locator(".mxSearch li button").first().click(); await page.waitForTimeout(300);
 await page.locator(".mxKindPick button",{hasText:"Text"}).click();
 await page.locator(".mxModal textarea").fill("Friday 2pm is open, want it?"); await page.locator(".mxModalActions .coSave").click(); await page.waitForTimeout(1500);
-check("New message from the inbox texts a contact via Twilio and opens the thread", texts.some(x=>x.To==="+15550107771" && /Friday 2pm/.test(x.Body)) && /Friday 2pm/.test(await page.locator(".mxThread").textContent()));
+check("New message from the inbox texts a contact via Twilio and opens the thread", texts.some(x=>x.To==="+1"+SMSNUM && /Friday 2pm/.test(x.Body)) && /Friday 2pm/.test(await page.locator(".mxThread").textContent()));
 check("thread header offers 'Also email' for a texter with an email", (await page.locator(".mxHeadActions button",{hasText:"Also email"}).count())===1);
 await page.locator(".mxTop nav button",{hasText:"Channels"}).click(); await page.waitForTimeout(700);
 const cards=await page.locator(".mxChannel").count(); const tiktok=await page.locator(".mxChannel",{hasText:"TikTok"}).textContent();
